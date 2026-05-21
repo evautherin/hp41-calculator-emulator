@@ -37,12 +37,16 @@ These are final — `docs/architecture-history.md` documents how each came to be
 
 ### Workspace structure
 
+*Origin: `architecture-history.md` §v2.0 additions (workspace isolation, SC-4, bundle ID) + §v1.1 additions (MSRV).*
+
 - `hp41-core` must never depend on `hp41-cli` or `hp41-gui`. Root `Cargo.toml` members stay `["hp41-core", "hp41-cli"]`; `hp41-gui` is a nested standalone workspace. `tauri` / `tauri-build` appear ONLY in `hp41-gui/src-tauri/Cargo.toml`.
 - **SC-4 (no core duplication in GUI):** stricter check `grep -rn "fn op_(add\|sub\|mul\|div\|sin\|cos\|tan\|sto\|rcl\|flush_entry\|format_hpnum)" hp41-gui/src-tauri/src/` must return empty. Display helpers like `op_display_name` are exempt by intent (and duplicated CLI ↔ GUI by design).
 - **MSRV 1.88** declared at `[workspace.package]`; member crates inherit via `rust-version.workspace = true`. CI MSRV job runs in parallel — no `needs:`.
 - **Bundle ID:** `ch.talent-factory.hp41` (avoid macOS sandbox/keychain issues).
 
 ### Core engine
+
+*Origin: `architecture-history.md` §Core engine (v1.0) + §v1.1 additions (print emulation) + §v2.2 / Phases 20–25 (math1 freeze).*
 
 - **BCD/f64:** `rust_decimal` 1.42 with 10-significant-digit rounding. `HpNum` in `hp41-core/src/num.rs`. Custom BCD was evaluated and rejected.
 - **Stack-lift:** every op declares `LiftEffect::Enable / Disable / Neutral`. The most commonly mis-implemented HP-41 feature — always check.
@@ -52,6 +56,8 @@ These are final — `docs/architecture-history.md` documents how each came to be
 - **`hp41-core/src/ops/math1/` is frozen** since Plan 25-01. Math Pac I algorithms re-derived from HP OM 00041-90034 (1979); Free42 consulted as sanity-check oracle only, **not** copied. Every file in this directory carries the verbatim disclaim header.
 
 ### 4-way exhaustive-match invariant
+
+*Origin: `architecture-history.md` §v2.0 additions ("Op variants land before TUI code").*
 
 Every new `Op` variant must land in ALL FOUR before any caller compiles:
 
@@ -64,15 +70,21 @@ Items 3 + 4 are duplicated by design; the compile-time exhaustive match in both 
 
 ### Resolver chain + never-discard (D-07)
 
+*Origin: `architecture-history.md` §v2.1 additions (D-07 stub-error pattern) + §v2.2 / Phase 25 (`builtin_card_op` 4→12 extension) + §v3.0 / Phase 28 (`xrom_resolve` fires last).*
+
 Order in `hp41-cli` keyboard path: `key_to_op` → `shifted_key_to_op` → modal-opener → `xeq_by_name_local_resolve` → `builtin_card_op` → `xrom_resolve` → `Err(InvalidOp)`.
 
 `pending_input` routing block must remain **above** modal-opening interceptors (`S`/`R`/`Ctrl+A`, R/S submit, Esc cancel) so an active modal is never silently discarded. NEVER silently swallow an unknown id — surface as a toast (GUI) or status-bar error (CLI). v2.1 stub-error pattern: `key_map::resolve` returns `Err(GuiError { message: "'<id>' is planned for a future phase" })` rather than mapping to a no-op.
 
 ### Save-file backward compat
 
+*Origin: `architecture-history.md` §v1.1 additions (`serde(default)` pattern) onward; every milestone reaffirms it.*
+
 Every new `CalcState` field carries `#[serde(default)]`. Transient fields also carry `#[serde(skip)]` (`print_buffer`, `modal_prompt`, `modal_program`, `integ_state`, `solve_state`, `cancel_requested`). v1.0–v3.0 save files load without migration.
 
 ### JSON canonical data flow
+
+*Origin: `architecture-history.md` §v2.2 / Phase 25 (D-25.16 hp41cv-functions.json) + §v3.0 / Phase 29 (D-29.1 sibling hp41-math1-functions.json).*
 
 - `docs/hp41cv-functions.json` + `docs/hp41-math1-functions.json` are the single sources of truth for keybindings, the `?` overlay help, and the right-panel discoverability table.
 - Loaded via `include_str!` + `OnceLock` in `hp41-cli/src/help_data.rs` (`HELP_ENTRIES`, `MATH1_HELP_ENTRIES`, merged `help_entries_all()`). Malformed JSON panics at first access — hard-build-blocker by design.
@@ -82,11 +94,15 @@ Every new `CalcState` field carries `#[serde(default)]`. Transient fields also c
 
 ### CLI ↔ GUI parity (D-25.6)
 
+*Origin: `architecture-history.md` §v2.1 additions (`shiftActive` frontend-only) + §v2.2 additions (D-25.6 parity invariant, D-25.12 IND-toggle).*
+
 - **One-shot SHIFT** is frontend-only. `App.shift_armed` (CLI) and `shiftActive` (GUI) mirror each other bit-for-bit. Neither ever appears in `CalcState` / `CalcStateView` / IPC.
 - ALPHA overrides SHIFT (known divergence from real HP-41, accepted).
 - IND-toggle (shift-0 inside an open Flag/Register modal) is hardware-faithful per HP-41C/CV QRG p.14; reuses the same `shift_armed` bit.
 
 ### GUI specifics
+
+*Origin: `architecture-history.md` §v2.0 additions (IPC, Tauri permissions, SVG, busyRef, persistence) + §v3.0 / Phase 28 (no-polling D-11, `request_cancel`).*
 
 - **IPC contract:** `dispatch_op(key_id: &str)`, `get_state()`, `sst_step`, `bst_step`, `run_stop`, `request_cancel` — Tauri v2 commands. Response is `CalcStateView` (~170 bytes, JSON ≤300 bytes). Frontend never touches Rust enums; `key_map::resolve()` translates string IDs.
 - **Tauri v2.11 permissions:** for inline app commands (not plugins), Tauri does NOT auto-generate `allow-<cmd>` permissions. Create TOML in `hp41-gui/src-tauri/permissions/<cmd-kebab>.toml` with `[[permission]] identifier + commands.allow = ["fn_name"]`, then reference the kebab-case ID in `capabilities/default.json`. Run a `cargo check` first so the permission registry is generated.
@@ -96,6 +112,8 @@ Every new `CalcState` field carries `#[serde(default)]`. Transient fields also c
 - **Persistence sharing:** `hp41-gui` and `hp41-cli` read/write the SAME `~/.hp41/autosave.json`. Auto-save thread releases the `AppState` Mutex BEFORE disk I/O.
 
 ### Free42 GPL-contamination guard
+
+*Origin: `architecture-history.md` §v3.0 / Phase 28 (ADR-002 disclaim policy) + §v3.0 / Phase 32 (`check-free42-contamination.sh` CI gate).*
 
 CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` + dedicated `.github/workflows/ci.yml::license-audit` parallel job. Greps for 12 distinctive Free42 / Intel BID / decNumber / GPL/AGPL identifiers; bare `Free42` excluded from the pattern because legitimate cross-check references exist.
 
