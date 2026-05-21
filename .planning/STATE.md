@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: awaiting next milestone
-status: idle
-last_updated: "2026-05-21T00:00:00Z"
-last_activity: 2026-05-21 -- v3.0 milestone archived via /gsd-complete-milestone
+milestone: v3.1
+milestone_name: Stat 1 Pac Emulation
+status: planning
+last_updated: "2026-05-21T20:18:45.248Z"
+last_activity: 2026-05-21
 progress:
   total_phases: 0
   completed_phases: 0
@@ -24,6 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-21 after v3.0 milestone archive)
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
 **Shipped milestones:**
+
 - v1.0 CLI (2026-05-08) — Phases 1–8; foundational RPN engine + TUI
 - v1.1 CLI Feature Completeness (2026-05-09) — Phases 9–12
 - v2.0 Tauri GUI (2026-05-10) — Phases 13–18
@@ -39,13 +40,10 @@ See: .planning/PROJECT.md (updated 2026-05-21 after v3.0 milestone archive)
 
 ## Current Position
 
-Milestone: none in progress
-Phase: none
-Status: awaiting v3.1 definition
-Last activity: 2026-05-21 -- v3.0 milestone archived
-Resume from: run `/gsd-new-milestone` to start v3.1 (requirements → research → roadmap)
-
----
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-21 — Milestone v3.1 started
 
 ## Performance Metrics (carried from v3.0 ship)
 

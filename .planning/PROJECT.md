@@ -4,9 +4,26 @@
 
 **Last shipped:** v3.0 Math Pac I Emulation — tag `v3.0` cut 2026-05-20; bookkeeping archive 2026-05-21.
 
-**Status:** Awaiting v3.1 milestone definition (Stat 1 Pac per scope lock 2026-05-13).
+**Status:** v3.1 Stat 1 Pac Emulation — planning phase (defining requirements per `/gsd-new-milestone`, started 2026-05-21).
 
-Run `/gsd-new-milestone` to define v3.1 (requirements → research → roadmap).
+## Current Milestone: v3.1 Stat 1 Pac Emulation
+
+**Goal:** Behavioral Emulation des HP-41C **Stat 1 Pac** (HP-Teilenummer 00041-15001) als zweites XROM-Application-Modul — OM-getriebene Statistik-Workflows nutzbar in CLI + GUI über die in v3.0 etablierte Modal-Workflow-Schicht, mirroring den v3.0 Math Pac I Footprint, ohne HP-copyrighted ROM-Image-Redistribution.
+
+**Target features (provisional — final list pinned in REQUIREMENTS.md after research):**
+- XROM-Modul-Registrierung (`STAT_1`, XROM-ID per HP Stat 1 Pac) ins bestehende `xrom_resolve` chain eingehängt (fires LAST per Pitfall 1)
+- Alle Top-Level Stat 1 Pac Programme per OM — Univariate Statistik über die Σ-Register hinaus, Bivariate / Linear Regression, Curve Fitting, Verteilungen (Normal / t / Chi² / F / Binomial / Poisson), Zufallszahlen, Permutationen & Kombinationen
+- Modal-Workflow-Prompts (ALPHA-driven) wiederverwenden v3.0 `print_buffer` + Modal-Routing-Infrastruktur
+- CLI-Integration: `xeq_by_name_local_resolve` → `xrom_resolve` (bereits da), dritter `OnceLock<Vec<HelpEntry>>` aus `docs/hp41-stat1-functions.json`, neue `op_display_name` arms
+- GUI-Integration: CATALOG 2 XROM-Enumeration erweitern, Help-Overlay-Sektion „Stat 1 Pac (XROM N)", LCD-Alternation Modal-Prompts, `request_cancel` reuse für iterative Methoden (z. B. distributions)
+- Quality-Gates: `hp41-core` Coverage ≥ 95 % (continuing from 95.39 % baseline), numerical accuracy ≥ 98 % (`numerical_accuracy.rs` um Stat-1-Cases erweitern), Free42 contamination guard ggf. um neue Domain-Identifier erweitert
+- Dokumentation: `docs/hp41-stat1-divergences.md`, ADRs falls neue architektonische Entscheidungen nötig, README + CLAUDE.md v3.1-Sektion, `scripts/docs-matrix` um dritte JSON-Quelle erweitert
+
+**Build sequence (provisional):** core (XROM-Framework reuse + Stat-1 ops) → cli (XEQ-by-name + JSON help) → docs (Function-Matrix v3.1 + ADRs) → gui (key_map + Modal-Routing extension) → tests (Coverage + Accuracy cases). Phase numbering continues from v3.0 (starts at **Phase 33**).
+
+**Scope boundary (locked 2026-05-21):** v3.1 ist Stat 1 Pac only. Time Pac → v3.2; Advanced Matrix Pac → v3.2+; Advantage Pac → v3.3+. Signed binary releases (cargo-dist CLI + tauri-action GUI) bleiben aus v3.1 ausgeschlossen und werden in v3.1.x oder v3.2 separat behandelt. HP-copyrighted ROM-image redistribution bleibt permanent ausgeschlossen.
+
+Run `/gsd-progress` to track milestone status.
 
 <details>
 <summary>v3.0 milestone scope (shipped — see <code>milestones/v3.0-ROADMAP.md</code>)</summary>
@@ -190,9 +207,9 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **QUAL-01..08**: `hp41-core` 95.39 % lines / 94.26 % regions; `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass (v1.x 503-case floor 498 preserved); E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu; `scripts/check-free42-contamination.sh` 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job; per-Op test count ≥ 5 (Pitfall 16); `xrom_shadowing.rs` Pitfall 1 CI gate; `math1_user_callback.rs` 5 re-entrancy regression tests — v3.0 Phase 32
 - ✓ **D-32.5 README v3.0 hard-claim graduation**: README "Math Pac I" line replaced "soft-claim" with the OM-cited "feature-complete per Owner's Manual 00041-90034" wording after the post-Phase-32 gap-closure run (Plans 32-04..32-10) lifted coverage from 91.74 % → 95.39 % lines — v3.0 Phase 32 (Plan 32-10 SHIP commit)
 
-### Active (v3.1 — TBD)
+### Active (v3.1 — Stat 1 Pac Emulation, planning)
 
-*v3.1 milestone definition pending. Scope-lock (2026-05-13) points to **Stat 1 Pac** as the next module-emulation milestone. Run `/gsd-new-milestone` to start the requirements → research → roadmap chain.*
+*Requirements being defined via `/gsd-new-milestone` (started 2026-05-21). Scope locked above in `## Current Milestone`. REQUIREMENTS.md, ROADMAP.md, and the Stat-1 phase plans will land after the research → requirements → roadmap chain completes; REQ-IDs and traceability rows are pending.*
 
 ### Out of Scope
 
@@ -274,3 +291,5 @@ v2.2 HP-41CV Feature Completeness shipped 2026-05-15 (Phases 20–27, 8/8 phases
 *Last updated: 2026-05-18 — v3.0 Phase 32 (Test Hardening & Quality Gates) fully shipped (10/10 plans: 3 original + 7 gap-closure). Original Phase 32 ship (Plans 32-01..32-03) delivered the test/CI infrastructure: meta-gate graduation, `lint_math1_assertions.rs`, `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass rate, E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu via `ci-gui.yml::e2e-linux`, Free42 GPL-contamination guard (D-32.7 12-symbol policy) in `just ci` + `ci.yml::license-audit` parallel job per D-32.8. Post-ship gap-closure run (Plans 32-04..32-10) added ~70 risk-weighted error-branch tests across 9 new `hp41-core/tests/` files plus the CR-01 + WR-01..07 cleanups, lifting coverage from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions and graduating the README v3.0 line to the OM-cited hard claim "feature-complete per Owner's Manual 00041-90034" per D-32.5.*
 
 *Last updated: 2026-05-21 — v3.0 milestone archived via `/gsd-complete-milestone`. ROADMAP collapsed to one-line summary; full v3.0 detail moved to `milestones/v3.0-ROADMAP.md`; requirements archived to `milestones/v3.0-REQUIREMENTS.md` (all 114 marked shipped); phase directories 28–32 moved to `milestones/v3.0-phases/`. Orphaned phase directories 09–12 and 13–18 retro-archived to `milestones/v1.1-phases/` and `milestones/v2.0-phases/` respectively (never moved during their respective milestone-complete runs). Stale `.planning/v1.0-MILESTONE-AUDIT.md` removed (duplicate of archived copy). `.planning/REQUIREMENTS.md` deleted — next milestone starts fresh via `/gsd-new-milestone`.*
+
+*Last updated: 2026-05-21 — v3.1 Stat 1 Pac Emulation planning started via `/gsd-new-milestone`. `## Current Milestone` section added (target features provisional, refined during research → requirements → roadmap). Active requirements section reset to v3.1 scope marker. Phase numbering continues from v3.0 (Phase 33 onward). Binary-release bundling deferred to v3.1.x or v3.2 per user direction.*
