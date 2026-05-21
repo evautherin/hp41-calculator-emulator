@@ -1,458 +1,626 @@
-# Feature Landscape: HP-41 Math 1 Pac Emulation (v3.0)
+# Feature Landscape: HP-41 Stat 1 Pac Emulation (v3.1)
 
-**Domain:** Behavioral emulation of the HP-41C Math Pac I plug-in application module
-**Researched:** 2026-05-16
-**Scope:** v3.0 — Math Pac I (00041-90034) function library only; Stat 1 / Time / Advantage are deferred to v3.1+
-**Confidence:** HIGH for the function inventory (primary source = the Owner's Manual itself); MEDIUM for implementation-pattern recommendations (algorithm choices are well-documented but emulator-specific decisions remain)
+**Domain:** Behavioral emulation of the HP-41C Stat 1 Pac plug-in application module
+**Researched:** 2026-05-21
+**Scope:** v3.1 — Stat 1 Pac (HP part 00041-14001, OM 00041-90030, QRC 00041-90061, June 1979) only.
+Time Pac / Advanced Matrix / Advantage are deferred to v3.2+.
 
----
-
-## Summary
-
-The HP-41C **Math Pac I** (Hewlett-Packard part number **00041-90034**, manual dated 1979; Quick Reference Card 00041-90065) is a **user-code application module** — that is, every "function" in the pac is implemented as a standard HP-41 keystroke program stored in module ROM, not as Nut-CPU microcode. The pac contains **10 named top-level programs** with a combined ~55 user-visible entry points (XEQ-by-name labels). It is NOT the Advanced Matrix Pac (which adds element-wise `M+`, `MAT*`, `TRANS`, `IDN`, etc.) nor the Advantage Pac (which adds Romberg integration, root-solver, complex stack).
-
-The prompt-question's assumed inventory (`MAT*`, `TRANS`, `IDN`, `RSUM`, `CSUM`, `V+`, `V-`, `VDOT`, `PROOT`, `CEXP`, `CLN`, `CSQRT`, `CY^X`) **largely misidentifies which pac is which**. Most of those names belong to the Advanced Matrix Pac or the HP-41CX/Advantage. The actual Math Pac I content is documented below from the primary source.
-
-The pac's design philosophy is **prompt-driven workflows**: each program (e.g., `MATRIX`, `POLY`, `SOLVE`, `INTG`, `DIFEQ`, `FOUR`) is initialized by `XEQ "name"`, then prompts the user for inputs in ALPHA register text (`ORDER=?`, `DEGREE=?`, `FUNCTION NAME?`, `GUESS 1=?`, etc.). This is a **fundamentally different UX pattern** from the v2.2 ROM built-ins, which are mostly one-shot stack-acting ops. v3.0 must adopt the new pattern — multi-step modal flows driven by `print_buffer` / display strings, not stack-action.
-
-A second structural observation: Math Pac I uses **specific numbered register blocks** (e.g., R00–R04 for polynomial coefficients in `POLY`; R00–R06 for `SOLVE`; R00–R07 for `INTG`; matrix elements placed at R(N+1) onward where N is the order in R14). Emulation must honor these register assignments because user programs can call Math Pac entry points as subroutines (Appendix B of the manual documents these subroutine entry points). Re-using register blocks differently would break programs ported from real HP-41 Math Pac users.
+**Primary sources:**
+- HP-41C Stat Pac Quick Reference Card 00041-90061 (June 1979) — read directly as 2-page PDF image. All 13 programs, their initialization mnemonics, input/correction/results columns confirmed from the QRC image.
+- Naval Postgraduate School report NPS55-84-003 "HP-41C Programs and Instructions for Probability and Statistics" by Peter W. Zehna (February 1984, DTIC AD-A140573) — confirms STAT PAC function usage, RNG formula, ΣNORMD / ΣCHISQD workflow, ΣBSTG initialization display, t-distribution degrees-of-freedom entry.
+- STACK.md and ARCHITECTURE.md from this research cycle (2026-05-21) — confirmed 13 programs and XROM ID 2.
 
 ---
 
-## Authoritative Source
+## Authoritative Program List (from QRC 00041-90061)
 
-**HP-41C Math Pac** Owner's Manual, Hewlett-Packard Company 1979, part number 00041-90034 — the entire feature catalog below derives from this manual ([archive at hpcalc.org](https://literature.hpcalc.org/items/776), [PDF](https://literature.hpcalc.org/community/hp41-pac-math-en.pdf), 17.8 MB).
+The QRC lists exactly **13 programs** in two table pages. The table below transcribes every program with its initialization mnemonic(s), program-step count (SIZE column on QRC), and the initialization / input / correction / results columns as read directly from the QRC image.
 
-Supplementary cross-references:
-- HP-41C Math Pac I Quick Reference Card (00041-90065, February 1979) — confirms the QRC card list ([PDF](https://literature.hpcalc.org/community/hp41-pac-math-qrc-en.pdf)).
-- Museum of HP Calculators HP-41 software library — [https://www.hpmuseum.org/software/soft41.htm](https://www.hpmuseum.org/software/soft41.htm)
-- HP-41 Archive — [http://www.hp41.org/](http://www.hp41.org/)
-- HPCalc community PDF index — [https://literature.hpcalc.org/](https://literature.hpcalc.org/)
+| # | Program Name | Init Mnemonic(s) | SIZE | Domain |
+|---|---|---|---|---|
+| 1 | Basic Statistics for Two Variables | ΣBSTAT, ΣBSTG | 012 | Extended univariate + bivariate summary |
+| 2 | Moments, Skewness and Kurtosis | ΣMMTUG, ΣMMTGD | 012 | 3rd and 4th central moments |
+| 3 | Analysis of Variance (One Way) | ΣAOVONE | 020 | One-way ANOVA F-ratio, group means |
+| 4 | Analysis of Variance (Two Way, No Replications) | ΣAOVTWO | 018 | Two-way ANOVA row/column F-ratios |
+| 5 | Analysis of Covariance (One Way) | ΣANOCOV | 026 | One-way ANCOVA F-ratio |
+| 6 | Curve Fitting | ΣLIN, ΣEXP, ΣLOGI, ΣPOW | 016 | 4 curve types; predict ŷ |
+| 7 | Multiple Linear Regression | ΣMLRXY, ΣMLRXYZ | 045 | 2-variable and 3-variable; partial regression |
+| 8 | Polynomial Regression | ΣPOLYP, ΣPOLYC | 045 | Polynomial fit; predict ŷ |
+| 9 | t Statistics | ΣPTST, ΣTSTAT | 015 | One-sample and two-sample t-tests |
+| 10 | Chi-Square Evaluation | ΣXSQEV, ΣEFXSQ | 008 | Chi-square goodness-of-fit |
+| 11 | Contingency Table | ΣCTKKK, ΣCTKK | 015 | r×c contingency chi-square |
+| 12 | Spearman's Rank Correlation Coefficient | ΣSPEAR | 003 | Rank correlation |
+| 13 | Normal and Inverse Normal Distribution | ΣNORMD | 019 | CDF Q(x), PDF f(x), inverse Q(x)→x |
+| 14 | Chi-Square Distribution | ΣCHISQD | 007 | CDF f(x) and P(x) |
 
----
-
-## Pac Inventory (10 top-level programs)
-
-The manual's Table of Contents — exact, in this order:
-
-| # | Program (XEQ name) | Topic | SIZE | Manual page |
-|---|--------------------|-------|------|-------------|
-| 1 | `MATRIX` | Determinant + inverse + simultaneous equations (Gaussian elim. w/ partial pivoting) | varies (size-of-matrix-dependent) | 10 |
-| 2 | `SOLVE` | Real root of f(x)=0 on an interval, modified secant iteration | 007 | 17 |
-| 3 | `POLY` | Polynomial roots (degree 2–5) + evaluation | 023 | 21 |
-| 4 | `INTG` | Numerical integration (discrete trapezoidal/Simpson OR explicit Simpson) | 008 | 25 |
-| 5 | `DIFEQ` | 1st/2nd order ODE solver, 4th-order Runge-Kutta | 008 | 29 |
-| 6 | `FOUR` | Fourier series (rect + polar coefficients) | 027 | 34 |
-| 7 | `C+ C- C× C÷` + functions (complex) | Two-element complex stack, arith + 13 functions | 005 | 38 |
-| 8 | `SINH/COSH/TANH/ASINH/ACOSH/ATANH` | Hyperbolic + inverse hyperbolic (6 ops) | 001 | 44 |
-| 9 | Triangle Solutions (`SSS/ASA/SAA/SAS/SSA`) | 5 triangle-solver programs | 008 | 46 |
-| 10 | `TRANS` | 2-D + 3-D coordinate transformations (translate/rotate) | 025 | 52 |
-
-**Total user-visible XEQ names**: ~55 (see breakdown per category below). The user-facing surface area is larger than the program count because each top-level program exposes sub-routines reachable via `XEQ name` (the manual's Appendix B documents these).
+**Note:** The QRC lists 13 programs but ΣCHISQD is on a separate row on page 2 of the QRC — the Stat Pac delivers 14 named entry points across 13 conceptual programs (Chi-Square Evaluation and Chi-Square Distribution are distinct: ΣXSQEV/ΣEFXSQ compute a test statistic from observed/expected counts, while ΣCHISQD evaluates the chi-square CDF at a given x with ν degrees of freedom).
 
 ---
 
-## Complete Function List (per category, per primary source)
+## (a) Top-Level XEQ-by-Name Programs — Prompts and Workflow
 
-### Category 1 — Matrix Operations (`MATRIX`)
+### Program 1: Basic Statistics for Two Variables (ΣBSTAT / ΣBSTG)
+**SIZE:** 012 steps
 
-**One top-level program with 8 named entry points**, all driven from the single `MATRIX` initializer. Matrices are stored in column-major order starting at R15 (R14 holds the order N). Up to **14 × 14** is supported by the program (memory permitting: 6 × 6 fits the base HP-41C, larger needs memory modules). Algorithm: **Gaussian elimination with partial pivoting**.
+**What it computes:** Extended summary statistics beyond the built-in MEAN/SDEV/L.R. — provides weighted mean, standard error, coefficient of variation, or bivariate summary (correlation coefficient, regression coefficients) drawn from the Σ-register block (R01–R06). On the QRC the initialization column shows two separate entry points:
 
-| Function | Stack/register convention | Description |
-|----------|--------------------------|-------------|
-| `MATRIX` | Prompts: `ORDER=?` then `SET SIZE nnn` then `A1,1=?`...`AN,N=?` | Master entry — orchestrates input |
-| `SIZE` | (calculator built-in, called from inside `MATRIX`) | Sets register count for matrix elements |
-| `VMAT` | No stack input; sequentially displays `Ai,j=` values | View the stored matrix |
-| `EDIT` | Prompts: `ROW↑COL=?` → `I` `ENTER↑` `J` → `Ai,j=?` → new value | Modify one matrix element |
-| `DET` | No input; output: determinant in X-register; displays `DET=` | Compute determinant (also called as subroutine returns Det A in Y) |
-| `INV` | After `DET`: sequentially output `Ci,j` column-major; displays `C1,1=`, `C2,1=`, ... | Compute inverse, output in column order |
-| `SIMEQ` | Prompts `B1=?`...`BN=?` for RHS; output: `X1=` ... `XN=` | Solve system Ax=B |
-| `VCOL` | No input; displays `B1`, `B2`...`BN` | View the column vector / solution |
+- **ΣBSTAT** — Initialization for ungrouped two-variable data (the NPS document calls this form `ΣBSTG` for grouped data; both share the same 12-step program). The QRC "Initialization" column shows `XEQ ΣBSTAT` followed by `XEQ ΣBSTG` as two distinct paths.
+- Data input column: `x_i [ENTER+] y_i [A]` and `x_i [ENTER+] y_i f_i [A]` (the f_i form is the grouped/frequency-weighted variant).
+- Correction: `x_k [ENTER+] y_k [C]` and `x_k [ENTER+] y_k f_k [C]`.
+- Results: `[E], [R/S], ...` (sequential display of multiple statistics).
+- Re-initialization: orange key then [A].
 
-**Out-of-band states** (manual-documented):
-- `NO SOLUTION` display ⇔ singular matrix
-- Flag 4: set during input/edit phase; cleared after pivoting
-- Flag 5: set when `SIMEQ` has stored its column matrix; tells PVT to do a back-solve
+**ALPHA prompts visible from QRC:** None — all input is via stack (ENTER+) and label key [A]. The NPS document (p. 36) confirms initialization displays `ΣBSTG` on the LCD (the module name flash, not an ALPHA prompt for user input).
 
-**Inputs/outputs follow no per-op stack convention** — this is a **multi-step modal workflow**, not a stack-acting op. Implementation guidance: introduce a new `CalcState.modal_program` enum holding the active Math Pac program's step state, similar in spirit to v2.2's `PendingInput` but stateful across many key presses.
+**Dependencies:** Uses existing Σ-registers R01–R06 (already in `hp41-core/src/ops/stats.rs`). Reads `Σx`, `Σx²`, `n`, `Σy²`, `Σy`, `Σxy` accumulated by prior `Σ+` calls.
 
-### Category 2 — Solution to f(x)=0 (`SOLVE`)
-
-**Single program**, prompts for a user-defined function (any global label) and 0, 1, or 2 initial guesses. Algorithm: **modified secant iteration**. Uses R00–R06.
-
-| Function | Stack/register convention | Description |
-|----------|--------------------------|-------------|
-| `SOLVE` | Prompts `FUNCTION NAME?` → user types ALPHA label → `GUESS 1=?` → `GUESS 2=?` → execute | Master entry; defaults: x₁=1, x₂=10 if both skipped |
-| `SOL` (subroutine entry) | Guesses already in R00/R01 | Bypass prompting, for use as subroutine |
-
-**Termination messages** (the manual documents three):
-1. `NO ROOT FOUND`
-2. `ROOT IS <value>` (single converged root)
-3. `ROOT IS BETWEEN <v1> AND <v2>` (sign change found; bracket too tight to converge further)
-
-**Behavior on no-root / multiple-root**:
-- f(x₁)·f(x₂) < 0 and f continuous ⇒ always finds a root
-- f(x₁)·f(x₂) > 0 ⇒ may fail (returns `NO ROOT FOUND`)
-- Multiple roots in interval ⇒ returns one; user can narrow interval and retry
-
-### Category 3 — Polynomial Roots/Evaluation (`POLY`)
-
-**Single program** for degree 2–5 polynomials with real coefficients and leading coefficient 1. Coefficients stored in R00–R04. Uses R00–R22 total. Iterative method for cubic/quintic, synthetic division for reduction, closed-form quadratic.
-
-| Function | Stack/register convention | Description |
-|----------|--------------------------|-------------|
-| `POLY` | Prompts `DEGREE=?` (n=2..5) → `a(n-1)=?` ... `a0=?` → `ROOTS?` | Master entry |
-| `ROOTS` | (sub-entry: re-run roots after changing coefs in R00–R04) | Find roots; outputs as `ROOT=v` for real or `U=u`/`V=v`/`U=u`/`-V=-v` quartet for complex pair |
-| (evaluation, no name shown) | After `ROOTS?` prompt: answer `N` → prompts `X=?` → enter x → `F<X>=v` | Evaluate polynomial at x |
-
-**Output convention for complex root pairs**: `U=u`, `V=v`, `U=u`, `-V=-v` (i.e., u±iv printed as a 4-line block). This is unique to Math Pac I and must be reproduced exactly.
-
-**Note**: there is **no `PROOT` function in Math Pac I** — that's the HP-41 Advantage Pac's name. Math Pac I uses `POLY` + `ROOTS`. The prompt's "PROOT" reference belongs to a later pac.
-
-### Category 4 — Numerical Integration (`INTG`)
-
-**Single program with two distinct modes**, sharing the `INTG` initializer. Uses R00–R07.
-
-| Function | Stack/register convention | Description |
-|----------|--------------------------|-------------|
-| `INTG` | Master initializer — no input until A/B/C/D pressed | Entry |
-| `A` (in discrete mode) | X = h (spacing) | Key in step h between equally-spaced x-values |
-| `B` (in discrete mode) | X = f(xⱼ) | Key in jth function value; display shows j |
-| `C` (in discrete mode) | No input | Compute area by trapezoidal rule (`TRAP[`) |
-| `D` (in discrete mode) | No input | Compute area by Simpson's rule (`SIMP[`) — requires even n |
-| `A` (in explicit mode) | Y = a (lower bound), X = b (upper bound) | Key in interval endpoints |
-| `B` (in explicit mode) | X = n (number of subintervals, must be even) | Key in n, prompts `FUNCTION NAME?` |
-| (function-name prompt) | ALPHA = label name | User-defined f(x) under any global label |
-
-**Algorithm**: discrete mode uses trapezoidal OR Simpson; explicit mode uses Simpson's rule with fixed n subdivisions (NO adaptive refinement — this is HP-41 Math Pac, not Advantage's Romberg integration with convergence criterion). The user controls accuracy by choosing n.
-
-**Error message**: `N NOT EVEN` if n is odd when `C`/`D`/`B` (explicit mode) is pressed.
-
-### Category 5 — Differential Equations (`DIFEQ`)
-
-**Single program**, 4th-order Runge-Kutta for 1st or 2nd order ODE. Uses R00–R07 (SIZE 008).
-
-| Function | Stack/register convention | Description |
-|----------|--------------------------|-------------|
-| `DIFEQ` | Prompts `FUNCTION NAME?` → `ORDER=?` (1 or 2) → `STEP SIZE=?` → `X0=?` → `Y0=?` → (for 2nd order) `Y'0=?` → R/S for successive (x,y) pairs | Master entry |
-
-### Category 6 — Fourier Series (`FOUR`)
-
-**Single program**, computes Fourier coefficients from N samples per period. Up to 10 pairs (a_n, b_n). Uses R00–R26 (SIZE 027).
-
-| Function | Stack/register convention | Description |
-|----------|--------------------------|-------------|
-| `FOUR` | Prompts `NO. SAMPLES=?` → `NO. FREQ=?` → `1ST COEFF=?` → `Y1=?`...`YN=?` → `RECT?` | Master entry; outputs `aₙ=v`/`bₙ=v` in rect or polar |
-| `E` (USER-mode soft key) | X = t | Evaluate Fourier series at t after coefficients are computed |
-
-### Category 7 — Complex Operations (13 functions + 4 arithmetic ops)
-
-**The pac's largest sub-library**. Uses a two-complex-number stack — bottom register ζ (zeta, analog of X) and top register τ (tau, analog of T). A complex z = x + iy is keyed as `y ENTER↑ x` (real in X, imaginary in Y per HP-41 convention). Uses R00–R04.
-
-#### Arithmetic (4 ops)
-
-| Function | Input convention | Description |
-|----------|------------------|-------------|
-| `C+` | z1 in τ, z2 in ζ | Complex addition; result in ζ |
-| `C-` | z1 in τ, z2 in ζ | Complex subtraction; result in ζ |
-| `C×` | z1 in τ, z2 in ζ | Complex multiplication; result in ζ |
-| `C÷` | z1 in τ, z2 in ζ | Complex division; result in ζ |
-
-#### Functions (13 ops)
-
-| Function | Input convention | Description |
-|----------|------------------|-------------|
-| `MAGZ` | z in ζ | \|z\|; returns a **real** number to X |
-| `CINV` | z in ζ | 1/z |
-| `Z↑N` | z in ζ, n in X | z^n |
-| `Z↑1/N` | z in ζ, n in X | z^(1/n) (nth root) |
-| `E↑Z` | z in ζ | exp(z) |
-| `LNZ` | z in ζ | ln(z) |
-| `A↑Z` | z in ζ, a (real) in X | a^z |
-| `LOGZ` | z in ζ, a (real) in X | log_a(z) |
-| `Z↑W` | w in τ, z in ζ | z^w (general complex power) |
-| `Z↑1/W` | w in τ, z in ζ | z^(1/w) |
-| `SINZ` | z in ζ | sin(z) |
-| `COSZ` | z in ζ | cos(z) |
-| `TANZ` | z in ζ | tan(z) |
-
-**Note**: there is **no `CABS` / `CARG` / `CCHS` / `CCONJ` / `CPOLAR` / `CRECT` / `CSQRT`** in Math Pac I — those names appear in Advantage Pac (`COMPLEX` toggle on HP-41CX). Math Pac I provides `MAGZ` for modulus but **no separate argument function** (the user would compute argument via the underlying real-X-and-Y representation manually). The prompt's assumed naming is partially anachronistic; the actual names are above.
-
-### Category 8 — Hyperbolics (6 ops)
-
-| Function | Input | Description |
-|----------|-------|-------------|
-| `SINH` | x in X | Hyperbolic sine |
-| `COSH` | x in X | Hyperbolic cosine |
-| `TANH` | x in X | Hyperbolic tangent |
-| `ASINH` | x in X | Inverse hyperbolic sine |
-| `ACOSH` | x in X | Inverse hyperbolic cosine (x ≥ 1) |
-| `ATANH` | x in X | Inverse hyperbolic tangent (\|x\| < 1) |
-
-These are **simple one-shot stack-acting ops** — the only Math Pac category that fits the v2.2 op style. Easy implementation target.
-
-### Category 9 — Triangle Solutions (5 ops)
-
-| Function | Inputs (after prompts) | Description |
-|----------|------------------------|-------------|
-| `SSS` | three sides | Side-Side-Side; outputs angles + area |
-| `ASA` | two angles + included side | Angle-Side-Angle |
-| `SAA` | two angles + adjacent side | Side-Angle-Angle |
-| `SAS` | two sides + included angle | Side-Angle-Side |
-| `SSA` | two sides + adjacent angle | Side-Side-Angle (ambiguous case) |
-
-Output order follows clockwise traversal of the inputs. Uses prompt flow.
-
-### Category 10 — Coordinate Transformations (`TRANS`)
-
-**Single program with 5 USER-mode soft-key entries** (`A`/`B`/`C`/`D`/`E`).
-
-| Function | Input (after prompts) | Description |
-|----------|----------------------|-------------|
-| `TRANS` then `A` (2-D init) | x₀, y₀ (origin), θ (rotation angle) | Set up 2-D transform |
-| `C` (2-D forward) | x, y | Transform to translated-rotated system |
-| `E` (2-D inverse) | x', y' | Inverse transform |
-| `A` (3-D init) | x₀, y₀, z₀ | Set 3-D origin |
-| `B` (3-D rotation) | a, b, c (rotation vector), θ | Set 3-D rotation about an arbitrary axis |
-| `C` (3-D forward) | x, y, z | Transform |
-| `E` (3-D inverse) | x', y', z' | Inverse |
-
-Uses R00–R24 (SIZE 025).
+**Algorithmic complexity:** Register-accumulating (closed-form from Σ-registers). Complexity: LOW — all computations are arithmetic over six already-accumulated register values. No iteration.
 
 ---
 
-## Cross-Reference: Prompt-Assumed Functions That Don't Exist in Math Pac I
+### Program 2: Moments, Skewness and Kurtosis (ΣMMTUG / ΣMMTGD)
+**SIZE:** 012 steps
 
-The downstream-consumer prompt assumed several function names that come from **other pacs** or **the HP-41CX firmware**. For roadmap accuracy:
+**What it computes:** Third and fourth central moments; skewness (γ₁ = μ₃/σ³) and kurtosis (γ₂ = μ₄/σ⁴ − 3). The QRC shows two entry points:
 
-| Prompt-assumed name | Actual home | Math Pac I has it? |
-|---------------------|-------------|--------------------|
-| `M+`, `M-`, `MAT*` (element-wise matrix ops) | Advanced Matrix Pac (separate module) | **NO** |
-| `TRANS` (matrix transpose) | Advanced Matrix Pac | **NO** (Math Pac's `TRANS` is COORDINATE transform — homonym conflict!) |
-| `IDN` (identity matrix) | Advanced Matrix Pac | **NO** |
-| `RSUM`, `CSUM`, `MMOVE`, `MAT?`, `DIM?` | Advanced Matrix Pac | **NO** |
-| `V+`, `V-`, `VDOT`, `VLEN`, `VANG` | Advanced Matrix Pac (vectors as 1×N matrices) | **NO** |
-| `PROOT` | Advantage Pac (HP-41CX) | **NO** (Math Pac I uses `POLY`/`ROOTS`) |
-| `CABS`, `CARG`, `CCHS`, `CCONJ`, `CPOLAR`, `CRECT`, `CSQRT` | Advantage Pac (`COMPLEX` mode on 41CX) | **NO** (Math Pac I provides only `MAGZ`) |
-| `GAMMA`, `ERF`, `BESSEL` | Math/Stat Pac extensions or Free42 | **NO** |
-| Probability distributions, `%CH`, `%T` | Stat Pac | **NO** (those are v3.1+ scope) |
+- **ΣMMTUG** — ungrouped data variant
+- **ΣMMTGD** — grouped data variant (frequency-weighted)
 
-**Implication for roadmap**: v3.0 (Math Pac I only) is a **smaller, more workflow-focused** scope than the prompt suggested. The "differentiator vs anti-feature" classification below reflects the *actual* Math Pac I contents, not the prompt's superset.
+Data input column: `x_i [A]` for ungrouped; `y_i [ENTER+] f_i [A]` for grouped.
+Correction: `x_k [C]` for ungrouped; `y_k [ENTER+] f_k [C]` for grouped.
+Results: `[E], [R/S], [R/S], [R/S], [R/S], [R/S]` — sequential display of mean, variance, skewness, kurtosis (multiple R/S presses).
 
----
+**ALPHA prompts:** None visible on QRC — input via stack and [A] label key.
 
-## Table Stakes (Math Pac I)
+**Data storage:** The program accumulates Σx, Σx², Σx³, Σx⁴ into registers beyond R01–R06. The OM "Storage Registers" section (not read directly — requires Phase 33 OM verification) specifies the exact register layout. ARCHITECTURE.md notes these are likely R07–R12 or similar extension beyond the built-in Σ-block. This must be verified before implementing (Pitfall 21).
 
-Functions users expect when they pay for the Math Pac. Missing any of these and the v3.0 milestone **fails the "feature-complete Math Pac" promise**.
+**Dependencies:** Extends (does NOT replace) the built-in Σ-block. Uses `rust_decimal`'s existing `pow()` / multiplication for the power-sum accumulation.
 
-| Function(s) | Why expected | Complexity | hp41-core dependency |
-|-------------|--------------|------------|---------------------|
-| **Hyperbolics**: `SINH`, `COSH`, `TANH`, `ASINH`, `ACOSH`, `ATANH` | Simplest, most-used Math Pac entries; pure unary ops fit v2.2 op style | **Small** | New `Op::Sinh/Cosh/Tanh/Asinh/Acosh/Atanh` variants; reuse `HpNum`/`rust_decimal` math |
-| **Complex arithmetic**: `C+`, `C-`, `C×`, `C÷` | Foundation for the whole complex-functions sub-library; users need basic z₁+z₂ | **Medium** | New 2-complex-number stack abstraction (ζ and τ) layered over real X/Y/Z/T; new `ComplexStack` field on `CalcState` with `#[serde(default)]` |
-| **Complex functions**: `MAGZ`, `CINV`, `E↑Z`, `LNZ`, `SINZ`, `COSZ`, `TANZ`, `Z↑N`, `Z↑1/N` | The pac's marquee functionality; users buy Math Pac specifically for complex math | **Medium** | Depends on complex-stack scaffolding above; each op is unary on ζ |
-| **Polynomial roots**: `POLY` + `ROOTS` (degree 2–5) | One of the pac's headline programs; quadratic formula + cubic/quartic/quintic root-finding | **Large** | New modal program state machine; complex root pair output formatting; depends on existing register block model |
-| **Polynomial evaluation** (after `POLY`) | Cheap given roots scaffolding; Horner-like evaluation | **Small** | Same state machine as above |
-| **Numerical integration explicit mode**: `INTG` with user-defined f(x), Simpson's rule | The pac's marquee numerical analysis offering | **Large** | New XEQ-by-name dispatch into user programs from inside a Math Pac modal; needs `program_call_in_modal` infrastructure |
-| **Numerical integration discrete mode**: trapezoidal + Simpson with even-n check | Simpler than explicit mode, no user-program callback | **Medium** | Modal state machine; cumulative samples in R00–R07 |
-| **f(x)=0 solver**: `SOLVE` with user-defined f(x), modified-secant iteration | The pac's other marquee numerical offering | **Large** | XEQ-by-name dispatch from inside modal (same infrastructure as `INTG` explicit); convergence-bracket logic; three termination messages |
-| **Matrix workflow**: `MATRIX` initializer + element input loop + `VMAT` + `EDIT` | Without keying-in a matrix, nothing else in the matrix sub-pac works | **Large** | Multi-step prompt flow with register-block assignment (R15 onward); `VMAT` driven by `print_buffer`; `EDIT` reuses the prompt machinery |
-| **Matrix `DET` + `INV`**: Gaussian elimination with partial pivoting | Why anyone uses the matrix workflow at all | **Large** | Algorithm is well-documented; numerical accuracy concerns; output in column order to `print_buffer` |
-| **Matrix `SIMEQ` + `VCOL`**: solve Ax=B | Natural extension of `INV`; same Gaussian engine | **Medium** | Reuse pivoted matrix from `INV` step (flags 4/5 protocol per manual) |
+**Algorithmic complexity:** Register-accumulating (accumulates Σx³, Σx⁴ in parallel with Σ+ calls). Final computation: closed-form from four accumulated sums. Complexity: MEDIUM — requires extending the register layout beyond R01–R06 but no iteration. The variance cancellation pitfall (Pitfall 18) applies: the raw-power-sum formula `(n·Σx² − (Σx)²) / (n·(n−1))` is adequate because data is accumulated one-step-at-a-time into HP BCD registers (not computed in bulk from a register block), so each accumulation step is exact.
 
 ---
 
-## Differentiators (Math Pac I)
+### Program 3: Analysis of Variance — One Way (ΣAOVONE)
+**SIZE:** 020 steps
 
-Functions that increase fidelity but aren't strictly required for the "feature-complete" claim. Add after table-stakes ship.
+**What it computes:** One-way ANOVA: computes the F-ratio and associated group means. The user enters group data one value at a time, with group membership encoded by the ALPHA register.
 
-| Function(s) | Value proposition | Complexity | Notes |
-|-------------|-------------------|------------|-------|
-| **Complex `A↑Z`, `LOGZ`, `Z↑W`, `Z↑1/W`** | Completes the complex-function set; differentiates "real Math Pac emulation" from "just the easy half" | **Medium** | Pure layering on complex stack — small per-op effort but adds up to 4 entries |
-| **Triangle Solutions**: `SSS`, `ASA`, `SAA`, `SAS`, `SSA` | Distinctive Math Pac functionality; surveying / drafting users will look for these | **Medium** | 5 separate prompt flows; each has trig + Law of Cosines/Sines |
-| **`DIFEQ` 1st-order Runge-Kutta** | Marquee numerical-analysis feature; requires XEQ-by-name dispatch from modal | **Large** | Algorithm is straightforward; the complication is the modal/dispatch interaction (same infrastructure as `SOLVE`/`INTG`) |
-| **`DIFEQ` 2nd-order Runge-Kutta** | Natural extension of 1st-order; adds an extra prompt for y'₀ | **Small** (if 1st-order exists) | — |
-| **`FOUR` Fourier coefficients** in rect + polar | Distinctive offering; well-defined algorithm (DFT formula); large register usage (R00–R26) | **Large** | Output formatting (aₙ/bₙ pairs) and rect↔polar toggle |
-| **`FOUR` series evaluation at t** (USER-mode `E` key) | Completes the Fourier workflow; small additional surface | **Small** | Once coefficients exist, evaluation is cheap |
-| **`TRANS` 2-D coordinate transformation** | Useful in surveying, robotics, graphics | **Medium** | 4 prompt-key entries (`A`/`C`/`E`) for init/forward/inverse |
-| **`TRANS` 3-D coordinate transformation** | Less common than 2-D; needs rotation-vector + angle (Rodrigues' rotation formula) | **Large** | More complex math (axis-angle rotation), more prompt branches |
-| **Matrix workflow edge cases**: `NO SOLUTION` (singular), flag 4/5 state, partial pivoting display | Fidelity to the manual; matters for users porting real programs | **Medium** | Easy to skip but breaks compatibility |
-| **`COPY`-compatibility**: appearing in `CATALOG 2` listing | Real Math Pac programs are visible in CAT 2; users may try to `COPY` them | **Small** (display only, no actual COPY) | v2.2's catalog command already exists; just add entries |
+Data input column: `x_{ij} [A], [R/S], [R/S], [R/S]` — three R/S presses per observation suggest the program displays intermediate counts or group tallies between entries.
+Correction: `x_{im} [C]`.
+Results: `[E], [R/S], ...` — F-ratio and group means displayed sequentially.
+Re-initialization: orange key then [A].
+
+**ALPHA prompts:** The QRC initialization column shows `XEQ ΣAOVONE` with no explicit ALPHA prompt text. However, the three-R/S-per-entry pattern implies the program displays group-count progress (similar to the built-in Σ+ which shows n). OM verification required for exact prompt text.
+
+**Dependencies:** Uses Σ-registers for between-group and within-group sum accumulation. Likely uses registers beyond R06 for group counts and sums-of-squares. OM register table verification required (Pitfall 21).
+
+**Algorithmic complexity:** Register-accumulating (multi-group accumulation). Final step: closed-form F = MSB/MSW. Complexity: MEDIUM — the data entry loop is O(N) where N is total observations; F computation is closed-form from accumulated sums.
 
 ---
 
-## Anti-Features (NOT in Math Pac I — defer or exclude)
+### Program 4: Analysis of Variance — Two Way, No Replications (ΣAOVTWO)
+**SIZE:** 018 steps
 
-Features to **explicitly not build in v3.0**. The downstream-consumer prompt mixed several of these in by mistake — flagging them so the roadmap doesn't accidentally try to scope them.
+**What it computes:** Two-way ANOVA without replication. Computes row F-ratio and column F-ratio for a two-way layout x_{ij} where i = row, j = column.
 
-| Anti-feature | Why avoid in v3.0 | Where it actually belongs |
-|--------------|-------------------|---------------------------|
-| `M+`, `M-`, `MAT*`, `INV` (element-level matrix ops) | **Wrong pac** — Advanced Matrix Pac, not Math Pac I | v3.2+ (separate pac scope) |
-| `TRANS` (matrix transpose), `IDN`, `RSUM`, `CSUM`, `MMOVE` | **Wrong pac** — Advanced Matrix Pac | v3.2+ |
-| `V+`, `V-`, `VDOT`, `VLEN`, `VANG` | **Wrong pac** — Advanced Matrix Pac (vectors as 1×N matrices) | v3.2+ |
-| `PROOT` | **Wrong pac** — Advantage Pac (HP-41CX); Math Pac I uses `POLY`/`ROOTS` | v3.3+ (Advantage scope) |
-| `CABS`/`CARG`/`CCHS`/`CCONJ`/`CPOLAR`/`CRECT`/`CSQRT`/`CEXP`/`CLN`/`CY^X` | **Wrong naming** — Advantage Pac introduces these; Math Pac I provides `MAGZ` + the Z↑/E↑Z/LNZ/SINZ family instead | v3.3+ (Advantage), or build `MAGZ` etc. and label them per Math Pac |
-| `GAMMA`, `ERF`, `BESSEL` | Not in Math Pac I (or any standard HP-41 pac as named ops) | Out of scope permanently |
-| Probability distributions, `%CH`, `%T` | Stat Pac | v3.1+ |
-| Romberg integration (adaptive convergence) | Not in Math Pac I — it uses Simpson's with user-chosen n | v3.3 (Advantage's `∫f(x)` does Romberg) |
-| Cycle-accurate execution of Math Pac user-code listings | Math Pac is user code, but emulating it as user code requires ROM-image redistribution (legal block per PROJECT.md) | Permanent — we implement BEHAVIORAL emulation only |
-| Distributing the actual Math Pac `.rom` / `.mod` binary | Legal: HP-copyrighted | Permanent exclusion |
-| `COPY` command for downloading Math Pac programs to user memory | Implies the ROM is loadable into memory — not behavioral | Permanent exclusion |
-| Synthetic-programming access to Math Pac internals | Pac is opaque in behavioral emulation; M/N/O registers stay untouched | N/A |
-| Magnetic-card I/O of Math Pac programs (`WPRGM`/`RDPRGM`) | Math Pac is a ROM module, not a card — can't be loaded/saved | N/A (existing card reader handles user programs only) |
+Data input:
+- Row-wise entry: `x_{ij} [A], [R/S], [R/S]`
+- Column-wise entry: `x_{kj} [C]` (QRC shows separate row and column entry paths)
+
+Results: `[E], [R/S], ...`
+Re-initialization: orange key then [A].
+
+**ALPHA prompts:** QRC shows `Row-wise: x_{ij} [A], [R/S], [R/S]` and `Column-wise: x_{kj} [C]`. No explicit ALPHA prompt strings visible. OM verification required.
+
+**Dependencies:** Requires the user to organize data in row × column layout before entry. Uses Σ-registers and extended registers for row/column sum accumulation.
+
+**Algorithmic complexity:** Register-accumulating. Closed-form F computation from row/column/total sums. Complexity: MEDIUM.
+
+---
+
+### Program 5: Analysis of Covariance — One Way (ΣANOCOV)
+**SIZE:** 026 steps
+
+**What it computes:** One-way ANCOVA. Adjusts group means for a covariate and computes the ANCOVA F-ratio. This is the most complex ANOVA-family program (largest SIZE at 26 steps vs. 18–20 for the others).
+
+Data input column: `x_{ij} [ENTER+] y_{ij} [A], [R/S], [R/S], [R/S], [R/S]` — four R/S presses after each (x,y) pair entry.
+Correction: `x_{im} [ENTER+] y_{im} [C]`.
+Results: `[E], [R/S], ...`.
+
+**ALPHA prompts:** No explicit ALPHA prompt strings on QRC.
+
+**Dependencies:** Uses paired (x, y) data entry — covariate x and response y. Needs registers for group x-sums, y-sums, xy-sums, x²-sums beyond R06.
+
+**Algorithmic complexity:** Register-accumulating then closed-form ANCOVA computation. Complexity: MEDIUM-HIGH (more involved than one-way ANOVA because of covariate adjustment; 26 steps vs. 20 suggests additional computation in the results phase).
+
+---
+
+### Program 6: Curve Fitting (ΣLIN / ΣEXP / ΣLOGI / ΣPOW)
+**SIZE:** 016 steps
+
+**What it computes:** Fits four curve models to (x, y) data using least-squares linear regression applied to transformed variables. The four entry points correspond to the four transformations:
+
+| Mnemonic | Model | Transformation |
+|---|---|---|
+| **ΣLIN** | Linear: ŷ = a + bx | No transformation (direct Σ+ of x, y) |
+| **ΣEXP** | Exponential: ŷ = ae^(bx) | Accumulate (x, ln y) into Σ-registers |
+| **ΣLOGI** | Logarithmic: ŷ = a + b·ln(x) | Accumulate (ln x, y) into Σ-registers |
+| **ΣPOW** | Power: ŷ = ax^b | Accumulate (ln x, ln y) into Σ-registers |
+
+Data input: `x_i [ENTER+] y_i [A]` — one mnemonic initializes, data entered via ENTER+/[A].
+Correction: `x_k [ENTER+] y_k [C]`.
+Results: `[E], [R/S]` for coefficients a, b; then `x [R/S] → ŷ` for prediction.
+
+**ALPHA prompts:** None visible on QRC — data entered via stack protocol.
+
+**Dependencies:** All four variants delegate to the existing Σ-register infrastructure (R01–R06) after applying the coordinate transformation. The transformation calls `checked_ln()` (already in `hp41-core/src/num.rs`) on x and/or y before calling `op_sigma_plus()`. After fitting, prediction uses the existing `op_yhat()` mechanism on the transformed scale, then back-transforms. The ARCHITECTURE.md Pattern 3 exactly describes this delegate pattern.
+
+**ALPHA-prompt mnemonic collision alert:** `ΣLIN` → The regression is linear in transformed space. The built-in `L.R.` / `YHAT` ops already implement linear regression on raw Σ-register data. `ΣLIN` is distinct from `L.R.` — ΣLIN accumulates data (via [A]) while L.R. reads pre-accumulated Σ-registers. No namespace collision with built-in `LR` because the Stat Pac mnemonic is `ΣLIN` (with Σ prefix) — but this must be verified against Pitfall 22 (mnemonic shadowing). The QRC mnemonic spellings are `ΣLIN`, `ΣEXP`, `ΣLOGI`, `ΣPOW` — confirmed distinct from built-in `LR`, `CORR`, `YHAT`.
+
+**Algorithmic complexity:** Closed-form — accumulation is O(N) data entry, coefficient extraction is closed-form linear algebra from the six Σ-register values, back-transformation is O(1). Complexity: LOW-MEDIUM.
+
+---
+
+### Program 7: Multiple Linear Regression (ΣMLRXY / ΣMLRXYZ)
+**SIZE:** 045 steps
+
+**What it computes:** Multiple linear regression with 2 independent variables (ΣMLRXY) and 3 independent variables (ΣMLRXYZ). Computes partial regression coefficients and prediction.
+
+Data input (ΣMLRXY): `x_i [ENTER+] [ENTER+] t_i [A]` (three-value entry: x, y into stack, then t via ALPHA sequence). The QRC shows `x_i [ENTER+] [ENTER+] t_i [A]` with a subscript indicating this is a 3-level stack input.
+Data input (ΣMLRXYZ): `x_i [ENTER+] [ENTER+] z_i [ENTER+] t_i [A]` (four-level: x, y, z, t).
+Correction: `x_k [ENTER+] y_k [C]` style.
+Results: `[E], [R/S], [R/S], [R/S], x [ENTER+] y [R/S] → ŷ` and similar multi-step displays.
+
+**ALPHA prompts:** No explicit ALPHA prompt strings visible on QRC — data entry is stack-protocol driven.
+
+**Dependencies:** Requires accumulating cross-products (Σx₁x₂, Σx₁y, Σx₂y, Σx₁², Σx₂², etc.) beyond the 6 standard Σ-registers. The 45-step size indicates substantial register usage — likely extends into R07–R20 or higher. OM register table required for exact layout (Pitfall 21 critical path).
+
+**Algorithmic complexity:** MEDIUM-HIGH. Data accumulation: O(N). Coefficient computation: Gauss-Jordan on the (2×2 or 3×3) normal equations. The normal-equation matrix is small and fixed-size (2×2 or 3×3), so it is NOT using the Math Pac I matrix solver (which handles up to 14×14). A self-contained 2×2 or 3×3 Gauss elimination in ~30 lines of Rust. No external user callback needed.
+
+---
+
+### Program 8: Polynomial Regression (ΣPOLYP / ΣPOLYC)
+**SIZE:** 045 steps
+
+**What it computes:** Polynomial regression: fits a polynomial ŷ = a₀ + a₁x + a₂x² + ... to data (ΣPOLYP fits the polynomial; ΣPOLYC predicts ŷ for a given x).
+
+Data input (ΣPOLYP): `x_i [ENTER+] y_i [A]` — accumulation into a Vandermonde-style extended register block.
+Results (ΣPOLYP): `[E], [R/S], [R/S]` — coefficients displayed sequentially.
+Results (ΣPOLYC): `x [R/S] → ŷ` — prediction.
+
+**ALPHA prompts:** Likely includes a degree prompt (analogous to Math Pac I's `ORDER=?` or `DEGREE=?` for the POLY program). The QRC initialization column shows `XEQ ΣPOLYP` / `XEQ ΣPOLYC` without visible ALPHA text — the degree prompt is likely in the results/init flow not shown on the condensed QRC. OM verification required. **Tentative prompt:** `DEGREE=?` or `DEG?` based on Math Pac I precedent — flag as "verification pending Phase 33 spec phase."
+
+**Dependencies:** Requires extended register storage for Σx^k sums up to Σx^(2d) where d is the polynomial degree. Likely shares register structure with Multiple Regression program. Gauss-Jordan on the (d+1)×(d+1) normal equations.
+
+**Algorithmic complexity:** MEDIUM-HIGH. Accumulation: O(N). Normal equation construction: O(N·d). Gauss-Jordan solve: O(d³). For practical d ≤ 4 (matching STAT PAC's capabilities), this is fast but requires careful register layout planning.
+
+---
+
+### Program 9: t Statistics (ΣPTST / ΣTSTAT)
+**SIZE:** 015 steps
+
+**What it computes:** Student's t-tests for means:
+- **ΣPTST** — One-sample t-test: given x̄, s, n; tests H₀: μ = μ₀. Displays t-statistic and associated p-value (or critical region).
+- **ΣTSTAT** — Two-sample t-test: given x̄₁, s₁, n₁, x̄₂, s₂, n₂; tests H₀: μ₁ = μ₂.
+
+Data input (from QRC):
+- One-sample path: `x_i [ENTER+] y_i [A]` then `x_i [A], [R/S]` and `y_i [A]`.
+- Correction: `x_k [ENTER+] y_k [C]`.
+- Results: `d [E], [R/S]` — displays the t-statistic (d) then sequential results.
+
+**ALPHA prompts:** The NPS document (p. 49, ZS-4/5 program) confirms that for the related t-test workflow, degrees of freedom (ν) is computed automatically after data entry, and the user enters `t_{α/2}` via a prompted step. The STAT PAC ΣTSTAT likely displays something like `ν=?` or `T=?` — **verification pending Phase 33 spec phase**. The QRC's compressed notation does not show explicit prompt strings for this program.
+
+**Distribution requirement:** Computes the two-sided t-distribution p-value via the regularized incomplete beta function I_x(ν/2, 1/2). This is a hand-coded ~60-line f64-bridge implementation (Pitfall 23 tolerance: 1e-7 for the iterative incomplete-beta path). The NPS document confirms STAT PAC provides this: "the value of the CDF P(t) may be found by storing degrees of freedom ν in R₁₅, entering t and then [XEQ][TF] in ZSTAT." The STAT PAC's own internal `ΣTSTAT` uses this same distribution function internally.
+
+**Dependencies:** Uses the incomplete beta function from `stat1/distributions.rs`. Does NOT use the Math Pac I `SOLVE` user-callback infrastructure — the t-CDF is self-contained iteration (Pitfall 25 applies: `cancel_requested` must be wired).
+
+**Algorithmic complexity:** MEDIUM. Data entry: O(N) for two-sample variant. t-statistic: closed-form. CDF: iterative incomplete beta (~20–50 Newton steps). Total: MEDIUM.
+
+---
+
+### Program 10: Chi-Square Evaluation (ΣXSQEV / ΣEFXSQ)
+**SIZE:** 008 steps
+
+**What it computes:** Chi-square goodness-of-fit test statistic: χ² = Σ (O_i − E_i)² / E_i.
+- **ΣXSQEV** — enters observed count O_i and expected count E_i per cell, accumulates χ².
+- **ΣEFXSQ** — enters expected frequency E_i as a proportion of n (so E_i = n · f_i), may provide the alternative expected-frequency entry path.
+
+Data input: `O_i [ENTER+] E_i [A]` (ΣXSQEV) and `O_i [A]` (ΣEFXSQ for pre-computed E_i path).
+Correction: `O_k [ENTER+] E_k [C]` / `O_k [C]`.
+Results: `[E]` — the χ² test statistic.
+
+**ALPHA prompts:** No ALPHA prompts visible on QRC — straightforward stack entry, [A] label.
+
+**Dependencies:** Uses a running accumulator register (beyond R01–R06) for the χ² sum. Simpler than ANOVA because no separate group register blocks needed. Does NOT evaluate the chi-square CDF — that is ΣCHISQD's role.
+
+**Algorithmic complexity:** LOW. Pure accumulation + closed-form χ² computation.
+
+---
+
+### Program 11: Contingency Table (ΣCTKKK / ΣCTKK)
+**SIZE:** 015 steps
+
+**What it computes:** r×c contingency table chi-square test. Computes χ² for a contingency table of observed counts.
+- **ΣCTKK** — 2×2 or smaller contingency table
+- **ΣCTKKK** — general r×c contingency table (larger)
+
+Data input (ΣCTKK): `x_{ij} [ENTER+] x_{2j} [A]` — paired column-entry pattern.
+Data input (ΣCTKKK): `x_{ij} [ENTER+] x_{2j} [ENTER+] x_{3j} [A]` — 3-column entry per row.
+Correction: `x_{1k} [ENTER+] x_{2k} [C]` / `x_{1k} [ENTER+] x_{2k} [ENTER+] x_{3k} [C]`.
+Results: `[E], [R/S], [R/S], [R/S], [R/S], [R/S]` — sequential display.
+
+**ALPHA prompts:** No explicit ALPHA prompt strings visible on QRC. The multi-column entry pattern suggests the program counts rows automatically.
+
+**Dependencies:** Accumulates row sums and column sums alongside the cell counts. Requires additional registers beyond the Σ-block for the marginal totals. OM register table verification required.
+
+**Algorithmic complexity:** MEDIUM. Accumulation: O(rows × cols). χ² computation from marginals: closed-form.
+
+---
+
+### Program 12: Spearman's Rank Correlation Coefficient (ΣSPEAR)
+**SIZE:** 003 steps
+
+**What it computes:** Spearman's rank correlation coefficient ρ_s. Given two sets of ranks R_i and S_i (already converted to ranks by the user), computes ρ_s = 1 − 6·Σd²/(n·(n²−1)) where d_i = R_i − S_i.
+
+Data input: `R_i [ENTER+] S_i [A]`
+Correction: `R_k [ENTER+] S_k [C]`
+Results: `[E], [R/S]` — the rank correlation and n.
+
+**ALPHA prompts:** None — pure stack entry. SIZE 003 means this is the simplest program (only 3 program steps — effectively just Σ+/Σ− of the squared rank differences).
+
+**Dependencies:** Uses the built-in Σ-register block (R01–R06) with the interpretation that Σxy = Σ(R·S), Σx = ΣR, Σy = ΣS, etc. The final formula combines Σ-register values. This program reuses existing infrastructure most directly of all 13 programs.
+
+**Algorithmic complexity:** LOW. Pure register-accumulating, closed-form formula.
+
+---
+
+### Program 13: Normal and Inverse Normal Distribution (ΣNORMD)
+**SIZE:** 019 steps
+
+**What it computes:** Three modes for the standard normal distribution (mean=0, σ=1 by convention on the HP-41 Stat Pac, with general μ/σ via standardization):
+
+| Mode | Input | Output |
+|---|---|---|
+| Inverse: Q(x) → x | Q value [A] | x (the quantile) |
+| PDF: x → f(x) | x [C] | f(x) = φ(x) |
+| CDF: x → Q(x) | x [E] | Q(x) = 1 − Φ(x) (upper-tail prob) |
+
+**Confirmed from QRC (page 2, direct read):**
+- Results column shows: `Q(x) [A] → x`, `x [C] → f(x)`, `x [E] → Q(x)`.
+- No "Input Data" or "Correction" columns — ΣNORMD is a one-shot distribution evaluator with no data accumulation phase.
+- No re-initialization column — each call is independent.
+
+**ALPHA prompts:** None visible on QRC — input is direct stack value and label key press.
+
+**HP-41 Q(x) convention:** In HP-41 Stat Pac terminology, `Q(x)` is the upper-tail probability = 1 − Φ(x). This matches the NPS document (p. 33): "the program ΣNORMD in STAT PAC may be used to calculate Q(z). Try z = 2.695 as on page 24 to see that .9964 is the value of P(z)." — confirming that `[E]` returns the lower-tail CDF P(z) = Φ(z) and `Q(x)` is the upper tail.
+
+**Confirmed from NPS (p. 33):** "Program ST-19 may be replaced entirely by using the N routine in ZS-2 with μ=0 and σ=1. Alternatively, program ΣNORMD in STAT PAC may be used to calculate Q(z)."
+
+**Implementation requirement:** Three distinct paths from a single XROM entry point:
+1. **Inverse normal (probit):** Rational approximation (Acklam/AS 241, ~30 lines). Input: p = Q(x) ∈ (0, 1). Pitfall 19 (non-convergence near tails) applies.
+2. **Normal PDF:** `norm_pdf()` from `rust_decimal::MathematicalOps` — direct use, O(1).
+3. **Normal CDF:** `1.0 - norm_cdf()` from `rust_decimal::MathematicalOps` — direct use, O(1).
+
+**RNG connection:** The NPS document (p. 21, Section 4.4) confirms the HP-41 RNG formula used with the Stat Pac: `r_{n+1} = FRC(9821 · r_n + 0.211327)`. When used with ΣNORMD for normal deviate generation, the RNG initializes with a `SEED?` prompt (confirmed from ZP4 program, page 22: `[I] → SEED?`, then seed entered via `[R/S]`). The STAT PAC's ΣNORMD does NOT itself contain the RNG — but ΣNORMD is invoked from user programs that include the RNG seed step.
+
+**Dependencies:**
+- CDF and PDF: `rust_decimal::MathematicalOps::norm_cdf()` and `norm_pdf()` — zero new code.
+- Inverse (probit): hand-coded Acklam/AS 241 rational approximation in `stat1/distributions.rs`.
+
+**Algorithmic complexity:** CDF/PDF path: O(1) closed-form. Inverse path: O(1) rational approximation (no iteration for central region; bisection refinement for tails, ≤ 10 steps). Complexity: LOW for CDF/PDF, LOW-MEDIUM for inverse.
+
+---
+
+### Program 14: Chi-Square Distribution (ΣCHISQD)
+**SIZE:** 007 steps
+
+**What it computes:** Chi-square distribution evaluation given degrees of freedom ν:
+- `ν [A] → f(x)` — PDF at x (the chi-square density function)
+- `ν [E] → P(x)` — CDF at x (the cumulative probability)
+
+**Confirmed from QRC (page 2, direct read):**
+- Input data column: `ν [A]` — degrees of freedom entered via [A].
+- No "Input Data" initialization separate from results; the QRC shows `p [A]` as input and `x [C] → f(x)`, `x [E] → P(x)` as results.
+
+Wait — re-reading the QRC image more carefully: The QRC Results column shows `x [C] → f(x)` and `x [E] → P(x)`. The Input Data column shows `p [A]`. This indicates:
+- The program expects ν (degrees of freedom) stored before the call (likely in a register designated by the OM — the NPS document p. 49 confirms "degrees of freedom ν in R₁₅, entering t and then [XEQ][TF] in ZSTAT" — the STAT PAC ΣCHISQD may use a similar convention).
+- `p [A]` may be the initialization step (storing ν = p into a scratch register).
+- `x [C] → f(x)` evaluates the chi-square PDF.
+- `x [E] → P(x)` evaluates the chi-square CDF.
+
+**OM verification required** for exact degrees-of-freedom storage convention. **Tentative:** ν entered via [A] before x evaluation. Flag as "verification pending Phase 33 spec phase."
+
+**Implementation requirement:** Chi-square CDF = regularized lower incomplete gamma function P(ν/2, x/2). Hand-coded in `stat1/distributions.rs` via f64 bridge (AS 239 series+CF algorithm, ~50 lines). PDF = x^(ν/2−1) · e^(−x/2) / (2^(ν/2) · Γ(ν/2)) — uses `rust_decimal::ln()`, `exp()`, and the log-gamma function (hand-coded or approximated via Stirling).
+
+**Dependencies:** `gamma_regularized_f64()` from `stat1/distributions.rs`. The `cancel_requested` check is needed only if the incomplete gamma series does not converge for pathological inputs (convergence is guaranteed for well-formed ν and x).
+
+**Algorithmic complexity:** Closed-form PDF. CDF: series expansion (fast convergence for typical ν and x, ~15–30 terms). Complexity: LOW-MEDIUM.
+
+---
+
+## (b) Univariate Stats Beyond Built-in Σ-Block
+
+The Stat 1 Pac extends built-in univariate statistics as follows:
+
+| Feature | Where in Stat 1 Pac | Beyond Built-in | Notes |
+|---|---|---|---|
+| Weighted/grouped mean and SD | ΣBSTAT / ΣBSTG | YES — frequency weights f_i | Built-in Σ+ is unweighted |
+| Coefficient of variation (σ/μ) | ΣBSTAT results sequence | YES | Not in v2.2 |
+| Skewness γ₁ = μ₃/σ³ | ΣMMTUG / ΣMMTGD | YES | Not in v2.2 |
+| Kurtosis γ₂ = μ₄/σ⁴ − 3 | ΣMMTUG / ΣMMTGD | YES | Not in v2.2 |
+| Trimmed mean | Not in Stat 1 Pac | — | Not documented in QRC or OM |
+| Median | Not in Stat 1 Pac | — | Not documented in QRC |
+
+**No trimmed mean or median is provided by the Stat 1 Pac.** These are user-computed.
+
+---
+
+## (c) Bivariate / Linear Regression Extensions Beyond Built-in L.R.
+
+| Feature | Where in Stat 1 Pac | Notes |
+|---|---|---|
+| Multiple regression (2 predictors) | ΣMLRXY | NEW — not in v2.2 |
+| Multiple regression (3 predictors) | ΣMLRXYZ | NEW |
+| Polynomial regression (arbitrary degree) | ΣPOLYP / ΣPOLYC | NEW |
+| Curve fitting — linear | ΣLIN | Delegates to Σ-block then L.R.; same as built-in but with data-entry workflow |
+| Curve fitting — exponential | ΣEXP | NEW (transforms y→ln(y) before accumulation) |
+| Curve fitting — logarithmic | ΣLOGI | NEW (transforms x→ln(x) before accumulation) |
+| Curve fitting — power | ΣPOW | NEW (transforms both x→ln(x), y→ln(y)) |
+| Confidence intervals on slope/intercept | NOT in Stat 1 Pac | Not documented in QRC; this is Stat 2 Pac / user-program territory |
+| Partial correlation coefficients | ΣMLRXY / ΣMLRXYZ results | Displayed as part of multiple regression output |
+| Rank correlation (Spearman) | ΣSPEAR | NEW |
+
+---
+
+## (d) Curve Fitting — Confirmed 4 Transforms
+
+The QRC explicitly lists four curve-fitting mnemonic entry points: **ΣLIN, ΣEXP, ΣLOGI, ΣPOW**. All share the same 16-step SIZE, confirming they are variants of a single program.
+
+- **Linear (ΣLIN):** ŷ = a + bx — raw Σ+ accumulation, same as built-in L.R.
+- **Exponential (ΣEXP):** ŷ = a·e^(bx) — accumulates (x, ln y); ŷ = e^(a + bx) at prediction.
+- **Logarithmic (ΣLOGI):** ŷ = a + b·ln(x) — accumulates (ln x, y); direct prediction.
+- **Power (ΣPOW):** ŷ = a·x^b — accumulates (ln x, ln y); ŷ = e^(a + b·ln x) at prediction.
+
+**No other curve types (hyperbolic, logistic, Gompertz, etc.) appear in Stat 1 Pac.** Those belong to the Advantage Pac or user programs.
+
+---
+
+## (e) Distributions — Confirmed Presence in Stat 1 Pac
+
+| Distribution | In Stat 1 Pac? | Entry Point | Notes |
+|---|---|---|---|
+| Normal CDF Φ(x) | YES | ΣNORMD [E] | Returns upper-tail Q(x) = 1 − Φ(x) |
+| Normal PDF φ(x) | YES | ΣNORMD [C] | |
+| Inverse normal / probit Φ⁻¹(p) | YES | ΣNORMD [A] | Rational approximation required |
+| Chi-square CDF | YES | ΣCHISQD [E] | P(x) with ν from register |
+| Chi-square PDF | YES | ΣCHISQD [C] | f(x) with ν from register |
+| Student's t CDF | YES (indirect) | ΣTSTAT internal | CDF used to compute p-value in t-test |
+| t-distribution table lookup | YES (via ZSTAT in NPS) | [XEQ][TF] in ZSTAT | STAT PAC t-CDF is internal to ΣTSTAT |
+| F-distribution | NOT in Stat 1 Pac | — | NPS document (p. 49): "Several key programs [are] missing [from STAT PAC], such as the t and F distributions" — F is NOT in STAT PAC directly |
+| Binomial PMF/CDF | NOT in Stat 1 Pac | — | NPS: "there is no binomial program in STAT PAC" (p. 42) |
+| Poisson PMF/CDF | NOT in Stat 1 Pac | — | Not in QRC |
+| Hypergeometric | NOT in Stat 1 Pac | — | Not in QRC |
+| Exponential distribution | NOT in Stat 1 Pac | — | Not in QRC |
+| Uniform distribution | NOT in Stat 1 Pac | — | Not in QRC |
+
+**Critical finding:** The NPS document explicitly states: "it will be necessary to supply several key programs that would otherwise have been used, as well as to supply several key programs, such as the t and F distributions that were missing" from STAT PAC. The Stat 1 Pac does NOT provide a standalone t-distribution CDF entry point or F-distribution — the t distribution is used INTERNALLY by ΣTSTAT but not exposed as a separate callable program. The F-distribution is entirely absent.
+
+---
+
+## (f) Random Number Generation
+
+**Confirmed from NPS document (p. 21, Section 4.4):**
+
+The HP-41 RNG formula is:
+```
+r_{n+1} = FRC(9821 · r_n + 0.211327)
+```
+
+This formula is explicitly confirmed as "one developed by Don Malm for the HP-65 User's Library and is referred to on page 24 of the HP-41C Standard Applications manual."
+
+**SEED? prompt confirmed:** The NPS document (p. 22, ZP4 user instructions, Step E5a/N6a): pressing [I] displays `SEED?`, user enters seed (0 ≤ Seed < 1) via [R/S].
+
+**Is RAND a standalone Stat 1 Pac program?** NO. The QRC does not list a standalone `RAND` or `SEED` program among the 13 programs. The RNG is a subroutine embedded in programs that need random number generation (primarily continuous distribution sampling). The QRC shows ΣNORMD has NO random-number functionality (it is a pure CDF/PDF/inverse evaluator). The NPS document uses the RNG in standalone programs (ZP4, ZS-2) separate from STAT PAC.
+
+**Implication for v3.1:** The RNG `FRC(9821·x + 0.211327)` should be implemented as a helper function in `stat1/` if any Stat 1 program internally uses random sampling (none of the 13 QRC programs appear to do so based on the QRC alone). More likely the RNG is a v3.1 utility callable from user programs via `XEQ "RAND"` as a bonus convenience function. **OM verification required** to confirm whether the Stat 1 Pac ROM actually includes a RAND subroutine or whether it was purely a user-program convention.
+
+**Tentative decision:** Implement the RNG formula as `op_stat1_rand()` callable via a short `RAND` or `RNDMU` mnemonic for completeness. The `rand_seed` field on `CalcState` must use `#[serde(default)]` but NOT `#[serde(skip)]` per Pitfall 20. Store seed in a designated register (OM to specify) or in the `rand_seed: HpNum` CalcState field.
+
+---
+
+## (g) Permutations, Combinations, Factorial
+
+**Permutations P(N,R) and Combinations C(N,R)** are NOT listed in the Stat 1 Pac QRC.
+
+However:
+- The NPS document (p. 3–4, ZP2 program) confirms that HP's built-in `FACT` function handles factorial (n! for 0 ≤ n ≤ 69) and is accessible directly.
+- The NPS document shows P(N,R) and C(N,R) computed via user program ZP2 (not STAT PAC) with the ALPHA prompts `N=?` and `R=?` confirmed from the user instructions table (p. 8, Step 7 and Step 8).
+
+**Implication for v3.1:** P(N,R) and C(N,R) are NOT features of the Stat 1 Pac module. `FACT` is already in hp41-core (v2.2 Phase 20). The NPS program uses user-mode label keys [b] and [c] for P and C respectively — these are user programs, not XROM functions. DO NOT add P/C to the STAT_1.ops table.
+
+---
+
+## (h) Hypothesis Testing and Confidence Intervals
+
+| Feature | In Stat 1 Pac | Entry Point | Notes |
+|---|---|---|---|
+| One-sample t-test (μ test) | YES | ΣPTST | Returns t-statistic and p-value |
+| Two-sample t-test | YES | ΣTSTAT | Equal/pooled variance assumed |
+| Chi-square goodness-of-fit | YES | ΣXSQEV / ΣEFXSQ | Computes χ² test statistic only |
+| Chi-square CDF for p-value | YES | ΣCHISQD | Used after ΣXSQEV to get p-value |
+| Contingency table χ² | YES | ΣCTKKK / ΣCTKK | Full χ² for r×c table |
+| One-way ANOVA F-test | YES | ΣAOVONE | F-ratio computed |
+| Two-way ANOVA F-test | YES | ΣAOVTWO | Row and column F-ratios |
+| ANCOVA F-test | YES | ΣANOCOV | With covariate adjustment |
+| Confidence intervals for μ | NOT in Stat 1 Pac | — | CI computation is user-program task using ΣTSTAT output + t-table |
+| Confidence intervals for σ | NOT in Stat 1 Pac | — | Uses χ² table (user-program) |
+| F-distribution p-value | NOT in Stat 1 Pac | — | NPS confirms F distribution absent from STAT PAC |
+| Welch's t-test (unequal variance) | NOT in Stat 1 Pac | — | Not in QRC |
+| Mann-Whitney / non-parametric | NOT in Stat 1 Pac | — | Only Spearman rank correlation |
+
+**Confirmed: CI computation is NOT part of Stat 1 Pac.** The NPS document's ZS-4/5 program shows confidence intervals computed as a separate user program that calls STAT PAC distribution functions. The Stat Pac provides the statistical test results; the user combines them with quantile values for confidence intervals.
+
+---
+
+## (i) Histograms and Frequency Tables
+
+**Histograms are NOT in the Stat 1 Pac QRC.** The QRC lists no histogram or frequency-table program.
+
+The NPS document's histogram functionality is in program ST-07/9 (a standalone user program, not STAT PAC) that uses the built-in Σ-register system for cell frequency accumulation with prompts `CELLS?`, `XMIN?`, `W=?` (cell width).
+
+**Implication:** DO NOT add histogram functionality to the STAT_1 XROM module. This is explicitly an anti-feature (would be incorrect behavioral emulation of the OM).
+
+---
+
+## Table Stakes vs. Differentiators vs. Anti-Features
+
+### Table Stakes (must-have for "feature-complete per OM 00041-90030" claim)
+
+These are the 13 QRC programs + their named entry points. All are required:
+
+| Feature | Complexity | Op Variants Needed | Notes |
+|---|---|---|---|
+| ΣBSTAT / ΣBSTG | LOW | 2 | Reuses existing Σ-registers |
+| ΣMMTUG / ΣMMTGD | MEDIUM | 2 | Needs extended register layout from OM |
+| ΣAOVONE | MEDIUM | 1 | Extended register layout required |
+| ΣAOVTWO | MEDIUM | 1 | Extended register layout required |
+| ΣANOCOV | MEDIUM-HIGH | 1 | Most complex ANOVA variant |
+| ΣLIN / ΣEXP / ΣLOGI / ΣPOW | LOW-MEDIUM | 4 | Curve fitting via Σ-transform |
+| ΣMLRXY / ΣMLRXYZ | MEDIUM-HIGH | 2 | Normal equation 2×2 / 3×3 solve |
+| ΣPOLYP / ΣPOLYC | MEDIUM-HIGH | 2 | Degree-to-be-confirmed; normal equation |
+| ΣPTST / ΣTSTAT | MEDIUM | 2 | Incomplete beta for t-CDF |
+| ΣXSQEV / ΣEFXSQ | LOW | 2 | Pure accumulation |
+| ΣCTKKK / ΣCTKK | MEDIUM | 2 | Extended register layout |
+| ΣSPEAR | LOW | 1 | 3 program steps, pure Σ |
+| ΣNORMD | LOW-MEDIUM | 1 (3 modes) | CDF/PDF: direct; inverse: rational approx |
+| ΣCHISQD | LOW-MEDIUM | 1 (2 modes) | Incomplete gamma function |
+
+**Total Op variants: ~24** (some programs have multiple entry-point Ops, others dispatch modes via label keys rather than separate Ops).
+
+### Differentiators (optional post-v3.1 polish — not in OM)
+
+| Feature | Rationale | Defer To |
+|---|---|---|
+| RAND / RNDMU subroutine | QRC does not list it; NPS uses it as user-program; useful but not OM-mandated | v3.1 bonus if OM verification confirms it's in the ROM |
+| F-distribution CDF | Not in Stat 1 Pac but commonly needed with ANOVA | v3.2 or user-program guidance |
+| Normal sample generation | Not in Stat 1 Pac (NPS used separate ZP4 program) | User-program guidance in docs |
+| Confidence interval helpers | Not in Stat 1 Pac | User-program guidance in docs |
+
+### Anti-Features (explicitly do NOT add to STAT_1)
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|---|---|---|
+| Binomial / Poisson / Hypergeometric distributions | Not in Stat 1 Pac (NPS confirms absent) | Document absence in hp41-stat1-divergences.md |
+| F-distribution evaluator | Not in Stat 1 Pac (NPS confirms absent) | Defer to v3.2 |
+| Histogram / frequency table program | Not in Stat 1 Pac | Document absence |
+| P(N,R) / C(N,R) permutations/combinations | Not in Stat 1 Pac (built-in FACT + user programs) | Document that FACT covers n! |
+| Confidence interval computations | Not in Stat 1 Pac | User combines ΣTSTAT output with quantile lookup |
+| Welch t-test or non-parametric tests beyond Spearman | Not in Stat 1 Pac | Defer to Advantage Pac scope |
+| Normal deviate generator as standalone XROM | Not in Stat 1 Pac QRC | Bonus only if OM verification confirms |
 
 ---
 
 ## Feature Dependencies
 
 ```
-v2.2 existing infrastructure (UNCHANGED — preconditions for v3.0)
-  ├─> Op enum dispatch (ops/mod.rs) — needs ~55+ new Op variants
-  ├─> CalcState + serde(default) for forward-compat
-  ├─> print_buffer — Math Pac uses ALPHA-style display prompts; print_buffer is the right channel
-  ├─> XEQ-by-name (builtin_card_op, run_program) — must extend to dispatch into Math Pac entry names
-  ├─> 56 user flags + system flags — flag 4/5 already exist as concepts; Math Pac uses them for its own state
-  └─> Indirect addressing (FN-IND family) — Math Pac element access uses indirect addressing internally
+ΣBSTAT / ΣBSTG → existing Σ-registers R01–R06 (already in hp41-core/src/ops/stats.rs)
 
-NEW v3.0 infrastructure (must land before any Math Pac function)
-  ├─> XROM module framework (XROM number + function number; mapping to behavioral ops)
-  │     └─> Catalog 2 visibility (existing v2.2 catalog extended)
-  ├─> Modal program state machine
-  │     ├─> Multi-step prompt flow ("ORDER=?", "A1,1=?", "FUNCTION NAME?", etc.)
-  │     ├─> Register-block protocols (R14 for order, R15+ for matrix elements, R00–R04 for poly coefs, etc.)
-  │     └─> Termination message handling ("NO SOLUTION", "NO ROOT FOUND", "ROOT IS BETWEEN ...")
-  └─> User-function callback (for SOLVE / INTG / DIFEQ / FOUR with E key)
-        └─> Calls user-defined global label, expects X on entry, returns f(x) in X
+ΣMMTUG / ΣMMTGD → extended Σ-registers R07+ (OM layout verification required)
 
-Math Pac functions (build order from leaf to root)
-  Hyperbolics (6 ops, leaf)
-    └─> No dependencies; one-shot unary; build first as proof-of-pattern
-  Complex stack (ζ/τ + 4 arith + 13 functions)
-    └─> Depends on: new ComplexStack struct on CalcState
-  TRIG sub-prompt flows (5 triangle solvers)
-    └─> Depends on: modal state machine
-  POLY/ROOTS (degree 2–5 with complex root output)
-    └─> Depends on: modal state machine + complex output formatting
-  MATRIX/DET/INV/SIMEQ/VMAT/EDIT/VCOL (full workflow)
-    └─> Depends on: modal state machine + register-block protocol + flag 4/5 protocol
-  INTG discrete mode
-    └─> Depends on: modal state machine
-  INTG explicit mode + SOLVE
-    └─> Depends on: user-function callback (the big infrastructure piece)
-  DIFEQ
-    └─> Depends on: user-function callback + 4th-order Runge-Kutta
-  FOUR
-    └─> Depends on: modal state machine + USER-mode E-key wiring
-  TRANS 2-D + 3-D
-    └─> Depends on: modal state machine + USER-mode key wiring
+ΣLIN / ΣEXP / ΣLOGI / ΣPOW → existing op_sigma_plus() + checked_ln() (R01–R06)
+  ΣLOGI / ΣEXP / ΣPOW → rust_decimal::ln() already available
+
+ΣMLRXY / ΣMLRXYZ → normal equations → Gauss-Jordan 2×2 or 3×3 (self-contained)
+
+ΣPOLYP / ΣPOLYC → normal equations → Gauss-Jordan (d+1)×(d+1)
+
+ΣPTST / ΣTSTAT → stat1/distributions.rs::beta_regularized_f64()
+  beta_regularized_f64 → stat1/distributions.rs::gamma_regularized_f64() [for integer ν]
+
+ΣXSQEV / ΣEFXSQ → accumulator register (no distribution function)
+
+ΣCHISQD → stat1/distributions.rs::gamma_regularized_f64()
+
+ΣCTKKK / ΣCTKK → contingency sum registers (extended block)
+
+ΣAOVONE / ΣAOVTWO / ΣANOCOV → extended Σ registers (R07+, OM layout required)
+
+ΣSPEAR → existing Σ-registers R01–R06 (Σxy = ΣR·S, Σx = ΣR, etc.)
+
+ΣNORMD → rust_decimal::norm_cdf() + norm_pdf() [CDF/PDF path, zero new code]
+         → stat1/distributions.rs::norm_cdf_inv_f64() [inverse path, Acklam AS 241]
+
+RAND (if implemented) → stat1/rng.rs::rng_step() (FRC formula) → CalcState::rand_seed
 ```
 
 ---
 
-## Implementation Order Recommendation (Highest User-Value First)
+## MVP Recommendation
 
-The Math Pac unlocks value in **roughly this order** for the typical buyer:
+**Phase 33 priority order (hardest dependencies first):**
 
-1. **Phase A — Foundation**: XROM module framework + modal state machine + user-function callback. **No user-visible features yet** but unblocks everything else. (Cross-cutting infra; ~1 phase of work.)
+1. **stat1/distributions.rs** — the three numerical primitives (`norm_cdf_inv_f64`, `gamma_regularized_f64`, `beta_regularized_f64`) are required by multiple programs. Build and test these first with a scipy.stats reference harness before any program Op is implemented.
 
-2. **Phase B — Hyperbolics (6 ops)**. Smallest table-stakes win; one-shot ops; demonstrates the v3.0 pattern works end-to-end through CLI + GUI; immediate user value (anyone who wants `SINH`). (1 phase.)
+2. **ΣNORMD + ΣCHISQD** — the two distribution-evaluation programs that purely consume distribution primitives. Quick to implement once distributions are done. Good end-to-end test of the entire pipeline.
 
-3. **Phase C — Complex arithmetic + the easy 9 functions** (`C+`, `C-`, `C×`, `C÷`, `MAGZ`, `CINV`, `E↑Z`, `LNZ`, `SINZ`, `COSZ`, `TANZ`, `Z↑N`, `Z↑1/N`). Marquee feature; the largest single "wow" delivery. (1 phase.)
+3. **ΣSPEAR + ΣXSQEV/ΣEFXSQ** — simplest programs (LOW complexity). Good integration smoke tests.
 
-4. **Phase D — Polynomial roots (`POLY` + `ROOTS` for degree 2–5) + evaluation**. The second marquee feature; introduces complex root output formatting and the modal state machine in a self-contained context. (1 phase.)
+4. **ΣBSTAT/ΣBSTG + ΣLIN/ΣEXP/ΣLOGI/ΣPOW** — build on existing Σ-register infrastructure. No new numerical primitives.
 
-5. **Phase E — Matrix workflow (full pipeline `MATRIX` → `DET` → `INV` → `SIMEQ` → `VMAT` → `EDIT` → `VCOL`)**. The pac's most complex single feature; gates the "feature-complete" claim. (1–2 phases.)
+5. **ΣMMTUG/ΣMMTGD + ΣAOVONE/ΣAOVTWO/ΣANOCOV + ΣCTKKK/ΣCTKK** — require OM register layout. Must read the OM "Storage Registers" section before starting. Block on Pitfall 21 resolution.
 
-6. **Phase F — Numerical integration `INTG` (both discrete and explicit modes)**. First feature requiring user-function callback; high pedagogical value. (1 phase.)
+6. **ΣPTST/ΣTSTAT** — requires beta_regularized_f64 (from step 1) plus register layout.
 
-7. **Phase G — `SOLVE` (modified secant root finder)**. Reuses INTG's callback infrastructure; second numerical-analysis flagship. (1 phase, smaller because infra exists.)
+7. **ΣMLRXY/ΣMLRXYZ + ΣPOLYP/ΣPOLYC** — largest programs (SIZE 045). Self-contained Gauss-Jordan. Do last.
 
-8. **Phase H — `DIFEQ` (Runge-Kutta) + remaining complex functions (`A↑Z`, `LOGZ`, `Z↑W`, `Z↑1/W`)**. (1 phase.)
-
-9. **Phase I — Differentiators: Triangle Solutions (5 programs), `FOUR`, `TRANS` 2-D + 3-D**. Lower per-feature value but completes the pac. (1–2 phases.)
-
-10. **Phase J — Quality hardening**: numerical accuracy suite extended with Math Pac cases (matrix `DET`/`INV` correctness vs. reference linalg, Simpson convergence vs. analytic integrals, complex-function identity tests, SOLVE root-finding on known polynomials). CLI + GUI integration (modal flows, key bindings, `xrom_help.rs` analog of `help_data.rs`). Coverage gate stays ≥95%.
-
-**Rationale for the order:**
-
-- **Foundation first** (A): nothing ships without the XROM/modal/callback scaffolding.
-- **Hyperbolics second** (B): cheapest, validates the pattern, immediate user win.
-- **Complex math third** (C): biggest "marquee" win; the pac's reputation rests on it.
-- **POLY before MATRIX** (D before E): POLY is self-contained, MATRIX is the most complex single program; learning curve on modal state machine starts gentler.
-- **MATRIX before INTG/SOLVE** (E before F/G): MATRIX is pure-data modal (no user-function callback); INTG/SOLVE add the callback layer on top of a known modal pattern.
-- **Triangles + FOUR + TRANS last** (I): differentiators, not table stakes; can ship without and still claim "feature-complete Math Pac core".
+**Defer:** RAND/RNG until OM verification confirms it is in the Stat 1 Pac ROM.
 
 ---
 
-## MVP Recommendation (subset for first usable v3.0 cut)
+## Open Questions (Verification Pending Phase 33 Spec Phase)
 
-If shipping a minimal v3.0 to validate the architecture before completing everything:
-
-1. **MVP-1**: XROM framework + Hyperbolics (6 ops) + Complex arithmetic + 5 most-used complex functions (`MAGZ`, `CINV`, `E↑Z`, `LNZ`, `SINZ`).
-2. **MVP-2**: Add POLY/ROOTS for quadratic only (degree 2).
-3. **MVP-3**: Add the matrix workflow for size N ≤ 4 (smaller working set; same algorithm).
-
-This gets a usable Math Pac v3.0-alpha out the door in ~3 phases; the remaining content lands in iterative phases without changing the architecture.
+| Question | Impact | Source |
+|---|---|---|
+| Exact register layout for ΣMMTUG, ΣAOVONE, ΣAOVTWO, ΣANOCOV, ΣMLRXY, ΣCTKKK | CRITICAL — determines which registers hold Σx³, Σx⁴, group sums, cross-products | Stat 1 Pac OM 00041-90030 "Storage Registers" section |
+| Does the Stat 1 Pac ROM contain a RAND / RNDMU subroutine? | MEDIUM — determines whether RNG is a STAT_1 Op or user-program only | OM listing or community FOCAL disassembly |
+| Exact degree-prompt wording for ΣPOLYP ("DEG?" / "DEGREE=?" / other?) | LOW — affects ALPHA prompt routing | OM user instructions for Polynomial Regression |
+| Exact degrees-of-freedom storage convention for ΣCHISQD (register number) | HIGH — determines CalcState interaction | OM user instructions for Chi-Square Distribution |
+| Exact prompt strings for ΣPTST / ΣTSTAT ("T=?" / "DF=?" / etc.) | MEDIUM — affects modal-prompt routing | OM user instructions for t Statistics |
+| Does ΣTSTAT assume equal or unequal variances (pooled or Welch)? | HIGH — affects formula and degrees of freedom | OM user instructions for t Statistics |
+| OM version: 00041-90030 (confirmed) or different number for some editions? | LOW — citation accuracy | literature.hpcalc.org item 800 (August 1984 scan) |
 
 ---
 
-## Complexity Estimates Per Function
+## Algorithmic Complexity Summary for Roadmapper
 
-| Function | Size | Risk | Notes |
-|----------|------|------|-------|
-| Hyperbolics (6 ops total) | Small | Low | Each is `f(X) → X` via `rust_decimal`; ~3 lines per op |
-| Complex stack scaffolding | Medium | Medium | New `ComplexStack { zeta, tau }`; serde-default; touches stack-lift semantics |
-| `C+`/`C-`/`C×`/`C÷` (4 ops) | Small | Low | Trivial once scaffolding exists |
-| `MAGZ`, `CINV`, `E↑Z`, `LNZ` | Small | Low | Standard complex identities |
-| `SINZ`/`COSZ`/`TANZ` | Medium | Medium | Numerical care for large imaginary parts (overflow in `exp(±iy)`) |
-| `Z↑N`/`Z↑1/N`/`A↑Z`/`LOGZ`/`Z↑W`/`Z↑1/W` | Medium | Medium | Power/log identity chains; branch cut decisions documented in manual |
-| `POLY` setup + `ROOTS` (deg 2) | Medium | Low | Quadratic formula |
-| `ROOTS` (deg 3, 5 — iterative) | Large | Medium | Manual specifies iterative + synthetic division — algorithm choice matters for matching the manual's example output (root order, sign convention) |
-| `ROOTS` (deg 4 — Ferrari) | Large | Medium | Cubic resolvent + two quadratics |
-| `MATRIX` initializer + input loop | Medium | Medium | Modal state for N²+ inputs; register block at R15+ |
-| `VMAT`/`EDIT`/`VCOL` | Small each | Low | Display loops over the register block |
-| `DET` + `INV` (Gaussian elim. with partial pivoting) | Large | Medium-High | Numerical stability concerns; partial pivoting must match manual's pivot-choice algorithm for byte-exact reproducibility of the manual's worked examples |
-| `SIMEQ` | Medium | Low | Reuses pivoted matrix from `INV` step |
-| `SOLVE` (modified secant) | Large | Medium | Iteration limit; sign-change bracket detection; three distinct termination paths |
-| `INTG` discrete (trapezoidal + Simpson) | Medium | Low | Fixed formulas; even-n check |
-| `INTG` explicit (Simpson with user f(x)) | Large | High | Requires user-function callback infrastructure (first feature to need it); recursion depth = number of Simpson sub-intervals |
-| `DIFEQ` (RK4, 1st + 2nd order) | Large | Medium | Standard RK4; second-order via system reduction |
-| `FOUR` (DFT + rect/polar + USER-E eval) | Large | Medium | Coefficient calculation + display loop + USER-mode key wiring |
-| Triangle Solutions (5 programs) | Medium each | Low | Law of Sines / Cosines; SSA ambiguous-case warning |
-| `TRANS` 2-D | Medium | Low | Rotation matrix + translation |
-| `TRANS` 3-D | Large | Medium | Rodrigues' rotation formula for axis-angle |
-
-**Highest risk items** (cite for roadmap research flags):
-
-1. **Numerical reproducibility of `DET`/`INV`** — partial pivoting order must match the manual's worked examples (the Carnahan-Luther-Wilkes reference algorithm). Floating-point ordering effects make this fragile. **Recommend a research phase BEFORE Phase E** to nail down the exact pivoting algorithm.
-2. **User-function callback inside modals** (Phase F precondition) — the calculator must dispatch into user code from inside a Math Pac program, then return cleanly. Today's `run_program` is the main loop's responsibility; making it reentrant for INTG/SOLVE/DIFEQ is non-trivial. **Recommend a research phase BEFORE Phase F** to design the call-stack model.
-3. **Complex stack interaction with real stack** — when a Math Pac complex op fires, what happens to T/Z/Y/X? The manual says "previous contents of τ are lost" but doesn't specify the real-stack invariant. **Recommend hardware-verification or Free42 cross-check.**
-4. **`POLY` complex root pair display order** — the manual shows `U=u`/`V=v`/`U=u`/`-V=-v` — a four-line per-pair format. Exact matching of this format is a fidelity requirement.
+| Program | Complexity | Iteration? | New Numerical Primitive? | Pitfall Flag |
+|---|---|---|---|---|
+| ΣBSTAT / ΣBSTG | LOW | No | No | P21 (register layout) |
+| ΣMMTUG / ΣMMTGD | MEDIUM | No | No | P21 (register layout), P18 (variance) |
+| ΣAOVONE | MEDIUM | No | No | P21 (register layout) |
+| ΣAOVTWO | MEDIUM | No | No | P21 (register layout) |
+| ΣANOCOV | MEDIUM-HIGH | No | No | P21 (register layout) |
+| ΣLIN / ΣEXP / ΣLOGI / ΣPOW | LOW-MEDIUM | No | No | P22 (mnemonic collision check) |
+| ΣMLRXY / ΣMLRXYZ | MEDIUM-HIGH | No (fixed-size Gauss) | No | P21 (register layout) |
+| ΣPOLYP / ΣPOLYC | MEDIUM-HIGH | No (fixed-size Gauss) | No | P21 (register layout) |
+| ΣPTST / ΣTSTAT | MEDIUM | Yes (incomplete beta) | YES: beta_regularized_f64 | P19 (convergence), P25 (cancel_requested) |
+| ΣXSQEV / ΣEFXSQ | LOW | No | No | None |
+| ΣCTKKK / ΣCTKK | MEDIUM | No | No | P21 (register layout) |
+| ΣSPEAR | LOW | No | No | None |
+| ΣNORMD (CDF/PDF) | LOW | No | No (rust_decimal) | P23 (tolerance: 1e-9 for CDF/PDF) |
+| ΣNORMD (inverse) | LOW-MEDIUM | No (rational approx) | YES: norm_cdf_inv_f64 | P19 (tail convergence), P23 |
+| ΣCHISQD | LOW-MEDIUM | Yes (incomplete gamma) | YES: gamma_regularized_f64 | P25 (cancel_requested for non-convergence) |
+| stat1/distributions.rs | HIGH (build first) | Mixed | ALL THREE primitives | P19 (convergence), P23 (tolerance) |
 
 ---
 
 ## Sources
 
-- HP-41C Math Pac Owner's Manual (00041-90034, 1979) — [PDF at hpcalc.org](https://literature.hpcalc.org/community/hp41-pac-math-en.pdf), [hpcalc index](https://literature.hpcalc.org/items/776) — **primary source**, HIGH confidence
-- HP-41C Math Pac I Quick Reference Card (00041-90065, February 1979) — [PDF at hpcalc.org](https://literature.hpcalc.org/community/hp41-pac-math-qrc-en.pdf) — confirms function list, HIGH confidence
-- Museum of HP Calculators HP-41 software library — [hpmuseum.org/software/soft41.htm](https://www.hpmuseum.org/software/soft41.htm) — MEDIUM confidence (community-curated)
-- HP-41C XROM Numbers — [hpmuseum.org/software/xroms.htm](https://www.hpmuseum.org/software/xroms.htm) — XROM numbering convention (403 on first fetch; mirror exists)
-- HP-41 Archive — [hp41.org](http://www.hp41.org/) — MEDIUM confidence
-- HP-41 Matrix Operations community page — [hpmuseum.org/software/41/41matrix.htm](https://www.hpmuseum.org/software/41/41matrix.htm) — confirms 14×14 limit and Gaussian-elimination algorithm
-- HP-41 community programs (hp41programs.yolasite.com) — for verifying behavior on edge cases — MEDIUM confidence
-- Carnahan, Luther & Wilkes, _Applied Numerical Methods_, John Wiley & Sons 1969 — cited in the manual as the matrix algorithm reference
-- Forsythe, Malcolm & Moler, _Computer Methods for Mathematical Computations_, 1972 — manual's secondary matrix reference
-- Free42 source (Thomas Okken) — [thomasokken.com/free42/](https://thomasokken.com/free42/) — useful only for the HP-42S equivalents (Advantage-style functions); Math Pac I itself is **not** part of Free42's emulation surface
-
----
-
-## Open Questions for Roadmap
-
-1. **Should we adopt the Math Pac's XROM-style numbering?** The pac is XROM 7 on real hardware (`XROM 07,nn`). For programmatic dispatch (`Op::Xrom(7, 5)` → MAGZ), this is the natural model. Decision needed early in Phase A.
-2. **Where does the complex stack live?** Options: (a) on `CalcState` as a separate `ComplexStack` field; (b) overlaid on T/Z/Y/X (pairs ζ=Y+iX, τ=T+iZ — matches the manual's "two-element complex stack"); (c) in dedicated registers (R02/R03 for ζ, R04/R05 for τ — matches the manual's actual R00–R04 register block). Decision: option (b) or (c) for fidelity; (a) for cleanliness. **Recommend research phase to pick.**
-3. **Do Math Pac programs persist across save/restore?** Real Math Pac is ROM, always loaded. In emulation: probably yes, conditionally on "module installed" state. Tied to XROM framework design.
-4. **GUI presentation**: the manual references USER-mode soft-key overlays for the pac. Do we add a `MATH` toggle to the GUI that re-labels keys when active? Likely yes for differentiator value; defer to Phase I/J integration phase.
-5. **Documentation deliverable**: equivalent of `docs/hp41cv-functions.json` for the Math Pac (`docs/hp41-math1-functions.json`) — should be a separate file to keep concerns separate; same regen tooling (`scripts/docs-matrix`).
-
----
-
-*End of FEATURES.md — 1 author, 1 milestone, 1 application module. Math Pac I scope is locked.*
+- HP-41C Stat Pac Quick Reference Card 00041-90061 (June 1979) — all 13 programs directly read from 2-page PDF image at `literature.hpcalc.org/community/hp41-pac-stat-qrc-en.pdf`. HIGH confidence: primary source.
+- Naval Postgraduate School NPS55-84-003, Peter W. Zehna (February 1984, DTIC AD-A140573, `literature.hpcalc.org/community/hp41-probability-statistics.pdf`) — confirms RNG formula, ΣNORMD workflow, ΣBSTG display, ΣCHISQD degrees-of-freedom convention, confirms F-distribution and Binomial absent from STAT PAC. HIGH confidence: authoritative secondary source with direct STAT PAC integration.
+- STACK.md (this research cycle, 2026-05-21) — confirms XROM ID 2, 13 programs from QRC, all numerical algorithm decisions. HIGH confidence.
+- ARCHITECTURE.md (this research cycle, 2026-05-21) — confirms data storage patterns, component boundaries, register conventions. HIGH confidence.
+- PITFALLS.md (this research cycle, 2026-05-21) — Pitfalls 18–27 cross-referenced throughout. HIGH confidence.
+- `hp41-core/src/ops/stats.rs` (codebase) — confirms R01–R06 Σ-register layout. HIGH confidence.
+- `hp41-core/src/ops/math1/xrom.rs` (codebase) — confirms bit-1 stub comment for STAT_1. HIGH confidence.
+- `rust_decimal::MathematicalOps` (docs.rs, 2026-05-21) — confirms norm_cdf(), norm_pdf(), erf() availability; absence of incomplete gamma, incomplete beta, inverse normal. HIGH confidence.
