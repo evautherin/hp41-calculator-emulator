@@ -1,8 +1,15 @@
 # HP-41 Calculator Emulator
 
-## Current Milestone: v3.0 Math 1 Pac Emulation
+## Current State
 
-**Status:** planning (started 2026-05-16)
+**Last shipped:** v3.0 Math Pac I Emulation — tag `v3.0` cut 2026-05-20; bookkeeping archive 2026-05-21.
+
+**Status:** Awaiting v3.1 milestone definition (Stat 1 Pac per scope lock 2026-05-13).
+
+Run `/gsd-new-milestone` to define v3.1 (requirements → research → roadmap).
+
+<details>
+<summary>v3.0 milestone scope (shipped — see <code>milestones/v3.0-ROADMAP.md</code>)</summary>
 
 **Goal:** Behavioral Emulation des HP-41C **Math Pac I** (HP-Teilenummer 00041-90034, Owner's Manual 1979) als erstes XROM-Modul — 10 prompt-getriebene Workflow-Programme mit ~55 XEQ-by-Name Entry Points, nutzbar in CLI + GUI über eine neue Modal-Workflow-Schicht hinaus dem v2.x-Built-in-Pattern, ohne HP-copyrighted ROM-Image-Redistribution.
 
@@ -28,6 +35,8 @@
 **Scope boundary (locked 2026-05-13, bestätigt 2026-05-16):** v3.0 ist Math 1 Pac only. Stat 1 deferred zu v3.1; Time + Advantage zu v3.2 / v3.3. HP-copyrighted ROM-Image-Redistribution bleibt permanent ausgeschlossen — wir liefern BEHAVIORAL Emulation der dokumentierten Funktionen (Owner's Manual als Verhaltens-Spec), nicht die ROM-Bytes.
 
 **Build sequence:** core (XROM-Framework + Math-1-Ops) → cli (Tastenbelegung + Modal-Erweiterungen) → docs (Function-Matrix v3.0) → gui (key_map + KEY_DEFS + Modal-Routing) → tests (Coverage + Accuracy-Cases).
+
+</details>
 
 ---
 
@@ -166,9 +175,24 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ FN-QUAL-05: WebdriverIO + tauri-driver E2E smoke on Ubuntu (`e2e-linux` job in `ci-gui.yml`) — v2.2 Phase 27
 - ✓ D-27.14: Vitest CI-gated in `just gui-ci` (142/142 tests) — v2.2 Phase 27
 
-### Active (v3.0 — Math 1 Pac Emulation)
+### Validated (v3.0 — Math Pac I Emulation, shipped 2026-05-20)
 
-*Stand 2026-05-20: v3.0 fully shipped (Phases 28–32, 33/33 plans + 6 post-graduation polish commits ship-ready on `develop`). Test/CI infrastructure plus README hard-claim graduation closed via post-Phase-32 gap-closure run (Plans 32-04..32-10). Final coverage: 95.39 % lines / 94.26 % regions on `hp41-core`; all `ops/math1/*.rs` files ≥ 90 % per ROADMAP SC-1. README v3.0 line graduated to OM-cited "feature-complete per Owner's Manual 00041-90034" per D-32.5. Post-graduation polish batch (quick-task pattern à la v2.1): MSRV-CI fix (`uninlined_format_args` on 5 sites), E2E SINH+MATRIX assertion path correction, right-panel XROM-exclusion filter (Phase 29 SC-4 superseded), `?` overlay Clear-widget z-order fix, and `?` overlay incremental substring search (mirroring hp41-gui's HelpOverlay.tsx). Scope remains Math 1 Pac only (XROM-Framework + Matrix/Komplex/Polynom/Integration/Solver/Vektor). Stat 1 → v3.1.*
+- ✓ **XROM-01..09**: XROM framework + `XromModule` registry + `MATH_1` const + `xrom_resolve` (fires LAST in resolver chain per Pitfall 1); 6 new `CalcState` fields with `#[serde(default)]` / `#[serde(skip)]`; user-callback strict-reject policy per ADR-002 — v3.0 Phase 28
+- ✓ **HYP-01..06**: Hyperbolics (`Sinh`, `Cosh`, `Tanh`, `Asinh`, `Acosh`, `Atanh`) with domain-error returns — v3.0 Phase 28
+- ✓ **CMPLX-01..17 + CMPLX-18 (derived D-28.3 `XEQ "REAL"`)**: complex stack overlay on X/Y/Z/T, `C+/C-/C×/C÷`, 13 complex functions, branch-cut handling, `complex_atan2(0,0)→0` first arm, zero-divisor branch before division — v3.0 Phase 28
+- ✓ **POLY-01..07**: POLY/ROOTS workflow with `DEGREE=?` modal, complex root-pair output `U=u / V=v / U=u / -V=-v`, multiplicity-as-cluster (documented in divergences), `|imag|>10⁹` non-convergence → `DATA ERROR` — v3.0 Phase 28
+- ✓ **MAT-01..11**: MATRIX workflow with `ORDER=?` modal, Gauss-Jordan inverse, OM-transcribed EPSILON, order in R14, column-major elements from R15, max ORDER=14, `NO SOLUTION` on singular — v3.0 Phase 28
+- ✓ **INTG-01..08 / SOLV-01..08 / DIFEQ-01..05**: user-callback infrastructure via `run_loop` re-entrancy (NOT `run_program`), 4-deep `call_stack` cap, subdivision cap 2¹⁵, convergence threshold = `10^(-decimals - 1)`; strict-reject nested per XROM-08 — v3.0 Phase 28
+- ✓ **FOUR-01..06 / TRI-01..05 / TRANS-01..05**: DFT with rect/polar toggle, 5 triangle solvers (Law of Sines/Cosines + ambiguous SSA), 2D/3D coordinate transformations with Rodrigues rotation — v3.0 Phase 28
+- ✓ **CLI-01..05**: `xeq_by_name_local_resolve` → `xrom_resolve`; second `OnceLock<Vec<HelpEntry>>` from `docs/hp41-math1-functions.json` (DOC-01 absorbed per D-29.1); ~40 new `op_display_name` arms; modal-prompt routing through `print_buffer` — v3.0 Phase 29
+- ✓ **DOC-01..07**: `scripts/docs-matrix` two-input extension, `docs/hp41-math1-function-matrix.md` regenerated, three-bucket divergence catalog, 3 new ADRs (v3.0-001/002/005), README soft-claim, CLAUDE.md `### v3.0 additions` block — v3.0 Phases 29 + 30
+- ✓ **GUI-01..07**: GUI parity through shared `xrom_resolve` (no duplicate resolver), CATALOG 2 XROM enumeration, Math Pac I help overlay parallel-load, LCD-alternation modal prompts, `request_cancel` cancellation channel (`Arc<AtomicBool>` + per-64-samples lock release, Pitfall 11 mitigation), stub-error arm preserved for future XROM modules — v3.0 Phase 31
+- ✓ **QUAL-01..08**: `hp41-core` 95.39 % lines / 94.26 % regions; `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass (v1.x 503-case floor 498 preserved); E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu; `scripts/check-free42-contamination.sh` 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job; per-Op test count ≥ 5 (Pitfall 16); `xrom_shadowing.rs` Pitfall 1 CI gate; `math1_user_callback.rs` 5 re-entrancy regression tests — v3.0 Phase 32
+- ✓ **D-32.5 README v3.0 hard-claim graduation**: README "Math Pac I" line replaced "soft-claim" with the OM-cited "feature-complete per Owner's Manual 00041-90034" wording after the post-Phase-32 gap-closure run (Plans 32-04..32-10) lifted coverage from 91.74 % → 95.39 % lines — v3.0 Phase 32 (Plan 32-10 SHIP commit)
+
+### Active (v3.1 — TBD)
+
+*v3.1 milestone definition pending. Scope-lock (2026-05-13) points to **Stat 1 Pac** as the next module-emulation milestone. Run `/gsd-new-milestone` to start the requirements → research → roadmap chain.*
 
 ### Out of Scope
 
@@ -248,3 +272,5 @@ v2.2 HP-41CV Feature Completeness shipped 2026-05-15 (Phases 20–27, 8/8 phases
 *Last updated: 2026-05-18 — v3.0 Phase 31 (GUI Integration) shipped (5/5 plans, 7/7 GUI-01..07 must-haves automated-verified, 3 manual GUI smoke items deferred to UAT); CATALOG 2 XROM enumeration + Math Pac I help overlay + LCD-alternation modal prompts + R/S 3-way + Esc cascade + request_cancel channel all land in this phase. Phase 32 (Test Hardening) next.*
 
 *Last updated: 2026-05-18 — v3.0 Phase 32 (Test Hardening & Quality Gates) fully shipped (10/10 plans: 3 original + 7 gap-closure). Original Phase 32 ship (Plans 32-01..32-03) delivered the test/CI infrastructure: meta-gate graduation, `lint_math1_assertions.rs`, `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass rate, E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu via `ci-gui.yml::e2e-linux`, Free42 GPL-contamination guard (D-32.7 12-symbol policy) in `just ci` + `ci.yml::license-audit` parallel job per D-32.8. Post-ship gap-closure run (Plans 32-04..32-10) added ~70 risk-weighted error-branch tests across 9 new `hp41-core/tests/` files plus the CR-01 + WR-01..07 cleanups, lifting coverage from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions and graduating the README v3.0 line to the OM-cited hard claim "feature-complete per Owner's Manual 00041-90034" per D-32.5.*
+
+*Last updated: 2026-05-21 — v3.0 milestone archived via `/gsd-complete-milestone`. ROADMAP collapsed to one-line summary; full v3.0 detail moved to `milestones/v3.0-ROADMAP.md`; requirements archived to `milestones/v3.0-REQUIREMENTS.md` (all 114 marked shipped); phase directories 28–32 moved to `milestones/v3.0-phases/`. Orphaned phase directories 09–12 and 13–18 retro-archived to `milestones/v1.1-phases/` and `milestones/v2.0-phases/` respectively (never moved during their respective milestone-complete runs). Stale `.planning/v1.0-MILESTONE-AUDIT.md` removed (duplicate of archived copy). `.planning/REQUIREMENTS.md` deleted — next milestone starts fresh via `/gsd-new-milestone`.*
