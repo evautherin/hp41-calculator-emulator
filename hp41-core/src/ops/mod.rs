@@ -937,6 +937,96 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOW (p. 35).
     SigmaPow,
 
+    // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ────────
+    /// ΣMMTUG — Ungrouped third + fourth moment accumulator.
+    ///
+    /// Per-call accumulator: consumes `x` from stack X and updates the
+    /// Σ-block extended with `Σx³` (R07 = `STAT1_MMTUG_CUBE_REG`) and
+    /// `Σx⁴` (R08 = `STAT1_MMTUG_QUAD_REG`). Σx, Σx², n are updated via
+    /// delegation to [`crate::ops::stats::op_sigma_plus`] (anti-duplication
+    /// per PATTERNS.md Pattern 4). Central moments + skewness γ₁ +
+    /// excess kurtosis γ₂ are extracted from the accumulated block via
+    /// the public helper `crate::ops::stat1::moments::compute_moments`.
+    ///
+    /// STAT-UNI-04 [C] correction-key round-trip: `op_sigma_minus` was
+    /// extended in this plan to mirror every register written by ΣMMTUG.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMMTUG (p. 15).
+    SigmaMmtug,
+    /// ΣMMTGD — Grouped (frequency-weighted) variant of ΣMMTUG.
+    ///
+    /// Per-call accumulator: consumes `x` from stack X and frequency
+    /// count `f` from stack Y, contributing `f·xᵏ` to Σxᵏ for k = 1..4
+    /// and updating n = Σf. All five Σ-block writes happen atomically
+    /// in one block (no `op_sigma_plus` delegate — the delegate has no
+    /// frequency-weighting API).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMMTGD (p. 15).
+    SigmaMmtgd,
+
+    // ── Phase 33 Plan 33-06: ANOVA family (one-way / two-way / ANCOVA) ─────
+    /// ΣAOVONE — One-way ANOVA F-ratio across k groups.
+    ///
+    /// Reads `k` (group count) from R00, the grand sum / sum-of-squares
+    /// / N from R01..R03, and per-group blocks (Σxᵢ, Σxᵢ², nᵢ, scratch)
+    /// at stride 4 from `STAT1_AOV_GROUP_BASE_REG` (R04). Computes
+    /// SSB = Σ nᵢ·(x̄ᵢ − x̄)², SSW = Σ(Σxᵢ² − nᵢ·x̄ᵢ²), df_between = k−1,
+    /// df_within = N − k, and F = (SSB / df_between) / (SSW / df_within).
+    ///
+    /// Pushes F to stack X with `LiftEffect::Enable`. Tolerance: 1e-9
+    /// closed-form per SPEC.md Req. 11.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣAOVONE (p. 20).
+    SigmaAovone,
+    /// ΣAOVTWO — Two-way ANOVA (no replications) row + column F-ratios.
+    ///
+    /// Reads r×c data per OM register layout (R01..R<n>) plus marginal
+    /// row/column sums. Computes SS_total, SS_row, SS_col, SS_error;
+    /// df_row = r − 1, df_col = c − 1, df_error = (r − 1)(c − 1);
+    /// F_row = (SS_row / df_row) / (SS_error / df_error), and F_col
+    /// analogously. Pushes (F_col, F_row) (F_col to X, F_row to Y).
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 12 (cross-product sums).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣAOVTWO (p. 23).
+    SigmaAovtwo,
+    /// ΣANOCOV — One-way ANCOVA (analysis of covariance) F-ratio.
+    ///
+    /// Per OM 00041-90030 §ΣANOCOV (p. 28): reads per-group (x, y) pairs
+    /// where x = covariate, y = response (NPS ZA-3 convention), computes
+    /// pooled within-group regression coefficient
+    /// b_w = SSxy_within / SSxx_within, adjusts response SSE by removing
+    /// covariate effect, and returns F-ratio of adjusted between-group
+    /// vs adjusted within-group mean squares.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 13.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣANOCOV (p. 28); cross-
+    /// check against NPS55-84-003 §ZA-3.
+    SigmaAnocov,
+
+    // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ──────────────────────
+    /// ΣCTKKK — General r×c contingency-table χ².
+    ///
+    /// Reads r from R00, c from R01, and the row-major cell matrix from
+    /// R02 onward (cell (i,j) at R02 + i·c + j). Computes row sums Rᵢ,
+    /// column sums Cⱼ, grand total T, expected counts E_ij = (Rᵢ·Cⱼ)/T,
+    /// and χ² = ΣΣ (O_ij − E_ij)² / E_ij. Pushes χ² to stack X.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 28.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKKK (p. 60).
+    SigmaCtkkk,
+    /// ΣCTKK — Smaller-table contingency-table χ² (cap 2×2).
+    ///
+    /// Same algorithm as ΣCTKKK but with a 2×2 dimension cap per OM
+    /// p. 60. Pushes χ² to stack X.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 29.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKK (p. 60).
+    SigmaCtkk,
+
     // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
     /// ΣNORMD — Normal-distribution three-mode modal opener.
     ///
@@ -1424,6 +1514,16 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaExp => crate::ops::stat1::regression::op_sigma_exp(state),
         Op::SigmaLogi => crate::ops::stat1::regression::op_sigma_logi(state),
         Op::SigmaPow => crate::ops::stat1::regression::op_sigma_pow(state),
+        // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ─────
+        Op::SigmaMmtug => crate::ops::stat1::moments::op_sigma_mmtug(state),
+        Op::SigmaMmtgd => crate::ops::stat1::moments::op_sigma_mmtgd(state),
+        // ── Phase 33 Plan 33-06: ANOVA family (one-way / two-way / ANCOVA) ──
+        Op::SigmaAovone => crate::ops::stat1::anova::op_sigma_aovone(state),
+        Op::SigmaAovtwo => crate::ops::stat1::anova::op_sigma_aovtwo(state),
+        Op::SigmaAnocov => crate::ops::stat1::anova::op_sigma_anocov(state),
+        // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ───────────────────
+        Op::SigmaCtkkk => crate::ops::stat1::nonparam::op_sigma_ctkkk(state),
+        Op::SigmaCtkk => crate::ops::stat1::nonparam::op_sigma_ctkk(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────

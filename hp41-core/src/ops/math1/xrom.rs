@@ -146,12 +146,12 @@ pub const STAT_1: XromModule = XromModule {
         // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
         ("\u{03A3}BSTAT", Op::SigmaBstat),  // ΣBSTAT — Plan 33-05
         ("\u{03A3}BSTG", Op::SigmaBstg),    // ΣBSTG  — Plan 33-05
-        ("\u{03A3}MMTUG", Op::Stat1Stub),  // ΣMMTUG — Plan 33-06
-        ("\u{03A3}MMTGD", Op::Stat1Stub),  // ΣMMTGD — Plan 33-06
+        ("\u{03A3}MMTUG", Op::SigmaMmtug), // ΣMMTUG — Plan 33-06
+        ("\u{03A3}MMTGD", Op::SigmaMmtgd), // ΣMMTGD — Plan 33-06
         // ── Stat 1 Pac ANOVA Family ────────────────────────────────────────────
-        ("\u{03A3}AOVONE", Op::Stat1Stub), // ΣAOVONE — Plan 33-06
-        ("\u{03A3}AOVTWO", Op::Stat1Stub), // ΣAOVTWO — Plan 33-06
-        ("\u{03A3}ANOCOV", Op::Stat1Stub), // ΣANOCOV — Plan 33-06
+        ("\u{03A3}AOVONE", Op::SigmaAovone), // ΣAOVONE — Plan 33-06
+        ("\u{03A3}AOVTWO", Op::SigmaAovtwo), // ΣAOVTWO — Plan 33-06
+        ("\u{03A3}ANOCOV", Op::SigmaAnocov), // ΣANOCOV — Plan 33-06
         // ── Stat 1 Pac Curve Fitting + Regression ─────────────────────────────
         // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants via
         // log-linearization + op_sigma_plus delegate (anti-duplication).
@@ -173,8 +173,8 @@ pub const STAT_1: XromModule = XromModule {
         // remaining 21 are owned by Plans 33-03 / 33-05 / 33-06 / 33-07 / 33-08).
         ("\u{03A3}XSQEV", Op::SigmaXsqev), // ΣXSQEV  — Plan 33-04
         ("\u{03A3}EFXSQ", Op::SigmaEfxsq), // ΣEFXSQ  — Plan 33-04
-        ("\u{03A3}CTKKK", Op::Stat1Stub),  // ΣCTKKK  — Plan 33-06
-        ("\u{03A3}CTKK", Op::Stat1Stub),   // ΣCTKK   — Plan 33-06
+        ("\u{03A3}CTKKK", Op::SigmaCtkkk),  // ΣCTKKK  — Plan 33-06
+        ("\u{03A3}CTKK", Op::SigmaCtkk),    // ΣCTKK   — Plan 33-06
         ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
         // ── Stat 1 Pac Distributions ───────────────────────────────────────────
         // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
@@ -318,12 +318,14 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
         "\u{03A3}BSTAT" => Some(Op::SigmaBstat),
         "\u{03A3}BSTG" => Some(Op::SigmaBstg),
-        "\u{03A3}MMTUG" => Some(Op::Stat1Stub),
-        "\u{03A3}MMTGD" => Some(Op::Stat1Stub),
+        // Plan 33-06: ΣMMTUG + ΣMMTGD → real Sigma* variants.
+        "\u{03A3}MMTUG" => Some(Op::SigmaMmtug),
+        "\u{03A3}MMTGD" => Some(Op::SigmaMmtgd),
         // ANOVA Family
-        "\u{03A3}AOVONE" => Some(Op::Stat1Stub),
-        "\u{03A3}AOVTWO" => Some(Op::Stat1Stub),
-        "\u{03A3}ANOCOV" => Some(Op::Stat1Stub),
+        // Plan 33-06: ΣAOVONE + ΣAOVTWO + ΣANOCOV → real Sigma* variants.
+        "\u{03A3}AOVONE" => Some(Op::SigmaAovone),
+        "\u{03A3}AOVTWO" => Some(Op::SigmaAovtwo),
+        "\u{03A3}ANOCOV" => Some(Op::SigmaAnocov),
         // Curve Fitting + Regression
         // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants.
         "\u{03A3}LIN" => Some(Op::SigmaLin),
@@ -341,8 +343,9 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ → real Sigma* variants.
         "\u{03A3}XSQEV" => Some(Op::SigmaXsqev),
         "\u{03A3}EFXSQ" => Some(Op::SigmaEfxsq),
-        "\u{03A3}CTKKK" => Some(Op::Stat1Stub),
-        "\u{03A3}CTKK" => Some(Op::Stat1Stub),
+        // Plan 33-06: ΣCTKKK + ΣCTKK → real Sigma* variants.
+        "\u{03A3}CTKKK" => Some(Op::SigmaCtkkk),
+        "\u{03A3}CTKK" => Some(Op::SigmaCtkk),
         "\u{03A3}SPEAR" => Some(Op::SigmaSpear),
         // Distributions
         // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.

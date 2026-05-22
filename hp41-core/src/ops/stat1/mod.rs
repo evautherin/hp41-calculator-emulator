@@ -91,14 +91,14 @@
 //!   DTIC AD-A140573) — independent algorithm cross-check.
 
 // ── Submodule declarations (uncommented per plan as algorithm files land) ──
-// pub mod anova;        // Plan 33-06
+pub mod anova; // Plan 33-06 (ΣAOVONE + ΣAOVTWO + ΣANOCOV)
 pub mod basic_stats; // Plan 33-05 (ΣBSTAT + ΣBSTG univariate / weighted summaries)
 pub mod chisqd; // Plan 33-03 (ΣCHISQD ν-prompt + PDF/CDF dispatcher)
 pub mod distributions; // Plan 33-02
 // pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
 pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
-               // pub mod moments;      // Plan 33-06
-pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops)
+pub mod moments; // Plan 33-06 (ΣMMTUG + ΣMMTGD third/fourth moments)
+pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops); Plan 33-06 extends with ΣCTKKK + ΣCTKK
 pub mod normd; // Plan 33-03 (ΣNORMD 3-mode dispatcher: CDF / PDF / inverse)
                // pub mod rand;         // Plan 33-08
 pub mod regression; // Plan 33-05 (ΣLIN/EXP/LOGI/POW curve fits via op_sigma_plus delegate); Plan 33-08 extends with ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC
@@ -283,6 +283,150 @@ pub const STAT1_XSQEV_STRIDE: usize = 2;
 /// SIZE 008 / R00..R07: (8 − 1) / 2 = 3 (integer division; the trailing
 /// R07 scratch slot is the output and is not used as data).
 pub const STAT1_XSQEV_KMAX: usize = 3;
+
+// ── Plan 33-06 Task 1: ΣMMTUG / ΣMMTGD per-slot register consts (P21) ──────
+//
+// ΣMMTUG (ungrouped) and ΣMMTGD (grouped / frequency-weighted) both use
+// SIZE 012 (R00..R11) per OM 00041-90030 p. 15. The first six registers
+// R01..R06 mirror the existing v1.x Σ-block (Σx²/Σx/n/Σy²/Σy/Σxy) so
+// that the accumulator can delegate to `op_sigma_plus` for Σx, Σx², n
+// updates and merely ADDS its own writes for the third + fourth moments
+// (Σx³, Σx⁴). The new slots use R07 and R08 (within the SIZE 012 block);
+// R09..R11 are program-internal scratch per OM.
+//
+//   R00 = (unused by accumulator)
+//   R01 = Σx²            (v1.x via op_sigma_plus)
+//   R02 = Σx             (v1.x via op_sigma_plus)
+//   R03 = n              (v1.x via op_sigma_plus)
+//   R04 = Σy² (unused by ΣMMTUG ungrouped path; ΣMMTGD reuses for Σ(f·x²))
+//   R05 = Σy  (ΣMMTGD: Σf — total frequency)
+//   R06 = Σxy (ΣMMTGD: Σ(f·x))
+//   R07 = Σx³            (Plan 33-06 — third moment slot)
+//   R08 = Σx⁴            (Plan 33-06 — fourth moment slot)
+//   R09..R11 = scratch (intermediate results during compute)
+
+/// ΣMMTUG / ΣMMTGD: register holding Σx³ (sum of cubes, OR sum of
+/// frequency-weighted cubes `Σ(f·x³)` for ΣMMTGD).
+///
+/// OM 00041-90030 p. 15 (Moments, Skewness, Kurtosis); slot chosen as
+/// R07 to land within the SIZE 012 block (R00..R11) without colliding
+/// with the v1.x Σ-block delegated to `op_sigma_plus` (R01..R06).
+pub const STAT1_MMTUG_CUBE_REG: usize = 7;
+
+/// ΣMMTUG / ΣMMTGD: register holding Σx⁴ (sum of fourth powers, OR
+/// frequency-weighted `Σ(f·x⁴)` for ΣMMTGD).
+///
+/// OM 00041-90030 p. 15; slot R08 within SIZE 012 block.
+pub const STAT1_MMTUG_QUAD_REG: usize = 8;
+
+// ── Plan 33-06 Task 2: ΣAOVONE per-group register consts (P21) ─────────────
+//
+// ΣAOVONE (one-way ANOVA) uses SIZE 020 (R00..R19) per OM 00041-90030
+// p. 20. The block is organized as a single global accumulator block
+// PLUS K per-group sub-blocks of 4 registers each. With SIZE 020 we
+// can accommodate up to K = 4 groups:
+//
+//   R00 = k (group count; 1 ≤ k ≤ STAT1_AOV_KMAX = 4)
+//   R01 = Σx²    (grand sum of squares; v1.x convention)
+//   R02 = Σx     (grand sum)
+//   R03 = N      (grand sample count)
+//
+//   Per-group block at base `STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i`:
+//     +0 = Σxᵢ      (group sum)
+//     +1 = Σxᵢ²     (group sum of squares)
+//     +2 = nᵢ       (group sample count)
+//     +3 = scratch  (intermediate: x̄ᵢ or group SS during compute)
+//
+//   With base = 4 and stride = 4: groups 0..3 occupy R04..R19 = 16 regs.
+//   Total: 4 (global) + 16 (per-group) = 20 = SIZE 020. ✓
+//
+// This shape mirrors the typical HP-41 Stat Pac ANOVA accumulator. The
+// per-slot semantics are re-derived from OM p. 20 (Inputs section).
+
+/// ΣAOVONE: register holding `k`, the number of groups
+/// (1 ≤ k ≤ STAT1_AOV_KMAX = 4 for SIZE 020).
+pub const STAT1_AOV_K_REG: usize = 0;
+
+/// ΣAOVONE: register holding the grand sample count N = Σ nᵢ.
+pub const STAT1_AOV_N_REG: usize = 3;
+
+/// ΣAOVONE: register holding the grand sum Σx (across all groups).
+pub const STAT1_AOV_GRAND_SUM_REG: usize = 2;
+
+/// ΣAOVONE: register holding the grand sum-of-squares Σx² (across all groups).
+pub const STAT1_AOV_GRAND_SUMSQ_REG: usize = 1;
+
+/// ΣAOVONE: base register for the first per-group sub-block.
+///
+/// Group `i` (0-indexed) occupies registers
+/// `STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i` through
+/// `STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i + 3` (4 regs).
+pub const STAT1_AOV_GROUP_BASE_REG: usize = 4;
+
+/// ΣAOVONE: stride between successive per-group sub-blocks.
+///
+/// Each group occupies 4 consecutive registers (Σxᵢ, Σxᵢ², nᵢ, scratch);
+/// stride = 4.
+pub const STAT1_AOV_GROUP_STRIDE: usize = 4;
+
+/// ΣAOVONE per-group offset: Σxᵢ (group sum).
+pub const STAT1_AOV_GROUP_SUM_OFFSET: usize = 0;
+
+/// ΣAOVONE per-group offset: Σxᵢ² (group sum of squares).
+pub const STAT1_AOV_GROUP_SUMSQ_OFFSET: usize = 1;
+
+/// ΣAOVONE per-group offset: nᵢ (group sample count).
+pub const STAT1_AOV_GROUP_N_OFFSET: usize = 2;
+
+/// ΣAOVONE: maximum number of groups `k` the SIZE 020 block can
+/// accommodate. Derived from `(STAT1_AOVONE_MAX_REG + 1 −
+/// STAT1_AOV_GROUP_BASE_REG) / STAT1_AOV_GROUP_STRIDE = 16 / 4 = 4`.
+pub const STAT1_AOV_KMAX: usize = 4;
+
+// ── Plan 33-06 Task 3: ΣCTKKK / ΣCTKK per-slot register consts (P21) ───────
+//
+// ΣCTKKK (general r×c contingency) and ΣCTKK (smaller variant, 2×2 cap)
+// both use SIZE 015 (R00..R14) per OM 00041-90030 p. 60. The block is
+// organized as two scalar dimensions plus a packed cell matrix in
+// row-major order:
+//
+//   R00 = r (number of rows; 1 ≤ r ≤ STAT1_CTKKK_DIM_MAX = 3 for ΣCTKKK,
+//            1 ≤ r ≤ STAT1_CTKK_DIM_MAX = 2 for ΣCTKK)
+//   R01 = c (number of columns; same per-Op cap as r)
+//   R02..R<n+1> = O_ij cells, row-major (cell (i,j) at
+//                  STAT1_CTKKK_CELL_BASE_REG + i*c + j)
+//
+//   For a 3×3 maximum table the cells occupy R02..R10 (9 cells); the
+//   remaining R11..R14 are program-internal scratch (row/col marginals
+//   and the χ² accumulator per OM p. 60).
+//
+// ΣCTKK is the smaller-table variant per OM p. 60 — capped at 2×2 (4
+// cells, R02..R05) so the program-internal scratch overhead is reduced.
+//
+// Both variants share the same register layout; the only difference is
+// the dimension cap enforced at decode time.
+
+/// ΣCTKKK / ΣCTKK: register holding `r`, the number of rows.
+pub const STAT1_CTKKK_R_REG: usize = 0;
+
+/// ΣCTKKK / ΣCTKK: register holding `c`, the number of columns.
+pub const STAT1_CTKKK_C_REG: usize = 1;
+
+/// ΣCTKKK / ΣCTKK: base register for the first cell `O_{0,0}`.
+///
+/// Cell `(i, j)` is at `STAT1_CTKKK_CELL_BASE_REG + i * c + j` (row-major).
+pub const STAT1_CTKKK_CELL_BASE_REG: usize = 2;
+
+/// ΣCTKKK: maximum row/column dimension.
+///
+/// Derived from `(STAT1_CTKKK_MAX_REG + 1 − STAT1_CTKKK_CELL_BASE_REG) ≥ DIM²`.
+/// With SIZE 015 / 13 cells available: floor(√13) = 3 (a 3×3 table fits;
+/// 4×4 needs 16 cells but only 13 are available).
+pub const STAT1_CTKKK_DIM_MAX: usize = 3;
+
+/// ΣCTKK: maximum row/column dimension. Smaller-table variant per OM
+/// p. 60 — capped at 2×2 (4 cells, R02..R05) to reduce scratch overhead.
+pub const STAT1_CTKK_DIM_MAX: usize = 2;
 
 // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
 
