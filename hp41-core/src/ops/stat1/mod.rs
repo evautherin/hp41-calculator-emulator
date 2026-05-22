@@ -92,8 +92,8 @@
 
 // ── Submodule declarations (uncommented per plan as algorithm files land) ──
 // pub mod anova;        // Plan 33-06
-// pub mod basic_stats;  // Plan 33-05
-// pub mod chisqd;       // Plan 33-03
+pub mod basic_stats; // Plan 33-05 (ΣBSTAT + ΣBSTG univariate / weighted summaries)
+                     // pub mod chisqd;       // Plan 33-03
 pub mod distributions; // Plan 33-02
 // pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
 pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)

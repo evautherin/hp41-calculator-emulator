@@ -999,6 +999,10 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaSpear => crate::ops::dispatch(state, Op::SigmaSpear),
         Op::SigmaXsqev => crate::ops::dispatch(state, Op::SigmaXsqev),
         Op::SigmaEfxsq => crate::ops::dispatch(state, Op::SigmaEfxsq),
+        // ── Phase 33 Plan 33-05: Univariate / weighted summary Ops ──────────
+        // Pure-data ops (closed-form on R01–R06); same dispatch routing.
+        Op::SigmaBstat => crate::ops::dispatch(state, Op::SigmaBstat),
+        Op::SigmaBstg => crate::ops::dispatch(state, Op::SigmaBstg),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Pure-data op routed through dispatch (mirrors hyperbolics +
         // Plan 28-10 Triangle/TRANS pattern). Will be replaced when Plans

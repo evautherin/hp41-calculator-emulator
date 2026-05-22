@@ -143,8 +143,9 @@ pub const STAT_1: XromModule = XromModule {
     name: "STAT 1B",
     ops: &[
         // ── Stat 1 Pac Univariate / Bivariate Summaries ────────────────────────
-        ("\u{03A3}BSTAT", Op::Stat1Stub),  // ΣBSTAT — Plan 33-05
-        ("\u{03A3}BSTG", Op::Stat1Stub),   // ΣBSTG  — Plan 33-05
+        // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
+        ("\u{03A3}BSTAT", Op::SigmaBstat),  // ΣBSTAT — Plan 33-05
+        ("\u{03A3}BSTG", Op::SigmaBstg),    // ΣBSTG  — Plan 33-05
         ("\u{03A3}MMTUG", Op::Stat1Stub),  // ΣMMTUG — Plan 33-06
         ("\u{03A3}MMTGD", Op::Stat1Stub),  // ΣMMTGD — Plan 33-06
         // ── Stat 1 Pac ANOVA Family ────────────────────────────────────────────
@@ -311,8 +312,9 @@ fn math1_resolve(name: &str) -> Option<Op> {
 fn stat1_resolve(name: &str) -> Option<Op> {
     match name {
         // Univariate / Bivariate Summaries
-        "\u{03A3}BSTAT" => Some(Op::Stat1Stub),
-        "\u{03A3}BSTG" => Some(Op::Stat1Stub),
+        // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
+        "\u{03A3}BSTAT" => Some(Op::SigmaBstat),
+        "\u{03A3}BSTG" => Some(Op::SigmaBstg),
         "\u{03A3}MMTUG" => Some(Op::Stat1Stub),
         "\u{03A3}MMTGD" => Some(Op::Stat1Stub),
         // ANOVA Family
