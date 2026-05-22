@@ -159,10 +159,10 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}EXP", Op::SigmaExp),    // ΣEXP    — Plan 33-05
         ("\u{03A3}LOGI", Op::SigmaLogi),  // ΣLOGI   — Plan 33-05
         ("\u{03A3}POW", Op::SigmaPow),    // ΣPOW    — Plan 33-05
-        ("\u{03A3}MLRXY", Op::Stat1Stub),  // ΣMLRXY  — Plan 33-08
-        ("\u{03A3}MLRXYZ", Op::Stat1Stub), // ΣMLRXYZ — Plan 33-08
-        ("\u{03A3}POLYP", Op::Stat1Stub),  // ΣPOLYP  — Plan 33-08
-        ("\u{03A3}POLYC", Op::Stat1Stub),  // ΣPOLYC  — Plan 33-08
+        ("\u{03A3}MLRXY", Op::SigmaMlrxy),  // ΣMLRXY  — Plan 33-08
+        ("\u{03A3}MLRXYZ", Op::SigmaMlrxyz), // ΣMLRXYZ — Plan 33-08
+        ("\u{03A3}POLYP", Op::SigmaPolypWorkflow), // ΣPOLYP — Plan 33-08
+        ("\u{03A3}POLYC", Op::SigmaPolyc),  // ΣPOLYC  — Plan 33-08
         // ── Stat 1 Pac Hypothesis Tests ────────────────────────────────────────
         // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
         ("\u{03A3}PTST", Op::SigmaPtst),   // ΣPTST   — Plan 33-07
@@ -333,10 +333,11 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}EXP" => Some(Op::SigmaExp),
         "\u{03A3}LOGI" => Some(Op::SigmaLogi),
         "\u{03A3}POW" => Some(Op::SigmaPow),
-        "\u{03A3}MLRXY" => Some(Op::Stat1Stub),
-        "\u{03A3}MLRXYZ" => Some(Op::Stat1Stub),
-        "\u{03A3}POLYP" => Some(Op::Stat1Stub),
-        "\u{03A3}POLYC" => Some(Op::Stat1Stub),
+        // Plan 33-08: Multiple + polynomial regression → real Sigma* variants.
+        "\u{03A3}MLRXY" => Some(Op::SigmaMlrxy),
+        "\u{03A3}MLRXYZ" => Some(Op::SigmaMlrxyz),
+        "\u{03A3}POLYP" => Some(Op::SigmaPolypWorkflow),
+        "\u{03A3}POLYC" => Some(Op::SigmaPolyc),
         // Hypothesis Tests
         // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
         "\u{03A3}PTST" => Some(Op::SigmaPtst),

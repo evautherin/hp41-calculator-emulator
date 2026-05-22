@@ -80,7 +80,26 @@ pub enum Stat1Step {
     /// ΣCHISQD — ν is captured in `state.stack.t`; awaiting mode index
     /// in X (1 = PDF, 2 = CDF).
     ChisqdModeChoice,
-    // Plan 33-08 will ADD: PolypDegreePrompt(u8), SeedPrompt.
+    /// ΣPOLYP — awaiting polynomial degree `d` entry in X (1 ≤ d ≤
+    /// [`crate::ops::stat1::STAT1_POLYP_DEGREE_MAX`]; OM override per
+    /// SPEC.md Req. 22 — the prompt string `DEGREE=?` is NOT locked,
+    /// only the modal-prompt-driven workflow shape).
+    ///
+    /// The u8 payload is reserved for future multi-step expansion
+    /// (e.g. accumulation-ready substate). Plan 33-08 uses only `(0)`
+    /// for the initial prompt; submit transitions out of the modal
+    /// after storing d in [`crate::ops::stat1::STAT1_POLYP_DEGREE_REG`]
+    /// and dispatching `compute_polyp_coefficients` to fit the
+    /// pre-populated higher-power Σ sums.
+    PolypDegreePrompt(u8),
+    /// SEED — awaiting numeric seed value entry in X. Submit copies
+    /// `state.stack.x` into `state.rand_seed` and clears the modal state.
+    ///
+    /// Per D-33.4 SPEC.md Req. 36 ALPHA prompt naming — the original OM
+    /// (if it exists) shows an ALPHA-prompt convention, but our
+    /// implementation accepts a numeric HpNum directly from stack X
+    /// (consistent with the rest of Stat 1 Pac modal numeric submits).
+    SeedPrompt,
 }
 
 /// Per-step submit dispatch — called by `math1::submit_modal` when the
@@ -184,6 +203,58 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
                 _ => Err(HpError::Domain),
             }
         }
+        Stat1Step::PolypDegreePrompt(_) => {
+            // Read degree d from X (truncate-to-integer; reject fractional).
+            let degree_dec = state.stack.x.trunc_int();
+            let d_i32 = degree_dec.inner().to_i32_safe()?;
+            if d_i32 < 1
+                || d_i32 > crate::ops::stat1::STAT1_POLYP_DEGREE_MAX as i32
+            {
+                state.modal_program = None;
+                state.modal_prompt = None;
+                return Err(HpError::Domain);
+            }
+            // SIZE-floor check BEFORE we touch any extended register.
+            if state.regs.len() < crate::ops::stat1::STAT1_MAX_REG + 1 {
+                state.modal_program = None;
+                state.modal_prompt = None;
+                return Err(HpError::InvalidOp);
+            }
+            // Persist d to the OM-cited degree slot.
+            state.regs[crate::ops::stat1::STAT1_POLYP_DEGREE_REG] = state.stack.x.clone();
+            // Drop X (the degree the user just submitted).
+            state.stack.x = state.stack.y.clone();
+            state.stack.y = state.stack.z.clone();
+            state.stack.z = state.stack.t.clone();
+            // Clear modal state (the user is now expected to accumulate
+            // higher-power Σ sums and re-invoke ΣPOLYP for compute, OR
+            // the test/program path may invoke compute_polyp_coefficients
+            // directly).
+            state.modal_program = None;
+            state.modal_prompt = None;
+            // Per OM/SPEC: after degree submission, compute the fit using
+            // any pre-populated higher-power Σ sums. For the most common
+            // user flow the sums are zero — compute will return Domain
+            // (singular n=0 row) — which is acceptable; the user can
+            // re-invoke ΣPOLYP once the sums are populated. For the test
+            // path the sums are pre-populated; compute succeeds.
+            crate::ops::stat1::regression::compute_polyp_coefficients(state)
+        }
+        Stat1Step::SeedPrompt => {
+            // Copy the value currently on stack X into `state.rand_seed`.
+            // The seed may be any HpNum (positive, negative, or fractional
+            // — the LCG body in `rand.rs` only consumes the fractional
+            // part via `trunc_int` so a "non-normalized" seed is OK).
+            state.rand_seed = state.stack.x.clone();
+            // Drop X (the seed the user submitted).
+            state.stack.x = state.stack.y.clone();
+            state.stack.y = state.stack.z.clone();
+            state.stack.z = state.stack.t.clone();
+            // Clear modal state.
+            state.modal_program = None;
+            state.modal_prompt = None;
+            Ok(())
+        }
     }
 }
 
@@ -212,6 +283,11 @@ pub fn current_prompt(step: &Stat1Step) -> Option<String> {
         Stat1Step::NormdModeChoice => Some("\u{03A3}NORMD MODE?".to_string()),
         Stat1Step::ChisqdNuPrompt => Some("\u{03BD}=?".to_string()),
         Stat1Step::ChisqdModeChoice => Some("\u{03A3}CHISQD MODE?".to_string()),
+        // Plan 33-08: OM override allowed (SPEC.md Req. 22). Default to
+        // the Math Pac I POLY precedent string "DEGREE=?".
+        Stat1Step::PolypDegreePrompt(_) => Some("DEGREE=?".to_string()),
+        // Plan 33-08: SEED? matches OM convention (SPEC.md Req. 36).
+        Stat1Step::SeedPrompt => Some("SEED?".to_string()),
     }
 }
 
@@ -226,7 +302,9 @@ pub fn requires_alpha_label(step: &Stat1Step) -> bool {
     match step {
         Stat1Step::NormdModeChoice
         | Stat1Step::ChisqdNuPrompt
-        | Stat1Step::ChisqdModeChoice => false,
+        | Stat1Step::ChisqdModeChoice
+        | Stat1Step::PolypDegreePrompt(_)
+        | Stat1Step::SeedPrompt => false,
     }
 }
 

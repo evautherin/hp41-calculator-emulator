@@ -484,6 +484,140 @@ pub const STAT1_TSTAT_G2_SUM_REG: usize = 8;
 /// OM 00041-90030 p. 52.
 pub const STAT1_TSTAT_G2_N_REG: usize = 9;
 
+// ── Plan 33-08 Task 1: ΣMLRXY per-slot register consts (2-predictor MLR) ───
+//
+// ΣMLRXY (2-predictor multiple linear regression) uses SIZE 045 per
+// OM 00041-90030 p. 40. With 2 predictors, the normal-equation system
+// is 3×3 (intercept b₀ + 2 slope coefficients b₁, b₂). The Op reads
+// 9 sufficient statistics:
+//
+//   R00 = n        (sample count)
+//   R01 = Σy       (sum of dependent)
+//   R02 = Σx₁      (sum of predictor 1)
+//   R03 = Σx₂      (sum of predictor 2)
+//   R04 = Σx₁²     (sum of squares of predictor 1)
+//   R05 = Σx₂²     (sum of squares of predictor 2)
+//   R06 = Σx₁x₂    (cross-product of predictors)
+//   R07 = Σx₁y     (cross-product of predictor 1 with y)
+//   R08 = Σx₂y     (cross-product of predictor 2 with y)
+
+/// ΣMLRXY: register holding `n`, the sample count.
+pub const STAT1_MLRXY_N_REG: usize = 0;
+/// ΣMLRXY: register holding `Σy`.
+pub const STAT1_MLRXY_SUM_Y_REG: usize = 1;
+/// ΣMLRXY: register holding `Σx₁`.
+pub const STAT1_MLRXY_SUM_X1_REG: usize = 2;
+/// ΣMLRXY: register holding `Σx₂`.
+pub const STAT1_MLRXY_SUM_X2_REG: usize = 3;
+/// ΣMLRXY: register holding `Σx₁²`.
+pub const STAT1_MLRXY_SUM_X1SQ_REG: usize = 4;
+/// ΣMLRXY: register holding `Σx₂²`.
+pub const STAT1_MLRXY_SUM_X2SQ_REG: usize = 5;
+/// ΣMLRXY: register holding `Σx₁x₂`.
+pub const STAT1_MLRXY_SUM_X1X2_REG: usize = 6;
+/// ΣMLRXY: register holding `Σx₁y`.
+pub const STAT1_MLRXY_SUM_X1Y_REG: usize = 7;
+/// ΣMLRXY: register holding `Σx₂y`.
+pub const STAT1_MLRXY_SUM_X2Y_REG: usize = 8;
+
+// ── Plan 33-08 Task 1: ΣMLRXYZ per-slot register consts (3-predictor MLR) ──
+//
+// ΣMLRXYZ (3-predictor multiple linear regression) uses SIZE 045 per
+// OM 00041-90030 p. 43. With 3 predictors, the normal-equation system
+// is 4×4 (intercept b₀ + 3 slope coefficients b₁, b₂, b₃). The Op reads
+// 14 sufficient statistics:
+//
+//   R00 = n          (sample count)
+//   R01 = Σy
+//   R02 = Σx₁     R03 = Σx₂     R04 = Σx₃
+//   R05 = Σx₁²    R06 = Σx₂²    R07 = Σx₃²
+//   R08 = Σx₁x₂   R09 = Σx₁x₃   R10 = Σx₂x₃
+//   R11 = Σx₁y    R12 = Σx₂y    R13 = Σx₃y
+
+/// ΣMLRXYZ: register holding `n`.
+pub const STAT1_MLRXYZ_N_REG: usize = 0;
+/// ΣMLRXYZ: register holding `Σy`.
+pub const STAT1_MLRXYZ_SUM_Y_REG: usize = 1;
+/// ΣMLRXYZ: register holding `Σx₁`.
+pub const STAT1_MLRXYZ_SUM_X1_REG: usize = 2;
+/// ΣMLRXYZ: register holding `Σx₂`.
+pub const STAT1_MLRXYZ_SUM_X2_REG: usize = 3;
+/// ΣMLRXYZ: register holding `Σx₃`.
+pub const STAT1_MLRXYZ_SUM_X3_REG: usize = 4;
+/// ΣMLRXYZ: register holding `Σx₁²`.
+pub const STAT1_MLRXYZ_SUM_X1SQ_REG: usize = 5;
+/// ΣMLRXYZ: register holding `Σx₂²`.
+pub const STAT1_MLRXYZ_SUM_X2SQ_REG: usize = 6;
+/// ΣMLRXYZ: register holding `Σx₃²`.
+pub const STAT1_MLRXYZ_SUM_X3SQ_REG: usize = 7;
+/// ΣMLRXYZ: register holding `Σx₁x₂`.
+pub const STAT1_MLRXYZ_SUM_X1X2_REG: usize = 8;
+/// ΣMLRXYZ: register holding `Σx₁x₃`.
+pub const STAT1_MLRXYZ_SUM_X1X3_REG: usize = 9;
+/// ΣMLRXYZ: register holding `Σx₂x₃`.
+pub const STAT1_MLRXYZ_SUM_X2X3_REG: usize = 10;
+/// ΣMLRXYZ: register holding `Σx₁y`.
+pub const STAT1_MLRXYZ_SUM_X1Y_REG: usize = 11;
+/// ΣMLRXYZ: register holding `Σx₂y`.
+pub const STAT1_MLRXYZ_SUM_X2Y_REG: usize = 12;
+/// ΣMLRXYZ: register holding `Σx₃y`.
+pub const STAT1_MLRXYZ_SUM_X3Y_REG: usize = 13;
+
+// ── Plan 33-08 Task 1: ΣPOLYP/ΣPOLYC per-slot register consts ──────────────
+//
+// ΣPOLYP (polynomial regression) and ΣPOLYC (Horner evaluation) use
+// SIZE 045 per OM 00041-90030 p. 47-48. For degree d (1 ≤ d ≤ 5), the
+// normal-equation system is (d+1)×(d+1). The Op needs Σx^k for
+// k=1..2d (= up to 10 sums for d=5) and Σ(x^k · y) for k=0..d
+// (= up to 6 sums for d=5), giving 16 input sums + n + degree slot
+// + (d+1) ≤ 6 coefficient output slots = up to ~25 registers.
+//
+// Layout chosen to keep mechanical translation between Σ-block and
+// polyp registers obvious:
+//
+//   R00          = n (sample count)
+//   R01..R10     = Σx^k for k = 1..10 (10 slots; STAT1_POLYP_SUM_X_BASE_REG..)
+//   R11..R16     = Σ(x^k · y) for k = 0..5 (6 slots; k=0 is Σy)
+//   R20..R25     = a_0..a_5 (coefficient output, up to degree 5)
+//   R30          = degree d (1 ≤ d ≤ 5)
+//
+// R17..R19 + R26..R29 + R31..R44 = scratch / unused (within SIZE 045).
+// All slot consts are pinned per Plan 33-08; future plans extending
+// polynomial-regression machinery (none currently planned) must respect
+// these positions to preserve save/load layout compatibility.
+
+/// ΣPOLYP: register holding `n` (sample count).
+pub const STAT1_POLYP_N_REG: usize = 0;
+/// ΣPOLYP: base register for `Σx^k` with k = 1 at offset 0, k = 2 at
+/// offset 1, ..., k = 10 at offset 9 (10 slots total).
+///
+/// `Σx^k` for k ≥ 1 lives at `regs[STAT1_POLYP_SUM_X_BASE_REG + (k-1)]`.
+pub const STAT1_POLYP_SUM_X_BASE_REG: usize = 1;
+/// ΣPOLYP: base register for `Σ(x^k · y)` with k = 0 at offset 0,
+/// k = 1 at offset 1, ..., k = 5 at offset 5 (6 slots total).
+///
+/// `Σ(x^k · y)` for k ≥ 0 lives at `regs[STAT1_POLYP_SUM_XY_BASE_REG + k]`.
+/// (Offset 0 = Σy, offset 1 = Σxy, etc.)
+pub const STAT1_POLYP_SUM_XY_BASE_REG: usize = 11;
+/// ΣPOLYP/ΣPOLYC: base register for coefficient output.
+///
+/// `a_i` lives at `regs[STAT1_POLYP_COEF_BASE_REG + i]` for 0 ≤ i ≤ d.
+/// ΣPOLYP writes; ΣPOLYC reads for Horner evaluation.
+pub const STAT1_POLYP_COEF_BASE_REG: usize = 20;
+/// ΣPOLYP: register holding the polynomial degree d (1 ≤ d ≤
+/// STAT1_POLYP_DEGREE_MAX).
+///
+/// Written by `submit_step(Stat1Step::PolypDegreePrompt(_))` after user
+/// submits via R/S; read by both ΣPOLYP (during compute) and ΣPOLYC
+/// (during Horner eval).
+pub const STAT1_POLYP_DEGREE_REG: usize = 30;
+/// ΣPOLYP: hard-defensive cap on polynomial degree.
+///
+/// Chosen 5 to match the Math Pac I POLY precedent (DEGREE 2..=5) and
+/// to keep the (d+1)×(d+1) Gauss elimination within reasonable LOC.
+/// `d = 0` is degenerate (constant fit) and rejected as Domain.
+pub const STAT1_POLYP_DEGREE_MAX: u8 = 5;
+
 // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
 
 use crate::error::HpError;

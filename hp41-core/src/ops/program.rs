@@ -1029,6 +1029,14 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaPtst => crate::ops::dispatch(state, Op::SigmaPtst),
         // ── Phase 33 Plan 33-07: ΣTSTAT pooled-variance two-sample t-test ───
         Op::SigmaTstat => crate::ops::dispatch(state, Op::SigmaTstat),
+        // ── Phase 33 Plan 33-08: Multiple + polynomial regression ───────────
+        // Pure-data ops (closed-form Gauss elimination + Horner eval);
+        // modal opener (SigmaPolypWorkflow) follows the PolyWorkflow
+        // pattern. All four route through dispatch().
+        Op::SigmaMlrxy => crate::ops::dispatch(state, Op::SigmaMlrxy),
+        Op::SigmaMlrxyz => crate::ops::dispatch(state, Op::SigmaMlrxyz),
+        Op::SigmaPolypWorkflow => crate::ops::dispatch(state, Op::SigmaPolypWorkflow),
+        Op::SigmaPolyc => crate::ops::dispatch(state, Op::SigmaPolyc),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().
