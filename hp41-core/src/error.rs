@@ -35,6 +35,16 @@ pub enum HpError {
     /// D-28.7 / D-28.8 / D-28.9; wiring in Phase 31 / GUI-05.
     #[error("canceled")]
     Canceled,
+    /// Hard iteration-cap exhaustion in a Stat 1 Pac iterative quantile loop
+    /// (Plan 33-03 ΣNORMD inverse; Plan 33-07 ΣPTST). SPEC.md Req. 34 /
+    /// D-33.5 / Pitfall 11: every Stat 1 iterative path declares a 50-iter
+    /// hard cap and surfaces this variant when the loop fails to converge
+    /// to the display-mode-tied tolerance band. Distinct from `Domain`
+    /// (which already covers AS-239 / AS-63 distribution-primitive
+    /// non-convergence at the bare f64 layer) so the outer Op layer can
+    /// distinguish iter-cap from domain-rejection failures.
+    #[error("convergence failed")]
+    ConvergenceFailed,
 }
 
 #[cfg(test)]

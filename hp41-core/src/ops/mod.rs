@@ -937,6 +937,54 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOW (p. 35).
     SigmaPow,
 
+    // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
+    /// ΣNORMD — Normal-distribution three-mode modal opener.
+    ///
+    /// Opens at `Stat1Step::NormdModeChoice` with prompt `ΣNORMD MODE?`.
+    /// User enters mode index in X (1 = CDF, 2 = PDF, 3 = inverse) and
+    /// presses R/S; `submit_step(NormdModeChoice)` in
+    /// `crate::ops::stat1::modal` dispatches to the appropriate
+    /// `op_sigma_normd_eval_*` evaluator:
+    ///
+    /// - CDF: closed-form upper-tail `Q(x) = 1 − Φ(x)` via
+    ///   `rust_decimal::MathematicalOps::norm_cdf`.
+    /// - PDF: closed-form `φ(x)` via
+    ///   `rust_decimal::MathematicalOps::checked_norm_pdf`.
+    /// - Inverse: iterative path — Acklam (AS 241) closed-form start
+    ///   from `distributions::norm_cdf_inv_f64`, then up to 50 Newton
+    ///   refinement steps gated by `state.cancel_requested` and the
+    ///   display-mode-tied `quantile_threshold(state.display_mode)`.
+    ///   Errors: `Canceled` on user cancel, `ConvergenceFailed` on
+    ///   iter-cap (SPEC.md Req. 34).
+    ///
+    /// LiftEffect: `Neutral` on open, `Enable` on result push (closed-form
+    /// modal-eval pattern).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣNORMD (p. 67).
+    SigmaNormdWorkflow,
+
+    // ── Phase 33 Plan 33-03: ΣCHISQD ν-prompt + PDF/CDF dispatcher ─────────
+    /// ΣCHISQD — Chi-square distribution two-step modal opener.
+    ///
+    /// Opens at `Stat1Step::ChisqdNuPrompt` with prompt `ν=?`. User
+    /// enters ν (positive integer degrees-of-freedom) in X and presses
+    /// R/S; `submit_step(ChisqdNuPrompt)` stashes ν in `state.stack.t`
+    /// (D-33.5 — no new transient CalcState field) and transitions to
+    /// `ChisqdModeChoice` with prompt `ΣCHISQD MODE?`. User then enters
+    /// the χ² statistic x in Y, mode index in X (1 = PDF, 2 = CDF), and
+    /// `submit_step(ChisqdModeChoice)` reads mode, drops X, recovers ν
+    /// from T, dispatches to:
+    ///
+    /// - PDF: closed-form `f(x; ν) = x^(ν/2−1)·exp(−x/2) / (2^(ν/2)·Γ(ν/2))`
+    ///   via Decimal + `distributions::ln_gamma`.
+    /// - CDF: iterative `P(x; ν) = gamma_regularized_f64(ν/2, x/2)`
+    ///   wrapped with a per-call `cancel_requested` gate.
+    ///
+    /// LiftEffect: `Neutral` on open, `Enable` on result push.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCHISQD (p. 71).
+    SigmaChisqdWorkflow,
+
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
     // `Stat1Stub` is a placeholder Op referenced by every entry in the
@@ -1376,6 +1424,10 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaExp => crate::ops::stat1::regression::op_sigma_exp(state),
         Op::SigmaLogi => crate::ops::stat1::regression::op_sigma_logi(state),
         Op::SigmaPow => crate::ops::stat1::regression::op_sigma_pow(state),
+        // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
+        Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
+        // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
+        Op::SigmaChisqdWorkflow => crate::ops::stat1::chisqd::op_sigma_chisqd_workflow(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way

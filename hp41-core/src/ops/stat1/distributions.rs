@@ -18,6 +18,7 @@
 #![allow(clippy::excessive_precision)]
 
 use crate::error::HpError;
+use crate::state::DisplayMode;
 
 // Acklam (1996/1999) coefficient table. Source:
 // <https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/>
@@ -105,10 +106,13 @@ const LANCZOS_COEFS: [f64; 6] = [
     -0.000_005_395_239_384_953,
 ];
 
-/// `ln Γ(a)` for `a > 0` — Lanczos series, accuracy ~1e-15. Private to
-/// this module; consumed by `gamma_regularized_f64` and `beta_regularized_f64`.
+/// `ln Γ(a)` for `a > 0` — Lanczos series, accuracy ~1e-15. Consumed by
+/// `gamma_regularized_f64`, `beta_regularized_f64`, and (Plan 33-03)
+/// `crate::ops::stat1::chisqd::op_sigma_chisqd_eval_pdf` for the
+/// chi-square PDF normalizing constant. `pub(crate)` keeps the visibility
+/// inside `hp41-core` (no Op-level caller in `hp41-cli`/`hp41-gui`).
 /// `Err(HpError::Domain)` for `a <= 0` or non-finite `a`.
-fn ln_gamma(a: f64) -> Result<f64, HpError> {
+pub(crate) fn ln_gamma(a: f64) -> Result<f64, HpError> {
     if !a.is_finite() || a <= 0.0 {
         return Err(HpError::Domain);
     }
@@ -293,6 +297,59 @@ pub fn beta_regularized_f64(a: f64, b: f64, x: f64) -> Result<f64, HpError> {
     } else {
         let cf = betacf(b, a, 1.0 - x)?;
         Ok(1.0 - bt * cf / b)
+    }
+}
+
+// ── Phase 33 Plan 33-03: Op-level iterative-quantile infrastructure ─────────
+//
+// `quantile_threshold` is the Stat 1 Pac analog of `integ_threshold` in
+// `crate::ops::math1::integ` (lines 104–111), differing by a factor of 5
+// per SPEC.md Req. 34: "tolerance display-mode-tied, hard iteration cap,
+// cancel_requested per-iteration". Where INTG uses `5 × 10^(-(decimals+1))`
+// (half-ULP of displayed precision per OM 00041-90034 p. 35–36), Stat 1
+// quantile loops use the tighter `10^(-(decimals+1))` band, because the
+// iterative path (ΣNORMD inverse Newton refinement; ΣCHISQD CDF outer
+// cancel-gate) is converging on a probability value, not a definite
+// integral, and SPEC Req. 33's 1e-9 closed-form floor demands the tighter
+// band at FIX 9.
+//
+// Fallback for `Sci(n)` / `Eng(n)` per SPEC Req. 34 wording ("falls back
+// to 1e-10 when display mode is not FIX"): return `1e-10` directly. The
+// FIX(n) branch returns `10^(-(n+1))`.
+
+/// Hard iteration cap for Stat 1 Pac quantile-refinement loops
+/// (ΣNORMD inverse Newton, ΣCHISQD CDF outer-cancel-gate, future Plan-33-07
+/// ΣPTST / ΣTSTAT p-value refinements). SPEC.md Req. 34 locks this at 50;
+/// busting the cap returns `Err(HpError::ConvergenceFailed)` so the
+/// outer Op surfaces a distinct error from `Domain` (which the bare f64
+/// distribution primitives in this file already use for non-convergence).
+///
+/// **Pitfall 11 extended:** every iterative path that imports this const
+/// also checks `state.cancel_requested.load(Ordering::Relaxed)` once per
+/// iteration so the GUI `request_cancel` Tauri command (Phase 31 wiring)
+/// halts the loop within < 1 iteration — gated by
+/// `tests/stat1_cancellation.rs::cancel_requested_kills_normd_inverse_within_one_iter`.
+pub const QUANTILE_MAX_ITERS: u32 = 50;
+
+/// Display-mode-tied convergence tolerance for Stat 1 Pac quantile loops.
+///
+/// `Fix(n)` → `10^(-(n + 1))` (e.g. `Fix(4) → 1e-5`, `Fix(6) → 1e-7`,
+/// `Fix(9) → 1e-10`).
+/// `Sci(n)` / `Eng(n)` → `1e-10` (fallback per SPEC.md Req. 34: "falls back
+/// to 1e-10 when display mode is not FIX").
+///
+/// **NOT to be conflated with `crate::ops::math1::integ::integ_threshold`** —
+/// the INTG threshold is `5 × 10^(-(n+1))`, the half-ULP-of-displayed-precision
+/// formula for definite-integral convergence (OM 00041-90034 p. 35–36).
+/// The Stat 1 quantile threshold drops the factor of 5 because the iterative
+/// path is refining a probability value to match the SPEC Req. 33 1e-9
+/// closed-form floor — see SPEC.md Req. 34 / D-33.5 / Pitfall 11.
+///
+/// Plan 33-03 introduces this; Plan 33-07 will reuse it for ΣPTST refinement.
+pub fn quantile_threshold(mode: DisplayMode) -> f64 {
+    match mode {
+        DisplayMode::Fix(n) => 10.0_f64.powi(-(n as i32 + 1)),
+        DisplayMode::Sci(_) | DisplayMode::Eng(_) => 1e-10,
     }
 }
 
@@ -710,5 +767,63 @@ mod tests {
             beta_regularized_f64(1.0, 1.0, f64::NAN).unwrap_err(),
             HpError::Domain
         );
+    }
+
+    // ── quantile_threshold + QUANTILE_MAX_ITERS (Plan 33-03 Task 1) ────────
+    //
+    // SPEC.md Req. 34 contract — display-mode-tied tolerance for Stat 1 Pac
+    // iterative-quantile loops, plus the hard iteration cap. Catches:
+    //   (a) factor-of-5 drift toward `integ_threshold` (would return 5e-5
+    //       for Fix(4) instead of 1e-5);
+    //   (b) Sci/Eng modes accidentally inheriting Fix(n) behavior;
+    //   (c) constant value drift away from 50 (SPEC lock).
+
+    /// Catches: `Fix(4)` threshold drift away from `1e-5` (SPEC Req. 34).
+    #[test]
+    fn quantile_threshold_fix_4_yields_1e_5() {
+        assert_relative_eq!(
+            quantile_threshold(DisplayMode::Fix(4)),
+            1e-5,
+            max_relative = 1e-15
+        );
+    }
+
+    /// Catches: `Fix(6)` threshold drift away from `1e-7` (SPEC Req. 34
+    /// acceptance test for `stat1_cancellation.rs` Test 2).
+    #[test]
+    fn quantile_threshold_fix_6_yields_1e_7() {
+        assert_relative_eq!(
+            quantile_threshold(DisplayMode::Fix(6)),
+            1e-7,
+            max_relative = 1e-15
+        );
+    }
+
+    /// Catches: `Sci(4)` accidentally returning `10^(-(4+1)) = 1e-5`
+    /// instead of the `1e-10` non-FIX fallback (SPEC Req. 34).
+    #[test]
+    fn quantile_threshold_sci_4_yields_1e_10_fallback() {
+        assert_relative_eq!(
+            quantile_threshold(DisplayMode::Sci(4)),
+            1e-10,
+            max_relative = 1e-15
+        );
+    }
+
+    /// Catches: `Eng(2)` accidentally returning `1e-3` instead of the
+    /// `1e-10` non-FIX fallback (SPEC Req. 34 — ENG behaves like SCI).
+    #[test]
+    fn quantile_threshold_eng_2_yields_1e_10_fallback() {
+        assert_relative_eq!(
+            quantile_threshold(DisplayMode::Eng(2)),
+            1e-10,
+            max_relative = 1e-15
+        );
+    }
+
+    /// Catches: `QUANTILE_MAX_ITERS` drift away from SPEC Req. 34's hard 50-iter cap.
+    #[test]
+    fn quantile_max_iters_is_50() {
+        assert_eq!(QUANTILE_MAX_ITERS, 50);
     }
 }
