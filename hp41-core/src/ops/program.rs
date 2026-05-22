@@ -1020,6 +1020,9 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaAovone => crate::ops::dispatch(state, Op::SigmaAovone),
         Op::SigmaAovtwo => crate::ops::dispatch(state, Op::SigmaAovtwo),
         Op::SigmaAnocov => crate::ops::dispatch(state, Op::SigmaAnocov),
+        // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ───────────────────
+        Op::SigmaCtkkk => crate::ops::dispatch(state, Op::SigmaCtkkk),
+        Op::SigmaCtkk => crate::ops::dispatch(state, Op::SigmaCtkk),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().

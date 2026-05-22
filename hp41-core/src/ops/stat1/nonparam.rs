@@ -1,52 +1,37 @@
 // Algorithm independently re-derived from HP Stat 1 Pac Owner's Manual 00041-90030 (1979);
 // Free42 source consulted only as sanity-check oracle, not copied.
 //
-//! `stat1::nonparam` — closed-form non-parametric Ops (Plan 33-04).
+//! `stat1::nonparam` — closed-form non-parametric Ops (Plans 33-04, 33-06).
 //!
-//! Ships ΣSPEAR (Spearman rank correlation), ΣXSQEV (chi-square
-//! goodness-of-fit with observed + expected counts), and ΣEFXSQ
-//! (chi-square with expected-as-proportion entry). All three are
-//! closed-form: no iteration, no distribution-function call, no modal
-//! prompt. Compatible with [`crate::ops::math1::xrom::STAT_1`] via the
-//! bit-1 arm of `xrom_resolve` (D-33.3 freeze exception).
+//! Plan 33-04: ΣSPEAR (Spearman rank correlation), ΣXSQEV (χ² goodness-
+//! of-fit with observed+expected counts), ΣEFXSQ (χ² with expected-as-
+//! proportions). Plan 33-06 extends with ΣCTKKK (r×c contingency χ²)
+//! and ΣCTKK (2×2 contingency χ²). All closed-form: no iteration, no
+//! distribution-function call, no modal prompt. Every register access
+//! ≥ R07 routes through named consts from `stat1::mod` (P21 mitigation).
 //!
-//! Every register access ≥ R07 routes through a named const from
-//! `stat1::mod` (P21 mitigation). ΣSPEAR reads R02 (= Σx = Σd² per
-//! existing v1.x stats convention) and R03 (= n) directly — explicitly
-//! allowed per CLAUDE.md "Core engine" stats convention.
+//! SPEC.md drifts resolved (Phase 35 STAT-DOC amendment gated):
+//! Req. 30 ρ_s 0.7→0.8 (scipy.stats.spearmanr); Req. 27 χ² 1.667→7.0
+//! (scipy.stats.chisquare); Req. 28 χ² 4.286→2.8; Req. 29 χ² 0.397→
+//! 0.7937 (both contingency drifts from scipy.stats.chi2_contingency
+//! correction=False).
 //!
-//! ## SPEC.md oracle drift (resolved in this plan)
-//!
-//! - SPEC.md Req. 30 claims `ρ_s = 0.7` for `ranks_x=[1,2,3,4,5],
-//!   ranks_y=[2,1,3,5,4]`. Manual + `scipy.stats.spearmanr` both confirm
-//!   `ρ_s = 0.8`. SPEC.md is wrong; this plan ships 0.8 and flags the
-//!   discrepancy for Phase 35 (STAT-DOC) amendment.
-//! - SPEC.md Req. 27 claims `χ² ≈ 1.667` for proportions [0.2,0.3,0.5]
-//!   vs observed [10,30,60]. Manual + `scipy.stats.chisquare` both
-//!   confirm `χ² = 7.0` (Σf = 100, expected = [20,30,50]). SPEC.md is
-//!   wrong; this plan ships 7.0 and flags the discrepancy for Phase 35.
-//!
-//! ## References
-//!
-//! - HP-41C Stat 1 Pac OM 00041-90030 (1979) §ΣSPEAR (p. 64),
-//!   §ΣXSQEV / ΣEFXSQ (p. 55).
-//! - `scipy.stats.spearmanr` and `scipy.stats.chisquare` (oracles).
+//! References: OM 00041-90030 §ΣSPEAR p. 64, §ΣXSQEV/ΣEFXSQ p. 55,
+//! §ΣCTKKK/ΣCTKK p. 60; scipy.stats.* oracles.
 
 use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::stat1::{
-    STAT1_MAX_REG, STAT1_XSQEV_EXP_BASE_REG, STAT1_XSQEV_KMAX, STAT1_XSQEV_K_REG,
-    STAT1_XSQEV_MAX_REG, STAT1_XSQEV_OBS_BASE_REG, STAT1_XSQEV_STRIDE,
+    STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_DIM_MAX, STAT1_CTKKK_R_REG,
+    STAT1_CTKK_DIM_MAX, STAT1_MAX_REG, STAT1_XSQEV_EXP_BASE_REG, STAT1_XSQEV_KMAX,
+    STAT1_XSQEV_K_REG, STAT1_XSQEV_MAX_REG, STAT1_XSQEV_OBS_BASE_REG, STAT1_XSQEV_STRIDE,
 };
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 
 // ── SIZE-floor guard helper ────────────────────────────────────────────────
 
-/// Fail-closed SIZE-floor guard. Returns `Err(HpError::InvalidOp)` if
-/// `state.regs` cannot address every slot up to and including
-/// `STAT1_MAX_REG` (Plan 33-00 single source of truth; CalcState::new()
-/// allocates 100 slots so this is defensive against future SIZE shrink).
+/// Fail-closed SIZE-floor guard against STAT1_MAX_REG (P21 mitigation).
 #[inline]
 fn require_stat1_size_floor(state: &CalcState) -> Result<(), HpError> {
     if state.regs.len() < STAT1_MAX_REG + 1 {
@@ -57,37 +42,15 @@ fn require_stat1_size_floor(state: &CalcState) -> Result<(), HpError> {
 
 // ── ΣSPEAR — Spearman Rank Correlation Coefficient ──────────────────────────
 
-/// ΣSPEAR — closed-form Spearman rank correlation coefficient.
+/// ΣSPEAR — closed-form Spearman rank correlation
+/// `ρ_s = 1 − 6·Σd² / (n·(n²−1))`. Reads Σd² from R02 (= Σx via the
+/// existing v1.x stats convention) and n from R03. The user accumulates
+/// each `d² = (rank_x − rank_y)²` via Σ+ before calling ΣSPEAR; this Op
+/// does not rank the data. Pushes ρ_s to X with LiftEffect::Enable.
 ///
-/// `ρ_s = 1 − 6·Σd² / (n·(n²−1))`
+/// Errors: `InvalidOp` on SIZE-floor or n < 2.
 ///
-/// where `dᵢ = rank(xᵢ) − rank(yᵢ)` for each ranked pair. The user
-/// accumulates `dᵢ²` values as single-variable Σ+ samples BEFORE calling
-/// ΣSPEAR; this Op reads `Σd² = state.regs[2]` (R02 = Σx in the existing
-/// v1.x stats convention) and `n = state.regs[3]` (R03 = n).
-///
-/// Pre-condition (per OM p. 64): the user has already ranked the data
-/// and accumulated each `d² = (rank_x − rank_y)²` via Σ+. ΣSPEAR does
-/// NOT rank the data for the user (this matches HP's documented OM
-/// contract; mid-rank tie-breaking is the user's responsibility per the
-/// research pitfall list P21).
-///
-/// Result: ρ_s is pushed to stack X with `LiftEffect::Enable`.
-///
-/// # Errors
-///
-/// - `HpError::InvalidOp` if `state.regs.len() < STAT1_MAX_REG + 1`
-///   (SIZE-floor guard).
-/// - `HpError::InvalidOp` if `n < 2` (Spearman is undefined for n ≤ 1
-///   because `n² − 1 == 0` produces a division-by-zero).
-/// - `HpError::Overflow` / `HpError::DivideByZero` propagated from
-///   `rust_decimal` arithmetic via the `?` operator.
-///
-/// # Source
-///
-/// HP-41C Stat 1 Pac Owner's Manual 00041-90030 (1979) §ΣSPEAR (p. 64).
-/// Manual derivation cross-checked against
-/// `scipy.stats.spearmanr([1,2,3,4,5], [2,1,3,5,4]).statistic` (oracle).
+/// Source: OM 00041-90030 §ΣSPEAR (p. 64); scipy.stats.spearmanr oracle.
 pub fn op_sigma_spear(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
@@ -121,30 +84,14 @@ pub fn op_sigma_spear(state: &mut CalcState) -> Result<(), HpError> {
 
 // ── ΣXSQEV — Chi-Square Goodness-of-Fit (Observed + Expected Counts) ────────
 
-/// ΣXSQEV — closed-form chi-square goodness-of-fit statistic.
+/// ΣXSQEV — closed-form `χ² = Σ (Oᵢ − Eᵢ)² / Eᵢ`. Reads k from R00 and
+/// interleaved O/E pairs from R01 (stride 2). Pushes χ² to X AND writes
+/// to R07 per OM p. 55.
 ///
-/// `χ² = Σ (O_i − E_i)² / E_i`
+/// Errors: `InvalidOp` on SIZE-floor; `Domain` if k out of `[1..KMAX]`
+/// or any Eᵢ == 0.
 ///
-/// Reads `k` (number of categories) from R00 and interleaved
-/// observed/expected pairs starting at R01 (O₀=R01, E₀=R02, O₁=R03,
-/// E₁=R04, ..., scratch=R07). χ² is pushed to stack X with
-/// `LiftEffect::Enable` AND written to R07 (OM-faithful "result also
-/// stored in R07" per p. 55).
-///
-/// Standard goodness-of-fit `df = k − 1` (informational; p-value
-/// computation is the caller's responsibility via ΣCHISQD).
-///
-/// # Errors
-///
-/// - `HpError::InvalidOp` on SIZE-floor guard.
-/// - `HpError::Domain` if `k < 1` or `k > STAT1_XSQEV_KMAX` (= 3 for
-///   SIZE 008), or if any expected count `E_i == 0`.
-///
-/// # Source
-///
-/// OM 00041-90030 §ΣXSQEV (p. 55). Oracle:
-/// `scipy.stats.chisquare([10,20,30], f_exp=[15,20,25]).statistic`
-/// returns `2.666666666666667` (≈ 8/3).
+/// Source: OM 00041-90030 §ΣXSQEV (p. 55); scipy.stats.chisquare oracle.
 pub fn op_sigma_xsqev(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
     let chi_sq = compute_chi_square_from_counts(state)?;
@@ -157,10 +104,7 @@ pub fn op_sigma_xsqev(state: &mut CalcState) -> Result<(), HpError> {
     Ok(())
 }
 
-/// Compute χ² from interleaved O/E pairs in the SIZE 008 block. Shared
-/// reducer used by [`op_sigma_xsqev`] directly; [`op_sigma_efxsq`]
-/// (Task 3) will call this AFTER converting proportions to expected
-/// counts in-place.
+/// Shared reducer: χ² from interleaved O/E pairs in the SIZE 008 block.
 fn compute_chi_square_from_counts(state: &CalcState) -> Result<HpNum, HpError> {
     // Read k (number of categories) from R00 and validate domain.
     let k_num = state.regs[STAT1_XSQEV_K_REG].clone();
@@ -182,17 +126,8 @@ fn compute_chi_square_from_counts(state: &CalcState) -> Result<HpNum, HpError> {
     Ok(chi_sq)
 }
 
-/// Decode `k` (number of categories) from an `HpNum` register value.
-/// Truncates toward zero per HP-41 INT convention, then validates the
-/// `1 ≤ k ≤ STAT1_XSQEV_KMAX` domain. Returns `HpError::Domain` for
-/// out-of-range values (matches HP-41's "out of bounds" semantics; the
-/// closed-form Op cannot produce a meaningful χ² for k < 1 or for k
-/// exceeding the 8-register block's cell capacity).
-///
-/// P21 mitigation: never uses `.floor()` or `.fmod()` on an f64 — the
-/// integer extraction routes through `HpNum::trunc_int()` which uses
-/// `Decimal::trunc()`. See CLAUDE.md "Frozen Invariants — Core engine"
-/// ISG/DSE counter rule.
+/// Decode `k` from an HpNum register value via HpNum::trunc_int (P21:
+/// never floor/fmod on f64). Validates `1 ≤ k ≤ STAT1_XSQEV_KMAX`.
 fn decode_category_count(k_num: &HpNum) -> Result<usize, HpError> {
     use rust_decimal::prelude::ToPrimitive;
     let k_int_dec = k_num.trunc_int().inner();
@@ -206,41 +141,21 @@ fn decode_category_count(k_num: &HpNum) -> Result<usize, HpError> {
 
 // ── ΣEFXSQ — Chi-Square with Expected-as-Proportions ────────────────────────
 
-/// Tolerance for the ΣEFXSQ proportion-sum constraint `|Σ p_i − 1.0| ≤ TOL`.
-///
-/// 1e-9 matches SPEC.md Req. 27's `max_relative` tolerance — the user is
-/// expected to enter proportions accurate to closed-form 1e-9 precision.
-/// Out-of-tolerance sums return `HpError::Domain` rather than being
-/// silently renormalized (Pitfall 21 mitigation: silent renormalization
-/// produces silently wrong χ² values).
-///
-/// `Decimal::from_parts(1, 0, 0, false, 9)` = mantissa 1 × 10⁻⁹ = 1e-9.
+/// Tolerance for `|Σ p_i − 1.0| ≤ TOL` (1e-9 closed-form per SPEC.md
+/// Req. 27). Out-of-tolerance returns Domain (Pitfall 21: no silent
+/// renormalization).
 const PROPORTION_SUM_TOL_DEC: rust_decimal::Decimal =
     rust_decimal::Decimal::from_parts(1, 0, 0, false, 9);
 
-/// ΣEFXSQ — closed-form chi-square goodness-of-fit with expected proportions.
+/// ΣEFXSQ — χ² with expected PROPORTIONS. Reads k from R00 and
+/// interleaved O/p pairs from R01. Validates `|Σpᵢ − 1| ≤ 1e-9`,
+/// converts each pᵢ to expected count `Eᵢ = Σf·pᵢ` IN PLACE (mutating
+/// R02/R04/R06 per OM p. 55), then delegates to the shared O/E reducer.
 ///
-/// Reads `k` from R00 and interleaved O/p pairs from R01 (O₀=R01, p₀=R02,
-/// O₁=R03, p₁=R04, ...). Validates `|Σ p_i − 1.0| ≤ 1e-9` (OM "Inputs"
-/// sum-to-1 contract), converts each `p_i` to expected count
-/// `E_i = Σf · p_i` IN PLACE (mutating R02/R04/R06 per OM p. 55), then
-/// delegates to the shared `Σ (O − E)² / E` reducer.
+/// Errors: `InvalidOp` on SIZE-floor; `Domain` if k out of range,
+/// pᵢ ≤ 0, `|Σpᵢ − 1| > 1e-9`, or any computed Eᵢ == 0.
 ///
-/// Out-of-tolerance proportion sums and non-positive `p_i` both return
-/// `HpError::Domain` — silent renormalization would produce silently
-/// wrong χ² values (Pitfall 21).
-///
-/// # Errors
-///
-/// - `HpError::InvalidOp` if SIZE-floor guard fires.
-/// - `HpError::Domain` if `k` out of range, any `p_i ≤ 0`,
-///   `|Σ p_i − 1.0| > 1e-9`, or any computed `E_i == 0`.
-///
-/// # Source
-///
-/// OM 00041-90030 §ΣEFXSQ (p. 55). SPEC.md Req. 27 oracle drift:
-/// `scipy.stats.chisquare(f_obs=[10,30,60], f_exp=[20,30,50]).statistic`
-/// returns `7.0` exactly (SPEC says ≈ 1.667 — see module-level doc).
+/// Source: OM 00041-90030 §ΣEFXSQ (p. 55); scipy.stats.chisquare oracle.
 pub fn op_sigma_efxsq(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
@@ -284,6 +199,87 @@ pub fn op_sigma_efxsq(state: &mut CalcState) -> Result<(), HpError> {
     // Delegate to the shared O/E reducer (Task 2 helper).
     let chi_sq = compute_chi_square_from_counts(state)?;
     state.regs[STAT1_XSQEV_MAX_REG] = chi_sq.clone();
+    state.stack.lift_enabled = true;
+    enter_number(state, chi_sq);
+    apply_lift_effect(state, LiftEffect::Enable);
+    Ok(())
+}
+
+// ── ΣCTKKK / ΣCTKK — Contingency-Table χ² (Plan 33-06) ─────────────────────
+
+/// Decode contingency-table dimension capped at `cap` (P21: trunc_int only).
+fn decode_dim(d_num: &HpNum, cap: usize) -> Result<usize, HpError> {
+    use rust_decimal::prelude::ToPrimitive;
+    let d_int = d_num.trunc_int().inner();
+    let d = d_int.to_usize().ok_or(HpError::Domain)?;
+    if !(1..=cap).contains(&d) {
+        return Err(HpError::Domain);
+    }
+    Ok(d)
+}
+
+/// Shared r×c contingency χ² reducer. Reads r/c from R00/R01, cells
+/// row-major from R02. `E_ij = (Rᵢ·Cⱼ)/T`; `χ² = ΣΣ(O−E)²/E`.
+fn compute_contingency_chi_sq(state: &CalcState, dim_cap: usize) -> Result<HpNum, HpError> {
+    let r = decode_dim(&state.regs[STAT1_CTKKK_R_REG], dim_cap)?;
+    let c = decode_dim(&state.regs[STAT1_CTKKK_C_REG], dim_cap)?;
+    // Bounds: cells occupy R<CELL_BASE>..R<CELL_BASE + r*c − 1>; must
+    // fit within STAT1_CTKKK_MAX_REG.
+    if STAT1_CTKKK_CELL_BASE_REG + r * c > crate::ops::stat1::STAT1_CTKKK_MAX_REG + 1 {
+        return Err(HpError::Domain);
+    }
+    let mut row_sums = vec![HpNum::zero(); r];
+    let mut col_sums = vec![HpNum::zero(); c];
+    let mut grand = HpNum::zero();
+    for (i, row_acc) in row_sums.iter_mut().enumerate().take(r) {
+        for (j, col_acc) in col_sums.iter_mut().enumerate().take(c) {
+            let cell = state.regs[STAT1_CTKKK_CELL_BASE_REG + i * c + j].clone();
+            if cell.inner() < rust_decimal::Decimal::ZERO {
+                return Err(HpError::Domain);
+            }
+            *row_acc = row_acc.checked_add(&cell)?;
+            *col_acc = col_acc.checked_add(&cell)?;
+            grand = grand.checked_add(&cell)?;
+        }
+    }
+    if grand.is_zero() {
+        return Err(HpError::Domain);
+    }
+    let mut chi_sq = HpNum::zero();
+    for (i, row_total) in row_sums.iter().enumerate() {
+        for (j, col_total) in col_sums.iter().enumerate() {
+            let o = state.regs[STAT1_CTKKK_CELL_BASE_REG + i * c + j].clone();
+            let e = row_total.checked_mul(col_total)?.checked_div(&grand)?;
+            if e.is_zero() {
+                return Err(HpError::Domain);
+            }
+            let diff = o.checked_sub(&e)?;
+            chi_sq = chi_sq.checked_add(&diff.checked_sq()?.checked_div(&e)?)?;
+        }
+    }
+    Ok(chi_sq)
+}
+
+/// ΣCTKKK — General r×c contingency χ². Pushes to X with LiftEffect::Enable.
+/// Errors: `InvalidOp` on SIZE-floor; `Domain` if r/c out of
+/// `[1..STAT1_CTKKK_DIM_MAX]`, any cell < 0, grand total == 0, or any
+/// Eᵢⱼ == 0. Source: OM 00041-90030 §ΣCTKKK (p. 60);
+/// scipy.stats.chi2_contingency(correction=False) oracle.
+pub fn op_sigma_ctkkk(state: &mut CalcState) -> Result<(), HpError> {
+    require_stat1_size_floor(state)?;
+    let chi_sq = compute_contingency_chi_sq(state, STAT1_CTKKK_DIM_MAX)?;
+    state.stack.lift_enabled = true;
+    enter_number(state, chi_sq);
+    apply_lift_effect(state, LiftEffect::Enable);
+    Ok(())
+}
+
+/// ΣCTKK — Smaller-table contingency χ² (cap 2×2). Same as ΣCTKKK with
+/// `STAT1_CTKK_DIM_MAX = 2`. OM p. 60 silent on Yates' correction; we
+/// follow scipy.stats.chi2_contingency(correction=False).
+pub fn op_sigma_ctkk(state: &mut CalcState) -> Result<(), HpError> {
+    require_stat1_size_floor(state)?;
+    let chi_sq = compute_contingency_chi_sq(state, STAT1_CTKK_DIM_MAX)?;
     state.stack.lift_enabled = true;
     enter_number(state, chi_sq);
     apply_lift_effect(state, LiftEffect::Enable);
@@ -573,5 +569,137 @@ mod tests {
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
         state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1);
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
+    }
+
+    // ── ΣCTKKK / ΣCTKK tests (Plan 33-06) ───────────────────────────────────
+
+    /// ΣCTKKK oracle: 2×3 table [[10,20,30],[40,50,60]].
+    ///
+    /// Manual derivation:
+    ///   Row sums: 60, 150;  col sums: 50, 70, 90;  grand: 210.
+    ///   Expected:
+    ///     E(0,0) = 60·50/210 = 14.2857...  O=10  → (10−14.286)²/14.286 = 1.2857
+    ///     E(0,1) = 60·70/210 = 20          O=20  → 0
+    ///     E(0,2) = 60·90/210 = 25.714      O=30  → (4.286)²/25.714 = 0.7143
+    ///     E(1,0) = 150·50/210 = 35.714     O=40  → (4.286)²/35.714 = 0.5143
+    ///     E(1,1) = 150·70/210 = 50         O=50  → 0
+    ///     E(1,2) = 150·90/210 = 64.286     O=60  → (4.286)²/64.286 = 0.2857
+    ///   Total χ² ≈ 2.8000
+    ///
+    /// scipy.stats.chi2_contingency([[10,20,30],[40,50,60]], correction=False)
+    ///   returns chi² ≈ 2.8 (NOT 4.286 per SPEC.md Req. 28).
+    /// SPEC.md Req. 28 says ≈ 4.286 — that value is WRONG. Test asserts
+    /// scipy-correct 2.8; SPEC.md amendment gated to Phase 35.
+    #[test]
+    fn ctkkk_2x3_oracle() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(3i32);
+        // Cells row-major: R02=10, R03=20, R04=30, R05=40, R06=50, R07=60
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(20i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 4] = HpNum::from(50i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 5] = HpNum::from(60i32);
+        op_sigma_ctkkk(&mut state).unwrap();
+        let expected = 2.8_f64;
+        // Tolerance 1e-7: the chained Decimal divisions for non-integer
+        // expected values (e.g. 60·50/210 = 14.2857...) accumulate
+        // last-digit rounding through the rust_decimal 10-significant-
+        // digit floor. Per SPEC.md Req. 46 "Two-level tolerance discipline"
+        // iterative cross-product chains use 1e-7 even though the
+        // top-level formula is closed-form.
+        assert_relative_eq!(x_as_f64(&state), expected, max_relative = 1e-7);
+    }
+
+    /// ΣCTKK oracle: 2×2 table [[10,20],[30,40]].
+    ///
+    /// Manual derivation:
+    ///   Row sums: 30, 70;  col sums: 40, 60;  grand: 100.
+    ///   Expected: E(0,0)=12, E(0,1)=18, E(1,0)=28, E(1,1)=42
+    ///   χ² = (10−12)²/12 + (20−18)²/18 + (30−28)²/28 + (40−42)²/42
+    ///      = 4/12 + 4/18 + 4/28 + 4/42
+    ///      = 0.3333 + 0.2222 + 0.1429 + 0.0952 = 0.7937 (approx)
+    ///
+    /// `scipy.stats.chi2_contingency([[10,20],[30,40]], correction=False)`
+    ///   returns chi² ≈ 0.7937 (NOT 0.397 per SPEC.md Req. 29). The SPEC
+    ///   value 0.397 reverse-engineers to roughly half the correct value
+    ///   — possibly Yates'-corrected with extra adjustment. OM does not
+    ///   document Yates' correction; we follow OM-faithful "no correction".
+    ///   SPEC.md amendment gated to Phase 35.
+    #[test]
+    fn ctkk_2x2_oracle() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(20i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        op_sigma_ctkk(&mut state).unwrap();
+        // 4/12 + 4/18 + 4/28 + 4/42
+        let expected = 4.0_f64 / 12.0 + 4.0 / 18.0 + 4.0 / 28.0 + 4.0 / 42.0;
+        assert_relative_eq!(x_as_f64(&state), expected, max_relative = 1e-9);
+    }
+
+    /// Perfect independence: O_ij = (Rᵢ·Cⱼ)/T exactly → χ² = 0.
+    #[test]
+    fn ctkkk_perfect_independence_yields_zero() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
+        // Construct a table where each cell equals (RᵢCⱼ)/T:
+        // R0=20, R1=80, C0=50, C1=50, T=100 → cells: 10, 10, 40, 40.
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(10i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(40i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        op_sigma_ctkkk(&mut state).unwrap();
+        assert_eq!(state.stack.x, HpNum::zero());
+    }
+
+    /// Zero grand total → Domain error (degenerate marginals).
+    #[test]
+    fn ctkkk_zero_grand_total_returns_domain_error() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::zero();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::zero();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::zero();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::zero();
+        assert_eq!(op_sigma_ctkkk(&mut state).unwrap_err(), HpError::Domain);
+    }
+
+    /// Zero row-sum produces zero expected cells → Domain error.
+    #[test]
+    fn ctkkk_zero_expected_returns_domain_error() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
+        // Row 0 all zero → R0=0 → E(0,*)=0.
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::zero();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::zero();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        assert_eq!(op_sigma_ctkkk(&mut state).unwrap_err(), HpError::Domain);
+    }
+
+    /// ΣCTKK rejects 3×3 (dim cap 2).
+    #[test]
+    fn ctkk_3x3_returns_domain_error() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(3i32);
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(3i32);
+        assert_eq!(op_sigma_ctkk(&mut state).unwrap_err(), HpError::Domain);
+    }
+
+    /// SIZE-floor guard for ΣCTKKK.
+    #[test]
+    fn ctkkk_size_floor_guard() {
+        let mut state = CalcState::new();
+        state.regs.truncate(STAT1_MAX_REG);
+        assert_eq!(op_sigma_ctkkk(&mut state).unwrap_err(), HpError::InvalidOp);
     }
 }

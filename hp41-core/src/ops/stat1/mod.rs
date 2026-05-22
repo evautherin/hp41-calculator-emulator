@@ -98,7 +98,7 @@ pub mod distributions; // Plan 33-02
 // pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
 pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
 pub mod moments; // Plan 33-06 (ΣMMTUG + ΣMMTGD third/fourth moments)
-pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops)
+pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops); Plan 33-06 extends with ΣCTKKK + ΣCTKK
 pub mod normd; // Plan 33-03 (ΣNORMD 3-mode dispatcher: CDF / PDF / inverse)
                // pub mod rand;         // Plan 33-08
 pub mod regression; // Plan 33-05 (ΣLIN/EXP/LOGI/POW curve fits via op_sigma_plus delegate); Plan 33-08 extends with ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC
@@ -382,6 +382,51 @@ pub const STAT1_AOV_GROUP_N_OFFSET: usize = 2;
 /// accommodate. Derived from `(STAT1_AOVONE_MAX_REG + 1 −
 /// STAT1_AOV_GROUP_BASE_REG) / STAT1_AOV_GROUP_STRIDE = 16 / 4 = 4`.
 pub const STAT1_AOV_KMAX: usize = 4;
+
+// ── Plan 33-06 Task 3: ΣCTKKK / ΣCTKK per-slot register consts (P21) ───────
+//
+// ΣCTKKK (general r×c contingency) and ΣCTKK (smaller variant, 2×2 cap)
+// both use SIZE 015 (R00..R14) per OM 00041-90030 p. 60. The block is
+// organized as two scalar dimensions plus a packed cell matrix in
+// row-major order:
+//
+//   R00 = r (number of rows; 1 ≤ r ≤ STAT1_CTKKK_DIM_MAX = 3 for ΣCTKKK,
+//            1 ≤ r ≤ STAT1_CTKK_DIM_MAX = 2 for ΣCTKK)
+//   R01 = c (number of columns; same per-Op cap as r)
+//   R02..R<n+1> = O_ij cells, row-major (cell (i,j) at
+//                  STAT1_CTKKK_CELL_BASE_REG + i*c + j)
+//
+//   For a 3×3 maximum table the cells occupy R02..R10 (9 cells); the
+//   remaining R11..R14 are program-internal scratch (row/col marginals
+//   and the χ² accumulator per OM p. 60).
+//
+// ΣCTKK is the smaller-table variant per OM p. 60 — capped at 2×2 (4
+// cells, R02..R05) so the program-internal scratch overhead is reduced.
+//
+// Both variants share the same register layout; the only difference is
+// the dimension cap enforced at decode time.
+
+/// ΣCTKKK / ΣCTKK: register holding `r`, the number of rows.
+pub const STAT1_CTKKK_R_REG: usize = 0;
+
+/// ΣCTKKK / ΣCTKK: register holding `c`, the number of columns.
+pub const STAT1_CTKKK_C_REG: usize = 1;
+
+/// ΣCTKKK / ΣCTKK: base register for the first cell `O_{0,0}`.
+///
+/// Cell `(i, j)` is at `STAT1_CTKKK_CELL_BASE_REG + i * c + j` (row-major).
+pub const STAT1_CTKKK_CELL_BASE_REG: usize = 2;
+
+/// ΣCTKKK: maximum row/column dimension.
+///
+/// Derived from `(STAT1_CTKKK_MAX_REG + 1 − STAT1_CTKKK_CELL_BASE_REG) ≥ DIM²`.
+/// With SIZE 015 / 13 cells available: floor(√13) = 3 (a 3×3 table fits;
+/// 4×4 needs 16 cells but only 13 are available).
+pub const STAT1_CTKKK_DIM_MAX: usize = 3;
+
+/// ΣCTKK: maximum row/column dimension. Smaller-table variant per OM
+/// p. 60 — capped at 2×2 (4 cells, R02..R05) to reduce scratch overhead.
+pub const STAT1_CTKK_DIM_MAX: usize = 2;
 
 // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
 

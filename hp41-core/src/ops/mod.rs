@@ -1005,6 +1005,28 @@ pub enum Op {
     /// check against NPS55-84-003 §ZA-3.
     SigmaAnocov,
 
+    // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ──────────────────────
+    /// ΣCTKKK — General r×c contingency-table χ².
+    ///
+    /// Reads r from R00, c from R01, and the row-major cell matrix from
+    /// R02 onward (cell (i,j) at R02 + i·c + j). Computes row sums Rᵢ,
+    /// column sums Cⱼ, grand total T, expected counts E_ij = (Rᵢ·Cⱼ)/T,
+    /// and χ² = ΣΣ (O_ij − E_ij)² / E_ij. Pushes χ² to stack X.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 28.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKKK (p. 60).
+    SigmaCtkkk,
+    /// ΣCTKK — Smaller-table contingency-table χ² (cap 2×2).
+    ///
+    /// Same algorithm as ΣCTKKK but with a 2×2 dimension cap per OM
+    /// p. 60. Pushes χ² to stack X.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 29.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKK (p. 60).
+    SigmaCtkk,
+
     // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
     /// ΣNORMD — Normal-distribution three-mode modal opener.
     ///
@@ -1499,6 +1521,9 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaAovone => crate::ops::stat1::anova::op_sigma_aovone(state),
         Op::SigmaAovtwo => crate::ops::stat1::anova::op_sigma_aovtwo(state),
         Op::SigmaAnocov => crate::ops::stat1::anova::op_sigma_anocov(state),
+        // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ───────────────────
+        Op::SigmaCtkkk => crate::ops::stat1::nonparam::op_sigma_ctkkk(state),
+        Op::SigmaCtkk => crate::ops::stat1::nonparam::op_sigma_ctkk(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────

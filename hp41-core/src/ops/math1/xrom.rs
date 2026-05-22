@@ -173,8 +173,8 @@ pub const STAT_1: XromModule = XromModule {
         // remaining 21 are owned by Plans 33-03 / 33-05 / 33-06 / 33-07 / 33-08).
         ("\u{03A3}XSQEV", Op::SigmaXsqev), // ΣXSQEV  — Plan 33-04
         ("\u{03A3}EFXSQ", Op::SigmaEfxsq), // ΣEFXSQ  — Plan 33-04
-        ("\u{03A3}CTKKK", Op::Stat1Stub),  // ΣCTKKK  — Plan 33-06
-        ("\u{03A3}CTKK", Op::Stat1Stub),   // ΣCTKK   — Plan 33-06
+        ("\u{03A3}CTKKK", Op::SigmaCtkkk),  // ΣCTKKK  — Plan 33-06
+        ("\u{03A3}CTKK", Op::SigmaCtkk),    // ΣCTKK   — Plan 33-06
         ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
         // ── Stat 1 Pac Distributions ───────────────────────────────────────────
         // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
@@ -343,8 +343,9 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ → real Sigma* variants.
         "\u{03A3}XSQEV" => Some(Op::SigmaXsqev),
         "\u{03A3}EFXSQ" => Some(Op::SigmaEfxsq),
-        "\u{03A3}CTKKK" => Some(Op::Stat1Stub),
-        "\u{03A3}CTKK" => Some(Op::Stat1Stub),
+        // Plan 33-06: ΣCTKKK + ΣCTKK → real Sigma* variants.
+        "\u{03A3}CTKKK" => Some(Op::SigmaCtkkk),
+        "\u{03A3}CTKK" => Some(Op::SigmaCtkk),
         "\u{03A3}SPEAR" => Some(Op::SigmaSpear),
         // Distributions
         // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
