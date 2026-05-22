@@ -177,9 +177,9 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}CTKK", Op::Stat1Stub),   // ΣCTKK   — Plan 33-06
         ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
         // ── Stat 1 Pac Distributions ───────────────────────────────────────────
-        // Plan 33-03: ΣNORMD → real Sigma* variant (3-mode dispatcher).
-        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow), // ΣNORMD  — Plan 33-03
-        ("\u{03A3}CHISQD", Op::Stat1Stub),         // ΣCHISQD — Plan 33-03
+        // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
+        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow),   // ΣNORMD  — Plan 33-03
+        ("\u{03A3}CHISQD", Op::SigmaChisqdWorkflow), // ΣCHISQD — Plan 33-03
         // ── Stat 1 Pac RAND/SEED (emulator extension per D-33.4) ──────────────
         ("RAND", Op::Stat1Stub),           // RAND    — Plan 33-08
         ("SEED", Op::Stat1Stub),           // SEED    — Plan 33-08
@@ -345,9 +345,9 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}CTKK" => Some(Op::Stat1Stub),
         "\u{03A3}SPEAR" => Some(Op::SigmaSpear),
         // Distributions
-        // Plan 33-03: ΣNORMD → real Sigma* variant (3-mode dispatcher).
+        // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
         "\u{03A3}NORMD" => Some(Op::SigmaNormdWorkflow),
-        "\u{03A3}CHISQD" => Some(Op::Stat1Stub),
+        "\u{03A3}CHISQD" => Some(Op::SigmaChisqdWorkflow),
         // RAND / SEED (emulator extension per D-33.4)
         "RAND" => Some(Op::Stat1Stub),
         "SEED" => Some(Op::Stat1Stub),

@@ -1014,6 +1014,8 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().
         Op::SigmaNormdWorkflow => crate::ops::dispatch(state, Op::SigmaNormdWorkflow),
+        // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
+        Op::SigmaChisqdWorkflow => crate::ops::dispatch(state, Op::SigmaChisqdWorkflow),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Pure-data op routed through dispatch (mirrors hyperbolics +
         // Plan 28-10 Triangle/TRANS pattern). Will be replaced when Plans

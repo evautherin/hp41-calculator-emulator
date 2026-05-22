@@ -106,10 +106,13 @@ const LANCZOS_COEFS: [f64; 6] = [
     -0.000_005_395_239_384_953,
 ];
 
-/// `ln Γ(a)` for `a > 0` — Lanczos series, accuracy ~1e-15. Private to
-/// this module; consumed by `gamma_regularized_f64` and `beta_regularized_f64`.
+/// `ln Γ(a)` for `a > 0` — Lanczos series, accuracy ~1e-15. Consumed by
+/// `gamma_regularized_f64`, `beta_regularized_f64`, and (Plan 33-03)
+/// `crate::ops::stat1::chisqd::op_sigma_chisqd_eval_pdf` for the
+/// chi-square PDF normalizing constant. `pub(crate)` keeps the visibility
+/// inside `hp41-core` (no Op-level caller in `hp41-cli`/`hp41-gui`).
 /// `Err(HpError::Domain)` for `a <= 0` or non-finite `a`.
-fn ln_gamma(a: f64) -> Result<f64, HpError> {
+pub(crate) fn ln_gamma(a: f64) -> Result<f64, HpError> {
     if !a.is_finite() || a <= 0.0 {
         return Err(HpError::Domain);
     }

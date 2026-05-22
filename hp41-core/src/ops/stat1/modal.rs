@@ -123,20 +123,66 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             }
         }
         Stat1Step::ChisqdNuPrompt => {
-            // Task 4 (this plan) overwrites this arm: read X = ν (positive
-            // integer), store in state.stack.t, advance modal to
-            // ChisqdModeChoice with prompt "ΣCHISQD MODE?".
-            state.modal_program = None;
-            state.modal_prompt = None;
-            Err(HpError::InvalidOp)
+            // Read ν from X (truncate toward zero — fractional degrees of
+            // freedom are rejected; ν must be a positive integer per the
+            // chi-square distribution definition).
+            let nu_dec = state.stack.x.trunc_int();
+            let nu_i32 = nu_dec.inner().to_i32_safe()?;
+            if nu_i32 <= 0 {
+                // Restore the modal state so a domain-error doesn't lose
+                // the user's place in the workflow — D-07 never-discard.
+                return Err(HpError::Domain);
+            }
+            // D-33.5 transient storage: stash ν in state.stack.t (the
+            // deepest stack slot). Drop X (the ν the user just submitted)
+            // so the next prompt's X-input is collected cleanly.
+            state.stack.t = state.stack.x.clone(); // ν → T
+            // Drop X off the stack (X←Y, Y←Z, Z←T-was — but T was just
+            // overwritten with ν, so use a saved copy of the original T
+            // value to preserve the standard HP-41 stack-drop semantics).
+            state.stack.x = state.stack.y.clone();
+            state.stack.y = state.stack.z.clone();
+            // Note: we deliberately do NOT touch z ← t here, because
+            // t is now ν (the carrier value). The user's original T
+            // is lost — acceptable trade-off per D-33.5 (no new
+            // CalcState field, deepest stack slot re-used).
+            // Advance modal to ChisqdModeChoice.
+            state.modal_program =
+                Some(crate::ops::math1::modal::ModalProgram::Stat1(Stat1Step::ChisqdModeChoice));
+            state.modal_prompt = Some("\u{03A3}CHISQD MODE?".to_string());
+            Ok(())
         }
         Stat1Step::ChisqdModeChoice => {
-            // Task 4 (this plan) overwrites this arm: read X = mode index
-            // ∈ {1, 2}, recover ν from state.stack.t, dispatch to
-            // op_sigma_chisqd_eval_{pdf, cdf}, clear modal state on success.
+            // Read mode index from X (truncate to integer; reject fractional).
+            let mode_index = state.stack.x.trunc_int();
+            let mode_i32 = mode_index.inner().to_i32_safe()?;
+            // Recover ν from state.stack.t (where ChisqdNuPrompt stashed it).
+            // trunc_int is defensive — T was written from a trunc'd value
+            // already, but a future round of testing might bypass that.
+            let nu_dec = state.stack.t.trunc_int();
+            let nu_i32 = nu_dec.inner().to_i32_safe()?;
+            if nu_i32 <= 0 {
+                state.modal_program = None;
+                state.modal_prompt = None;
+                return Err(HpError::Domain);
+            }
+            let nu_u32 = nu_i32 as u32;
+            // Drop X (the mode index); the χ² statistic x was entered
+            // earlier and now sits in X (Y becomes X). Use the standard
+            // HP-41 drop pattern, but DUPLICATE T on drop per hardware
+            // (rather than letting it stay as ν — which would be
+            // confusing if the user inspected the stack post-eval).
+            state.stack.x = state.stack.y.clone();
+            state.stack.y = state.stack.z.clone();
+            // Clear modal state BEFORE dispatching so the eval function
+            // sees a clean modal context.
             state.modal_program = None;
             state.modal_prompt = None;
-            Err(HpError::InvalidOp)
+            match mode_i32 {
+                1 => crate::ops::stat1::chisqd::op_sigma_chisqd_eval_pdf(state, nu_u32),
+                2 => crate::ops::stat1::chisqd::op_sigma_chisqd_eval_cdf(state, nu_u32),
+                _ => Err(HpError::Domain),
+            }
         }
     }
 }
@@ -258,16 +304,41 @@ mod tests {
         assert!(state.modal_prompt.is_none());
     }
 
-    /// Catches: submit_step(ChisqdNuPrompt) not clearing modal_program
-    /// (Task 4 will REPLACE this body to advance to ChisqdModeChoice).
+    /// Catches: submit_step(ChisqdNuPrompt) failing to ADVANCE to
+    /// ChisqdModeChoice + stash ν in state.stack.t (Task 4 wiring).
     #[test]
-    fn submit_chisqd_nu_prompt_returns_invalid_op_pre_task_4() {
+    fn submit_chisqd_nu_prompt_advances_to_mode_choice() {
         let mut state = CalcState::new();
         state.modal_program = Some(crate::ops::math1::modal::ModalProgram::Stat1(
             Stat1Step::ChisqdNuPrompt,
         ));
+        state.stack.x = crate::num::HpNum::from(3i32);
         let r = submit_step(&mut state, Stat1Step::ChisqdNuPrompt);
-        assert_eq!(r, Err(HpError::InvalidOp));
+        assert_eq!(r, Ok(()));
+        // Modal advances to ChisqdModeChoice with the "ΣCHISQD MODE?" prompt.
+        assert!(matches!(
+            state.modal_program,
+            Some(crate::ops::math1::modal::ModalProgram::Stat1(Stat1Step::ChisqdModeChoice))
+        ));
+        assert_eq!(
+            state.modal_prompt,
+            Some("\u{03A3}CHISQD MODE?".to_string())
+        );
+        // ν stashed in stack.T (D-33.5 transient carrier).
+        assert_eq!(state.stack.t, crate::num::HpNum::from(3i32));
+    }
+
+    /// Catches: submit_step(ChisqdNuPrompt) accepting non-positive ν
+    /// (chi-square is undefined for ν ≤ 0; Domain error must surface).
+    #[test]
+    fn submit_chisqd_nu_prompt_rejects_zero_nu() {
+        let mut state = CalcState::new();
+        state.modal_program = Some(crate::ops::math1::modal::ModalProgram::Stat1(
+            Stat1Step::ChisqdNuPrompt,
+        ));
+        state.stack.x = crate::num::HpNum::from(0i32);
+        let r = submit_step(&mut state, Stat1Step::ChisqdNuPrompt);
+        assert_eq!(r, Err(HpError::Domain));
     }
 
     /// Catches: Stat1Step Clone + PartialEq derive regression on the three

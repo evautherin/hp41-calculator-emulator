@@ -963,6 +963,28 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣNORMD (p. 67).
     SigmaNormdWorkflow,
 
+    // ── Phase 33 Plan 33-03: ΣCHISQD ν-prompt + PDF/CDF dispatcher ─────────
+    /// ΣCHISQD — Chi-square distribution two-step modal opener.
+    ///
+    /// Opens at `Stat1Step::ChisqdNuPrompt` with prompt `ν=?`. User
+    /// enters ν (positive integer degrees-of-freedom) in X and presses
+    /// R/S; `submit_step(ChisqdNuPrompt)` stashes ν in `state.stack.t`
+    /// (D-33.5 — no new transient CalcState field) and transitions to
+    /// `ChisqdModeChoice` with prompt `ΣCHISQD MODE?`. User then enters
+    /// the χ² statistic x in Y, mode index in X (1 = PDF, 2 = CDF), and
+    /// `submit_step(ChisqdModeChoice)` reads mode, drops X, recovers ν
+    /// from T, dispatches to:
+    ///
+    /// - PDF: closed-form `f(x; ν) = x^(ν/2−1)·exp(−x/2) / (2^(ν/2)·Γ(ν/2))`
+    ///   via Decimal + `distributions::ln_gamma`.
+    /// - CDF: iterative `P(x; ν) = gamma_regularized_f64(ν/2, x/2)`
+    ///   wrapped with a per-call `cancel_requested` gate.
+    ///
+    /// LiftEffect: `Neutral` on open, `Enable` on result push.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCHISQD (p. 71).
+    SigmaChisqdWorkflow,
+
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
     // `Stat1Stub` is a placeholder Op referenced by every entry in the
@@ -1404,6 +1426,8 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaPow => crate::ops::stat1::regression::op_sigma_pow(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
+        // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
+        Op::SigmaChisqdWorkflow => crate::ops::stat1::chisqd::op_sigma_chisqd_workflow(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way
