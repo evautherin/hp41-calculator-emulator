@@ -3,7 +3,7 @@ quick_id: 260522-gud
 slug: honor-shift-on-physical-keyboard
 status: complete
 date: "2026-05-22"
-commit: TBD
+commit: aa7e614
 ---
 
 # Quick Task 260522-gud — SUMMARY
