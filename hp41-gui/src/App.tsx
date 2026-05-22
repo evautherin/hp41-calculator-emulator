@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import './App.css';
-import { Keyboard, type KeyDef } from './Keyboard';
+import { Keyboard, KEY_DEFS, type KeyDef } from './Keyboard';
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import {
@@ -541,8 +541,32 @@ function App() {
       return;
     }
 
-    const keyId = resolveKeyId(e, calcState);
+    let keyId = resolveKeyId(e, calcState);
     if (keyId === null) return;  // unmapped or modal-trigger key — silent ignore
+
+    // Quick-task 260522-gud — honor `shiftActive` on the physical-keyboard
+    // path so Tab + 0 → π (and every other `f`-prefix combo) matches the
+    // on-screen-click behavior in `handleClick` (rule 3, line 324). Mirrors
+    // CLI `shifted_key_to_op` in hp41-cli/src/app.rs:484. ALPHA pass-through
+    // already returned a `alpha_<X>` id inside `resolveKeyId` (line 114-119)
+    // so this block only fires for non-alpha keys. PRGM-mode `shiftedInPrgm`
+    // wins over `shifted` when both are present, matching handleClick.
+    // Consume-on-swap-only (no setShiftActive(false) on no-match) keeps
+    // physical and on-screen paths bit-for-bit identical.
+    if (shiftActive) {
+      const def = KEY_DEFS.find(k => k.id === keyId);
+      if (def) {
+        const prgmOn = calcState?.annunciators.prgm ?? false;
+        const shiftedId = (prgmOn && def.shiftedInPrgm)
+          ? def.shiftedInPrgm.id
+          : def.shifted?.id;
+        if (shiftedId) {
+          keyId = shiftedId;
+          setShiftActive(false);
+        }
+      }
+    }
+
     e.preventDefault();
     dispatchKeyId(keyId);
   }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, showToast]);
