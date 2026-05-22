@@ -114,6 +114,10 @@ pub fn op_sigma_ptst(state: &mut CalcState) -> Result<(), HpError> {
     let mu_0 = state.stack.x.clone();
 
     // Read v1.x Σ-block: R01 = Σx², R02 = Σx, R03 = n.
+    // v1.x R01–R06 exemption (REVIEW.md WR-02): the canonical
+    // foundational layout from `ops/stats.rs`. Stat-1-specific
+    // ΣTSTAT slots at R07–R09 (group-2 block) use the named-const
+    // route STAT1_TSTAT_G2_* per P21.
     let sum_x_sq = state.regs[1].clone();
     let sum_x = state.regs[2].clone();
     let n_hp = state.regs[3].clone();

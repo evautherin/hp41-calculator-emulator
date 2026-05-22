@@ -107,6 +107,11 @@ pub fn op_sigma_mmtgd(state: &mut CalcState) -> Result<(), HpError> {
     let fx_cube = fx_sq.checked_mul(&x)?;
     let fx_quad = fx_cube.checked_mul(&x)?;
 
+    // v1.x R01–R06 exemption (REVIEW.md WR-02): R01=Σx², R02=Σx, R03=n
+    // (or Σf for ΣMMTGD frequency-weighting) per the canonical v1.x
+    // Σ-block layout in `ops/stats.rs`. Stat-1-specific slots
+    // (STAT1_MMTUG_CUBE_REG=R07, STAT1_MMTUG_QUAD_REG=R08) route
+    // through named consts per P21.
     let new_r1 = state.regs[1].checked_add(&fx_sq)?; // Σ(f·x²)
     let new_r2 = state.regs[2].checked_add(&fx)?; // Σ(f·x)
     let new_r3 = state.regs[3].checked_add(&f)?; // N = Σf
@@ -139,6 +144,10 @@ pub fn op_sigma_mmtgd(state: &mut CalcState) -> Result<(), HpError> {
 ///
 /// Errors: `InvalidOp` if n < 2; `Domain` if μ₂ ≤ 0 (degenerate variance).
 pub fn compute_moments(state: &CalcState) -> Result<(HpNum, HpNum, HpNum, HpNum), HpError> {
+    // v1.x R01–R06 exemption (REVIEW.md WR-02): R01=Σx², R02=Σx, R03=n
+    // per the canonical v1.x Σ-block layout. ΣMMTUG/ΣMMTGD extend
+    // the block with Σx³ at R07 and Σx⁴ at R08 — those slots route
+    // through named consts per the P21 named-const policy.
     let n = state.regs[3].clone();
     let sum_x = state.regs[2].clone();
     let sum_x_sq = state.regs[1].clone();

@@ -104,6 +104,11 @@ fn require_stat1_size_floor(state: &CalcState) -> Result<(), HpError> {
 pub fn op_sigma_bstat(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
+    // v1.x R01–R06 exemption (REVIEW.md WR-02): R01=Σx², R02=Σx, R03=n
+    // per the canonical v1.x Σ-block layout documented in
+    // `ops/stats.rs`. Stat-1-specific slots ≥ R07 are accessed via
+    // named consts (P21); the foundational v1.x block uses literal
+    // indices for symmetry with `op_sigma_plus`.
     let sum_x_sq = state.regs[1].clone();
     let sum_x = state.regs[2].clone();
     let n = state.regs[3].clone();
@@ -170,6 +175,12 @@ pub fn op_sigma_bstat(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_sigma_bstg(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
+    // v1.x R01–R06 exemption (REVIEW.md WR-02): R02=Σx (data totals),
+    // R03=n, R05=Σy (reinterpreted as weight totals Σw), R06=Σxy
+    // (reinterpreted as Σx·w cross-products). The v1.x layout is the
+    // canonical source; literal indices preserve symmetry with
+    // `op_sigma_plus`. Stat-1-specific slots ≥ R07 still route through
+    // named consts (P21).
     let sum_x = state.regs[2].clone();
     let n = state.regs[3].clone();
     let sum_w = state.regs[5].clone(); // Σy in v1.x layout — interpreted as weight sum

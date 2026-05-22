@@ -58,9 +58,30 @@
 //! etc.) are decoded in the corresponding `stat1/<program>.rs` files when each
 //! Op is implemented (Plans 33-04 onward) by reading the program-listing
 //! section of OM 00041-90030. P21 mitigation: every Stat 1 register access
-//! routes through a named const declared in THIS file — no literal-integer
-//! register indices may appear in `stat1/*.rs` algorithm code. The Phase 37
-//! lint extension (STAT-QUAL-06) enforces this at CI gate time.
+//! at or above R07 routes through a named const declared in THIS file — no
+//! literal-integer register indices may appear in `stat1/*.rs` algorithm code
+//! for slots ≥ R07. The Phase 37 lint extension (STAT-QUAL-06) enforces this
+//! at CI gate time.
+//!
+//! ## v1.x R01–R06 literal-index exemption (REVIEW.md WR-02)
+//!
+//! Registers R01–R06 are the FOUNDATIONAL v1.x Σ-block (Σx², Σx, n,
+//! Σy², Σy, Σxy per `hp41-core/src/ops/stats.rs` module header) and
+//! pre-date the P21 named-const policy. `ops/stats.rs::op_sigma_plus`
+//! and `op_sigma_minus` themselves access these slots via literal
+//! `state.regs[1..=6]` for backward compatibility with v1.0 save files.
+//! Stat 1 Pac modules that delegate to / consume this block —
+//! `basic_stats` (ΣBSTAT/ΣBSTG), `moments` (ΣMMTUG/ΣMMTGD), `hypothesis`
+//! (ΣPTST's v1.x Σ-block reader) — are PERMITTED to access R01–R06
+//! via literal index for symmetry with the canonical layout source.
+//! Stat-1-specific slots that happen to fall in the R00–R06 range
+//! (e.g. ΣAOVTWO's r/c at R00/R01, grand sums at R03/R04, row base at
+//! R05) DO route through named consts because they are NOT part of
+//! the v1.x Σ-block — they are program-specific addresses chosen by
+//! the OM Stat 1 Pac layout (per WR-01 fix). Future migration to
+//! named-const aliases for R01–R06 is OPTIONAL and would require
+//! parallel changes to `ops/stats.rs`; the present project policy
+//! treats literal R01–R06 access in v1.x-consuming code as canonical.
 //!
 //! ## Submodule structure (per D-33.5; 10 algorithm modules + this hub)
 //!
