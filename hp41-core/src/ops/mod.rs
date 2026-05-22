@@ -1051,6 +1051,31 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPTST (p. 52).
     SigmaPtst,
 
+    /// ΣTSTAT — Pooled-variance two-sample Student-t test.
+    ///
+    /// **Welch's t-test (unequal variance) is EXPLICITLY excluded** per
+    /// SPEC.md Req. 25 + REQUIREMENTS.md Out-of-Scope. Pooled-variance
+    /// only. Reads per-group accumulators (Σx², Σx, n) from the
+    /// OM-traceable register layout (G1 at R01–R03, G2 at R07–R09;
+    /// see `stat1::mod` STAT1_TSTAT_G*_*_REG named consts). Computes:
+    ///
+    /// ```text
+    ///   s²_p = ((n₁−1)·s₁² + (n₂−1)·s₂²) / (n₁ + n₂ − 2)   POOLED
+    ///   t    = (x̄₁ − x̄₂) / √(s²_p · (1/n₁ + 1/n₂))
+    ///   df   = n₁ + n₂ − 2  (INTEGER)
+    ///   p    = I_{ν/(ν+t²)}(ν/2, 1/2)                       (two-sided)
+    /// ```
+    ///
+    /// Pushes p (lands at Y) then t (lands at X) with LiftEffect::Enable.
+    /// Sign convention: t = x̄₁ − x̄₂ (matches `scipy.stats.ttest_ind`
+    /// with `equal_var=True`).
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 46 (chained through
+    /// distributions::beta_regularized_f64).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣTSTAT (p. 52).
+    SigmaTstat,
+
     // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
     /// ΣNORMD — Normal-distribution three-mode modal opener.
     ///
@@ -1550,6 +1575,8 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaCtkk => crate::ops::stat1::nonparam::op_sigma_ctkk(state),
         // ── Phase 33 Plan 33-07: ΣPTST one-sample t-test ────────────────────
         Op::SigmaPtst => crate::ops::stat1::hypothesis::op_sigma_ptst(state),
+        // ── Phase 33 Plan 33-07: ΣTSTAT pooled-variance two-sample t-test ───
+        Op::SigmaTstat => crate::ops::stat1::hypothesis::op_sigma_tstat(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────

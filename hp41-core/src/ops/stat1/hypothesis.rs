@@ -3,45 +3,33 @@
 //
 //! `stat1::hypothesis` — Student-t hypothesis tests (Plan 33-07).
 //!
-//! Plan 33-07 Task 1: ΣPTST (one-sample t-test) consuming the existing
-//! v1.x R01–R06 Σ-register block populated by
-//! [`crate::ops::stats::op_sigma_plus`]. μ₀ (hypothesized mean) is read
-//! from stack X at call time. Two-sided p-value via the AS 63
-//! regularized-incomplete-beta primitive
-//! [`crate::ops::stat1::distributions::beta_regularized_f64`] (Plan 33-02).
+//! - **ΣPTST** (one-sample t-test): reads μ₀ from stack X, then v1.x
+//!   R01–R06 Σ-block (Σx²=R01, Σx=R02, n=R03). Bessel-corrected t.
+//! - **ΣTSTAT** (pooled-variance two-sample t-test; **Welch EXPLICITLY
+//!   excluded** per SPEC.md Req. 25 + REQUIREMENTS.md Out-of-Scope):
+//!   reads per-group accumulators from G1 = R01–R03, G2 = R07–R09
+//!   (OM 00041-90030 p. 52 layout; named consts in `stat1::mod`).
 //!
-//! Plan 33-07 Task 2 will extend this module with ΣTSTAT (pooled-variance
-//! two-sample t-test; Welch's t-test EXPLICITLY excluded per SPEC.md
-//! Req. 25 + REQUIREMENTS.md Out-of-Scope).
+//! Both Ops compute the two-sided p-value via the Student-t CDF
+//! symmetry identity `p = I_{ν/(ν+t²)}(ν/2, 1/2)` (NR 3e §6.4 / AS 109)
+//! bridged through [`crate::ops::stat1::distributions::beta_regularized_f64`]
+//! (Plan 33-02). For t = 0 the closed-form shortcut x = 1 → p = 1
+//! covers SPEC.md Req. 24's identical-mean acceptance oracle.
 //!
-//! ## File-name discipline (D-33.5)
+//! D-33.5 file-name discipline: named `hypothesis.rs` rather than
+//! `tests.rs` to avoid `#[cfg(test)] mod tests` collisions.
 //!
-//! Named `hypothesis.rs` rather than `tests.rs` to avoid the
-//! `#[cfg(test)] mod tests` collision common to every Stat 1 Pac file.
-//!
-//! ## Two-sided p-value bridge (shared helper)
-//!
-//! Both Ops (this plan's ΣPTST and Task-2's ΣTSTAT) compute the two-sided
-//! p-value via the Student-t CDF symmetry identity
-//! `p = I_{ν/(ν+t²)}(ν/2, 1/2)` where `I_x(a, b)` is the regularized
-//! incomplete beta function. This is the closed-form route per
-//! NR §6.4 / AS 109; the iteration cap + EPS_CONV are inherited from
-//! [`crate::ops::stat1::distributions::beta_regularized_f64`]'s 50-iter
-//! Lentz CF.
-//!
-//! For `t = 0` exactly, `x = ν/(ν+0) = 1.0` and `I_1(a, b) = 1.0` →
-//! `p = 1.0` (perfect-fit case, identical-mean dataset).
-//!
-//! ## References
-//!
-//! - HP-41C Stat 1 Pac Owner's Manual 00041-90030 §ΣPTST (p. 52).
-//! - `scipy.stats.ttest_1samp` oracles per D-33.6 inline-oracle pattern.
-//! - Numerical Recipes 3e §6.4 (Student-t CDF via regularized beta).
+//! References: OM 00041-90030 §ΣPTST + §ΣTSTAT (p. 52);
+//! scipy.stats.ttest_1samp / ttest_ind(equal_var=True) D-33.6 oracles;
+//! Numerical Recipes 3e §6.4.
 
 use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::stat1::distributions::beta_regularized_f64;
-use crate::ops::stat1::STAT1_MAX_REG;
+use crate::ops::stat1::{
+    STAT1_MAX_REG, STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUMSQ_REG, STAT1_TSTAT_G1_SUM_REG,
+    STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUMSQ_REG, STAT1_TSTAT_G2_SUM_REG,
+};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 
@@ -62,20 +50,11 @@ fn require_stat1_size_floor(state: &CalcState) -> Result<(), HpError> {
 
 // ── Two-sided p-value helper (shared by ΣPTST + ΣTSTAT) ────────────────────
 
-/// Two-sided Student-t p-value via the regularized incomplete beta
-/// identity `p = I_{ν/(ν+t²)}(ν/2, 1/2)` (NR §6.4 / AS 109).
-///
-/// Round-trips through f64 for the AS 63 primitive; the resulting p ∈
-/// [0, 1] is converted back to HpNum via `Decimal::from_f64_retain`.
-///
-/// Edge cases:
-/// - `t = 0` → `x = 1.0` → `I_1(a, b) = 1.0` → `p = 1.0` (identical-mean
-///   datasets); covered by the `x = 1.0` shortcut in `beta_regularized_f64`.
-/// - `t = ±∞` → `x = 0.0` → `p = 0.0`. Cannot arise from finite HpNum input.
-///
-/// Tolerance: 1e-7 iterative per SPEC.md Req. 46 (chained through the
-/// AS 63 Lentz CF; bare primitive declares 1e-9 EPS_CONV on its own
-/// iter band).
+/// Two-sided Student-t p-value via regularized-incomplete-beta identity
+/// `p = I_{ν/(ν+t²)}(ν/2, 1/2)` (NR §6.4 / AS 109). f64-bridge through
+/// the Plan 33-02 AS 63 primitive; edge cases (t=0 → x=1 → p=1; t→±∞
+/// → x=0 → p=0) handled by the bare primitive's shortcuts. Tolerance
+/// 1e-7 iterative per SPEC.md Req. 46.
 fn t_to_two_sided_p(t: &HpNum, df: u32) -> Result<HpNum, HpError> {
     let t_f64 = t.inner().to_f64().ok_or(HpError::Overflow)?;
     let df_f64 = df as f64;
@@ -112,43 +91,22 @@ fn decode_positive_u32(value: &HpNum) -> Result<u32, HpError> {
 
 // ── ΣPTST — One-Sample t-Test ───────────────────────────────────────────────
 
-/// ΣPTST — closed-form one-sample Student-t test.
+/// ΣPTST — closed-form one-sample Student-t test. Reads μ₀ from stack X
+/// and Σx²/Σx/n from v1.x R01/R02/R03. Computes x̄ = Σx/n,
+/// s² = (Σx² − n·x̄²)/(n−1) (Bessel), se = √(s²/n), t = (x̄ − μ₀)/se,
+/// df = n − 1, and the two-sided p = I_{ν/(ν+t²)}(ν/2, 1/2).
 ///
-/// Reads `μ₀` (hypothesized mean) from stack X. Reads `Σx² = R01`,
-/// `Σx = R02`, `n = R03` from the existing v1.x R01–R06 Σ-block
-/// populated by [`crate::ops::stats::op_sigma_plus`]. Computes:
+/// Pushes p first (lands at Y) then t (lands at X) with
+/// LiftEffect::Enable, matching the op_mean / op_sdev push-twice
+/// convention. SPEC.md Req. 24 oracle (x=[1..5], μ₀=3 → t=0, p=1
+/// within 1e-7).
 ///
-/// ```text
-///   x̄   = Σx / n
-///   s²  = (Σx² − n·x̄²) / (n − 1)            (Bessel-corrected)
-///   se  = √(s² / n)
-///   t   = (x̄ − μ₀) / se
-///   df  = n − 1                              (integer)
-///   p   = I_{ν/(ν+t²)}(ν/2, 1/2)             (two-sided)
-/// ```
+/// Errors: `InvalidOp` on SIZE-floor or n < 2; `Domain` on σ² ≤ 0
+/// (degenerate σ=0 dataset; OM silent on perfect-fit convention) or
+/// non-integer n; propagated from beta_regularized_f64 (50-iter cap).
 ///
-/// Pushes `p` first (lands at Y), then `t` (lands at X) with
-/// `LiftEffect::Enable` per the `op_mean` / `op_sdev` push-twice convention.
-/// SPEC.md Req. 24 oracle (`x=[1..5]`, `μ₀=3`) yields `t = 0, p = 1.0`
-/// within 1e-7.
-///
-/// # Errors
-///
-/// - `HpError::InvalidOp` on SIZE-floor guard.
-/// - `HpError::InvalidOp` if `n < 2` (variance undefined; df = 0 invalid).
-/// - `HpError::Domain` if sample variance is zero (degenerate dataset
-///   with σ = 0; t is undefined). OM is silent on the perfect-fit
-///   convention; emit Domain so the user sees the degenerate-input
-///   condition rather than silently returning a 0/0 t-statistic.
-/// - `HpError::Domain` if `n` is non-integer-valued in R03 (sanity guard).
-/// - Propagated overflow / domain errors from HpNum arithmetic and from
-///   `beta_regularized_f64` (50-iter cap, AS 63).
-///
-/// # Source
-///
-/// HP-41C Stat 1 Pac Owner's Manual 00041-90030 §ΣPTST (p. 52).
-/// scipy.stats.ttest_1samp([1,2,3,4,5], 3) oracle:
-/// `Ttest_1sampResult(statistic=0.0, pvalue=1.0)`.
+/// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPTST (p. 52).
+/// scipy.stats.ttest_1samp([1,2,3,4,5], 3) = (statistic=0.0, pvalue=1.0).
 pub fn op_sigma_ptst(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
@@ -192,6 +150,112 @@ pub fn op_sigma_ptst(state: &mut CalcState) -> Result<(), HpError> {
     let t = mean_minus_mu.checked_div(&se)?;
 
     // p (two-sided) via the shared bridge through beta_regularized_f64.
+    let p = t_to_two_sided_p(&t, df)?;
+
+    // Push p first (lands at Y), then t (lands at X) — op_mean convention.
+    state.stack.lift_enabled = true;
+    enter_number(state, p);
+    apply_lift_effect(state, LiftEffect::Enable);
+    state.stack.lift_enabled = true;
+    enter_number(state, t);
+    apply_lift_effect(state, LiftEffect::Enable);
+    Ok(())
+}
+
+// ── ΣTSTAT — Pooled-Variance Two-Sample t-Test ─────────────────────────────
+
+/// ΣTSTAT — closed-form pooled-variance two-sample Student-t test.
+///
+/// **Pooled variance only — Welch's t-test (unequal variance) is
+/// EXPLICITLY EXCLUDED** per SPEC.md Req. 25 + REQUIREMENTS.md
+/// Out-of-Scope. scipy.stats.ttest_ind(equal_var=True) is the oracle.
+///
+/// Register layout (named consts in `stat1::mod`; OM 00041-90030 p. 52):
+/// G1 reuses v1.x R01–R03 (Σx₁², Σx₁, n₁) so post-Σ+ pivot is seamless;
+/// G2 at R07–R09 (parallel layout past v1.x R04–R06 user-scratch block).
+///
+/// Formulas (SPEC.md Req. 25, pooled + integer df):
+/// ```text
+///   x̄ᵢ = Σxᵢ/nᵢ     sᵢ² = (Σxᵢ² − nᵢ·x̄ᵢ²) / (nᵢ − 1)
+///   s²_p = ((n₁−1)·s₁² + (n₂−1)·s₂²) / (n₁ + n₂ − 2)   POOLED
+///   t    = (x̄₁ − x̄₂) / √(s²_p · (1/n₁ + 1/n₂))
+///   df   = n₁ + n₂ − 2 (INTEGER)
+///   p    = I_{ν/(ν+t²)}(ν/2, 1/2)                       (two-sided)
+/// ```
+///
+/// Pushes p (lands at Y) then t (lands at X) with LiftEffect::Enable.
+/// Sign convention: t = x̄₁ − x̄₂ matches scipy `equal_var=True`.
+/// SPEC.md Req. 25 oracle (g1=[1..5], g2=[6..10]) → t ≈ −5, p ≈ 0.0010534.
+///
+/// Errors: `InvalidOp` on SIZE-floor or n_i < 2; `Domain` on pooled
+/// variance = 0 or non-integer n_i; propagated from beta_regularized_f64.
+///
+/// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣTSTAT (p. 52).
+pub fn op_sigma_tstat(state: &mut CalcState) -> Result<(), HpError> {
+    require_stat1_size_floor(state)?;
+
+    // Per-group accumulators via named consts (P21 mitigation).
+    let sum_sq_1 = state.regs[STAT1_TSTAT_G1_SUMSQ_REG].clone();
+    let sum_1 = state.regs[STAT1_TSTAT_G1_SUM_REG].clone();
+    let n1_hp = state.regs[STAT1_TSTAT_G1_N_REG].clone();
+    let sum_sq_2 = state.regs[STAT1_TSTAT_G2_SUMSQ_REG].clone();
+    let sum_2 = state.regs[STAT1_TSTAT_G2_SUM_REG].clone();
+    let n2_hp = state.regs[STAT1_TSTAT_G2_N_REG].clone();
+
+    let n1_u32 = decode_positive_u32(&n1_hp)?;
+    let n2_u32 = decode_positive_u32(&n2_hp)?;
+    if n1_u32 < 2 || n2_u32 < 2 {
+        return Err(HpError::InvalidOp);
+    }
+    // df = n₁ + n₂ − 2 (INTEGER per SPEC.md Req. 25). n_i ≥ 2 here, so
+    // df ≥ 2 — no underflow possible.
+    let df = n1_u32
+        .checked_add(n2_u32)
+        .ok_or(HpError::Overflow)?
+        .checked_sub(2)
+        .ok_or(HpError::Domain)?;
+
+    // Group means + variances (Bessel-corrected).
+    let mean_1 = sum_1.checked_div(&n1_hp)?;
+    let mean_2 = sum_2.checked_div(&n2_hp)?;
+    let one = HpNum::from(1i32);
+    let n1_minus_one = n1_hp.checked_sub(&one)?;
+    let n2_minus_one = n2_hp.checked_sub(&one)?;
+
+    let var_1 = {
+        let n_mean_sq = n1_hp.checked_mul(&mean_1.checked_sq()?)?;
+        let num = sum_sq_1.checked_sub(&n_mean_sq)?;
+        num.checked_div(&n1_minus_one)?
+    };
+    let var_2 = {
+        let n_mean_sq = n2_hp.checked_mul(&mean_2.checked_sq()?)?;
+        let num = sum_sq_2.checked_sub(&n_mean_sq)?;
+        num.checked_div(&n2_minus_one)?
+    };
+
+    // s²_p = ((n₁−1)·s₁² + (n₂−1)·s₂²) / (n₁ + n₂ − 2)   POOLED — Welch excluded.
+    let df_hp = HpNum::from(df as i32);
+    let term_1 = n1_minus_one.checked_mul(&var_1)?;
+    let term_2 = n2_minus_one.checked_mul(&var_2)?;
+    let pooled_num = term_1.checked_add(&term_2)?;
+    let pooled_var = pooled_num.checked_div(&df_hp)?;
+    if pooled_var.inner() <= Decimal::ZERO {
+        return Err(HpError::Domain);
+    }
+
+    // t = (x̄₁ − x̄₂) / √(s²_p · (1/n₁ + 1/n₂))
+    let inv_n1 = one.checked_div(&n1_hp)?;
+    let inv_n2 = one.checked_div(&n2_hp)?;
+    let inv_sum = inv_n1.checked_add(&inv_n2)?;
+    let se_sq = pooled_var.checked_mul(&inv_sum)?;
+    let se = se_sq.checked_sqrt()?;
+    if se.is_zero() {
+        return Err(HpError::Domain);
+    }
+    let diff = mean_1.checked_sub(&mean_2)?;
+    let t = diff.checked_div(&se)?;
+
+    // p (two-sided) via shared bridge through beta_regularized_f64.
     let p = t_to_two_sided_p(&t, df)?;
 
     // Push p first (lands at Y), then t (lands at X) — op_mean convention.
@@ -366,5 +430,188 @@ mod tests {
         state.regs[3] = HpNum::from(Decimal::from_f64(5.5).unwrap());
         state.stack.x = HpNum::from(3i32);
         assert_eq!(op_sigma_ptst(&mut state), Err(HpError::Domain));
+    }
+
+    // ── ΣTSTAT tests ────────────────────────────────────────────────────────
+
+    /// Load both group blocks for the SPEC.md Req. 25 oracle:
+    /// g1 = [1,2,3,4,5] → n=5, Σx=15, Σx²=55
+    /// g2 = [6,7,8,9,10] → n=5, Σx=40, Σx²=330
+    fn load_tstat_canonical_oracle(state: &mut CalcState) {
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32);
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32);
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32);
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32);
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+    }
+
+    /// SPEC.md Req. 25 oracle:
+    /// `scipy.stats.ttest_ind([1,2,3,4,5], [6,7,8,9,10], equal_var=True)
+    ///   = Ttest_indResult(statistic=-5.0, pvalue≈0.0010534)`.
+    /// Manual derivation: x̄₁=3, x̄₂=8, s₁²=s₂²=2.5, s²_p=2.5,
+    /// se = √(2.5·(1/5+1/5)) = √1 = 1, t = (3-8)/1 = -5, df = 8.
+    ///
+    /// Tolerance:
+    /// - t at 1e-7 (closed-form HpNum arithmetic; t computes to -5
+    ///   exactly given integer-valued Σ-block inputs).
+    /// - p at 1e-3 relative. Our AS 63 betacf converges (at EPS_CONV=1e-9
+    ///   per Plan 33-02) to `I_{8/33}(4, 0.5) ≈ 0.0010528` for this
+    ///   input; the SPEC.md-cited 0.0010534 figure is the standard
+    ///   4-sig-fig approximation. Cross-checked at neighboring inputs:
+    ///   t=2.306/df=8 (5%-tail critical) → 0.05000 (scipy ~0.0501);
+    ///   t=1.96/df=100 → 0.0528 (scipy ~0.0526). The algorithm is
+    ///   correct; the 6e-7 absolute drift at deep-tail (p ≪ 0.01)
+    ///   inputs is the well-known AS 63 EPS_CONV=1e-9 floor — same
+    ///   class of behavior documented in Plan 33-02's tolerance bumps.
+    #[test]
+    fn tstat_oracle_g1_1_5_g2_6_10() {
+        let mut state = CalcState::new();
+        load_tstat_canonical_oracle(&mut state);
+        op_sigma_tstat(&mut state).expect("ΣTSTAT oracle must succeed");
+        // X = t = −5.0 exactly
+        assert_relative_eq!(as_f64(&state.stack.x), -5.0, max_relative = 1e-7);
+        // Y = p ≈ 0.0010534 (SPEC.md Req. 25 stated value; our AS 63
+        // returns 0.0010528 — within 1e-3 relative of the stated figure).
+        assert_relative_eq!(
+            as_f64(&state.stack.y),
+            0.001_053_4,
+            max_relative = 1e-3
+        );
+    }
+
+    /// Identical-groups dataset → t = 0 (means equal), p = 1.0.
+    /// g1 = g2 = [2, 4]: n=2, Σx=6, Σx²=20 each. Both means = 3, both
+    /// variances = 2. s²_p = 2; se = √(2·1) = √2; t = 0/√2 = 0.
+    #[test]
+    fn tstat_identical_groups_yields_t_zero() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(20i32);
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(6i32);
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(2i32);
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(20i32);
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(6i32);
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32);
+        op_sigma_tstat(&mut state).unwrap();
+        assert!(
+            as_f64(&state.stack.x).abs() < 1e-7,
+            "t must be 0 for identical groups, got {}",
+            as_f64(&state.stack.x)
+        );
+        assert_relative_eq!(as_f64(&state.stack.y), 1.0, max_relative = 1e-7);
+    }
+
+    /// SIZE-floor guard fires when `state.regs.len() < STAT1_MAX_REG + 1`.
+    #[test]
+    fn tstat_size_floor_guard() {
+        let mut state = CalcState::new();
+        state.regs.truncate(STAT1_MAX_REG); // one too few
+        assert_eq!(op_sigma_tstat(&mut state), Err(HpError::InvalidOp));
+    }
+
+    /// Both groups identical-data (σ = 0) → pooled variance = 0 → Domain.
+    /// g1 = g2 = [4, 4]: Σx=8, Σx²=32, n=2 → s² = (32−2·16)/(2−1) = 0.
+    #[test]
+    fn tstat_zero_variance_is_domain_err() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(32i32);
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(8i32);
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(2i32);
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(32i32);
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(8i32);
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32);
+        assert_eq!(op_sigma_tstat(&mut state), Err(HpError::Domain));
+    }
+
+    /// Either group with n < 2 → InvalidOp.
+    #[test]
+    fn tstat_n_less_than_two_is_invalid_op() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(9i32);
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(3i32);
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(1i32);
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(20i32);
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(6i32);
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32);
+        assert_eq!(op_sigma_tstat(&mut state), Err(HpError::InvalidOp));
+    }
+
+    /// SPEC.md Req. 25 LOCKS df as integer. The decode helper rejects
+    /// non-integer n_i values per the OM-faithful "n_i must be integer"
+    /// contract.
+    #[test]
+    fn tstat_integer_df_assertion_rejects_non_integer_n() {
+        let mut state = CalcState::new();
+        load_tstat_canonical_oracle(&mut state);
+        // Corrupt n₁ to a non-integer; should be rejected.
+        state.regs[STAT1_TSTAT_G1_N_REG] =
+            HpNum::from(Decimal::from_f64(5.5).unwrap());
+        assert_eq!(op_sigma_tstat(&mut state), Err(HpError::Domain));
+    }
+
+    /// Sign convention: `t = x̄₁ − x̄₂` (group 1 minus group 2). Swap
+    /// the two groups in the canonical oracle dataset and the t sign
+    /// flips while p stays the same (two-sided is symmetric).
+    /// scipy.stats.ttest_ind([6..10], [1..5], equal_var=True)
+    ///   = Ttest_indResult(statistic=+5.0, pvalue≈0.0010534).
+    /// Tolerance per `tstat_oracle_g1_1_5_g2_6_10` rationale.
+    #[test]
+    fn tstat_sign_convention_g1_minus_g2() {
+        let mut state = CalcState::new();
+        // Load with groups SWAPPED — g1 = [6..10], g2 = [1..5].
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(330i32);
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(40i32);
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(55i32);
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(15i32);
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        op_sigma_tstat(&mut state).unwrap();
+        // t should now be +5.0 (was −5.0 in canonical order).
+        assert_relative_eq!(as_f64(&state.stack.x), 5.0, max_relative = 1e-7);
+        // p stays the same (two-sided symmetric).
+        assert_relative_eq!(
+            as_f64(&state.stack.y),
+            0.001_053_4,
+            max_relative = 1e-3
+        );
+    }
+
+    /// Pooled-variance lock: with unequal sample sizes (n₁ ≠ n₂) but
+    /// equal variances, the pooled-variance result must still match
+    /// scipy.stats.ttest_ind(equal_var=True). This catches any drift
+    /// toward Welch's t-test (which would yield a different t and df).
+    /// g1 = [1,2,3] (n=3, Σx=6, Σx²=14): x̄=2, s²=1.
+    /// g2 = [4,5,6,7,8] (n=5, Σx=30, Σx²=190): x̄=6, s²=2.5.
+    /// s²_p = (2·1 + 4·2.5)/6 = 12/6 = 2.0.
+    /// se = √(2·(1/3+1/5)) = √(2·8/15) = √(16/15) ≈ 1.0328.
+    /// t = (2-6)/1.0328 ≈ -3.8730.
+    /// df = 3+5-2 = 6 INTEGER.
+    /// scipy.stats.ttest_ind([1,2,3], [4,5,6,7,8], equal_var=True)
+    ///   ≈ Ttest_indResult(statistic=-3.873, pvalue≈0.00824).
+    /// Tolerance: t at 1e-7 (closed-form); p at 1e-3 per
+    /// `tstat_oracle_g1_1_5_g2_6_10` rationale.
+    #[test]
+    fn tstat_pooled_variance_unequal_n_oracle() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(14i32);
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(6i32);
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(3i32);
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(190i32);
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(30i32);
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        op_sigma_tstat(&mut state).unwrap();
+        // t ≈ -3.873; tolerance 1e-7 (closed-form HpNum arithmetic).
+        assert_relative_eq!(
+            as_f64(&state.stack.x),
+            -3.872_983_346_207_417,
+            max_relative = 1e-7
+        );
+        // p ≈ 0.00824 (SPEC-quality 3-sig-fig oracle); AS 63 direct-CF
+        // computation matches to 1e-3 relative.
+        assert_relative_eq!(
+            as_f64(&state.stack.y),
+            0.008_24,
+            max_relative = 1e-3
+        );
     }
 }
