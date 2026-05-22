@@ -164,8 +164,9 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}POLYP", Op::Stat1Stub),  // ΣPOLYP  — Plan 33-08
         ("\u{03A3}POLYC", Op::Stat1Stub),  // ΣPOLYC  — Plan 33-08
         // ── Stat 1 Pac Hypothesis Tests ────────────────────────────────────────
-        ("\u{03A3}PTST", Op::Stat1Stub),   // ΣPTST   — Plan 33-07
-        ("\u{03A3}TSTAT", Op::Stat1Stub),  // ΣTSTAT  — Plan 33-07
+        // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
+        ("\u{03A3}PTST", Op::SigmaPtst),   // ΣPTST   — Plan 33-07
+        ("\u{03A3}TSTAT", Op::SigmaTstat), // ΣTSTAT  — Plan 33-07
         // ── Stat 1 Pac Nonparametric / Chi-Square Evaluation / Contingency ────
         // Plan 33-04 swapped ΣSPEAR (Task 1) + ΣXSQEV (Task 2) + ΣEFXSQ
         // (Task 3) from Op::Stat1Stub to their real Sigma* variants.
@@ -337,8 +338,9 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}POLYP" => Some(Op::Stat1Stub),
         "\u{03A3}POLYC" => Some(Op::Stat1Stub),
         // Hypothesis Tests
-        "\u{03A3}PTST" => Some(Op::Stat1Stub),
-        "\u{03A3}TSTAT" => Some(Op::Stat1Stub),
+        // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
+        "\u{03A3}PTST" => Some(Op::SigmaPtst),
+        "\u{03A3}TSTAT" => Some(Op::SigmaTstat),
         // Nonparametric / Chi-Square Evaluation / Contingency
         // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ → real Sigma* variants.
         "\u{03A3}XSQEV" => Some(Op::SigmaXsqev),

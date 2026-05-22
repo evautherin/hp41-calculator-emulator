@@ -95,7 +95,7 @@ pub mod anova; // Plan 33-06 (ΣAOVONE + ΣAOVTWO + ΣANOCOV)
 pub mod basic_stats; // Plan 33-05 (ΣBSTAT + ΣBSTG univariate / weighted summaries)
 pub mod chisqd; // Plan 33-03 (ΣCHISQD ν-prompt + PDF/CDF dispatcher)
 pub mod distributions; // Plan 33-02
-// pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
+pub mod hypothesis; // Plan 33-07 (ΣPTST; renamed from tests.rs per D-33.5; ΣTSTAT added in Task 2)
 pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
 pub mod moments; // Plan 33-06 (ΣMMTUG + ΣMMTGD third/fourth moments)
 pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops); Plan 33-06 extends with ΣCTKKK + ΣCTKK
@@ -427,6 +427,62 @@ pub const STAT1_CTKKK_DIM_MAX: usize = 3;
 /// ΣCTKK: maximum row/column dimension. Smaller-table variant per OM
 /// p. 60 — capped at 2×2 (4 cells, R02..R05) to reduce scratch overhead.
 pub const STAT1_CTKK_DIM_MAX: usize = 2;
+
+// ── Plan 33-07 Task 2: ΣTSTAT per-group register consts (P21) ──────────────
+//
+// ΣTSTAT (pooled-variance two-sample t-test) uses SIZE 015 (R00..R14)
+// per OM 00041-90030 p. 52. Layout decision for this plan:
+//
+//   - Group 1 reuses the v1.x R01–R03 slots (Σx², Σx, n) so a user who
+//     has just finished an Σ+ accumulation for group 1 can pivot
+//     directly to group 2 without copying data.
+//   - Group 2 lives at R07–R09 (parallel layout one block past R04–R06,
+//     which stays free for the user's own scratch or paired-y data).
+//   - R10..R14 are program-internal scratch per OM (intermediate s²_p,
+//     t, p, etc. — used by this Op via local HpNum vars, not stored).
+//
+//   R01 = Σx₁²   (Group 1 sum of squares)
+//   R02 = Σx₁    (Group 1 sum)
+//   R03 = n₁     (Group 1 sample count, integer)
+//   R04..R06     (v1.x Σy² / Σy / Σxy block; UNUSED by ΣTSTAT — user scratch)
+//   R07 = Σx₂²   (Group 2 sum of squares)
+//   R08 = Σx₂    (Group 2 sum)
+//   R09 = n₂     (Group 2 sample count, integer)
+//   R10..R14 = scratch
+//
+// Welch's t-test is EXPLICITLY EXCLUDED per SPEC.md Req. 25 +
+// REQUIREMENTS.md Out-of-Scope; only pooled variance ships.
+
+/// ΣTSTAT: Group 1 Σx² register (reuses v1.x R01 slot per the layout
+/// decision above so post-Σ+ pivot to group 2 is seamless).
+///
+/// OM 00041-90030 p. 52 (t Statistics).
+pub const STAT1_TSTAT_G1_SUMSQ_REG: usize = 1;
+
+/// ΣTSTAT: Group 1 Σx register (reuses v1.x R02 slot).
+///
+/// OM 00041-90030 p. 52.
+pub const STAT1_TSTAT_G1_SUM_REG: usize = 2;
+
+/// ΣTSTAT: Group 1 n register (reuses v1.x R03 slot; integer-valued).
+///
+/// OM 00041-90030 p. 52.
+pub const STAT1_TSTAT_G1_N_REG: usize = 3;
+
+/// ΣTSTAT: Group 2 Σx² register (R07; parallel to G1's R01).
+///
+/// OM 00041-90030 p. 52.
+pub const STAT1_TSTAT_G2_SUMSQ_REG: usize = 7;
+
+/// ΣTSTAT: Group 2 Σx register (R08; parallel to G1's R02).
+///
+/// OM 00041-90030 p. 52.
+pub const STAT1_TSTAT_G2_SUM_REG: usize = 8;
+
+/// ΣTSTAT: Group 2 n register (R09; parallel to G1's R03; integer-valued).
+///
+/// OM 00041-90030 p. 52.
+pub const STAT1_TSTAT_G2_N_REG: usize = 9;
 
 // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
 
