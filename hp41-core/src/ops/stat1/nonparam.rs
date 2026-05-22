@@ -147,9 +147,20 @@ fn decode_category_count(k_num: &HpNum) -> Result<usize, HpError> {
 
 // ── ΣEFXSQ — Chi-Square with Expected-as-Proportions ────────────────────────
 
-/// Tolerance for `|Σ p_i − 1.0| ≤ TOL` (1e-9 closed-form per SPEC.md
-/// Req. 27). Out-of-tolerance returns Domain (Pitfall 21: no silent
-/// renormalization).
+/// Tolerance for `|Σ p_i − 1.0| ≤ TOL` for ΣEFXSQ expected-proportion
+/// inputs. Value: `1 × 10⁻⁹` (1e-9), closed-form per SPEC.md Req. 27.
+/// Out-of-tolerance returns Domain (Pitfall 21: no silent
+/// renormalization of the user's proportions).
+///
+/// Built via `Decimal::from_parts(lo, mid, hi, negative, scale)` which
+/// represents `(hi << 64 | mid << 32 | lo) × 10⁻ˢᶜᵃˡᵉ`. The argument
+/// tuple `(1, 0, 0, false, 9)` therefore encodes `1 × 10⁻⁹ = 0.000_000_001`.
+/// `Decimal::new(1, 9)` would be cleaner but is NOT a `const fn` at the
+/// pinned `rust_decimal` version — the four-arg constructor is the
+/// only `const`-compatible path. REVIEW.md WR-07: this doc-comment
+/// makes the literal value readable without forcing the reader to
+/// recall the `from_parts` argument-order convention at every call
+/// site.
 const PROPORTION_SUM_TOL_DEC: rust_decimal::Decimal =
     rust_decimal::Decimal::from_parts(1, 0, 0, false, 9);
 
