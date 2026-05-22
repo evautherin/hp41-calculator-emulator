@@ -92,7 +92,7 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 **Plans**: 9 plans
 **UI hint**: no
 Plans:
-- [ ] 33-00-PLAN.md — Free42 contamination guard extension (stats-domain identifiers) + OM Storage Registers transcription in ops/stat1/mod.rs (Wave 0, no Op code)
+- [x] 33-00-PLAN.md — Free42 contamination guard extension (stats-domain identifiers) + OM Storage Registers transcription in ops/stat1/mod.rs (Wave 0, no Op code)
 - [ ] 33-01-PLAN.md — XROM framework activation: STAT_1 const + bit-1 arm + stat1_resolve + default_xrom_modules→0b0000_0011 + migrate_after_load + rand_seed field + Stat1Step skeleton + Op::Stat1Stub scaffolding (Wave 1)
 - [ ] 33-02-PLAN.md — Three hand-coded distribution primitives (Acklam/AS 241 + AS 239 + AS 63) with ≥18 inline scipy.stats oracle tuples; all GREEN before any Op (Wave 2)
 - [ ] 33-03-PLAN.md — ΣNORMD (CDF/PDF/inverse) + ΣCHISQD (ν-prompt+PDF/CDF) + HpError::Cancelled/ConvergenceFailed + quantile_threshold + stat1_cancellation.rs (Wave 2)
@@ -163,7 +163,7 @@ Plans:
 | — | v2.1 | quick tasks | Complete | 2026-05-13 |
 | 20–27 | v2.2 | 26/26 | Complete | 2026-05-15 |
 | 28–32 | v3.0 | 31/31 | Complete | 2026-05-20 |
-| 33 | v3.1 | 0/0 | Not started | - |
+| 33 | v3.1 | 1/9 | In Progress|  |
 | 34 | v3.1 | 0/0 | Not started | - |
 | 35 | v3.1 | 0/0 | Not started | - |
 | 36 | v3.1 | 0/0 | Not started | - |

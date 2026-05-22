@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Stat 1 Pac Emulation
-status: Roadmap ready; awaiting `/gsd-plan-phase 33`
-last_updated: "2026-05-22T06:12:17.751Z"
-last_activity: 2026-05-22 — v3.1 roadmap created (Phases 33–37, 66 requirements mapped)
+status: executing
+last_updated: "2026-05-22T09:32:02.976Z"
+last_activity: 2026-05-22 -- Phase 33 execution started
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 9
   completed_plans: 0
   percent: 0
 ---
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-05-21 after v3.0 milestone archive)
 - v2.2 HP-41CV Feature Completeness (2026-05-15) — Phases 20–27, 26/26 plans
 - **v3.0 Math Pac I Emulation (2026-05-20) — Phases 28–32, 31/31 plans; 95.39 % lines / 94.26 % regions on `hp41-core`; 99.3 % numerical accuracy (763/768); CI green across `ci.yml` + `ci-gui.yml`**
 
-**Current focus:** v3.1 Stat 1 Pac Emulation — roadmap defined (Phases 33–37); next step: `/gsd-plan-phase 33 --research-phase` (Phase 33 requires spec-phase OM read before implementation)
+**Current focus:** Phase 33 — hp41-core-xrom-activation-distribution-primitives-all-stat-1
 **Repo:** hp41-calculator-emulator
 **Architecture:** Cargo workspace — `hp41-core` (library) + `hp41-cli` (binary) + `hp41-gui` (nested standalone Tauri workspace); `hp41-core` has zero UI/CLI dependencies enforced at compile time.
 
@@ -40,10 +40,10 @@ See: .planning/PROJECT.md (updated 2026-05-21 after v3.0 milestone archive)
 
 ## Current Position
 
-Phase: 33 (roadmap defined — not yet started)
-Plan: —
-Status: Roadmap ready; awaiting `/gsd-plan-phase 33`
-Last activity: 2026-05-22 — v3.1 roadmap created (Phases 33–37, 66 requirements mapped)
+Phase: 33 (hp41-core-xrom-activation-distribution-primitives-all-stat-1) — EXECUTING
+Plan: 1 of 9
+Status: Executing Phase 33
+Last activity: 2026-05-22 -- Phase 33 execution started
 
 ### v3.1 Phase Overview
 
