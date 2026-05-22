@@ -937,6 +937,33 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOW (p. 35).
     SigmaPow,
 
+    // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ────────
+    /// ΣMMTUG — Ungrouped third + fourth moment accumulator.
+    ///
+    /// Per-call accumulator: consumes `x` from stack X and updates the
+    /// Σ-block extended with `Σx³` (R07 = `STAT1_MMTUG_CUBE_REG`) and
+    /// `Σx⁴` (R08 = `STAT1_MMTUG_QUAD_REG`). Σx, Σx², n are updated via
+    /// delegation to [`crate::ops::stats::op_sigma_plus`] (anti-duplication
+    /// per PATTERNS.md Pattern 4). Central moments + skewness γ₁ +
+    /// excess kurtosis γ₂ are extracted from the accumulated block via
+    /// the public helper `crate::ops::stat1::moments::compute_moments`.
+    ///
+    /// STAT-UNI-04 [C] correction-key round-trip: `op_sigma_minus` was
+    /// extended in this plan to mirror every register written by ΣMMTUG.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMMTUG (p. 15).
+    SigmaMmtug,
+    /// ΣMMTGD — Grouped (frequency-weighted) variant of ΣMMTUG.
+    ///
+    /// Per-call accumulator: consumes `x` from stack X and frequency
+    /// count `f` from stack Y, contributing `f·xᵏ` to Σxᵏ for k = 1..4
+    /// and updating n = Σf. All five Σ-block writes happen atomically
+    /// in one block (no `op_sigma_plus` delegate — the delegate has no
+    /// frequency-weighting API).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMMTGD (p. 15).
+    SigmaMmtgd,
+
     // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
     /// ΣNORMD — Normal-distribution three-mode modal opener.
     ///
@@ -1424,6 +1451,9 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaExp => crate::ops::stat1::regression::op_sigma_exp(state),
         Op::SigmaLogi => crate::ops::stat1::regression::op_sigma_logi(state),
         Op::SigmaPow => crate::ops::stat1::regression::op_sigma_pow(state),
+        // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ─────
+        Op::SigmaMmtug => crate::ops::stat1::moments::op_sigma_mmtug(state),
+        Op::SigmaMmtgd => crate::ops::stat1::moments::op_sigma_mmtgd(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────

@@ -146,8 +146,8 @@ pub const STAT_1: XromModule = XromModule {
         // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
         ("\u{03A3}BSTAT", Op::SigmaBstat),  // ΣBSTAT — Plan 33-05
         ("\u{03A3}BSTG", Op::SigmaBstg),    // ΣBSTG  — Plan 33-05
-        ("\u{03A3}MMTUG", Op::Stat1Stub),  // ΣMMTUG — Plan 33-06
-        ("\u{03A3}MMTGD", Op::Stat1Stub),  // ΣMMTGD — Plan 33-06
+        ("\u{03A3}MMTUG", Op::SigmaMmtug), // ΣMMTUG — Plan 33-06
+        ("\u{03A3}MMTGD", Op::SigmaMmtgd), // ΣMMTGD — Plan 33-06
         // ── Stat 1 Pac ANOVA Family ────────────────────────────────────────────
         ("\u{03A3}AOVONE", Op::Stat1Stub), // ΣAOVONE — Plan 33-06
         ("\u{03A3}AOVTWO", Op::Stat1Stub), // ΣAOVTWO — Plan 33-06
@@ -318,8 +318,9 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
         "\u{03A3}BSTAT" => Some(Op::SigmaBstat),
         "\u{03A3}BSTG" => Some(Op::SigmaBstg),
-        "\u{03A3}MMTUG" => Some(Op::Stat1Stub),
-        "\u{03A3}MMTGD" => Some(Op::Stat1Stub),
+        // Plan 33-06: ΣMMTUG + ΣMMTGD → real Sigma* variants.
+        "\u{03A3}MMTUG" => Some(Op::SigmaMmtug),
+        "\u{03A3}MMTGD" => Some(Op::SigmaMmtgd),
         // ANOVA Family
         "\u{03A3}AOVONE" => Some(Op::Stat1Stub),
         "\u{03A3}AOVTWO" => Some(Op::Stat1Stub),

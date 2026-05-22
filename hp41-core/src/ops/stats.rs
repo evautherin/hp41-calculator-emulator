@@ -55,6 +55,14 @@ pub fn op_sigma_plus(state: &mut CalcState) -> Result<(), HpError> {
 /// Σ−: remove X and Y from Σ registers R01–R06, then push count n into X.
 /// Reverses the effect of the most recently added (X,Y) data point.
 /// LiftEffect: Enable.
+///
+/// **STAT-UNI-04 [C] correction-key extension (Plan 33-06):** when
+/// `state.regs.len() >= STAT1_MAX_REG + 1`, ALSO reverses the extended
+/// `Σx³` (R07 = `STAT1_MMTUG_CUBE_REG`) and `Σx⁴` (R08 =
+/// `STAT1_MMTUG_QUAD_REG`) slots populated by `op_sigma_mmtug`. This
+/// is backward-compatible: under shrunk SIZE the extended slots are
+/// unaddressable and `op_sigma_minus` behaves exactly as the v1.x
+/// `Σ−`. SPEC.md Req. 10.
 pub fn op_sigma_minus(state: &mut CalcState) -> Result<(), HpError> {
     // Phase 22 D-22.11.1 / Pitfall 5: fail-closed when Σ block R01..R06
     // unaddressable under SIZE shrink.
@@ -71,12 +79,32 @@ pub fn op_sigma_minus(state: &mut CalcState) -> Result<(), HpError> {
     let new_r5 = state.regs[5].checked_sub(&y)?;
     let new_r6 = state.regs[6].checked_sub(&x.checked_mul(&y)?)?;
 
+    // Plan 33-06 STAT-UNI-04: extended-slot reversal IFF the SIZE allows.
+    // When SIZE has been shrunk below STAT1_MAX_REG + 1 this Op behaves
+    // exactly as v1.x (R01–R06 only); the user is responsible for not
+    // having called op_sigma_mmtug in that case. P21 / Pitfall 5
+    // mitigation: this path adds NO new failure modes for v1.x users.
+    let new_cube_quad = if state.regs.len() > crate::ops::stat1::STAT1_MAX_REG {
+        let x_sq = x.checked_sq()?;
+        let x_cube = x.checked_mul(&x_sq)?;
+        let x_quad = x_sq.checked_sq()?;
+        let new_cube = state.regs[crate::ops::stat1::STAT1_MMTUG_CUBE_REG].checked_sub(&x_cube)?;
+        let new_quad = state.regs[crate::ops::stat1::STAT1_MMTUG_QUAD_REG].checked_sub(&x_quad)?;
+        Some((new_cube, new_quad))
+    } else {
+        None
+    };
+
     state.regs[1] = new_r1;
     state.regs[2] = new_r2;
     state.regs[3] = new_r3.clone();
     state.regs[4] = new_r4;
     state.regs[5] = new_r5;
     state.regs[6] = new_r6;
+    if let Some((cube, quad)) = new_cube_quad {
+        state.regs[crate::ops::stat1::STAT1_MMTUG_CUBE_REG] = cube;
+        state.regs[crate::ops::stat1::STAT1_MMTUG_QUAD_REG] = quad;
+    }
 
     state.stack.lift_enabled = true;
     enter_number(state, new_r3);

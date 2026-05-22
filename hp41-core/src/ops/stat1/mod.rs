@@ -97,7 +97,7 @@ pub mod chisqd; // Plan 33-03 (ΣCHISQD ν-prompt + PDF/CDF dispatcher)
 pub mod distributions; // Plan 33-02
 // pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
 pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
-               // pub mod moments;      // Plan 33-06
+pub mod moments; // Plan 33-06 (ΣMMTUG + ΣMMTGD third/fourth moments)
 pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops)
 pub mod normd; // Plan 33-03 (ΣNORMD 3-mode dispatcher: CDF / PDF / inverse)
                // pub mod rand;         // Plan 33-08
@@ -283,6 +283,41 @@ pub const STAT1_XSQEV_STRIDE: usize = 2;
 /// SIZE 008 / R00..R07: (8 − 1) / 2 = 3 (integer division; the trailing
 /// R07 scratch slot is the output and is not used as data).
 pub const STAT1_XSQEV_KMAX: usize = 3;
+
+// ── Plan 33-06 Task 1: ΣMMTUG / ΣMMTGD per-slot register consts (P21) ──────
+//
+// ΣMMTUG (ungrouped) and ΣMMTGD (grouped / frequency-weighted) both use
+// SIZE 012 (R00..R11) per OM 00041-90030 p. 15. The first six registers
+// R01..R06 mirror the existing v1.x Σ-block (Σx²/Σx/n/Σy²/Σy/Σxy) so
+// that the accumulator can delegate to `op_sigma_plus` for Σx, Σx², n
+// updates and merely ADDS its own writes for the third + fourth moments
+// (Σx³, Σx⁴). The new slots use R07 and R08 (within the SIZE 012 block);
+// R09..R11 are program-internal scratch per OM.
+//
+//   R00 = (unused by accumulator)
+//   R01 = Σx²            (v1.x via op_sigma_plus)
+//   R02 = Σx             (v1.x via op_sigma_plus)
+//   R03 = n              (v1.x via op_sigma_plus)
+//   R04 = Σy² (unused by ΣMMTUG ungrouped path; ΣMMTGD reuses for Σ(f·x²))
+//   R05 = Σy  (ΣMMTGD: Σf — total frequency)
+//   R06 = Σxy (ΣMMTGD: Σ(f·x))
+//   R07 = Σx³            (Plan 33-06 — third moment slot)
+//   R08 = Σx⁴            (Plan 33-06 — fourth moment slot)
+//   R09..R11 = scratch (intermediate results during compute)
+
+/// ΣMMTUG / ΣMMTGD: register holding Σx³ (sum of cubes, OR sum of
+/// frequency-weighted cubes `Σ(f·x³)` for ΣMMTGD).
+///
+/// OM 00041-90030 p. 15 (Moments, Skewness, Kurtosis); slot chosen as
+/// R07 to land within the SIZE 012 block (R00..R11) without colliding
+/// with the v1.x Σ-block delegated to `op_sigma_plus` (R01..R06).
+pub const STAT1_MMTUG_CUBE_REG: usize = 7;
+
+/// ΣMMTUG / ΣMMTGD: register holding Σx⁴ (sum of fourth powers, OR
+/// frequency-weighted `Σ(f·x⁴)` for ΣMMTGD).
+///
+/// OM 00041-90030 p. 15; slot R08 within SIZE 012 block.
+pub const STAT1_MMTUG_QUAD_REG: usize = 8;
 
 // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
 

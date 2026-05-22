@@ -1010,6 +1010,10 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaExp => crate::ops::dispatch(state, Op::SigmaExp),
         Op::SigmaLogi => crate::ops::dispatch(state, Op::SigmaLogi),
         Op::SigmaPow => crate::ops::dispatch(state, Op::SigmaPow),
+        // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ─────
+        // Per-point accumulators; pure-data routing through dispatch.
+        Op::SigmaMmtug => crate::ops::dispatch(state, Op::SigmaMmtug),
+        Op::SigmaMmtgd => crate::ops::dispatch(state, Op::SigmaMmtgd),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().
