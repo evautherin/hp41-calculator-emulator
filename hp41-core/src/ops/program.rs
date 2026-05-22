@@ -1023,6 +1023,10 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ───────────────────
         Op::SigmaCtkkk => crate::ops::dispatch(state, Op::SigmaCtkkk),
         Op::SigmaCtkk => crate::ops::dispatch(state, Op::SigmaCtkk),
+        // ── Phase 33 Plan 33-07: ΣPTST one-sample t-test ────────────────────
+        // Pure-data op (closed-form + iterative-primitive bridge); pure
+        // dispatch routing — same pattern as Plan 33-04/05/06 Σ-family.
+        Op::SigmaPtst => crate::ops::dispatch(state, Op::SigmaPtst),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().

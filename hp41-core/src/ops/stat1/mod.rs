@@ -95,7 +95,7 @@ pub mod anova; // Plan 33-06 (ΣAOVONE + ΣAOVTWO + ΣANOCOV)
 pub mod basic_stats; // Plan 33-05 (ΣBSTAT + ΣBSTG univariate / weighted summaries)
 pub mod chisqd; // Plan 33-03 (ΣCHISQD ν-prompt + PDF/CDF dispatcher)
 pub mod distributions; // Plan 33-02
-// pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
+pub mod hypothesis; // Plan 33-07 (ΣPTST; renamed from tests.rs per D-33.5; ΣTSTAT added in Task 2)
 pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
 pub mod moments; // Plan 33-06 (ΣMMTUG + ΣMMTGD third/fourth moments)
 pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops); Plan 33-06 extends with ΣCTKKK + ΣCTKK

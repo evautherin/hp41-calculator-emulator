@@ -1027,6 +1027,30 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKK (p. 60).
     SigmaCtkk,
 
+    // ── Phase 33 Plan 33-07: Student-t hypothesis tests ─────────────────────
+    /// ΣPTST — One-sample Student-t test.
+    ///
+    /// Reads μ₀ (hypothesized mean) from stack X. Reads Σx² = R01,
+    /// Σx = R02, n = R03 from the existing v1.x R01–R06 Σ-block
+    /// (D-03 layout). Computes:
+    ///
+    /// ```text
+    ///   x̄  = Σx/n
+    ///   s² = (Σx² − n·x̄²) / (n−1)  (Bessel-corrected)
+    ///   t  = (x̄ − μ₀) / √(s²/n)
+    ///   df = n − 1
+    ///   p  = I_{ν/(ν+t²)}(ν/2, 1/2)  (two-sided via beta_regularized_f64)
+    /// ```
+    ///
+    /// Pushes p (lands at Y) then t (lands at X) per the op_mean
+    /// push-twice convention. LiftEffect: Enable.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 46 (chained through
+    /// distributions::beta_regularized_f64).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPTST (p. 52).
+    SigmaPtst,
+
     // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
     /// ΣNORMD — Normal-distribution three-mode modal opener.
     ///
@@ -1524,6 +1548,8 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ───────────────────
         Op::SigmaCtkkk => crate::ops::stat1::nonparam::op_sigma_ctkkk(state),
         Op::SigmaCtkk => crate::ops::stat1::nonparam::op_sigma_ctkk(state),
+        // ── Phase 33 Plan 33-07: ΣPTST one-sample t-test ────────────────────
+        Op::SigmaPtst => crate::ops::stat1::hypothesis::op_sigma_ptst(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
