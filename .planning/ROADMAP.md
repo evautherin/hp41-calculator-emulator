@@ -94,10 +94,10 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 Plans:
 - [x] 33-00-PLAN.md — Free42 contamination guard extension (stats-domain identifiers) + OM Storage Registers transcription in ops/stat1/mod.rs (Wave 0, no Op code)
 - [x] 33-01-PLAN.md — XROM framework activation: STAT_1 const + bit-1 arm + stat1_resolve + default_xrom_modules→0b0000_0011 + migrate_after_load + rand_seed field + Stat1Step skeleton + Op::Stat1Stub scaffolding (Wave 1)
-- [ ] 33-02-PLAN.md — Three hand-coded distribution primitives (Acklam/AS 241 + AS 239 + AS 63) with ≥18 inline scipy.stats oracle tuples; all GREEN before any Op (Wave 2)
+- [x] 33-02-PLAN.md — Three hand-coded distribution primitives (Acklam/AS 241 + AS 239 + AS 63) with ≥18 inline scipy.stats oracle tuples; all GREEN before any Op (Wave 2)
 - [ ] 33-03-PLAN.md — ΣNORMD (CDF/PDF/inverse) + ΣCHISQD (ν-prompt+PDF/CDF) + HpError::Cancelled/ConvergenceFailed + quantile_threshold + stat1_cancellation.rs (Wave 2)
-- [ ] 33-04-PLAN.md — ΣSPEAR + ΣXSQEV + ΣEFXSQ (closed-form nonparametrics; SPEC.md Req. 30 oracle 0.7→0.8 discrepancy resolution) (Wave 2)
-- [ ] 33-05-PLAN.md — ΣBSTAT/BSTG (univariate) + ΣLIN/EXP/LOGI/POW (log-linearization with op_sigma_plus delegate) (Wave 2)
+- [x] 33-04-PLAN.md — ΣSPEAR + ΣXSQEV + ΣEFXSQ (closed-form nonparametrics; SPEC.md Req. 30 oracle 0.7→0.8 discrepancy resolution) (Wave 2)
+- [x] 33-05-PLAN.md — ΣBSTAT/BSTG (univariate) + ΣLIN/EXP/LOGI/POW (log-linearization with op_sigma_plus delegate) (Wave 2)
 - [ ] 33-06-PLAN.md — ΣMMTUG/MMTGD + ΣAOVONE/AOVTWO/ANOCOV + ΣCTKKK/CTKK (OM-register-dependent set, P21 mitigation, op_sigma_minus extension for [C] correction-key) (Wave 3)
 - [ ] 33-07-PLAN.md — ΣPTST + ΣTSTAT (pooled-variance two-sample t-test, Welch excluded; consumes beta_regularized_f64) (Wave 3)
 - [ ] 33-08-PLAN.md — ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC + RAND/SEED + Op::Stat1Stub deletion + stat1_rand_determinism.rs (Wave 3, final)
@@ -163,7 +163,7 @@ Plans:
 | — | v2.1 | quick tasks | Complete | 2026-05-13 |
 | 20–27 | v2.2 | 26/26 | Complete | 2026-05-15 |
 | 28–32 | v3.0 | 31/31 | Complete | 2026-05-20 |
-| 33 | v3.1 | 2/9 | In Progress|  |
+| 33 | v3.1 | 5/9 | In Progress|  |
 | 34 | v3.1 | 0/0 | Not started | - |
 | 35 | v3.1 | 0/0 | Not started | - |
 | 36 | v3.1 | 0/0 | Not started | - |
