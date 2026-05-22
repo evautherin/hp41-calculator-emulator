@@ -992,6 +992,11 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TriSsa => crate::ops::dispatch(state, Op::TriSsa),
         Op::Trans2d => crate::ops::dispatch(state, Op::Trans2d),
         Op::Trans3d => crate::ops::dispatch(state, Op::Trans3d),
+        // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
+        // Pure-data op routed through dispatch (mirrors hyperbolics +
+        // Plan 28-10 Triangle/TRANS pattern). Will be replaced when Plans
+        // 33-03..33-08 land the real Sigma* variants.
+        Op::Stat1Stub => crate::ops::dispatch(state, Op::Stat1Stub),
     }
 }
 

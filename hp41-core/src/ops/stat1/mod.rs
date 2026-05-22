@@ -226,6 +226,31 @@ pub const STAT1_NORMD_MAX_REG: usize = 18;
 /// Per-slot semantics in `stat1/chisqd.rs` (Plan 33-03).
 pub const STAT1_CHISQD_MAX_REG: usize = 6;
 
+// ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
+
+use crate::error::HpError;
+use crate::state::CalcState;
+
+/// Placeholder dispatch handler for `Op::Stat1Stub`.
+///
+/// Plan-33-01 scaffolding: every entry in `STAT_1.ops` (in
+/// `hp41-core/src/ops/math1/xrom.rs`) currently maps to `Op::Stat1Stub`,
+/// and `stat1_resolve` in the same file routes every Stat 1 mnemonic to
+/// the same stub. Plans 33-03..33-08 incrementally replace those
+/// references with real `Op::Sigma*` variants and DELETE `Op::Stat1Stub`
+/// + this function once the last reference is gone (Plan 33-08).
+///
+/// Returns `Err(HpError::InvalidOp)` so any accidental dispatch surfaces
+/// the missing-feature state visibly (rather than silently mapping to a
+/// no-op — Pitfall 22 / resolver-never-discard invariant per CLAUDE.md
+/// "Resolver chain + never-discard").
+///
+/// Per `#![deny(clippy::unwrap_used)]`: this function uses `Err(...)`
+/// propagation; no panics, no `.unwrap()`.
+pub fn op_stat1_stub(_state: &mut CalcState) -> Result<(), HpError> {
+    Err(HpError::InvalidOp)
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
