@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Stat 1 Pac Emulation
-status: roadmap_ready
-last_updated: "2026-05-22T00:00:00.000Z"
-last_activity: 2026-05-22
+status: Roadmap ready; awaiting `/gsd-plan-phase 33`
+last_updated: "2026-05-22T06:12:17.751Z"
+last_activity: 2026-05-22 — v3.1 roadmap created (Phases 33–37, 66 requirements mapped)
 progress:
   total_phases: 5
   completed_phases: 0
@@ -153,9 +153,9 @@ None — roadmap defined; Phase 33 spec-phase OM reading is a planned dependency
 ## Session Continuity
 
 **Last active:** 2026-05-22
-**Last action:** v3.1 roadmap created — Phases 33–37 written to ROADMAP.md; all 66 v1 requirements mapped; REQUIREMENTS.md traceability table updated; STATE.md updated with v3.1 phase overview and pending decisions.
-**Next action:** `/gsd-plan-phase 33` — Phase 33 requires `--research-phase` flag (OM "Storage Registers" section + RAND subroutine presence + quantile convergence criteria + ΣPOLYP degree prompt + ΣCHISQD ν convention + ΣTSTAT pooled vs. Welch must all be resolved before Op implementation begins).
+**Last action:** Phase 33 context gathered via `/gsd-discuss-phase 33` — 9 implementation decisions captured in `.planning/phases/33-hp41-core-xrom-activation-distribution-primitives-all-stat-1/33-CONTEXT.md` (commit 1f46b9d). Decisions: (D-33.1) `/gsd-spec-phase 33` first to lock 5 pending OM conventions + quantile convergence + Free42 stats identifiers as LOCKED requirements; (D-33.2) 9-plan slicing per SUMMARY.md build-step order; (D-33.3) math1/xrom.rs freeze exception for STAT_1 bit-1 arm; (D-33.4) RAND/SEED as documented emulator extension; (D-33.5) 11-file `ops/stat1/` layout with `tests.rs`→`hypothesis.rs` rename; (D-33.6) inline scipy.stats oracle constants; (D-33.7) `CalcState::migrate_after_load()` in `hp41-core/src/state.rs`; (D-33.8) STAT-QUAL-09 reassigned Phase 37 → Phase 33 (Plan 33-00).
+**Next action:** `/gsd-spec-phase 33` — lock the 7 LOCKED items per D-33.1 (Σ-register layout for ΣMMTUG/ΣAOVONE/ΣAOVTWO/ΣANOCOV/ΣMLRXY/ΣCTKKK; ΣPOLYP degree prompt; ΣCHISQD ν convention; ΣTSTAT pooled vs Welch; RAND ROM-presence; quantile convergence criteria; Free42 stats-domain identifiers from `core_math2.cc`). Then `/gsd-plan-phase 33` to produce the 9 plans.
 
 ---
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-22 — v3.1 roadmap defined (Phases 33–37, 66/66 requirements mapped, 5 phases, total_plans TBD pending plan-phase)*
+*Last updated: 2026-05-22 — Phase 33 context gathered (9 decisions captured); next step `/gsd-spec-phase 33`*
