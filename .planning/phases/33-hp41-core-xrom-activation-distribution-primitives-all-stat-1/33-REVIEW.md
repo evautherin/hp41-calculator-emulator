@@ -35,7 +35,15 @@ findings:
   warning: 7
   info: 5
   total: 14
-status: issues_found
+status: critical_warning_fixed
+fixes_applied_at: 2026-05-22T15:30:00Z
+fixes_applied:
+  critical: 2
+  warning: 7
+  info: 0
+  total: 9
+fixes_remaining:
+  info: 5
 ---
 
 # Phase 33: Code Review Report
@@ -421,6 +429,58 @@ Document this also in the future `docs/hp41-stat1-divergences.md` (Phase 35) per
 
 ---
 
+## Fixes Applied
+
+**Applied:** 2026-05-22
+**Scope:** Critical + Warning (per `/gsd:code-review --fix` default; Info deferred).
+**Verification:** `cargo test -p hp41-core` 1962 pass / 1 ignored,
+`cargo clippy -p hp41-core --lib --tests -- -D warnings` clean,
+`bash scripts/check-free42-contamination.sh` clean.
+
+| Finding | Commit | Subject |
+|---------|--------|---------|
+| CR-01   | `f43a659` | fix(33-review): CR-01 normalize RAND/SEED seed to [0, 1) |
+| CR-02   | `2357b0a` | fix(33-review): CR-02 add dedicated STAT1_XSQEV_RESULT_REG const |
+| WR-01   | `7133572` | fix(33-review): WR-01 replace ΣAOVTWO/ΣANOCOV literal indices with named consts |
+| WR-02   | `b29aa03` | fix(33-review): WR-02 document v1.x R01–R06 literal-index exemption |
+| WR-03   | `489d27a` | fix(33-review): WR-03+WR-04 add transient pending_chisqd_nu carrier |
+| WR-04   | `489d27a` | fix(33-review): WR-03+WR-04 add transient pending_chisqd_nu carrier (bundled) |
+| WR-05   | `6b1c0ad` | fix(33-review): WR-05 remove dead let _ = m1 alias in compute_moments |
+| WR-06   | `2f8b729` | fix(33-review): WR-06 replace wildcard import in regression.rs |
+| WR-07   | `d133987` | fix(33-review): WR-07 document PROPORTION_SUM_TOL_DEC value as 1e-9 |
+
+**Notes:**
+
+- **WR-03 + WR-04** were addressed together in a single atomic commit
+  (`489d27a`). The two findings share a root cause — ΣCHISQD's
+  use of `state.stack.t` as a ν side-channel — and the same fix
+  (introducing the transient `pending_chisqd_nu: Option<u32>` field
+  on `CalcState`) eliminates BOTH the clobber risk (WR-03) and the
+  destructive T-overwrite (WR-04). Splitting them across two commits
+  would have produced an intermediate state where one was fixed but
+  the other still triggered the same code path.
+- **WR-02** was resolved by formally documenting the v1.x R01–R06
+  literal-index exemption (per `project_constraints` instruction)
+  rather than introducing named-const aliases for the canonical
+  Σ-block. The exemption applies only to the FOUNDATIONAL v1.x
+  layout consumed by `op_sigma_plus` / `op_sigma_minus`; Stat-1-
+  specific slots ≥ R07 stay on the named-const path, and Stat-1-
+  specific slots that happen to fall in the R00–R06 range (e.g.,
+  ΣAOVTWO `r`/`c` at R00/R01, addressed in WR-01) DO use named
+  consts.
+- **5 Info findings (IN-01 .. IN-05)** are intentionally out of
+  scope for this fix pass (`/gsd:code-review --fix` default policy:
+  Critical + Warning only). They cover doc-comment polish, additional
+  bidirectional consistency tests, dead `_tol` removal in ΣNORMD,
+  AOVTWO dim-cap named const consolidation, and a `state.rs` doc note
+  about deterministic RAND from fresh sessions. They remain TODO for
+  a follow-up review-fix iteration if Phase 33 demands strict
+  cleanup, OR for fold-in during Phase 35 (STAT-DOC amendments).
+
+---
+
 _Reviewed: 2026-05-22_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+_Fixes applied: 2026-05-22 (Critical + Warning tier; 9/14)_
+_Fixer: Claude (gsd-code-fixer)_
