@@ -69,7 +69,7 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 
 ### ⏳ v3.1 — Stat 1 Pac Emulation (Phases 33–37)
 
-- [ ] **Phase 33: hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops** — Spec-phase OM layout transcription; contamination-guard extension (Pitfall 27, first); STAT_1 XROM registration (bit 1); `default_xrom_modules` migration (0b0000_0001 → 0b0000_0011); `rand_seed` CalcState field; `stat1/distributions.rs` (3 numerical primitives); all ~24 Op variants across `stat1/` module tree; 4-way invariant items 1 + 2 complete. Estimate 9–11 plans.
+- [x] **Phase 33: hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops** — Spec-phase OM layout transcription; contamination-guard extension (Pitfall 27, first); STAT_1 XROM registration (bit 1); `default_xrom_modules` migration (0b0000_0001 → 0b0000_0011); `rand_seed` CalcState field; `stat1/distributions.rs` (3 numerical primitives); all ~24 Op variants across `stat1/` module tree; 4-way invariant items 1 + 2 complete. Estimate 9–11 plans. (completed 2026-05-22)
 - [ ] **Phase 34: hp41-cli — CLI Integration** — `docs/hp41-stat1-functions.json` canonical source; third `OnceLock<Vec<HelpEntry>>`; ~24 new `op_display_name` arms; "Stat 1 Pac (XROM 2)" help-overlay section; `xrom_shadowing.rs` extended to STAT_1.ops; modal-prompt routing for multi-step Stat 1 workflows. Estimate 2–3 plans.
 - [ ] **Phase 35: Documentation & ADRs** — `docs/hp41-stat1-divergences.md` three-bucket catalog; `scripts/docs-matrix` three-input extension; `docs/hp41-stat1-function-matrix.md` generated; new ADRs for v3.1 architectural decisions (RNG-state serde, register layout, distribution-primitive policy); README v3.1 section + CLAUDE.md `### v3.1 additions` block; `docs/architecture-history.md` v3.1 narrative. Estimate 3–4 plans.
 - [ ] **Phase 36: hp41-gui — GUI Integration** — ~24 new `op_display_name` arms in GUI `prgm_display.rs`; CATALOG 2 gains "STAT 1B" XROM entry; help overlay "Stat 1 Pac (XROM 2)" parallel-load section; modal-prompt routing for Stat 1 multi-step workflows; `request_cancel` reuse for iterative-quantile paths (ΣNORMD inverse + ΣCHISQD CDF). Estimate 3–5 plans.
@@ -95,12 +95,12 @@ Plans:
 - [x] 33-00-PLAN.md — Free42 contamination guard extension (stats-domain identifiers) + OM Storage Registers transcription in ops/stat1/mod.rs (Wave 0, no Op code)
 - [x] 33-01-PLAN.md — XROM framework activation: STAT_1 const + bit-1 arm + stat1_resolve + default_xrom_modules→0b0000_0011 + migrate_after_load + rand_seed field + Stat1Step skeleton + Op::Stat1Stub scaffolding (Wave 1)
 - [x] 33-02-PLAN.md — Three hand-coded distribution primitives (Acklam/AS 241 + AS 239 + AS 63) with ≥18 inline scipy.stats oracle tuples; all GREEN before any Op (Wave 2)
-- [ ] 33-03-PLAN.md — ΣNORMD (CDF/PDF/inverse) + ΣCHISQD (ν-prompt+PDF/CDF) + HpError::Cancelled/ConvergenceFailed + quantile_threshold + stat1_cancellation.rs (Wave 2)
+- [x] 33-03-PLAN.md — ΣNORMD (CDF/PDF/inverse) + ΣCHISQD (ν-prompt+PDF/CDF) + HpError::Cancelled/ConvergenceFailed + quantile_threshold + stat1_cancellation.rs (Wave 2)
 - [x] 33-04-PLAN.md — ΣSPEAR + ΣXSQEV + ΣEFXSQ (closed-form nonparametrics; SPEC.md Req. 30 oracle 0.7→0.8 discrepancy resolution) (Wave 2)
 - [x] 33-05-PLAN.md — ΣBSTAT/BSTG (univariate) + ΣLIN/EXP/LOGI/POW (log-linearization with op_sigma_plus delegate) (Wave 2)
-- [ ] 33-06-PLAN.md — ΣMMTUG/MMTGD + ΣAOVONE/AOVTWO/ANOCOV + ΣCTKKK/CTKK (OM-register-dependent set, P21 mitigation, op_sigma_minus extension for [C] correction-key) (Wave 3)
-- [ ] 33-07-PLAN.md — ΣPTST + ΣTSTAT (pooled-variance two-sample t-test, Welch excluded; consumes beta_regularized_f64) (Wave 3)
-- [ ] 33-08-PLAN.md — ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC + RAND/SEED + Op::Stat1Stub deletion + stat1_rand_determinism.rs (Wave 3, final)
+- [x] 33-06-PLAN.md — ΣMMTUG/MMTGD + ΣAOVONE/AOVTWO/ANOCOV + ΣCTKKK/CTKK (OM-register-dependent set, P21 mitigation, op_sigma_minus extension for [C] correction-key) (Wave 3)
+- [x] 33-07-PLAN.md — ΣPTST + ΣTSTAT (pooled-variance two-sample t-test, Welch excluded; consumes beta_regularized_f64) (Wave 3)
+- [x] 33-08-PLAN.md — ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC + RAND/SEED + Op::Stat1Stub deletion + stat1_rand_determinism.rs (Wave 3, final)
 
 ### Phase 34: hp41-cli — CLI Integration
 **Goal**: Users can discover and invoke all Stat 1 Pac programs from the CLI — `XEQ "ΣSPEAR"` works from the keyboard, the `?` overlay shows a "Stat 1 Pac (XROM 2)" section, and program listings display all ~24 new Op variant names
@@ -163,7 +163,7 @@ Plans:
 | — | v2.1 | quick tasks | Complete | 2026-05-13 |
 | 20–27 | v2.2 | 26/26 | Complete | 2026-05-15 |
 | 28–32 | v3.0 | 31/31 | Complete | 2026-05-20 |
-| 33 | v3.1 | 5/9 | In Progress|  |
+| 33 | v3.1 | 9/9 | Complete   | 2026-05-22 |
 | 34 | v3.1 | 0/0 | Not started | - |
 | 35 | v3.1 | 0/0 | Not started | - |
 | 36 | v3.1 | 0/0 | Not started | - |
