@@ -284,6 +284,26 @@ pub const STAT1_XSQEV_STRIDE: usize = 2;
 /// R07 scratch slot is the output and is not used as data).
 pub const STAT1_XSQEV_KMAX: usize = 3;
 
+/// ΣXSQEV / ΣEFXSQ: register slot the computed χ² result is written to
+/// (in addition to being pushed onto stack X).
+///
+/// Per OM 00041-90030 p. 55 ("Result" slot), the χ² value lands in R07.
+/// Today this coincides numerically with [`STAT1_XSQEV_MAX_REG`] — both
+/// evaluate to 7 — but the two play distinct semantic roles:
+///
+/// - [`STAT1_XSQEV_MAX_REG`] is the SIZE-floor sentinel ("highest
+///   0-indexed register slot the SIZE 008 block needs to address");
+/// - `STAT1_XSQEV_RESULT_REG` is the OM-cited result-register address.
+///
+/// REVIEW.md CR-02 mitigation: the pre-fix code wrote the χ² value to
+/// `state.regs[STAT1_XSQEV_MAX_REG]`, conflating SIZE-floor with
+/// result-slot. Any future bump of `STAT1_XSQEV_MAX_REG` (e.g., raising
+/// `STAT1_XSQEV_KMAX` to support more categories) would have silently
+/// moved the result-write target, breaking the OM-faithful R07 contract
+/// and any downstream consumer reading the result. The two constants
+/// are now decoupled so a future bump cannot drift the result address.
+pub const STAT1_XSQEV_RESULT_REG: usize = 7;
+
 // ── Plan 33-06 Task 1: ΣMMTUG / ΣMMTGD per-slot register consts (P21) ──────
 //
 // ΣMMTUG (ungrouped) and ΣMMTGD (grouped / frequency-weighted) both use

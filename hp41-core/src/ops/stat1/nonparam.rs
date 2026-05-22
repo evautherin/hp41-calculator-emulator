@@ -24,7 +24,7 @@ use crate::num::HpNum;
 use crate::ops::stat1::{
     STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_DIM_MAX, STAT1_CTKKK_R_REG,
     STAT1_CTKK_DIM_MAX, STAT1_MAX_REG, STAT1_XSQEV_EXP_BASE_REG, STAT1_XSQEV_KMAX,
-    STAT1_XSQEV_K_REG, STAT1_XSQEV_MAX_REG, STAT1_XSQEV_OBS_BASE_REG, STAT1_XSQEV_STRIDE,
+    STAT1_XSQEV_K_REG, STAT1_XSQEV_OBS_BASE_REG, STAT1_XSQEV_RESULT_REG, STAT1_XSQEV_STRIDE,
 };
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
@@ -96,8 +96,14 @@ pub fn op_sigma_xsqev(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
     let chi_sq = compute_chi_square_from_counts(state)?;
 
-    // Write to scratch slot R07 (OM "Result" register) AND push to X.
-    state.regs[STAT1_XSQEV_MAX_REG] = chi_sq.clone();
+    // Write to OM-cited "Result" slot R07 AND push to X. Per REVIEW.md
+    // CR-02, the result address is `STAT1_XSQEV_RESULT_REG` — a
+    // dedicated semantic constant separate from `STAT1_XSQEV_MAX_REG`
+    // (the SIZE-floor sentinel that happens to coincide with R07
+    // today). Decoupling guards against silent result-address drift
+    // if STAT1_XSQEV_MAX_REG is ever bumped (e.g., to support more
+    // categories).
+    state.regs[STAT1_XSQEV_RESULT_REG] = chi_sq.clone();
     state.stack.lift_enabled = true;
     enter_number(state, chi_sq);
     apply_lift_effect(state, LiftEffect::Enable);
@@ -196,9 +202,11 @@ pub fn op_sigma_efxsq(state: &mut CalcState) -> Result<(), HpError> {
         state.regs[prop_reg] = exp;
     }
 
-    // Delegate to the shared O/E reducer (Task 2 helper).
+    // Delegate to the shared O/E reducer (Task 2 helper). The χ²
+    // value lands in the OM-cited result register R07 (see CR-02
+    // mitigation note on `op_sigma_xsqev` above).
     let chi_sq = compute_chi_square_from_counts(state)?;
-    state.regs[STAT1_XSQEV_MAX_REG] = chi_sq.clone();
+    state.regs[STAT1_XSQEV_RESULT_REG] = chi_sq.clone();
     state.stack.lift_enabled = true;
     enter_number(state, chi_sq);
     apply_lift_effect(state, LiftEffect::Enable);
@@ -394,7 +402,7 @@ mod tests {
         assert_relative_eq!(x_as_f64(&state), 8.0 / 3.0, max_relative = 1e-9);
         // Result also lands in R07 scratch slot.
         assert_relative_eq!(
-            state.regs[STAT1_XSQEV_MAX_REG].inner().to_f64().unwrap(),
+            state.regs[STAT1_XSQEV_RESULT_REG].inner().to_f64().unwrap(),
             8.0 / 3.0,
             max_relative = 1e-9
         );
@@ -490,7 +498,7 @@ mod tests {
         assert_relative_eq!(x_as_f64(&state), 7.0, max_relative = 1e-9);
         // Result also lands in R07 scratch slot.
         assert_relative_eq!(
-            state.regs[STAT1_XSQEV_MAX_REG].inner().to_f64().unwrap(),
+            state.regs[STAT1_XSQEV_RESULT_REG].inner().to_f64().unwrap(),
             7.0,
             max_relative = 1e-9
         );
