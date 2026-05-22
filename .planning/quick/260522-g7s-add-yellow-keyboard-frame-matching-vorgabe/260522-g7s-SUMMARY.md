@@ -3,7 +3,7 @@ quick_id: 260522-g7s
 slug: add-yellow-keyboard-frame-matching-vorgabe
 status: complete
 date: "2026-05-22"
-commit: TBD
+commit: 509344a
 ---
 
 # Quick Task 260522-g7s — SUMMARY
