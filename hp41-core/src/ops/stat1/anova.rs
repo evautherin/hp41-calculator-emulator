@@ -17,9 +17,14 @@
 use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::stat1::{
-    STAT1_AOV_GRAND_SUMSQ_REG, STAT1_AOV_GRAND_SUM_REG, STAT1_AOV_GROUP_BASE_REG,
-    STAT1_AOV_GROUP_N_OFFSET, STAT1_AOV_GROUP_STRIDE, STAT1_AOV_GROUP_SUMSQ_OFFSET,
-    STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_KMAX, STAT1_AOV_K_REG, STAT1_AOV_N_REG, STAT1_MAX_REG,
+    STAT1_ANOCOV_GRAND_SUMSQ_X_REG, STAT1_ANOCOV_GROUP_BASE_REG, STAT1_ANOCOV_GROUP_N_OFFSET,
+    STAT1_ANOCOV_GROUP_STRIDE, STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET, STAT1_ANOCOV_GROUP_SUM_X_OFFSET,
+    STAT1_ANOCOV_GROUP_SUM_XY_OFFSET, STAT1_ANOCOV_GROUP_SUM_Y_OFFSET, STAT1_AOVTWO_C_REG,
+    STAT1_AOVTWO_DIM_MAX, STAT1_AOVTWO_GRAND_SUMSQ_REG, STAT1_AOVTWO_GRAND_SUM_REG,
+    STAT1_AOVTWO_R_REG, STAT1_AOVTWO_ROW_BASE_REG, STAT1_AOV_GRAND_SUMSQ_REG,
+    STAT1_AOV_GRAND_SUM_REG, STAT1_AOV_GROUP_BASE_REG, STAT1_AOV_GROUP_N_OFFSET,
+    STAT1_AOV_GROUP_STRIDE, STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET,
+    STAT1_AOV_KMAX, STAT1_AOV_K_REG, STAT1_AOV_N_REG, STAT1_MAX_REG,
 };
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
@@ -141,13 +146,20 @@ pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
 /// Source: OM 00041-90030 §ΣAOVTWO (p. 23).
 pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
-    let r = decode_group_count(&state.regs[0].clone(), 4)?;
-    let c = decode_group_count(&state.regs[1].clone(), 4)?;
-    if (r + 5 + c) > STAT1_MAX_REG + 1 {
+    // P21 mitigation (REVIEW.md WR-01): row/col counts now read via
+    // named consts STAT1_AOVTWO_R_REG / STAT1_AOVTWO_C_REG; the
+    // dimension cap is the OM-cited STAT1_AOVTWO_DIM_MAX rather than
+    // a bare `4` literal.
+    let r = decode_group_count(&state.regs[STAT1_AOVTWO_R_REG].clone(), STAT1_AOVTWO_DIM_MAX)?;
+    let c = decode_group_count(&state.regs[STAT1_AOVTWO_C_REG].clone(), STAT1_AOVTWO_DIM_MAX)?;
+    // Bounds check: row + col marginal sums occupy
+    // STAT1_AOVTWO_ROW_BASE_REG .. +(r + c) and must fit within the
+    // global Stat 1 register footprint.
+    if STAT1_AOVTWO_ROW_BASE_REG + r + c > STAT1_MAX_REG + 1 {
         return Err(HpError::Domain);
     }
-    let grand_sumsq = state.regs[3].clone();
-    let grand_sum = state.regs[4].clone();
+    let grand_sumsq = state.regs[STAT1_AOVTWO_GRAND_SUMSQ_REG].clone();
+    let grand_sum = state.regs[STAT1_AOVTWO_GRAND_SUM_REG].clone();
     let n_hp = HpNum::from(rust_decimal::Decimal::from(r * c));
     if n_hp.is_zero() {
         return Err(HpError::InvalidOp);
@@ -156,7 +168,7 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     let c_hp = HpNum::from(rust_decimal::Decimal::from(c));
     let r_hp = HpNum::from(rust_decimal::Decimal::from(r));
     let ss_total = grand_sumsq.checked_sub(&n_hp.checked_mul(&grand_mean.checked_sq()?)?)?;
-    let row_base = 5;
+    let row_base = STAT1_AOVTWO_ROW_BASE_REG;
     let col_base = row_base + r;
     // SS_row = c · Σᵢ(Rᵢ/c − x̄)²;  SS_col = r · Σⱼ(Cⱼ/r − x̄)²
     let mut ss_row = HpNum::zero();
@@ -215,15 +227,20 @@ pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
     let k_num = state.regs[STAT1_AOV_K_REG].clone();
     let k = decode_group_count(&k_num, STAT1_AOV_KMAX)?;
 
-    // Per-group blocks: stride 5, base R07. (Σy, Σy², n, Σx, Σxy).
-    // Grand block: R04 = grand Σx². OM ANCOVA computes SSWx via the
-    // identity SSWx = grand_Σx² − Σᵢ(Σxᵢ)²/nᵢ.
-    let group_base: usize = 7;
-    let group_stride: usize = 5;
+    // Per-group blocks: stride 5, base R07 (Σy, Σy², n, Σx, Σxy).
+    // Grand block: R04 = grand Σx² (covariate). OM ANCOVA computes
+    // SSWx via the identity SSWx = grand_Σx² − Σᵢ(Σxᵢ)²/nᵢ.
+    //
+    // P21 mitigation (REVIEW.md WR-01): per-group base/stride and the
+    // grand covariate Σx² register address now route through named
+    // consts STAT1_ANOCOV_GROUP_BASE_REG / _GROUP_STRIDE /
+    // _GRAND_SUMSQ_X_REG / _GROUP_*_OFFSET rather than bare literals.
+    let group_base = STAT1_ANOCOV_GROUP_BASE_REG;
+    let group_stride = STAT1_ANOCOV_GROUP_STRIDE;
     if group_base + group_stride * k > STAT1_MAX_REG + 1 {
         return Err(HpError::Domain);
     }
-    let grand_sumsq_x = state.regs[4].clone();
+    let grand_sumsq_x = state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG].clone();
 
     let mut grand_n = HpNum::zero();
     let mut grand_sum_y = HpNum::zero();
@@ -235,11 +252,11 @@ pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
     let mut ssw_xy = HpNum::zero();
     for i in 0..k {
         let base = group_base + group_stride * i;
-        let sum_y = state.regs[base].clone();
-        let sumsq_y = state.regs[base + 1].clone();
-        let n_i = state.regs[base + 2].clone();
-        let sum_x = state.regs[base + 3].clone();
-        let sum_xy = state.regs[base + 4].clone();
+        let sum_y = state.regs[base + STAT1_ANOCOV_GROUP_SUM_Y_OFFSET].clone();
+        let sumsq_y = state.regs[base + STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET].clone();
+        let n_i = state.regs[base + STAT1_ANOCOV_GROUP_N_OFFSET].clone();
+        let sum_x = state.regs[base + STAT1_ANOCOV_GROUP_SUM_X_OFFSET].clone();
+        let sum_xy = state.regs[base + STAT1_ANOCOV_GROUP_SUM_XY_OFFSET].clone();
         if n_i.is_zero() {
             return Err(HpError::InvalidOp);
         }

@@ -403,6 +403,102 @@ pub const STAT1_AOV_GROUP_N_OFFSET: usize = 2;
 /// STAT1_AOV_GROUP_BASE_REG) / STAT1_AOV_GROUP_STRIDE = 16 / 4 = 4`.
 pub const STAT1_AOV_KMAX: usize = 4;
 
+// ── REVIEW.md WR-01: ΣAOVTWO / ΣANOCOV per-slot register consts (P21) ──────
+//
+// ΣAOVTWO (Two-way ANOVA, No Replications) uses SIZE 018 (R00..R17) per
+// OM 00041-90030 p. 23. The layout starts with two scalar dimensions
+// (r, c), the cell count N, grand sums, then row + col marginal sums:
+//
+//   R00 = r (number of rows; 1 ≤ r ≤ STAT1_AOVTWO_DIM_MAX = 4)
+//   R01 = c (number of columns; 1 ≤ c ≤ STAT1_AOVTWO_DIM_MAX = 4)
+//   R02 = N = r·c (grand sample count)
+//   R03 = grand Σx² (sum of squares across all cells)
+//   R04 = grand Σx  (grand total)
+//   R05.. R<5+r-1> = row marginal sums  (r consecutive slots)
+//   R<5+r>..       = column marginal sums (c consecutive slots)
+//
+// ΣANOCOV (Analysis of Covariance, One Way) uses SIZE 026 (R00..R25)
+// per OM 00041-90030 p. 28. It reuses [`STAT1_AOV_K_REG`] for the group
+// count, shares R04 with ΣAOVTWO as the grand-Σx² covariate slot, then
+// uses a per-group stride-5 block from R07 carrying `(Σy, Σy², n, Σx,
+// Σxy)` for each group i ∈ [0..k]:
+//
+//   R04 = grand Σx² of the covariate (reused; OM-cited)
+//   R07 = first per-group block; subsequent groups at +5 strides
+//   Per-group offset:  0=Σy, 1=Σy², 2=n, 3=Σx, 4=Σxy
+
+/// ΣAOVTWO: register holding `r`, the number of rows.
+///
+/// OM 00041-90030 p. 23 (Analysis of Variance, Two Way).
+pub const STAT1_AOVTWO_R_REG: usize = 0;
+
+/// ΣAOVTWO: register holding `c`, the number of columns.
+///
+/// OM 00041-90030 p. 23.
+pub const STAT1_AOVTWO_C_REG: usize = 1;
+
+/// ΣAOVTWO: register holding the grand sum of squares Σx².
+///
+/// OM 00041-90030 p. 23.
+pub const STAT1_AOVTWO_GRAND_SUMSQ_REG: usize = 3;
+
+/// ΣAOVTWO: register holding the grand sum Σx.
+///
+/// OM 00041-90030 p. 23.
+pub const STAT1_AOVTWO_GRAND_SUM_REG: usize = 4;
+
+/// ΣAOVTWO: base register of the first row-marginal sum.
+///
+/// Row `i` marginal sum sits at `STAT1_AOVTWO_ROW_BASE_REG + i` for
+/// `0 ≤ i < r`. Column marginal sums follow at
+/// `STAT1_AOVTWO_ROW_BASE_REG + r + j` for `0 ≤ j < c`.
+///
+/// OM 00041-90030 p. 23.
+pub const STAT1_AOVTWO_ROW_BASE_REG: usize = 5;
+
+/// ΣAOVTWO: maximum row/column dimension (`1 ≤ r, c ≤ DIM_MAX`).
+///
+/// Hard-defensive cap aligned with the SIZE 018 block; chosen 4 to
+/// match the documented OM convention (sufficient for the canonical
+/// 3×4 / 4×4 worked examples).
+pub const STAT1_AOVTWO_DIM_MAX: usize = 4;
+
+/// ΣANOCOV: register holding the grand sum-of-squares Σx² for the
+/// covariate (reused R04 slot — same as `STAT1_AOVTWO_GRAND_SUM_REG`
+/// numerically, distinct semantically).
+///
+/// OM 00041-90030 p. 28 (Analysis of Covariance, One Way).
+pub const STAT1_ANOCOV_GRAND_SUMSQ_X_REG: usize = 4;
+
+/// ΣANOCOV: base register of the first per-group block (k=0).
+///
+/// Group `i` block occupies registers
+/// `STAT1_ANOCOV_GROUP_BASE_REG + STAT1_ANOCOV_GROUP_STRIDE * i`
+/// through `..+4` (5 regs: Σy, Σy², n, Σx, Σxy).
+///
+/// OM 00041-90030 p. 28.
+pub const STAT1_ANOCOV_GROUP_BASE_REG: usize = 7;
+
+/// ΣANOCOV: stride between successive per-group blocks (5 regs each).
+///
+/// OM 00041-90030 p. 28.
+pub const STAT1_ANOCOV_GROUP_STRIDE: usize = 5;
+
+/// ΣANOCOV per-group offset: Σy (group sum of dependents).
+pub const STAT1_ANOCOV_GROUP_SUM_Y_OFFSET: usize = 0;
+
+/// ΣANOCOV per-group offset: Σy² (group sum of squared dependents).
+pub const STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET: usize = 1;
+
+/// ΣANOCOV per-group offset: n (group sample count).
+pub const STAT1_ANOCOV_GROUP_N_OFFSET: usize = 2;
+
+/// ΣANOCOV per-group offset: Σx (group sum of covariate).
+pub const STAT1_ANOCOV_GROUP_SUM_X_OFFSET: usize = 3;
+
+/// ΣANOCOV per-group offset: Σxy (group sum of x·y cross-products).
+pub const STAT1_ANOCOV_GROUP_SUM_XY_OFFSET: usize = 4;
+
 // ── Plan 33-06 Task 3: ΣCTKKK / ΣCTKK per-slot register consts (P21) ───────
 //
 // ΣCTKKK (general r×c contingency) and ΣCTKK (smaller variant, 2×2 cap)
