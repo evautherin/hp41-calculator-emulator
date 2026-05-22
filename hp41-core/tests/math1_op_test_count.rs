@@ -60,8 +60,34 @@ fn collect_math1_variant_names() -> Vec<String> {
     let xrom_src = include_str!("../src/ops/math1/xrom.rs");
     let mut variants = Vec::new();
 
+    // Scope the variant scan to the `math1_resolve` function body to avoid
+    // picking up `Some(Op::...)` patterns in any sibling resolver (e.g. the
+    // `stat1_resolve` added in Phase 33 per D-33.3 freeze exception). The
+    // sibling's `Some(Op::Stat1Stub)` arms are NOT Math Pac I variants and
+    // must NOT trigger the Pitfall-16 ≥ 5-tests gate (Stat 1 Pac has its own
+    // meta-gate planned for Phase 37 — STAT-QUAL-09 sibling).
+    //
+    // Strategy: line-by-line scan, entering scope on `fn math1_resolve` and
+    // exiting when the function's brace-depth returns to zero.
+    let mut in_math1_resolve = false;
+    let mut brace_depth: i32 = 0;
+
     for line in xrom_src.lines() {
         let trimmed = line.trim();
+
+        if !in_math1_resolve {
+            if trimmed.contains("fn math1_resolve") {
+                in_math1_resolve = true;
+                brace_depth =
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32;
+            }
+            continue;
+        }
+
+        // Inside math1_resolve: maintain brace depth.
+        brace_depth += line.matches('{').count() as i32;
+        brace_depth -= line.matches('}').count() as i32;
+
         // Detect lines like: `"SINH" => Some(Op::Sinh),`
         if trimmed.contains("=> Some(Op::") && !trimmed.starts_with("//") {
             if let Some(after_op) = trimmed.split("Some(Op::").nth(1) {
@@ -74,6 +100,10 @@ fn collect_math1_variant_names() -> Vec<String> {
                     variants.push(variant_name);
                 }
             }
+        }
+
+        if brace_depth <= 0 {
+            in_math1_resolve = false;
         }
     }
     variants
