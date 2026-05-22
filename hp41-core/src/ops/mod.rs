@@ -889,6 +889,54 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣBSTG (p. 11–14).
     SigmaBstg,
 
+    // ── Phase 33 Plan 33-05: Curve-fit accumulators (delegate pattern) ──────
+    /// ΣLIN — Linear curve-fit accumulator `ŷ = a + b·x`.
+    ///
+    /// Identity transform — pure delegate to
+    /// [`crate::ops::stats::op_sigma_plus`]. User calls XEQ "ΣLIN" once
+    /// per (x, y) point with x in Y, y in X (v1.x Σ+ convention). After
+    /// accumulation, the v1.x `op_lr` extracts slope and intercept from
+    /// R01–R06.
+    ///
+    /// Closed-form delegate — no iteration, no modal prompt.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣLIN (p. 35).
+    SigmaLin,
+    /// ΣEXP — Exponential curve-fit accumulator `ŷ = a·e^(b·x)`.
+    ///
+    /// Linearizes via `ln ŷ = ln a + b·x`. Transforms the Y channel
+    /// (`state.stack.x` per HP-41 Σ+ convention) by `ln` then delegates
+    /// to [`crate::ops::stats::op_sigma_plus`]. After accumulation,
+    /// `op_lr` extracts (b, ln a); final `a = e^intercept`.
+    ///
+    /// Errors: `Domain` if y ≤ 0; SIZE-floor / Overflow from delegate.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣEXP (p. 35).
+    SigmaExp,
+    /// ΣLOGI — Logarithmic curve-fit accumulator `ŷ = a + b·ln x`.
+    ///
+    /// Linearizes via the substitution `u = ln x`. Transforms the X
+    /// channel (`state.stack.y` per Σ+ convention) by `ln` then
+    /// delegates to [`crate::ops::stats::op_sigma_plus`]. After
+    /// accumulation, `op_lr` extracts (b, a) directly.
+    ///
+    /// Errors: `Domain` if x ≤ 0; SIZE-floor / Overflow from delegate.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣLOGI (p. 35).
+    SigmaLogi,
+    /// ΣPOW — Power curve-fit accumulator `ŷ = a·x^b`.
+    ///
+    /// Linearizes via `ln ŷ = ln a + b·ln x`. Transforms BOTH X and Y
+    /// channels by `ln` then delegates to
+    /// [`crate::ops::stats::op_sigma_plus`]. After accumulation,
+    /// `op_lr` extracts (b, ln a); final `a = e^intercept`.
+    ///
+    /// Errors: `Domain` if x ≤ 0 OR y ≤ 0; SIZE-floor / Overflow from
+    /// delegate.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOW (p. 35).
+    SigmaPow,
+
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
     // `Stat1Stub` is a placeholder Op referenced by every entry in the
@@ -1323,6 +1371,11 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-05: Univariate / weighted summary Ops ──────────
         Op::SigmaBstat => crate::ops::stat1::basic_stats::op_sigma_bstat(state),
         Op::SigmaBstg => crate::ops::stat1::basic_stats::op_sigma_bstg(state),
+        // ── Phase 33 Plan 33-05: Curve-fit accumulators (delegate pattern) ──
+        Op::SigmaLin => crate::ops::stat1::regression::op_sigma_lin(state),
+        Op::SigmaExp => crate::ops::stat1::regression::op_sigma_exp(state),
+        Op::SigmaLogi => crate::ops::stat1::regression::op_sigma_logi(state),
+        Op::SigmaPow => crate::ops::stat1::regression::op_sigma_pow(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way

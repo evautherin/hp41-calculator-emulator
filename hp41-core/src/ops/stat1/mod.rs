@@ -101,7 +101,7 @@ pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
 pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops)
                   // pub mod normd;        // Plan 33-03
                   // pub mod rand;         // Plan 33-08
-                  // pub mod regression;   // Plans 33-05 + 33-08
+pub mod regression; // Plan 33-05 (ΣLIN/EXP/LOGI/POW curve fits via op_sigma_plus delegate); Plan 33-08 extends with ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC
 
 // ── Σ-register layout constants (single source of truth; OM Appendix A) ──
 
