@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Stat 1 Pac Emulation
-status: planning
-last_updated: "2026-05-21T20:18:45.248Z"
-last_activity: 2026-05-21
+status: roadmap_ready
+last_updated: "2026-05-22T00:00:00.000Z"
+last_activity: 2026-05-22
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-05-21 after v3.0 milestone archive)
 - v2.2 HP-41CV Feature Completeness (2026-05-15) — Phases 20–27, 26/26 plans
 - **v3.0 Math Pac I Emulation (2026-05-20) — Phases 28–32, 31/31 plans; 95.39 % lines / 94.26 % regions on `hp41-core`; 99.3 % numerical accuracy (763/768); CI green across `ci.yml` + `ci-gui.yml`**
 
-**Current focus:** planning next milestone — Stat 1 Pac per scope lock 2026-05-13 (`/gsd-new-milestone` to start)
+**Current focus:** v3.1 Stat 1 Pac Emulation — roadmap defined (Phases 33–37); next step: `/gsd-plan-phase 33 --research-phase` (Phase 33 requires spec-phase OM read before implementation)
 **Repo:** hp41-calculator-emulator
 **Architecture:** Cargo workspace — `hp41-core` (library) + `hp41-cli` (binary) + `hp41-gui` (nested standalone Tauri workspace); `hp41-core` has zero UI/CLI dependencies enforced at compile time.
 
@@ -40,10 +40,22 @@ See: .planning/PROJECT.md (updated 2026-05-21 after v3.0 milestone archive)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 33 (roadmap defined — not yet started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-21 — Milestone v3.1 started
+Status: Roadmap ready; awaiting `/gsd-plan-phase 33`
+Last activity: 2026-05-22 — v3.1 roadmap created (Phases 33–37, 66 requirements mapped)
+
+### v3.1 Phase Overview
+
+| Phase | Focus | Requirements | Est. Plans |
+|-------|-------|--------------|------------|
+| 33 | `hp41-core` — XROM activation + distribution primitives + all ~24 Op variants | 39 | 9–11 |
+| 34 | `hp41-cli` — JSON help pool + `op_display_name` arms + modal routing | 5 | 2–3 |
+| 35 | `docs/` + tooling — divergences + ADRs + docs-matrix 3-input + README/CLAUDE.md | 6 | 3–4 |
+| 36 | `hp41-gui` — `prgm_display` arms + CATALOG 2 + help overlay + cancel reuse | 5 | 3–5 |
+| 37 | tests + scripts + CI — coverage hold + accuracy cases + backward-compat + E2E smoke | 11 | 6–10 |
+
+**Research flag for Phase 33:** `/gsd-plan-phase 33 --research-phase` is required — OM 00041-90030 "Storage Registers" section not yet fully read; RAND subroutine presence unconfirmed; quantile convergence criteria not yet extracted; ΣPOLYP degree prompt and ΣCHISQD ν convention unconfirmed; ΣTSTAT pooled vs. Welch assumption unresolved.
 
 ## Performance Metrics (carried from v3.0 ship)
 
@@ -94,21 +106,37 @@ Last activity: 2026-05-21 — Milestone v3.1 started
 | `request_cancel` cancellation channel with per-64-samples lock release | Pitfall 11 mitigation; preserves 30s auto-save thread interleaving | Phase 31 |
 | Free42 contamination guard: 12 distinctive symbols (D-32.7) | Cross-checks decNumber / Intel BID / GPL / AGPL alongside Free42 | Phase 32 |
 
+### v3.1-Specific Decisions (to be locked in Phase 33)
+
+| Decision | Status | Notes |
+|----------|--------|-------|
+| `STAT_1.id = 2` (hardware XROM ID 2) | Locked — ARCHITECTURE.md confirmed | Math Pac I id=7 discrepancy is frozen; STAT_1 uses correct hardware id=2 |
+| `default_xrom_modules()` → `0b0000_0011` + startup migration | Locked per STAT-FW-02 | v3.0 save files with `xrom_modules: 1` migrate via startup persistence layer |
+| `rand_seed: HpNum` with `#[serde(default)]` NOT `#[serde(skip)]` | Locked per STAT-RNG-03 | ONLY v3.1 CalcState field with non-skip serde; all other v3.1 fields use skip |
+| `statrs` crate rejected | Locked — SUMMARY.md research conclusion | AS 239/63/241 hand-coded ~140 LOC in `stat1/distributions.rs`; zero new runtime deps |
+| Self-contained iteration pattern for quantile inversion (not SOLVE/INTG user-callback) | Locked — SUMMARY.md architecture | Distribution quantile loops check `cancel_requested` every iteration; no new CalcState scratch fields |
+| OM register layout for ANOVA/moments/regression | PENDING — Phase 33 spec-phase MUST read OM 00041-90030 "Storage Registers" section | Critical path blocker for ΣMMTUG, ΣAOVONE/ΣAOVTWO/ΣANOCOV, ΣMLRXY, ΣCTKKK |
+| ΣPOLYP degree prompt wording | PENDING — Phase 33 spec-phase | Tentative "DEGREE=?" per Math Pac I precedent |
+| ΣCHISQD ν entry convention | PENDING — Phase 33 spec-phase | Tentative: ν entered via [A] before x evaluation |
+| ΣTSTAT pooled vs. Welch variance assumption | PENDING — Phase 33 spec-phase | NPS ZS-4/5 assumes pooled; verify from OM |
+| RAND subroutine presence in Stat 1 Pac ROM | PENDING — Phase 33 spec-phase | QRC does not list RAND; implement only if OM confirms |
+
 ### Critical Implementation Traps (carried forward)
 
 - **Every new Op variant must be added to 4 places:** `dispatch()` in `ops/mod.rs` + `execute_op()` in `ops/program.rs` + `hp41-cli/src/prgm_display.rs` + `hp41-gui/src-tauri/src/prgm_display.rs`. Exhaustive matches fail to compile if any is missed. Math Pac I added ~40 variants — `math1_op_test_count.rs` + `xrom_shadowing.rs` cross-check 45 `Op` variants × 14 test files + 52 `MATH_1.ops` × 18-entry allowlist at CI time.
-- **New CalcState fields need `#[serde(default)]`** for backward compatibility with v1.0–v3.0 save files. Transient fields (`integ_state`, `solve_state`, `modal_program`, `cancel_requested`) additionally carry `#[serde(skip)]`.
+- **New CalcState fields need `#[serde(default)]`** for backward compatibility with v1.0–v3.0 save files. Transient fields additionally carry `#[serde(skip)]`. Exception: `rand_seed` uses `#[serde(default)]` WITHOUT `#[serde(skip)]` (STAT-RNG-03 — muscle memory trap).
+- **P21 (OM register layout) is the single most dangerous silent-wrong-answer trap** — ΣMMTUG, ΣAOVONE/ΣAOVTWO/ΣANOCOV, ΣMLRXY, ΣCTKKK all require register indices from OM "Storage Registers" section. No guessing. Phase 33 opens with OM read.
+- **P22 (mnemonic shadowing)** — every `STAT_1.ops` mnemonic must be verified against `docs/hp41cv-functions.json` before registering in `xrom.rs`. `xrom_shadowing.rs` extended to cover STAT_1.ops.
+- **P27 (Free42 stats-domain contamination guard)** — `scripts/check-free42-contamination.sh` must be extended with stats-domain identifiers BEFORE the first `stat1/*.rs` file is written. See STAT-QUAL-09.
 - **SC-4 invariant (no core duplication in hp41-gui):** stricter grep `grep -rn "fn op_(add|sub|mul|div|sin|cos|tan|sto|rcl|flush_entry|format_hpnum)" hp41-gui/src-tauri/src/` — `op_display_name` is the only intentional exception.
-- **`hp41-core/src/ops/math1/` is frozen** since Plan 25-01 (note: actually since Plan 28-01 for math1 specifically). Math Pac I algorithms re-derived from HP OM 00041-90034 (1979); Free42 consulted as sanity-check oracle only, never copied. Every file carries the verbatim disclaim header. CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` + dedicated `.github/workflows/ci.yml::license-audit` parallel job.
+- **`hp41-core/src/ops/math1/` is frozen** since v3.0. Adding stat1 to `ops/` is a new sibling directory, NOT a modification of math1/.
 - **No `println!`/`eprintln!` in hp41-core:** route side effects via `print_buffer` (existing channel; used for Math Pac I prompts) or `event_buffer`.
-- **`pending_input` routing block must remain ABOVE modal-opening interceptors** to prevent active dialogs being silently discarded.
-- **D-07 (no silent discards) preserved across CLI + GUI:** v3.0 module functions surface as `GuiError`-toast or modal flow, never silent.
+- **Pitfall 14 / 17 discipline:** `lint_stat1_assertions.rs` (or extension of `lint_math1_assertions.rs`) blocks `assert_eq!(decimal, decimal)` on iterated results; two-level tolerance: 1e-9 closed-form (ΣNORMD CDF/PDF, ΣSPEAR, ΣBSTAT/BSTG, ΣLIN/EXP/LOGI/POW, ΣXSQEV/EFXSQ), 1e-7 iterative (probit Φ⁻¹, incomplete gamma/beta, t-CDF, normal-equation solve).
 - **HP-copyrighted ROM-image redistribution is permanently excluded** — v3.x is BEHAVIORAL emulation only.
-- **Pitfall 14 (cross-platform drift):** `tests/lint_math1_assertions.rs` blocks `assert_eq!(decimal, decimal)` on iterated results; relative tolerance 1e-7 documented as Math Pac I floor.
 
 ### Blockers
 
-None.
+None — roadmap defined; Phase 33 spec-phase OM reading is a planned dependency (not a blocker yet).
 
 ### Quick Tasks Completed (historical record)
 
@@ -124,10 +152,10 @@ None.
 
 ## Session Continuity
 
-**Last active:** 2026-05-21
-**Last action:** v3.0 milestone archived via `/gsd-complete-milestone`. ROADMAP collapsed; v3.0 phase directories moved to `milestones/v3.0-phases/`; orphaned 09–18 retro-archived to `milestones/v1.1-phases/` and `milestones/v2.0-phases/`; REQUIREMENTS.md deleted (fresh slate for next milestone); stale `.planning/v1.0-MILESTONE-AUDIT.md` removed (duplicate of archived copy).
-**Next action:** `/gsd-new-milestone` to start v3.1 (Stat 1 Pac per scope lock 2026-05-13) — defines requirements, runs research, and writes a fresh ROADMAP entry.
+**Last active:** 2026-05-22
+**Last action:** v3.1 roadmap created — Phases 33–37 written to ROADMAP.md; all 66 v1 requirements mapped; REQUIREMENTS.md traceability table updated; STATE.md updated with v3.1 phase overview and pending decisions.
+**Next action:** `/gsd-plan-phase 33` — Phase 33 requires `--research-phase` flag (OM "Storage Registers" section + RAND subroutine presence + quantile convergence criteria + ΣPOLYP degree prompt + ΣCHISQD ν convention + ΣTSTAT pooled vs. Welch must all be resolved before Op implementation begins).
 
 ---
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-21 — v3.0 archived; project idle awaiting v3.1*
+*Last updated: 2026-05-22 — v3.1 roadmap defined (Phases 33–37, 66/66 requirements mapped, 5 phases, total_plans TBD pending plan-phase)*

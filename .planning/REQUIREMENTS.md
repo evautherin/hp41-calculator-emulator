@@ -171,79 +171,88 @@ Which phases cover which requirements. Filled by `gsd-roadmapper` during roadmap
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAT-FW-01 | Phase TBD | Pending |
-| STAT-FW-02 | Phase TBD | Pending |
-| STAT-FW-03 | Phase TBD | Pending |
-| STAT-FW-04 | Phase TBD | Pending |
-| STAT-UNI-01 | Phase TBD | Pending |
-| STAT-UNI-02 | Phase TBD | Pending |
-| STAT-UNI-03 | Phase TBD | Pending |
-| STAT-UNI-04 | Phase TBD | Pending |
-| STAT-AOV-01 | Phase TBD | Pending |
-| STAT-AOV-02 | Phase TBD | Pending |
-| STAT-AOV-03 | Phase TBD | Pending |
-| STAT-AOV-04 | Phase TBD | Pending |
-| STAT-REG-01 | Phase TBD | Pending |
-| STAT-REG-02 | Phase TBD | Pending |
-| STAT-REG-03 | Phase TBD | Pending |
-| STAT-REG-04 | Phase TBD | Pending |
-| STAT-REG-05 | Phase TBD | Pending |
-| STAT-REG-06 | Phase TBD | Pending |
-| STAT-REG-07 | Phase TBD | Pending |
-| STAT-REG-08 | Phase TBD | Pending |
-| STAT-REG-09 | Phase TBD | Pending |
-| STAT-HYP-01 | Phase TBD | Pending |
-| STAT-HYP-02 | Phase TBD | Pending |
-| STAT-HYP-03 | Phase TBD | Pending |
-| STAT-HYP-04 | Phase TBD | Pending |
-| STAT-HYP-05 | Phase TBD | Pending |
-| STAT-HYP-06 | Phase TBD | Pending |
-| STAT-HYP-07 | Phase TBD | Pending |
-| STAT-DST-01 | Phase TBD | Pending |
-| STAT-DST-02 | Phase TBD | Pending |
-| STAT-DST-03 | Phase TBD | Pending |
-| STAT-DST-04 | Phase TBD | Pending |
-| STAT-DST-05 | Phase TBD | Pending |
-| STAT-DST-06 | Phase TBD | Pending |
-| STAT-DST-07 | Phase TBD | Pending |
-| STAT-RNG-01 | Phase TBD | Pending |
-| STAT-RNG-02 | Phase TBD | Pending |
-| STAT-RNG-03 | Phase TBD | Pending |
-| STAT-RNG-04 | Phase TBD | Pending |
-| STAT-CLI-01 | Phase TBD | Pending |
-| STAT-CLI-02 | Phase TBD | Pending |
-| STAT-CLI-03 | Phase TBD | Pending |
-| STAT-CLI-04 | Phase TBD | Pending |
-| STAT-CLI-05 | Phase TBD | Pending |
-| STAT-GUI-01 | Phase TBD | Pending |
-| STAT-GUI-02 | Phase TBD | Pending |
-| STAT-GUI-03 | Phase TBD | Pending |
-| STAT-GUI-04 | Phase TBD | Pending |
-| STAT-GUI-05 | Phase TBD | Pending |
-| STAT-DOC-01 | Phase TBD | Pending |
-| STAT-DOC-02 | Phase TBD | Pending |
-| STAT-DOC-03 | Phase TBD | Pending |
-| STAT-DOC-04 | Phase TBD | Pending |
-| STAT-DOC-05 | Phase TBD | Pending |
-| STAT-DOC-06 | Phase TBD | Pending |
-| STAT-QUAL-01 | Phase TBD | Pending |
-| STAT-QUAL-02 | Phase TBD | Pending |
-| STAT-QUAL-03 | Phase TBD | Pending |
-| STAT-QUAL-04 | Phase TBD | Pending |
-| STAT-QUAL-05 | Phase TBD | Pending |
-| STAT-QUAL-06 | Phase TBD | Pending |
-| STAT-QUAL-07 | Phase TBD | Pending |
-| STAT-QUAL-08 | Phase TBD | Pending |
-| STAT-QUAL-09 | Phase TBD | Pending |
-| STAT-QUAL-10 | Phase TBD | Pending |
-| STAT-QUAL-11 | Phase TBD | Pending |
+| STAT-FW-01 | Phase 33 | Pending |
+| STAT-FW-02 | Phase 33 | Pending |
+| STAT-FW-03 | Phase 33 | Pending |
+| STAT-FW-04 | Phase 33 | Pending |
+| STAT-UNI-01 | Phase 33 | Pending |
+| STAT-UNI-02 | Phase 33 | Pending |
+| STAT-UNI-03 | Phase 33 | Pending |
+| STAT-UNI-04 | Phase 33 | Pending |
+| STAT-AOV-01 | Phase 33 | Pending |
+| STAT-AOV-02 | Phase 33 | Pending |
+| STAT-AOV-03 | Phase 33 | Pending |
+| STAT-AOV-04 | Phase 33 | Pending |
+| STAT-REG-01 | Phase 33 | Pending |
+| STAT-REG-02 | Phase 33 | Pending |
+| STAT-REG-03 | Phase 33 | Pending |
+| STAT-REG-04 | Phase 33 | Pending |
+| STAT-REG-05 | Phase 33 | Pending |
+| STAT-REG-06 | Phase 33 | Pending |
+| STAT-REG-07 | Phase 33 | Pending |
+| STAT-REG-08 | Phase 33 | Pending |
+| STAT-REG-09 | Phase 33 | Pending |
+| STAT-HYP-01 | Phase 33 | Pending |
+| STAT-HYP-02 | Phase 33 | Pending |
+| STAT-HYP-03 | Phase 33 | Pending |
+| STAT-HYP-04 | Phase 33 | Pending |
+| STAT-HYP-05 | Phase 33 | Pending |
+| STAT-HYP-06 | Phase 33 | Pending |
+| STAT-HYP-07 | Phase 33 | Pending |
+| STAT-DST-01 | Phase 33 | Pending |
+| STAT-DST-02 | Phase 33 | Pending |
+| STAT-DST-03 | Phase 33 | Pending |
+| STAT-DST-04 | Phase 33 | Pending |
+| STAT-DST-05 | Phase 33 | Pending |
+| STAT-DST-06 | Phase 33 | Pending |
+| STAT-DST-07 | Phase 33 | Pending |
+| STAT-RNG-01 | Phase 33 | Pending |
+| STAT-RNG-02 | Phase 33 | Pending |
+| STAT-RNG-03 | Phase 33 | Pending |
+| STAT-RNG-04 | Phase 33 | Pending |
+| STAT-CLI-01 | Phase 34 | Pending |
+| STAT-CLI-02 | Phase 34 | Pending |
+| STAT-CLI-03 | Phase 34 | Pending |
+| STAT-CLI-04 | Phase 34 | Pending |
+| STAT-CLI-05 | Phase 34 | Pending |
+| STAT-GUI-01 | Phase 36 | Pending |
+| STAT-GUI-02 | Phase 36 | Pending |
+| STAT-GUI-03 | Phase 36 | Pending |
+| STAT-GUI-04 | Phase 36 | Pending |
+| STAT-GUI-05 | Phase 36 | Pending |
+| STAT-DOC-01 | Phase 35 | Pending |
+| STAT-DOC-02 | Phase 35 | Pending |
+| STAT-DOC-03 | Phase 35 | Pending |
+| STAT-DOC-04 | Phase 35 | Pending |
+| STAT-DOC-05 | Phase 35 | Pending |
+| STAT-DOC-06 | Phase 35 | Pending |
+| STAT-QUAL-01 | Phase 37 | Pending |
+| STAT-QUAL-02 | Phase 37 | Pending |
+| STAT-QUAL-03 | Phase 37 | Pending |
+| STAT-QUAL-04 | Phase 37 | Pending |
+| STAT-QUAL-05 | Phase 37 | Pending |
+| STAT-QUAL-06 | Phase 37 | Pending |
+| STAT-QUAL-07 | Phase 37 | Pending |
+| STAT-QUAL-08 | Phase 37 | Pending |
+| STAT-QUAL-09 | Phase 37 | Pending |
+| STAT-QUAL-10 | Phase 37 | Pending |
+| STAT-QUAL-11 | Phase 37 | Pending |
 
 **Coverage:**
 - v1 requirements: 66 total
-- Mapped to phases: 0 ⚠ (filled by gsd-roadmapper)
-- Unmapped: 66 ⚠ (expected pre-roadmap)
+- Mapped to phases: 66 ✓
+- Unmapped: 0 ✓
+
+| Phase | Requirements mapped | Count |
+|-------|---------------------|-------|
+| Phase 33 | STAT-FW-01..04, STAT-UNI-01..04, STAT-AOV-01..04, STAT-REG-01..09, STAT-HYP-01..07, STAT-DST-01..07, STAT-RNG-01..04 | 39 |
+| Phase 34 | STAT-CLI-01..05 | 5 |
+| Phase 35 | STAT-DOC-01..06 | 6 |
+| Phase 36 | STAT-GUI-01..05 | 5 |
+| Phase 37 | STAT-QUAL-01..11 | 11 |
+| **Total** | | **66** |
 
 ---
 
 *Requirements defined: 2026-05-22*
-*Last updated: 2026-05-22 after `/gsd-new-milestone` requirements pass (research-informed)*
+*Last updated: 2026-05-22 — traceability table filled by `gsd-roadmapper`; all 66 v1 requirements mapped to Phases 33–37*
