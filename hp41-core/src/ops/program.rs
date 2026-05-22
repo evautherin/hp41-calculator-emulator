@@ -1043,11 +1043,9 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaNormdWorkflow => crate::ops::dispatch(state, Op::SigmaNormdWorkflow),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
         Op::SigmaChisqdWorkflow => crate::ops::dispatch(state, Op::SigmaChisqdWorkflow),
-        // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
-        // Pure-data op routed through dispatch (mirrors hyperbolics +
-        // Plan 28-10 Triangle/TRANS pattern). Will be replaced when Plans
-        // 33-03..33-08 land the real Sigma* variants.
-        Op::Stat1Stub => crate::ops::dispatch(state, Op::Stat1Stub),
+        // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
+        Op::Rand => crate::ops::dispatch(state, Op::Rand),
+        Op::Seed => crate::ops::dispatch(state, Op::Seed),
     }
 }
 

@@ -100,7 +100,7 @@ pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
 pub mod moments; // Plan 33-06 (ΣMMTUG + ΣMMTGD third/fourth moments)
 pub mod nonparam; // Plan 33-04 (ΣSPEAR + ΣXSQEV / ΣEFXSQ closed-form non-parametric Ops); Plan 33-06 extends with ΣCTKKK + ΣCTKK
 pub mod normd; // Plan 33-03 (ΣNORMD 3-mode dispatcher: CDF / PDF / inverse)
-               // pub mod rand;         // Plan 33-08
+pub mod rand; // Plan 33-08 (RAND / SEED — emulator extension per D-33.4)
 pub mod regression; // Plan 33-05 (ΣLIN/EXP/LOGI/POW curve fits via op_sigma_plus delegate); Plan 33-08 extends with ΣMLRXY/MLRXYZ + ΣPOLYP/POLYC
 
 // ── Σ-register layout constants (single source of truth; OM Appendix A) ──
@@ -618,30 +618,11 @@ pub const STAT1_POLYP_DEGREE_REG: usize = 30;
 /// `d = 0` is degenerate (constant fit) and rejected as Domain.
 pub const STAT1_POLYP_DEGREE_MAX: u8 = 5;
 
-// ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
-
-use crate::error::HpError;
-use crate::state::CalcState;
-
-/// Placeholder dispatch handler for `Op::Stat1Stub`.
-///
-/// Plan-33-01 scaffolding: every entry in `STAT_1.ops` (in
-/// `hp41-core/src/ops/math1/xrom.rs`) currently maps to `Op::Stat1Stub`,
-/// and `stat1_resolve` in the same file routes every Stat 1 mnemonic to
-/// the same stub. Plans 33-03..33-08 incrementally replace those
-/// references with real `Op::Sigma*` variants and DELETE `Op::Stat1Stub`
-/// + this function once the last reference is gone (Plan 33-08).
-///
-/// Returns `Err(HpError::InvalidOp)` so any accidental dispatch surfaces
-/// the missing-feature state visibly (rather than silently mapping to a
-/// no-op — Pitfall 22 / resolver-never-discard invariant per CLAUDE.md
-/// "Resolver chain + never-discard").
-///
-/// Per `#![deny(clippy::unwrap_used)]`: this function uses `Err(...)`
-/// propagation; no panics, no `.unwrap()`.
-pub fn op_stat1_stub(_state: &mut CalcState) -> Result<(), HpError> {
-    Err(HpError::InvalidOp)
-}
+// Plan 33-08 final cleanup: the Plan 33-01 scaffolding Op variant + its
+// helper function have been removed. All 26 STAT_1.ops entries point to
+// real `Op::Sigma*` / `Op::Rand` / `Op::Seed` variants per the
+// bidirectional consistency CI gate
+// (`stat1_ops_mnemonics_resolve_consistently` in math1/xrom.rs tests).
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

@@ -1183,26 +1183,21 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCHISQD (p. 71).
     SigmaChisqdWorkflow,
 
-    // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
-    //
-    // `Stat1Stub` is a placeholder Op referenced by every entry in the
-    // `STAT_1.ops` slice + the `stat1_resolve` match block in
-    // `hp41-core/src/ops/math1/xrom.rs`. Plans 33-03..33-08 incrementally
-    // replace those references with real `Op::Sigma*` variants (per
-    // SPEC.md "Stat 1 Pac Mnemonics" table) and DELETE this stub variant
-    // by the end of Phase 33 — Plan 33-08 is the last plan that removes
-    // any remaining `Op::Stat1Stub` references.
-    //
-    // Dispatching `Op::Stat1Stub` (interactively or from a program) returns
-    // `Err(HpError::InvalidOp)` — see `crate::ops::stat1::op_stat1_stub`.
-    // Do NOT use this variant directly; the contract is: the user types
-    // `XEQ "ΣNORMD"`, the resolver chain reaches `stat1_resolve("ΣNORMD")`
-    // which returns `Op::Stat1Stub` while Plans 33-03+ are pending, and
-    // the dispatcher surfaces the InvalidOp error so the missing-feature
-    // condition is visible (rather than silently mapped to a no-op).
-    /// Plan-33-01 scaffolding placeholder for every STAT_1.ops entry until
-    /// Plans 33-03..33-08 land the real Sigma* variants and DELETE this stub.
-    Stat1Stub,
+    // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──────
+    /// RAND — pseudorandom uniform [0, 1) via LCG `r ← FRC(9821·r +
+    /// 0.211327)` (NPS p. 21 community formula, Don Malm / HP-65 User's
+    /// Library). Reads + writes `state.rand_seed`; pushes new value to
+    /// stack X with LiftEffect::Enable. Decimal-exact (no f64 conversion);
+    /// deterministic from any seed.
+    ///
+    /// Source: emulator extension (D-33.4 / SPEC.md Req. 35) — not in OM.
+    Rand,
+    /// SEED — open the `SEED?` modal; on submit, copies stack-X into
+    /// `state.rand_seed`. LiftEffect::Neutral on open. Submit handled
+    /// by `stat1::modal::submit_step(SeedPrompt)`.
+    ///
+    /// Source: emulator extension (D-33.4 / SPEC.md Req. 36) — not in OM.
+    Seed,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -1647,12 +1642,9 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
         Op::SigmaChisqdWorkflow => crate::ops::stat1::chisqd::op_sigma_chisqd_workflow(state),
-        // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
-        // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
-        // Plans 33-03..33-08 land the real Sigma* variants. The 4-way
-        // exhaustive-match invariant requires items 1 (dispatch) AND 2
-        // (execute_op) to land together — see CLAUDE.md.
-        Op::Stat1Stub => crate::ops::stat1::op_stat1_stub(state),
+        // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
+        Op::Rand => crate::ops::stat1::rand::op_rand(state),
+        Op::Seed => crate::ops::stat1::rand::op_seed(state),
     }
 }
 
