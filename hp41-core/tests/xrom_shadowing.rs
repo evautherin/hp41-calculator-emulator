@@ -23,7 +23,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::math1::xrom::MATH_1;
+use hp41_core::ops::math1::xrom::{xrom_resolve, MATH_1, STAT_1};
 
 /// All mnemonic strings recognized by `builtin_card_op` in `hp41-core/src/ops/program.rs`.
 ///
@@ -88,4 +88,73 @@ fn math1_const_fields() {
         "MATH_1.id must be 7 (HP Math Pac I hardware module ID)"
     );
     assert_eq!(MATH_1.name, "MATH 1A", "MATH_1.name must be 'MATH 1A'");
+}
+
+// ── Phase 33 Plan 33-01: STAT_1 disjointness + consistency gates ────────────
+
+/// CI gate: no Stat 1 Pac mnemonic may collide with a v2.2 builtin name.
+///
+/// Catches: Pitfall 1 — a Stat 1 mnemonic accidentally matching a v2.2 builtin
+/// would make the XROM op permanently unreachable via XEQ (resolver fires LAST).
+#[test]
+fn stat1_names_do_not_shadow_builtins() {
+    for (name, _op) in STAT_1.ops {
+        assert!(
+            !BUILTIN_CARD_OP_NAMES.contains(name),
+            "Stat 1 Pac mnemonic {name:?} shadows a builtin_card_op entry. \
+             The XROM resolver fires LAST (C-28.4), so the builtin would silently \
+             win and the Stat 1 Pac op would be permanently unreachable via XEQ. \
+             Rename the Stat 1 Pac mnemonic to avoid the collision."
+        );
+    }
+}
+
+/// CI gate: STAT_1.ops mnemonic strings must be disjoint from MATH_1.ops.
+///
+/// Catches: a future plan accidentally moves a mnemonic from one module to
+/// the other without removing the original — both modules would resolve the
+/// same name and `xrom_resolve` order (Math 1 first, Stat 1 second) would
+/// silently hide the new Stat 1 entry behind the Math 1 stale entry.
+#[test]
+fn stat1_ops_disjoint_from_math1_ops() {
+    use std::collections::HashSet;
+    let math1_names: HashSet<&str> = MATH_1.ops.iter().map(|(n, _)| *n).collect();
+    for (name, _op) in STAT_1.ops {
+        assert!(
+            !math1_names.contains(name),
+            "Stat 1 Pac mnemonic {name:?} also appears in MATH_1.ops. \
+             A mnemonic must belong to exactly one XROM module so xrom_resolve \
+             has a deterministic single-source mapping (resolver-LAST + bit-isolation \
+             invariants per CLAUDE.md \"Resolver chain + never-discard\")."
+        );
+    }
+}
+
+/// CI gate: every STAT_1.ops mnemonic resolves to its declared Op via
+/// `xrom_resolve` when both bits are set — proves bidirectional consistency
+/// between the slice and the `stat1_resolve` match arms (drift in either
+/// direction surfaces here).
+#[test]
+fn stat1_ops_resolve_via_xrom_resolve() {
+    for (name, expected_op) in STAT_1.ops {
+        let resolved = xrom_resolve(name, 0b0000_0011);
+        assert_eq!(
+            resolved.as_ref(),
+            Some(expected_op),
+            "STAT_1.ops mnemonic {name:?} must resolve to {expected_op:?} via \
+             xrom_resolve(name, 0b0000_0011) — drift between STAT_1.ops slice and \
+             stat1_resolve match arms is a Pitfall 22 / resolver-never-discard violation."
+        );
+    }
+}
+
+/// Smoke: STAT_1 const fields are present and correct.
+/// Catches: const field regression during Plans 33-03..33-08 STAT_1.ops growth.
+#[test]
+fn stat1_const_fields() {
+    assert_eq!(
+        STAT_1.id, 2,
+        "STAT_1.id must be 2 (HP Stat 1 Pac hardware module ID per calc.fjk.ch)"
+    );
+    assert_eq!(STAT_1.name, "STAT 1B", "STAT_1.name must be 'STAT 1B'");
 }
