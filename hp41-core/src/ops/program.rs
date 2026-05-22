@@ -1014,6 +1014,12 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // Per-point accumulators; pure-data routing through dispatch.
         Op::SigmaMmtug => crate::ops::dispatch(state, Op::SigmaMmtug),
         Op::SigmaMmtgd => crate::ops::dispatch(state, Op::SigmaMmtgd),
+        // ── Phase 33 Plan 33-06: ANOVA family (one-way / two-way / ANCOVA) ──
+        // Closed-form (one-way) and iterative (two-way / ANCOVA) Ops; pure
+        // dispatch routing — same pattern as Plan 33-04 / 33-05 Σ-family.
+        Op::SigmaAovone => crate::ops::dispatch(state, Op::SigmaAovone),
+        Op::SigmaAovtwo => crate::ops::dispatch(state, Op::SigmaAovtwo),
+        Op::SigmaAnocov => crate::ops::dispatch(state, Op::SigmaAnocov),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().

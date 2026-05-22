@@ -149,9 +149,9 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}MMTUG", Op::SigmaMmtug), // ΣMMTUG — Plan 33-06
         ("\u{03A3}MMTGD", Op::SigmaMmtgd), // ΣMMTGD — Plan 33-06
         // ── Stat 1 Pac ANOVA Family ────────────────────────────────────────────
-        ("\u{03A3}AOVONE", Op::Stat1Stub), // ΣAOVONE — Plan 33-06
-        ("\u{03A3}AOVTWO", Op::Stat1Stub), // ΣAOVTWO — Plan 33-06
-        ("\u{03A3}ANOCOV", Op::Stat1Stub), // ΣANOCOV — Plan 33-06
+        ("\u{03A3}AOVONE", Op::SigmaAovone), // ΣAOVONE — Plan 33-06
+        ("\u{03A3}AOVTWO", Op::SigmaAovtwo), // ΣAOVTWO — Plan 33-06
+        ("\u{03A3}ANOCOV", Op::SigmaAnocov), // ΣANOCOV — Plan 33-06
         // ── Stat 1 Pac Curve Fitting + Regression ─────────────────────────────
         // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants via
         // log-linearization + op_sigma_plus delegate (anti-duplication).
@@ -322,9 +322,10 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}MMTUG" => Some(Op::SigmaMmtug),
         "\u{03A3}MMTGD" => Some(Op::SigmaMmtgd),
         // ANOVA Family
-        "\u{03A3}AOVONE" => Some(Op::Stat1Stub),
-        "\u{03A3}AOVTWO" => Some(Op::Stat1Stub),
-        "\u{03A3}ANOCOV" => Some(Op::Stat1Stub),
+        // Plan 33-06: ΣAOVONE + ΣAOVTWO + ΣANOCOV → real Sigma* variants.
+        "\u{03A3}AOVONE" => Some(Op::SigmaAovone),
+        "\u{03A3}AOVTWO" => Some(Op::SigmaAovtwo),
+        "\u{03A3}ANOCOV" => Some(Op::SigmaAnocov),
         // Curve Fitting + Regression
         // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants.
         "\u{03A3}LIN" => Some(Op::SigmaLin),
