@@ -28,7 +28,22 @@
 
 use crate::error::HpError;
 use crate::num::HpNum;
-use crate::ops::stat1::*;
+// REVIEW.md WR-06: explicit named imports rather than wildcard.
+// Mirrors `anova.rs` / `hypothesis.rs` / `nonparam.rs` patterns and
+// makes the P21 named-const consumption surface auditable from a
+// single block.
+use crate::ops::stat1::{
+    STAT1_MAX_REG, STAT1_MLRXYZ_N_REG, STAT1_MLRXYZ_SUM_X1SQ_REG, STAT1_MLRXYZ_SUM_X1X2_REG,
+    STAT1_MLRXYZ_SUM_X1X3_REG, STAT1_MLRXYZ_SUM_X1Y_REG, STAT1_MLRXYZ_SUM_X1_REG,
+    STAT1_MLRXYZ_SUM_X2SQ_REG, STAT1_MLRXYZ_SUM_X2X3_REG, STAT1_MLRXYZ_SUM_X2Y_REG,
+    STAT1_MLRXYZ_SUM_X2_REG, STAT1_MLRXYZ_SUM_X3SQ_REG, STAT1_MLRXYZ_SUM_X3Y_REG,
+    STAT1_MLRXYZ_SUM_X3_REG, STAT1_MLRXYZ_SUM_Y_REG, STAT1_MLRXY_N_REG, STAT1_MLRXY_SUM_X1SQ_REG,
+    STAT1_MLRXY_SUM_X1X2_REG, STAT1_MLRXY_SUM_X1Y_REG, STAT1_MLRXY_SUM_X1_REG,
+    STAT1_MLRXY_SUM_X2SQ_REG, STAT1_MLRXY_SUM_X2Y_REG, STAT1_MLRXY_SUM_X2_REG,
+    STAT1_MLRXY_SUM_Y_REG, STAT1_POLYP_COEF_BASE_REG, STAT1_POLYP_DEGREE_MAX,
+    STAT1_POLYP_DEGREE_REG, STAT1_POLYP_N_REG, STAT1_POLYP_SUM_XY_BASE_REG,
+    STAT1_POLYP_SUM_X_BASE_REG,
+};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 use rust_decimal::Decimal;
