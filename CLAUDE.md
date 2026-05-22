@@ -15,7 +15,7 @@ Faithful Rust behavioral emulation of the HP-41C/CV/CX RPN calculator.
 - `docs/adr/` — numbered ADRs for v3.0 onward (Op-strategy, user-callback policy, JSON-pipeline shape)
 - `docs/hp41-math1-divergences.md` — Math Pac I OM divergences + emulator extensions
 - `.planning/milestones/` — archived GSD planning artifacts per shipped milestone
-- gbrain: `gbrain search "<terms>" --source gstack-code-hp41-calculator-emulator`
+- gbrain: `gbrain search "<terms>"` from anywhere inside this repo (the `.gbrain-source` worktree pin routes automatically — no `--source` flag needed). For symbol-aware lookup: `gbrain code-def <name>` / `gbrain code-refs <name>` / `gbrain code-callers <name>`.
 
 ## Git Workflow
 
