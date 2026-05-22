@@ -20,6 +20,7 @@ pub mod program;
 pub mod registers;
 pub mod sound;
 pub mod stack_ops;
+pub mod stat1;
 pub mod stats;
 
 use alpha::{op_alpha_append, op_alpha_backspace, op_alpha_clear, op_alpha_toggle};
