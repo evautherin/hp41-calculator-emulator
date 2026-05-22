@@ -806,6 +806,27 @@ pub enum Op {
     /// Source: HP-41C Math Pac I OM, TRANS program (TRANS-03..04).
     /// "T3D" mnemonic disambiguates from 2D TRANS in xrom_resolve (Plan 28-10 decision).
     Trans3d,
+
+    // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
+    //
+    // `Stat1Stub` is a placeholder Op referenced by every entry in the
+    // `STAT_1.ops` slice + the `stat1_resolve` match block in
+    // `hp41-core/src/ops/math1/xrom.rs`. Plans 33-03..33-08 incrementally
+    // replace those references with real `Op::Sigma*` variants (per
+    // SPEC.md "Stat 1 Pac Mnemonics" table) and DELETE this stub variant
+    // by the end of Phase 33 — Plan 33-08 is the last plan that removes
+    // any remaining `Op::Stat1Stub` references.
+    //
+    // Dispatching `Op::Stat1Stub` (interactively or from a program) returns
+    // `Err(HpError::InvalidOp)` — see `crate::ops::stat1::op_stat1_stub`.
+    // Do NOT use this variant directly; the contract is: the user types
+    // `XEQ "ΣNORMD"`, the resolver chain reaches `stat1_resolve("ΣNORMD")`
+    // which returns `Op::Stat1Stub` while Plans 33-03+ are pending, and
+    // the dispatcher surfaces the InvalidOp error so the missing-feature
+    // condition is visible (rather than silently mapped to a no-op).
+    /// Plan-33-01 scaffolding placeholder for every STAT_1.ops entry until
+    /// Plans 33-03..33-08 land the real Sigma* variants and DELETE this stub.
+    Stat1Stub,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -1213,6 +1234,12 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TriSsa => math1::tri::op_tri_ssa(state),
         Op::Trans2d => math1::trans::op_trans2d(state),
         Op::Trans3d => math1::trans::op_trans3d(state),
+        // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
+        // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
+        // Plans 33-03..33-08 land the real Sigma* variants. The 4-way
+        // exhaustive-match invariant requires items 1 (dispatch) AND 2
+        // (execute_op) to land together — see CLAUDE.md.
+        Op::Stat1Stub => crate::ops::stat1::op_stat1_stub(state),
     }
 }
 
