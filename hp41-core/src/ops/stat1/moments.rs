@@ -164,8 +164,12 @@ pub fn compute_moments(state: &CalcState) -> Result<(HpNum, HpNum, HpNum, HpNum)
     let mu_cube = mu.checked_mul(&mu_sq)?; // μ³
     let mu_quad = mu_sq.checked_sq()?; // μ⁴
 
-    let m1 = sum_x.checked_div(&n)?; // unused alias of μ
-    let _ = m1;
+    // REVIEW.md WR-05 removed: a redundant `let m1 = sum_x.checked_div(&n)?;
+    // let _ = m1;` pair that duplicated the `mu` computation on the
+    // line above. The discarded division was likely a refactoring
+    // leftover from when `m1` was the raw first moment name; the
+    // second division on the same inputs is identical to `mu` and
+    // the discarded value carried no side effect worth preserving.
     let m2 = sum_x_sq.checked_div(&n)?; // Σx²/n
     let m3 = sum_x_cube.checked_div(&n)?; // Σx³/n
     let m4 = sum_x_quad.checked_div(&n)?; // Σx⁴/n
