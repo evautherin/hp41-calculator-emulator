@@ -77,6 +77,8 @@ pub fn submit_modal(state: &mut CalcState) -> Result<(), HpError> {
         ModalProgram::Difeq(step) => difeq::submit_step(state, step),
         ModalProgram::Four(step) => four::submit_step(state, step),
         ModalProgram::Trans(step) => trans::submit_step(state, step),
+        // D-33.3b: Stat 1 Pac modal submit delegates to stat1::modal.
+        ModalProgram::Stat1(step) => crate::ops::stat1::modal::submit_step(state, step),
     }
 }
 

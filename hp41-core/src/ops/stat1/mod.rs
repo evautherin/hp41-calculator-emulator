@@ -96,11 +96,12 @@
 // pub mod chisqd;       // Plan 33-03
 // pub mod distributions; // Plan 33-02
 // pub mod hypothesis;   // Plan 33-07 (renamed from tests.rs per D-33.5)
-// pub mod moments;      // Plan 33-06
-// pub mod nonparam;     // Plan 33-04
-// pub mod normd;        // Plan 33-03
-// pub mod rand;         // Plan 33-08
-// pub mod regression;   // Plans 33-05 + 33-08
+pub mod modal; // Plan 33-01 (modal-prompt step carrier for Stat 1 workflows)
+               // pub mod moments;      // Plan 33-06
+               // pub mod nonparam;     // Plan 33-04
+               // pub mod normd;        // Plan 33-03
+               // pub mod rand;         // Plan 33-08
+               // pub mod regression;   // Plans 33-05 + 33-08
 
 // ── Σ-register layout constants (single source of truth; OM Appendix A) ──
 
