@@ -29,8 +29,13 @@
 //! round-trips (SPEC.md Req. 37, integration test in
 //! `tests/stat1_rand_determinism.rs`).
 //!
-//! **SEED** opens a modal `SEED?` prompt; on submit, copies the
-//! current stack-X value into `state.rand_seed`.
+//! **SEED** opens a modal `SEED?` prompt; on submit, the stack-X
+//! value is NORMALIZED to the closed-open unit interval `[0, 1)` via
+//! [`normalize_seed_to_unit_interval`] before being written into
+//! `state.rand_seed`. The same normalization is applied defensively
+//! at the start of [`op_rand`] so direct mutations of
+//! `state.rand_seed` (bypassing the modal) also produce well-formed
+//! RAND outputs. See REVIEW.md CR-01 for the seed-range bug history.
 
 use crate::error::HpError;
 use crate::num::HpNum;
@@ -38,11 +43,52 @@ use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 use rust_decimal::Decimal;
 
+/// Normalize an arbitrary `HpNum` seed into the closed-open unit
+/// interval `[0, 1)` using the HP-41 FRC convention with a wrap-up
+/// step for negative inputs.
+///
+/// `FRC(x) = x − trunc(x)` returns a value in the open interval
+/// `(−1, 1)` because `rust_decimal::Decimal::trunc` truncates toward
+/// zero (so `FRC(−0.5) = −0.5`, not `+0.5`). For LCG state we need
+/// the canonical `[0, 1)` range — add `1` whenever the fractional
+/// part is strictly negative.
+///
+/// This is the REVIEW.md CR-01 mitigation. The previous implementation
+/// claimed the LCG body would "consume only the fractional part" but
+/// `trunc_int` is applied to the post-multiply `stepped` value, not to
+/// the raw seed — so a user seed of `-0.5` or `1.5` produced a NEGATIVE
+/// RAND output (contract violation against the documented `[0, 1)`
+/// guarantee).
+///
+/// Applied both at SEED-modal submit (`stat1::modal::submit_step` for
+/// `Stat1Step::SeedPrompt`) AND defensively at the start of `op_rand`
+/// so that any path mutating `state.rand_seed` still produces RAND
+/// outputs in the unit interval.
+pub fn normalize_seed_to_unit_interval(raw: &HpNum) -> Result<HpNum, HpError> {
+    let int_part = raw.trunc_int();
+    let frac = raw.checked_sub(&int_part)?;
+    if frac.inner() < Decimal::ZERO {
+        // Wrap-up: FRC(−0.5) = −0.5 → −0.5 + 1 = 0.5.
+        let one = HpNum::from(1i32);
+        frac.checked_add(&one)
+    } else {
+        Ok(frac)
+    }
+}
+
 /// RAND — step the LCG and push the new fractional seed to stack X.
 ///
 /// One iteration: `r ← FRC(9821 · r + 0.211327)`. Updates
 /// `state.rand_seed` in place (so subsequent RAND calls continue the
 /// sequence) AND pushes the new value to X. LiftEffect::Enable.
+///
+/// **Seed defense (REVIEW.md CR-01):** the seed register is
+/// defensively re-normalized to `[0, 1)` via
+/// [`normalize_seed_to_unit_interval`] at the start of every call
+/// before the LCG step runs. This covers paths that bypass the
+/// SEED-modal-submit normalization (e.g., direct test mutations of
+/// `state.rand_seed`, save-file loads from older sessions that
+/// stored an unnormalized seed).
 ///
 /// Errors: propagated arithmetic overflow (theoretically impossible
 /// for the canonical LCG; defensive `?`-propagation only).
@@ -52,6 +98,11 @@ use rust_decimal::Decimal;
 ///
 /// Source: NPS55-84-003 (Zehna 1984) p. 21 community-LCG; not in OM.
 pub fn op_rand(state: &mut CalcState) -> Result<(), HpError> {
+    // Defensive seed normalization (REVIEW.md CR-01): ensures
+    // negative / ≥1 / integer-valued seed registers still produce
+    // RAND outputs in the documented [0, 1) range.
+    state.rand_seed = normalize_seed_to_unit_interval(&state.rand_seed)?;
+
     // LCG constants as exact decimals (NO f64 conversion — SPEC.md
     // Req. 35 acceptance asserts decimal-exact HpNum equality).
     let multiplier = HpNum::from(9821i32);
@@ -61,7 +112,11 @@ pub fn op_rand(state: &mut CalcState) -> Result<(), HpError> {
         .checked_mul(&multiplier)?
         .checked_add(&increment)?;
     // FRC(x) = x − trunc(x). HpNum::trunc_int truncates toward zero
-    // per rust_decimal::Decimal::trunc.
+    // per rust_decimal::Decimal::trunc. After the multiply-add step,
+    // `stepped` is a non-negative value (non-negative seed × positive
+    // multiplier + positive increment) so `FRC(stepped) ∈ [0, 1)`
+    // unconditionally — the seed-normalization above is what
+    // guarantees the multiplier input was non-negative.
     let int_part = stepped.trunc_int();
     let new_seed = stepped.checked_sub(&int_part)?;
     // Write-back BEFORE the push so a failed enter_number/apply_lift
@@ -184,6 +239,120 @@ mod tests {
             assert!(
                 (0.0..1.0).contains(&v),
                 "rand_seed must stay in [0, 1), got {v}"
+            );
+        }
+    }
+
+    // ── REVIEW.md CR-01: seed normalization defense ──────────────────────────
+    //
+    // The pre-fix implementation silently produced NEGATIVE RAND outputs
+    // when `state.rand_seed` was outside `[0, 1)` (negative, ≥ 1, or
+    // integer). The fix adds a `normalize_seed_to_unit_interval` helper
+    // applied at SEED-modal submit AND defensively at the start of
+    // `op_rand`. These tests lock the unit-interval contract for the
+    // seed register itself AND the pushed RAND output across a wide
+    // range of poisoned-seed inputs.
+
+    /// `normalize_seed_to_unit_interval` maps any HpNum into `[0, 1)`.
+    #[test]
+    fn normalize_seed_unit_interval_invariant() {
+        let cases: &[Decimal] = &[
+            Decimal::new(-5, 1),       // -0.5  → 0.5
+            Decimal::new(-15, 1),      // -1.5  → 0.5
+            Decimal::new(15, 1),       //  1.5  → 0.5
+            Decimal::new(42, 0),       // 42.0  → 0.0
+            Decimal::new(-42, 0),      // -42.0 → 0.0
+            Decimal::ZERO,             //  0.0  → 0.0
+            Decimal::new(5, 1),        //  0.5  → 0.5
+            Decimal::new(-211_327, 6), // -0.211327 → 0.788673
+        ];
+        for d in cases {
+            let raw = HpNum::from(*d);
+            let norm = normalize_seed_to_unit_interval(&raw).unwrap();
+            let v = as_f64(&norm);
+            assert!(
+                (0.0..1.0).contains(&v),
+                "normalized seed must land in [0, 1), got {v} from raw {d}"
+            );
+        }
+    }
+
+    /// Negative seed: `op_rand` must defensively normalize and emit a
+    /// non-negative output in `[0, 1)` (not the pre-fix `-0.288673`).
+    #[test]
+    fn rand_negative_seed_produces_unit_interval_output() {
+        let mut state = CalcState::new();
+        // seed = -0.5; pre-fix produced FRC(-4910.288673) = -0.288673
+        // (negative; contract violation). Post-fix: normalize to 0.5
+        // first, then standard LCG → 0.711327.
+        state.rand_seed = HpNum::from(Decimal::new(-5, 1));
+        op_rand(&mut state).expect("RAND must succeed for negative seed");
+        let expected = HpNum::from(Decimal::new(711_327, 6)); // 0.711327
+        assert_eq!(state.stack.x, expected, "RAND(-0.5) must equal RAND(+0.5)");
+        let v = as_f64(&state.rand_seed);
+        assert!(
+            (0.0..1.0).contains(&v),
+            "rand_seed after RAND(-0.5) must be in [0, 1), got {v}"
+        );
+    }
+
+    /// Seed ≥ 1: `op_rand` must defensively normalize (e.g. 1.5 → 0.5)
+    /// and emit a non-negative output.
+    #[test]
+    fn rand_seed_geq_one_produces_unit_interval_output() {
+        let mut state = CalcState::new();
+        state.rand_seed = HpNum::from(Decimal::new(15, 1)); // 1.5 → normalizes to 0.5
+        op_rand(&mut state).expect("RAND must succeed for seed ≥ 1");
+        let expected = HpNum::from(Decimal::new(711_327, 6));
+        assert_eq!(state.stack.x, expected);
+    }
+
+    /// Integer seed: `op_rand` must defensively normalize (e.g. 42 →
+    /// 0) and produce the canonical first-iteration output.
+    #[test]
+    fn rand_integer_seed_produces_unit_interval_output() {
+        let mut state = CalcState::new();
+        state.rand_seed = HpNum::from(42i32);
+        op_rand(&mut state).expect("RAND must succeed for integer seed");
+        // 42 → frac = 0; FRC(9821·0 + 0.211327) = 0.211327.
+        let expected = HpNum::from(Decimal::new(211_327, 6));
+        assert_eq!(state.stack.x, expected);
+    }
+
+    /// SEED-modal submit must normalize the user's stack-X value
+    /// before writing into `state.rand_seed` — the prompt doc-comment
+    /// post-fix promises a `[0, 1)` seed.
+    #[test]
+    fn seed_submit_normalizes_negative_seed() {
+        let mut state = CalcState::new();
+        op_seed(&mut state).unwrap();
+        // User enters -0.3 and presses R/S.
+        state.stack.x = HpNum::from(Decimal::new(-3, 1));
+        crate::ops::stat1::modal::submit_step(
+            &mut state,
+            crate::ops::stat1::modal::Stat1Step::SeedPrompt,
+        )
+        .expect("SEED submit must succeed");
+        // -0.3 → 0.7 after wrap-up.
+        let expected = HpNum::from(Decimal::new(7, 1));
+        assert_eq!(state.rand_seed, expected);
+        let v = as_f64(&state.rand_seed);
+        assert!((0.0..1.0).contains(&v));
+    }
+
+    /// Long-run unit-interval invariant starting from a poisoned seed.
+    /// Pre-fix this loop would FAIL on the very first iteration with
+    /// a negative seed; post-fix every iteration must stay in [0, 1).
+    #[test]
+    fn rand_long_run_from_negative_seed_stays_in_unit_interval() {
+        let mut state = CalcState::new();
+        state.rand_seed = HpNum::from(Decimal::new(-3141, 4)); // -0.3141
+        for i in 0..50 {
+            op_rand(&mut state).unwrap_or_else(|e| panic!("RAND iter {i}: {e:?}"));
+            let v = as_f64(&state.rand_seed);
+            assert!(
+                (0.0..1.0).contains(&v),
+                "iter {i}: rand_seed must stay in [0, 1), got {v}"
             );
         }
     }

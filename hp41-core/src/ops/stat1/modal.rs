@@ -92,8 +92,18 @@ pub enum Stat1Step {
     /// and dispatching `compute_polyp_coefficients` to fit the
     /// pre-populated higher-power Σ sums.
     PolypDegreePrompt(u8),
-    /// SEED — awaiting numeric seed value entry in X. Submit copies
-    /// `state.stack.x` into `state.rand_seed` and clears the modal state.
+    /// SEED — awaiting numeric seed value entry in X. Submit NORMALIZES
+    /// `state.stack.x` into the closed-open unit interval `[0, 1)` via
+    /// [`crate::ops::stat1::rand::normalize_seed_to_unit_interval`]
+    /// (REVIEW.md CR-01 mitigation) and writes the result into
+    /// `state.rand_seed`, then clears the modal state.
+    ///
+    /// Any HpNum is accepted on input (positive, negative, fractional
+    /// or integer); the normalization wraps via the HP-41 FRC convention
+    /// with a `+1` step for negative inputs so the LCG body always sees
+    /// a non-negative seed in `[0, 1)`. RAND output is therefore
+    /// guaranteed to stay in the unit interval regardless of the
+    /// user-submitted value.
     ///
     /// Per D-33.4 SPEC.md Req. 36 ALPHA prompt naming — the original OM
     /// (if it exists) shows an ALPHA-prompt convention, but our
@@ -241,11 +251,16 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             crate::ops::stat1::regression::compute_polyp_coefficients(state)
         }
         Stat1Step::SeedPrompt => {
-            // Copy the value currently on stack X into `state.rand_seed`.
-            // The seed may be any HpNum (positive, negative, or fractional
-            // — the LCG body in `rand.rs` only consumes the fractional
-            // part via `trunc_int` so a "non-normalized" seed is OK).
-            state.rand_seed = state.stack.x.clone();
+            // Normalize the value currently on stack X into [0, 1) before
+            // writing into `state.rand_seed`. The previous implementation
+            // claimed the LCG body would "consume only the fractional part"
+            // but `trunc_int` is applied to the post-multiply `stepped`
+            // value (not to the raw seed) — so a user seed of -0.5 or 1.5
+            // produced a NEGATIVE RAND output, violating the documented
+            // [0, 1) contract. REVIEW.md CR-01 mitigation.
+            state.rand_seed = crate::ops::stat1::rand::normalize_seed_to_unit_interval(
+                &state.stack.x,
+            )?;
             // Drop X (the seed the user submitted).
             state.stack.x = state.stack.y.clone();
             state.stack.y = state.stack.z.clone();
