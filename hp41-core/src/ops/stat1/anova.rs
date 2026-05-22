@@ -18,10 +18,10 @@ use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::stat1::{
     STAT1_ANOCOV_GRAND_SUMSQ_X_REG, STAT1_ANOCOV_GROUP_BASE_REG, STAT1_ANOCOV_GROUP_N_OFFSET,
-    STAT1_ANOCOV_GROUP_STRIDE, STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET, STAT1_ANOCOV_GROUP_SUM_X_OFFSET,
-    STAT1_ANOCOV_GROUP_SUM_XY_OFFSET, STAT1_ANOCOV_GROUP_SUM_Y_OFFSET, STAT1_AOVTWO_C_REG,
+    STAT1_ANOCOV_GROUP_STRIDE, STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET, STAT1_ANOCOV_GROUP_SUM_XY_OFFSET,
+    STAT1_ANOCOV_GROUP_SUM_X_OFFSET, STAT1_ANOCOV_GROUP_SUM_Y_OFFSET, STAT1_AOVTWO_C_REG,
     STAT1_AOVTWO_DIM_MAX, STAT1_AOVTWO_GRAND_SUMSQ_REG, STAT1_AOVTWO_GRAND_SUM_REG,
-    STAT1_AOVTWO_R_REG, STAT1_AOVTWO_ROW_BASE_REG, STAT1_AOV_GRAND_SUMSQ_REG,
+    STAT1_AOVTWO_ROW_BASE_REG, STAT1_AOVTWO_R_REG, STAT1_AOV_GRAND_SUMSQ_REG,
     STAT1_AOV_GRAND_SUM_REG, STAT1_AOV_GROUP_BASE_REG, STAT1_AOV_GROUP_N_OFFSET,
     STAT1_AOV_GROUP_STRIDE, STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET,
     STAT1_AOV_KMAX, STAT1_AOV_K_REG, STAT1_AOV_N_REG, STAT1_MAX_REG,
@@ -82,10 +82,8 @@ pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
             return Err(HpError::InvalidOp);
         }
         grand_n = grand_n.checked_add(&n_i)?;
-        grand_sum = grand_sum
-            .checked_add(&state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET])?;
-        grand_sumsq = grand_sumsq
-            .checked_add(&state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET])?;
+        grand_sum = grand_sum.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET])?;
+        grand_sumsq = grand_sumsq.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET])?;
     }
 
     let k_hp = HpNum::from(rust_decimal::Decimal::from(k));
@@ -150,8 +148,14 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     // named consts STAT1_AOVTWO_R_REG / STAT1_AOVTWO_C_REG; the
     // dimension cap is the OM-cited STAT1_AOVTWO_DIM_MAX rather than
     // a bare `4` literal.
-    let r = decode_group_count(&state.regs[STAT1_AOVTWO_R_REG].clone(), STAT1_AOVTWO_DIM_MAX)?;
-    let c = decode_group_count(&state.regs[STAT1_AOVTWO_C_REG].clone(), STAT1_AOVTWO_DIM_MAX)?;
+    let r = decode_group_count(
+        &state.regs[STAT1_AOVTWO_R_REG].clone(),
+        STAT1_AOVTWO_DIM_MAX,
+    )?;
+    let c = decode_group_count(
+        &state.regs[STAT1_AOVTWO_C_REG].clone(),
+        STAT1_AOVTWO_DIM_MAX,
+    )?;
     // Bounds check: row + col marginal sums occupy
     // STAT1_AOVTWO_ROW_BASE_REG .. +(r + c) and must fit within the
     // global Stat 1 register footprint.
@@ -260,7 +264,8 @@ pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
         if n_i.is_zero() {
             return Err(HpError::InvalidOp);
         }
-        ssw_y = ssw_y.checked_add(&sumsq_y.checked_sub(&sum_y.checked_sq()?.checked_div(&n_i)?)?)?;
+        ssw_y =
+            ssw_y.checked_add(&sumsq_y.checked_sub(&sum_y.checked_sq()?.checked_div(&n_i)?)?)?;
         ssw_xy = ssw_xy
             .checked_add(&sum_xy.checked_sub(&sum_x.checked_mul(&sum_y)?.checked_div(&n_i)?)?)?;
         ssbx_terms = ssbx_terms.checked_add(&sum_x.checked_sq()?.checked_div(&n_i)?)?;
@@ -290,8 +295,11 @@ pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
     }
     let sst_x = grand_sumsq_x.checked_sub(&grand_sum_x.checked_sq()?.checked_div(&grand_n)?)?;
     let sst_y = grand_sumsq_y.checked_sub(&grand_sum_y.checked_sq()?.checked_div(&grand_n)?)?;
-    let sst_xy = grand_sum_xy
-        .checked_sub(&grand_sum_x.checked_mul(&grand_sum_y)?.checked_div(&grand_n)?)?;
+    let sst_xy = grand_sum_xy.checked_sub(
+        &grand_sum_x
+            .checked_mul(&grand_sum_y)?
+            .checked_div(&grand_n)?,
+    )?;
     if sst_x.is_zero() {
         return Err(HpError::DivideByZero);
     }
@@ -418,7 +426,7 @@ mod tests {
         state.regs[0] = HpNum::from(3i32); // r
         state.regs[1] = HpNum::from(4i32); // c
         state.regs[2] = HpNum::from(12i32); // N
-        // grand Σx² and Σx
+                                            // grand Σx² and Σx
         state.regs[3] = HpNum::from(rust_decimal::Decimal::from(233i32));
         state.regs[4] = HpNum::from(rust_decimal::Decimal::from(51i32));
         // row sums R05, R06, R07 = 19, 14, 18

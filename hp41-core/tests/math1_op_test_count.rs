@@ -78,8 +78,7 @@ fn collect_math1_variant_names() -> Vec<String> {
         if !in_math1_resolve {
             if trimmed.contains("fn math1_resolve") {
                 in_math1_resolve = true;
-                brace_depth =
-                    line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                brace_depth = line.matches('{').count() as i32 - line.matches('}').count() as i32;
             }
             continue;
         }

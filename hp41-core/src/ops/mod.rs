@@ -1634,9 +1634,7 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-08: Multiple + polynomial regression ───────────
         Op::SigmaMlrxy => crate::ops::stat1::regression::op_sigma_mlrxy(state),
         Op::SigmaMlrxyz => crate::ops::stat1::regression::op_sigma_mlrxyz(state),
-        Op::SigmaPolypWorkflow => {
-            crate::ops::stat1::regression::op_sigma_polyp_workflow(state)
-        }
+        Op::SigmaPolypWorkflow => crate::ops::stat1::regression::op_sigma_polyp_workflow(state),
         Op::SigmaPolyc => crate::ops::stat1::regression::op_sigma_polyc(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),

@@ -477,11 +477,7 @@ mod tests {
         assert_relative_eq!(as_f64(&state.stack.x), -5.0, max_relative = 1e-7);
         // Y = p ≈ 0.0010534 (SPEC.md Req. 25 stated value; our AS 63
         // returns 0.0010528 — within 1e-3 relative of the stated figure).
-        assert_relative_eq!(
-            as_f64(&state.stack.y),
-            0.001_053_4,
-            max_relative = 1e-3
-        );
+        assert_relative_eq!(as_f64(&state.stack.y), 0.001_053_4, max_relative = 1e-3);
     }
 
     /// Identical-groups dataset → t = 0 (means equal), p = 1.0.
@@ -548,8 +544,7 @@ mod tests {
         let mut state = CalcState::new();
         load_tstat_canonical_oracle(&mut state);
         // Corrupt n₁ to a non-integer; should be rejected.
-        state.regs[STAT1_TSTAT_G1_N_REG] =
-            HpNum::from(Decimal::from_f64(5.5).unwrap());
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(Decimal::from_f64(5.5).unwrap());
         assert_eq!(op_sigma_tstat(&mut state), Err(HpError::Domain));
     }
 
@@ -573,11 +568,7 @@ mod tests {
         // t should now be +5.0 (was −5.0 in canonical order).
         assert_relative_eq!(as_f64(&state.stack.x), 5.0, max_relative = 1e-7);
         // p stays the same (two-sided symmetric).
-        assert_relative_eq!(
-            as_f64(&state.stack.y),
-            0.001_053_4,
-            max_relative = 1e-3
-        );
+        assert_relative_eq!(as_f64(&state.stack.y), 0.001_053_4, max_relative = 1e-3);
     }
 
     /// Pooled-variance lock: with unequal sample sizes (n₁ ≠ n₂) but
@@ -612,10 +603,6 @@ mod tests {
         );
         // p ≈ 0.00824 (SPEC-quality 3-sig-fig oracle); AS 63 direct-CF
         // computation matches to 1e-3 relative.
-        assert_relative_eq!(
-            as_f64(&state.stack.y),
-            0.008_24,
-            max_relative = 1e-3
-        );
+        assert_relative_eq!(as_f64(&state.stack.y), 0.008_24, max_relative = 1e-3);
     }
 }

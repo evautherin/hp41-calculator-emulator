@@ -208,8 +208,9 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             state.stack.z = state.stack.t.clone();
             // (T unchanged — HP-41 stack-drop convention.)
             // Advance modal to ChisqdModeChoice.
-            state.modal_program =
-                Some(crate::ops::math1::modal::ModalProgram::Stat1(Stat1Step::ChisqdModeChoice));
+            state.modal_program = Some(crate::ops::math1::modal::ModalProgram::Stat1(
+                Stat1Step::ChisqdModeChoice,
+            ));
             state.modal_prompt = Some("\u{03A3}CHISQD MODE?".to_string());
             Ok(())
         }
@@ -256,9 +257,7 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             // Read degree d from X (truncate-to-integer; reject fractional).
             let degree_dec = state.stack.x.trunc_int();
             let d_i32 = degree_dec.inner().to_i32_safe()?;
-            if d_i32 < 1
-                || d_i32 > crate::ops::stat1::STAT1_POLYP_DEGREE_MAX as i32
-            {
+            if d_i32 < 1 || d_i32 > crate::ops::stat1::STAT1_POLYP_DEGREE_MAX as i32 {
                 state.modal_program = None;
                 state.modal_prompt = None;
                 return Err(HpError::Domain);
@@ -297,9 +296,8 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             // value (not to the raw seed) — so a user seed of -0.5 or 1.5
             // produced a NEGATIVE RAND output, violating the documented
             // [0, 1) contract. REVIEW.md CR-01 mitigation.
-            state.rand_seed = crate::ops::stat1::rand::normalize_seed_to_unit_interval(
-                &state.stack.x,
-            )?;
+            state.rand_seed =
+                crate::ops::stat1::rand::normalize_seed_to_unit_interval(&state.stack.x)?;
             // Drop X (the seed the user submitted).
             state.stack.x = state.stack.y.clone();
             state.stack.y = state.stack.z.clone();
@@ -454,12 +452,11 @@ mod tests {
         // Modal advances to ChisqdModeChoice with the "ΣCHISQD MODE?" prompt.
         assert!(matches!(
             state.modal_program,
-            Some(crate::ops::math1::modal::ModalProgram::Stat1(Stat1Step::ChisqdModeChoice))
+            Some(crate::ops::math1::modal::ModalProgram::Stat1(
+                Stat1Step::ChisqdModeChoice
+            ))
         ));
-        assert_eq!(
-            state.modal_prompt,
-            Some("\u{03A3}CHISQD MODE?".to_string())
-        );
+        assert_eq!(state.modal_prompt, Some("\u{03A3}CHISQD MODE?".to_string()));
         // ν stashed in the transient carrier (post-WR-03 design).
         assert_eq!(state.pending_chisqd_nu, Some(3));
         // User's original T is preserved (no more side-channel clobber).

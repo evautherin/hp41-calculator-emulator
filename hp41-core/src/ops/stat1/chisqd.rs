@@ -156,9 +156,7 @@ pub fn op_sigma_chisqd_eval_pdf(state: &mut CalcState, nu: u32) -> Result<(), Hp
     let term_1 = nu_half_minus_one
         .checked_mul(ln_x)
         .ok_or(HpError::Overflow)?;
-    let term_3 = nu_half_dec
-        .checked_mul(ln_two)
-        .ok_or(HpError::Overflow)?;
+    let term_3 = nu_half_dec.checked_mul(ln_two).ok_or(HpError::Overflow)?;
     // ln Γ(ν/2) via the Lanczos f64 helper from Plan 33-02.
     let lng_f64 = ln_gamma(nu_f64 / 2.0)?;
     let lng_dec = Decimal::from_f64(lng_f64).ok_or(HpError::Overflow)?;

@@ -68,8 +68,7 @@ fn rand_sequence_deterministic_after_save_load() {
     let mut state_b = CalcState::new();
     state_b.rand_seed = hp(7, 1); // 0.7
     let json = serde_json::to_string(&state_b).expect("CalcState must serialize");
-    let mut state_b: CalcState =
-        serde_json::from_str(&json).expect("CalcState must deserialize");
+    let mut state_b: CalcState = serde_json::from_str(&json).expect("CalcState must deserialize");
     // Sanity: the round-trip preserved rand_seed.
     assert_eq!(
         state_b.rand_seed,

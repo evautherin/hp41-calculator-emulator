@@ -45,9 +45,7 @@
 use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::math1::modal::ModalProgram;
-use crate::ops::stat1::distributions::{
-    norm_cdf_inv_f64, quantile_threshold, QUANTILE_MAX_ITERS,
-};
+use crate::ops::stat1::distributions::{norm_cdf_inv_f64, quantile_threshold, QUANTILE_MAX_ITERS};
 use crate::ops::stat1::modal::Stat1Step;
 use crate::stack::{apply_lift_effect, unary_result, LiftEffect};
 use crate::state::CalcState;
@@ -225,10 +223,7 @@ mod tests {
             state.modal_program,
             Some(ModalProgram::Stat1(Stat1Step::NormdModeChoice))
         ));
-        assert_eq!(
-            state.modal_prompt,
-            Some("\u{03A3}NORMD MODE?".to_string())
-        );
+        assert_eq!(state.modal_prompt, Some("\u{03A3}NORMD MODE?".to_string()));
     }
 
     /// Catches: cancel-flag sticky regression — op_sigma_normd_workflow must
@@ -346,10 +341,7 @@ mod tests {
         op_sigma_normd_eval_inverse(&mut state).unwrap();
         let x_f64 = state.stack.x.inner().to_f64().unwrap();
         // scipy.stats.norm.ppf(0.5) = 0.0 (exact).
-        assert!(
-            x_f64.abs() < 1e-9,
-            "Φ⁻¹(0.5) should be ≈ 0, got {x_f64}"
-        );
+        assert!(x_f64.abs() < 1e-9, "Φ⁻¹(0.5) should be ≈ 0, got {x_f64}");
     }
 
     /// Catches: ΣNORMD inverse tail symmetry — Φ⁻¹(0.975) = +1.959963984540054.

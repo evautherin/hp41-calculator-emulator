@@ -144,8 +144,8 @@ pub const STAT_1: XromModule = XromModule {
     ops: &[
         // ── Stat 1 Pac Univariate / Bivariate Summaries ────────────────────────
         // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
-        ("\u{03A3}BSTAT", Op::SigmaBstat),  // ΣBSTAT — Plan 33-05
-        ("\u{03A3}BSTG", Op::SigmaBstg),    // ΣBSTG  — Plan 33-05
+        ("\u{03A3}BSTAT", Op::SigmaBstat), // ΣBSTAT — Plan 33-05
+        ("\u{03A3}BSTG", Op::SigmaBstg),   // ΣBSTG  — Plan 33-05
         ("\u{03A3}MMTUG", Op::SigmaMmtug), // ΣMMTUG — Plan 33-06
         ("\u{03A3}MMTGD", Op::SigmaMmtgd), // ΣMMTGD — Plan 33-06
         // ── Stat 1 Pac ANOVA Family ────────────────────────────────────────────
@@ -155,14 +155,14 @@ pub const STAT_1: XromModule = XromModule {
         // ── Stat 1 Pac Curve Fitting + Regression ─────────────────────────────
         // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants via
         // log-linearization + op_sigma_plus delegate (anti-duplication).
-        ("\u{03A3}LIN", Op::SigmaLin),    // ΣLIN    — Plan 33-05
-        ("\u{03A3}EXP", Op::SigmaExp),    // ΣEXP    — Plan 33-05
-        ("\u{03A3}LOGI", Op::SigmaLogi),  // ΣLOGI   — Plan 33-05
-        ("\u{03A3}POW", Op::SigmaPow),    // ΣPOW    — Plan 33-05
-        ("\u{03A3}MLRXY", Op::SigmaMlrxy),  // ΣMLRXY  — Plan 33-08
+        ("\u{03A3}LIN", Op::SigmaLin),       // ΣLIN    — Plan 33-05
+        ("\u{03A3}EXP", Op::SigmaExp),       // ΣEXP    — Plan 33-05
+        ("\u{03A3}LOGI", Op::SigmaLogi),     // ΣLOGI   — Plan 33-05
+        ("\u{03A3}POW", Op::SigmaPow),       // ΣPOW    — Plan 33-05
+        ("\u{03A3}MLRXY", Op::SigmaMlrxy),   // ΣMLRXY  — Plan 33-08
         ("\u{03A3}MLRXYZ", Op::SigmaMlrxyz), // ΣMLRXYZ — Plan 33-08
         ("\u{03A3}POLYP", Op::SigmaPolypWorkflow), // ΣPOLYP — Plan 33-08
-        ("\u{03A3}POLYC", Op::SigmaPolyc),  // ΣPOLYC  — Plan 33-08
+        ("\u{03A3}POLYC", Op::SigmaPolyc),   // ΣPOLYC  — Plan 33-08
         // ── Stat 1 Pac Hypothesis Tests ────────────────────────────────────────
         // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
         ("\u{03A3}PTST", Op::SigmaPtst),   // ΣPTST   — Plan 33-07
@@ -171,17 +171,17 @@ pub const STAT_1: XromModule = XromModule {
         // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ real Op variants.
         ("\u{03A3}XSQEV", Op::SigmaXsqev), // ΣXSQEV  — Plan 33-04
         ("\u{03A3}EFXSQ", Op::SigmaEfxsq), // ΣEFXSQ  — Plan 33-04
-        ("\u{03A3}CTKKK", Op::SigmaCtkkk),  // ΣCTKKK  — Plan 33-06
-        ("\u{03A3}CTKK", Op::SigmaCtkk),    // ΣCTKK   — Plan 33-06
+        ("\u{03A3}CTKKK", Op::SigmaCtkkk), // ΣCTKKK  — Plan 33-06
+        ("\u{03A3}CTKK", Op::SigmaCtkk),   // ΣCTKK   — Plan 33-06
         ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
         // ── Stat 1 Pac Distributions ───────────────────────────────────────────
         // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
-        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow),   // ΣNORMD  — Plan 33-03
+        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow), // ΣNORMD  — Plan 33-03
         ("\u{03A3}CHISQD", Op::SigmaChisqdWorkflow), // ΣCHISQD — Plan 33-03
         // ── Stat 1 Pac RAND/SEED (emulator extension per D-33.4) ──────────────
         // Plan 33-08: RAND + SEED → real Op variants (final stub swap).
-        ("RAND", Op::Rand),                // RAND    — Plan 33-08
-        ("SEED", Op::Seed),                // SEED    — Plan 33-08
+        ("RAND", Op::Rand), // RAND    — Plan 33-08
+        ("SEED", Op::Seed), // SEED    — Plan 33-08
     ],
 };
 

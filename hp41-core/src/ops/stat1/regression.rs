@@ -214,8 +214,18 @@ pub fn op_sigma_mlrxyz(state: &mut CalcState) -> Result<(), HpError> {
     let sx2x3 = r(state, STAT1_MLRXYZ_SUM_X2X3_REG);
     let mut matrix = vec![
         vec![n, sx1.clone(), sx2.clone(), sx3.clone()],
-        vec![sx1, r(state, STAT1_MLRXYZ_SUM_X1SQ_REG), sx1x2.clone(), sx1x3.clone()],
-        vec![sx2, sx1x2, r(state, STAT1_MLRXYZ_SUM_X2SQ_REG), sx2x3.clone()],
+        vec![
+            sx1,
+            r(state, STAT1_MLRXYZ_SUM_X1SQ_REG),
+            sx1x2.clone(),
+            sx1x3.clone(),
+        ],
+        vec![
+            sx2,
+            sx1x2,
+            r(state, STAT1_MLRXYZ_SUM_X2SQ_REG),
+            sx2x3.clone(),
+        ],
         vec![sx3, sx1x3, sx2x3, r(state, STAT1_MLRXYZ_SUM_X3SQ_REG)],
     ];
     let mut rhs = vec![
@@ -649,7 +659,7 @@ mod tests {
         state.regs[STAT1_POLYP_SUM_X_BASE_REG + 1] = HpNum::from(55i32); // Σx²
         state.regs[STAT1_POLYP_SUM_X_BASE_REG + 2] = HpNum::from(225i32); // Σx³
         state.regs[STAT1_POLYP_SUM_X_BASE_REG + 3] = HpNum::from(979i32); // Σx⁴
-        // Σ(x^k·y) at offsets k for k=0..2.
+                                                                          // Σ(x^k·y) at offsets k for k=0..2.
         state.regs[STAT1_POLYP_SUM_XY_BASE_REG] = HpNum::from(55i32); // Σy
         state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 1] = HpNum::from(225i32); // Σxy
         state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 2] = HpNum::from(979i32); // Σx²y

@@ -193,7 +193,10 @@ mod tests {
             seq1.push(s1.rand_seed.clone());
             seq2.push(s2.rand_seed.clone());
         }
-        assert_eq!(seq1, seq2, "identical seeds must yield identical RAND sequences");
+        assert_eq!(
+            seq1, seq2,
+            "identical seeds must yield identical RAND sequences"
+        );
     }
 
     /// SEED modal opener sets the carrier-enum variant and prompt.

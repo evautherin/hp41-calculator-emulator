@@ -255,7 +255,11 @@ mod tests {
         load_spec_req7_dataset(&mut state);
         op_sigma_bstat(&mut state).expect("ΣBSTAT with valid n=5 must succeed");
         // X = CV_x ≈ 0.5270
-        assert_relative_eq!(as_f64(&state.stack.x), 0.5270462766947299, max_relative = 1e-9);
+        assert_relative_eq!(
+            as_f64(&state.stack.x),
+            0.5270462766947299,
+            max_relative = 1e-9
+        );
         // Y = μ_x = 3.0
         assert_relative_eq!(as_f64(&state.stack.y), 3.0, max_relative = 1e-9);
     }
@@ -271,7 +275,11 @@ mod tests {
         state.regs[2] = HpNum::from(15i32); // Σx
         state.regs[3] = HpNum::from(5i32); // n
         op_sigma_bstat(&mut state).unwrap();
-        assert_relative_eq!(as_f64(&state.stack.x), 0.5270462766947299, max_relative = 1e-9);
+        assert_relative_eq!(
+            as_f64(&state.stack.x),
+            0.5270462766947299,
+            max_relative = 1e-9
+        );
         assert_relative_eq!(as_f64(&state.stack.y), 3.0, max_relative = 1e-9);
     }
 
@@ -299,7 +307,11 @@ mod tests {
         state.regs[2] = HpNum::from(6i32); // 2 + 4
         state.regs[3] = HpNum::from(2i32);
         op_sigma_bstat(&mut state).unwrap();
-        assert_relative_eq!(as_f64(&state.stack.x), 0.4714045207910317, max_relative = 1e-9);
+        assert_relative_eq!(
+            as_f64(&state.stack.x),
+            0.4714045207910317,
+            max_relative = 1e-9
+        );
         assert_relative_eq!(as_f64(&state.stack.y), 3.0, max_relative = 1e-9);
     }
 
@@ -347,7 +359,11 @@ mod tests {
         load_spec_req7_dataset(&mut state);
         op_sigma_bstg(&mut state).expect("ΣBSTG with valid n=5 must succeed");
         // X = μ_w = 550 / 150 ≈ 3.6667
-        assert_relative_eq!(as_f64(&state.stack.x), 3.6666666666666665, max_relative = 1e-9);
+        assert_relative_eq!(
+            as_f64(&state.stack.x),
+            3.6666666666666665,
+            max_relative = 1e-9
+        );
         // Y = μ_x = 15 / 5 = 3.0
         assert_relative_eq!(as_f64(&state.stack.y), 3.0, max_relative = 1e-9);
     }
@@ -414,7 +430,7 @@ mod tests {
     fn bstg_zero_n_returns_invalid() {
         let mut state = CalcState::new();
         state.regs[5] = HpNum::from(1i32); // Σw nonzero to avoid that branch
-        // Σx and n both zero (default).
+                                           // Σx and n both zero (default).
         assert_eq!(op_sigma_bstg(&mut state).unwrap_err(), HpError::InvalidOp);
     }
 
