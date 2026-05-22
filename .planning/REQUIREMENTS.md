@@ -16,63 +16,63 @@ Requirements for v3.1 Stat 1 Pac Emulation. Each maps to exactly one phase durin
 
 ### XROM Framework Activation (STAT-FW)
 
-- [ ] **STAT-FW-01**: `STAT_1` `XromModule` const registered with `id = 2`; `xrom_resolve()` fires LAST in the resolver chain after `MATH_1` (Pitfall 1 — Stat 1 ops never shadow built-in mnemonics or Math Pac I entry points)
-- [ ] **STAT-FW-02**: `default_xrom_modules()` returns `0b0000_0011` enabling both `MATH_1` and `STAT_1`; v3.0 save files (with `xrom_modules: 1`) migrate at startup to set bit 1 (Pitfall 24 — backward-compat migration; `#[serde(default)]` does not retroactively change stored values)
-- [ ] **STAT-FW-03**: 4-way exhaustive-match invariant honored for every new `Op` variant — landing in `dispatch()` (`hp41-core/src/ops/mod.rs`) + `execute_op()` (`hp41-core/src/ops/program.rs`) + `op_display_name()` (`hp41-cli/src/prgm_display.rs`) + `op_display_name()` (`hp41-gui/src-tauri/src/prgm_display.rs`) before any caller compiles
-- [ ] **STAT-FW-04**: All 14 entry points across the 13 QRC programs callable via XEQ-by-name from CLI keyboard, hp41-gui app, and within user programs (`run_program` / `run_loop`); per-call lift effect declared per HP-41 stack-lift semantics
+- [x] **STAT-FW-01**: `STAT_1` `XromModule` const registered with `id = 2`; `xrom_resolve()` fires LAST in the resolver chain after `MATH_1` (Pitfall 1 — Stat 1 ops never shadow built-in mnemonics or Math Pac I entry points)
+- [x] **STAT-FW-02**: `default_xrom_modules()` returns `0b0000_0011` enabling both `MATH_1` and `STAT_1`; v3.0 save files (with `xrom_modules: 1`) migrate at startup to set bit 1 (Pitfall 24 — backward-compat migration; `#[serde(default)]` does not retroactively change stored values)
+- [x] **STAT-FW-03**: 4-way exhaustive-match invariant honored for every new `Op` variant — landing in `dispatch()` (`hp41-core/src/ops/mod.rs`) + `execute_op()` (`hp41-core/src/ops/program.rs`) + `op_display_name()` (`hp41-cli/src/prgm_display.rs`) + `op_display_name()` (`hp41-gui/src-tauri/src/prgm_display.rs`) before any caller compiles
+- [x] **STAT-FW-04**: All 14 entry points across the 13 QRC programs callable via XEQ-by-name from CLI keyboard, hp41-gui app, and within user programs (`run_program` / `run_loop`); per-call lift effect declared per HP-41 stack-lift semantics
 
 ### Univariate Stats (STAT-UNI)
 
-- [ ] **STAT-UNI-01**: User can compute extended univariate stats (weighted mean, coefficient of variation σ/μ, etc.) via `XEQ "ΣBSTAT"` and `XEQ "ΣBSTG"` — bivariate summary forms also covered
-- [ ] **STAT-UNI-02**: User can compute third + fourth central moments + skewness γ₁ = μ₃/σ³ + kurtosis γ₂ = μ₄/σ⁴ − 3 via `XEQ "ΣMMTUG"` (ungrouped) / `XEQ "ΣMMTGD"` (grouped, frequency-weighted)
-- [ ] **STAT-UNI-03**: ΣMMTUG / ΣMMTGD extend the Σ-register layout per OM "Storage Registers" section; layout transcribed from OM in Phase 33 spec phase before implementation (Pitfall 21 critical path); SIZE-floor guard in `hp41-core/src/ops/stats.rs` raised to cover the new maximum register index
-- [ ] **STAT-UNI-04**: User-initiated correction via `[C]` label key (undoing the most recent accumulation) works correctly for all univariate accumulation paths
+- [x] **STAT-UNI-01**: User can compute extended univariate stats (weighted mean, coefficient of variation σ/μ, etc.) via `XEQ "ΣBSTAT"` and `XEQ "ΣBSTG"` — bivariate summary forms also covered
+- [x] **STAT-UNI-02**: User can compute third + fourth central moments + skewness γ₁ = μ₃/σ³ + kurtosis γ₂ = μ₄/σ⁴ − 3 via `XEQ "ΣMMTUG"` (ungrouped) / `XEQ "ΣMMTGD"` (grouped, frequency-weighted)
+- [x] **STAT-UNI-03**: ΣMMTUG / ΣMMTGD extend the Σ-register layout per OM "Storage Registers" section; layout transcribed from OM in Phase 33 spec phase before implementation (Pitfall 21 critical path); SIZE-floor guard in `hp41-core/src/ops/stats.rs` raised to cover the new maximum register index
+- [x] **STAT-UNI-04**: User-initiated correction via `[C]` label key (undoing the most recent accumulation) works correctly for all univariate accumulation paths
 
 ### ANOVA Family (STAT-AOV)
 
-- [ ] **STAT-AOV-01**: User can compute one-way ANOVA F-ratio + group means via `XEQ "ΣAOVONE"`
-- [ ] **STAT-AOV-02**: User can compute two-way ANOVA (no replications) row + column F-ratios via `XEQ "ΣAOVTWO"`
-- [ ] **STAT-AOV-03**: User can compute one-way ANCOVA F-ratio with covariate adjustment via `XEQ "ΣANOCOV"`
-- [ ] **STAT-AOV-04**: ANOVA programs respect OM-verified register layout for between-group / within-group accumulators and group-count registers (Pitfall 21 — register layout cannot be guessed; OM verification gates implementation)
+- [x] **STAT-AOV-01**: User can compute one-way ANOVA F-ratio + group means via `XEQ "ΣAOVONE"`
+- [x] **STAT-AOV-02**: User can compute two-way ANOVA (no replications) row + column F-ratios via `XEQ "ΣAOVTWO"`
+- [x] **STAT-AOV-03**: User can compute one-way ANCOVA F-ratio with covariate adjustment via `XEQ "ΣANOCOV"`
+- [x] **STAT-AOV-04**: ANOVA programs respect OM-verified register layout for between-group / within-group accumulators and group-count registers (Pitfall 21 — register layout cannot be guessed; OM verification gates implementation)
 
 ### Regression Family (STAT-REG)
 
-- [ ] **STAT-REG-01**: User can fit linear curve `ŷ = a + bx` via `XEQ "ΣLIN"`
-- [ ] **STAT-REG-02**: User can fit exponential curve `ŷ = a·e^(bx)` via `XEQ "ΣEXP"` (accumulates `(x, ln y)`)
-- [ ] **STAT-REG-03**: User can fit logarithmic curve `ŷ = a + b·ln(x)` via `XEQ "ΣLOGI"` (accumulates `(ln x, y)`)
-- [ ] **STAT-REG-04**: User can fit power curve `ŷ = a·x^b` via `XEQ "ΣPOW"` (accumulates `(ln x, ln y)`)
-- [ ] **STAT-REG-05**: User can compute 2-predictor multiple linear regression via `XEQ "ΣMLRXY"` (partial regression coefficients + prediction)
-- [ ] **STAT-REG-06**: User can compute 3-predictor multiple linear regression via `XEQ "ΣMLRXYZ"`
-- [ ] **STAT-REG-07**: User can fit polynomial regression via `XEQ "ΣPOLYP"` with OM-confirmed degree-prompt protocol (tentative `DEGREE=?` per Math Pac I `POLY` precedent — verified in Phase 33)
-- [ ] **STAT-REG-08**: User can predict `ŷ` for a given x via `XEQ "ΣPOLYC"` after polynomial fit
-- [ ] **STAT-REG-09**: Multiple-regression and polynomial-regression normal equations solved via self-contained 2×2 / 3×3 / (d+1)×(d+1) Gauss elimination in `ops/stat1/` — NOT the Math Pac I MATRIX solver (decoupled to avoid cross-XROM dependency)
+- [x] **STAT-REG-01**: User can fit linear curve `ŷ = a + bx` via `XEQ "ΣLIN"`
+- [x] **STAT-REG-02**: User can fit exponential curve `ŷ = a·e^(bx)` via `XEQ "ΣEXP"` (accumulates `(x, ln y)`)
+- [x] **STAT-REG-03**: User can fit logarithmic curve `ŷ = a + b·ln(x)` via `XEQ "ΣLOGI"` (accumulates `(ln x, y)`)
+- [x] **STAT-REG-04**: User can fit power curve `ŷ = a·x^b` via `XEQ "ΣPOW"` (accumulates `(ln x, ln y)`)
+- [x] **STAT-REG-05**: User can compute 2-predictor multiple linear regression via `XEQ "ΣMLRXY"` (partial regression coefficients + prediction)
+- [x] **STAT-REG-06**: User can compute 3-predictor multiple linear regression via `XEQ "ΣMLRXYZ"`
+- [x] **STAT-REG-07**: User can fit polynomial regression via `XEQ "ΣPOLYP"` with OM-confirmed degree-prompt protocol (tentative `DEGREE=?` per Math Pac I `POLY` precedent — verified in Phase 33)
+- [x] **STAT-REG-08**: User can predict `ŷ` for a given x via `XEQ "ΣPOLYC"` after polynomial fit
+- [x] **STAT-REG-09**: Multiple-regression and polynomial-regression normal equations solved via self-contained 2×2 / 3×3 / (d+1)×(d+1) Gauss elimination in `ops/stat1/` — NOT the Math Pac I MATRIX solver (decoupled to avoid cross-XROM dependency)
 
 ### Hypothesis Tests (STAT-HYP)
 
-- [ ] **STAT-HYP-01**: User can perform one-sample t-test via `XEQ "ΣPTST"` — returns t-statistic and p-value
-- [ ] **STAT-HYP-02**: User can perform two-sample t-test via `XEQ "ΣTSTAT"` with OM-confirmed pooled-variance convention (Welch convention rejected if OM specifies pooled — verify in Phase 33 spec phase)
-- [ ] **STAT-HYP-03**: User can compute χ² goodness-of-fit statistic via `XEQ "ΣXSQEV"` from observed + expected counts
-- [ ] **STAT-HYP-04**: User can compute χ² with expected-frequency-as-proportion entry path via `XEQ "ΣEFXSQ"`
-- [ ] **STAT-HYP-05**: User can compute general r×c contingency χ² via `XEQ "ΣCTKKK"`
-- [ ] **STAT-HYP-06**: User can compute smaller (2×c or comparable) contingency χ² via `XEQ "ΣCTKK"`
-- [ ] **STAT-HYP-07**: User can compute Spearman's rank correlation ρ_s via `XEQ "ΣSPEAR"` (closed-form via Σ-block, SIZE 003 — simplest of all 13 programs)
+- [x] **STAT-HYP-01**: User can perform one-sample t-test via `XEQ "ΣPTST"` — returns t-statistic and p-value
+- [x] **STAT-HYP-02**: User can perform two-sample t-test via `XEQ "ΣTSTAT"` with OM-confirmed pooled-variance convention (Welch convention rejected if OM specifies pooled — verify in Phase 33 spec phase)
+- [x] **STAT-HYP-03**: User can compute χ² goodness-of-fit statistic via `XEQ "ΣXSQEV"` from observed + expected counts
+- [x] **STAT-HYP-04**: User can compute χ² with expected-frequency-as-proportion entry path via `XEQ "ΣEFXSQ"`
+- [x] **STAT-HYP-05**: User can compute general r×c contingency χ² via `XEQ "ΣCTKKK"`
+- [x] **STAT-HYP-06**: User can compute smaller (2×c or comparable) contingency χ² via `XEQ "ΣCTKK"`
+- [x] **STAT-HYP-07**: User can compute Spearman's rank correlation ρ_s via `XEQ "ΣSPEAR"` (closed-form via Σ-block, SIZE 003 — simplest of all 13 programs)
 
 ### Distribution Evaluators (STAT-DST)
 
-- [ ] **STAT-DST-01**: User can evaluate standard normal upper-tail CDF Q(x) = 1 − Φ(x) via `XEQ "ΣNORMD"` mode `[E]` (HP-41 Q(x) convention per OM + NPS p. 33)
-- [ ] **STAT-DST-02**: User can evaluate standard normal PDF φ(x) via `XEQ "ΣNORMD"` mode `[C]`
-- [ ] **STAT-DST-03**: User can compute inverse normal quantile Φ⁻¹(p) via `XEQ "ΣNORMD"` mode `[A]` — Acklam/AS 241 rational approximation with bisection refinement for tails
-- [ ] **STAT-DST-04**: User can evaluate chi-square PDF f(x; ν) via `XEQ "ΣCHISQD"` mode `[C]` with OM-confirmed ν entry protocol (tentative: ν entered via `[A]` before x evaluation — verified in Phase 33)
-- [ ] **STAT-DST-05**: User can evaluate chi-square CDF P(x; ν) via `XEQ "ΣCHISQD"` mode `[E]` — regularized lower incomplete gamma function
-- [ ] **STAT-DST-06**: `hp41-core/src/ops/stat1/distributions.rs` provides three hand-coded f64-bridge primitives: `norm_cdf_inv_f64` (Acklam/AS 241, ~30 lines), `gamma_regularized_f64` (AS 239 series + continued-fraction, ~50 lines for ΣCHISQD), `beta_regularized_f64` (AS 63, ~60 lines for ΣTSTAT) — total ~140 LOC; built and validated against scipy.stats oracle BEFORE any program `Op` is implemented
-- [ ] **STAT-DST-07**: Iterative-quantile paths honor `request_cancel` (per-loop AtomicBool check) and use display-mode-tied convergence threshold (10^(-decimals - 1)) — same termination shape as Math Pac I `INTG` / `SOLVE` (Pitfall 19 — Newton + bisection hybrid for tail probabilities p near 0 or 1)
+- [x] **STAT-DST-01**: User can evaluate standard normal upper-tail CDF Q(x) = 1 − Φ(x) via `XEQ "ΣNORMD"` mode `[E]` (HP-41 Q(x) convention per OM + NPS p. 33)
+- [x] **STAT-DST-02**: User can evaluate standard normal PDF φ(x) via `XEQ "ΣNORMD"` mode `[C]`
+- [x] **STAT-DST-03**: User can compute inverse normal quantile Φ⁻¹(p) via `XEQ "ΣNORMD"` mode `[A]` — Acklam/AS 241 rational approximation with bisection refinement for tails
+- [x] **STAT-DST-04**: User can evaluate chi-square PDF f(x; ν) via `XEQ "ΣCHISQD"` mode `[C]` with OM-confirmed ν entry protocol (tentative: ν entered via `[A]` before x evaluation — verified in Phase 33)
+- [x] **STAT-DST-05**: User can evaluate chi-square CDF P(x; ν) via `XEQ "ΣCHISQD"` mode `[E]` — regularized lower incomplete gamma function
+- [x] **STAT-DST-06**: `hp41-core/src/ops/stat1/distributions.rs` provides three hand-coded f64-bridge primitives: `norm_cdf_inv_f64` (Acklam/AS 241, ~30 lines), `gamma_regularized_f64` (AS 239 series + continued-fraction, ~50 lines for ΣCHISQD), `beta_regularized_f64` (AS 63, ~60 lines for ΣTSTAT) — total ~140 LOC; built and validated against scipy.stats oracle BEFORE any program `Op` is implemented
+- [x] **STAT-DST-07**: Iterative-quantile paths honor `request_cancel` (per-loop AtomicBool check) and use display-mode-tied convergence threshold (10^(-decimals - 1)) — same termination shape as Math Pac I `INTG` / `SOLVE` (Pitfall 19 — Newton + bisection hybrid for tail probabilities p near 0 or 1)
 
 ### RNG Bonus Utility (STAT-RNG)
 
-- [ ] **STAT-RNG-01**: User can generate next pseudorandom uniform in [0, 1) via `XEQ "RAND"` using the HP-41 community formula `r_{n+1} = FRC(9821 · r_n + 0.211327)` (confirmed by NPS p. 21; attributed to Don Malm, HP-65 User's Library, referenced by HP-41C Standard Applications manual p. 24)
-- [ ] **STAT-RNG-02**: User can seed the generator via `XEQ "SEED"` with ALPHA prompt `SEED?` (confirmed by NPS p. 22 ZP4 program convention)
-- [ ] **STAT-RNG-03**: `rand_seed: HpNum` field on `CalcState` uses `#[serde(default)]` WITHOUT `#[serde(skip)]` — survives save/load so reproducible simulations work across sessions (Pitfall 20 — the ONLY new v3.1 `CalcState` field with this serde shape; all other XROM transient fields use `skip`)
-- [ ] **STAT-RNG-04**: README + `docs/hp41-stat1-divergences.md` document RAND/SEED as a v3.1 emulator extension — NOT part of the "feature-complete per OM 00041-90030" claim (the OM does not list a standalone RAND/SEED XROM entry point per current research; this is community convention)
+- [x] **STAT-RNG-01**: User can generate next pseudorandom uniform in [0, 1) via `XEQ "RAND"` using the HP-41 community formula `r_{n+1} = FRC(9821 · r_n + 0.211327)` (confirmed by NPS p. 21; attributed to Don Malm, HP-65 User's Library, referenced by HP-41C Standard Applications manual p. 24)
+- [x] **STAT-RNG-02**: User can seed the generator via `XEQ "SEED"` with ALPHA prompt `SEED?` (confirmed by NPS p. 22 ZP4 program convention)
+- [x] **STAT-RNG-03**: `rand_seed: HpNum` field on `CalcState` uses `#[serde(default)]` WITHOUT `#[serde(skip)]` — survives save/load so reproducible simulations work across sessions (Pitfall 20 — the ONLY new v3.1 `CalcState` field with this serde shape; all other XROM transient fields use `skip`)
+- [x] **STAT-RNG-04**: README + `docs/hp41-stat1-divergences.md` document RAND/SEED as a v3.1 emulator extension — NOT part of the "feature-complete per OM 00041-90030" claim (the OM does not list a standalone RAND/SEED XROM entry point per current research; this is community convention)
 
 ### CLI Integration (STAT-CLI)
 
@@ -171,45 +171,45 @@ Which phases cover which requirements. Filled by `gsd-roadmapper` during roadmap
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAT-FW-01 | Phase 33 | Pending |
-| STAT-FW-02 | Phase 33 | Pending |
-| STAT-FW-03 | Phase 33 | Pending |
-| STAT-FW-04 | Phase 33 | Pending |
-| STAT-UNI-01 | Phase 33 | Pending |
-| STAT-UNI-02 | Phase 33 | Pending |
-| STAT-UNI-03 | Phase 33 | Pending |
-| STAT-UNI-04 | Phase 33 | Pending |
-| STAT-AOV-01 | Phase 33 | Pending |
-| STAT-AOV-02 | Phase 33 | Pending |
-| STAT-AOV-03 | Phase 33 | Pending |
-| STAT-AOV-04 | Phase 33 | Pending |
-| STAT-REG-01 | Phase 33 | Pending |
-| STAT-REG-02 | Phase 33 | Pending |
-| STAT-REG-03 | Phase 33 | Pending |
-| STAT-REG-04 | Phase 33 | Pending |
-| STAT-REG-05 | Phase 33 | Pending |
-| STAT-REG-06 | Phase 33 | Pending |
-| STAT-REG-07 | Phase 33 | Pending |
-| STAT-REG-08 | Phase 33 | Pending |
-| STAT-REG-09 | Phase 33 | Pending |
-| STAT-HYP-01 | Phase 33 | Pending |
-| STAT-HYP-02 | Phase 33 | Pending |
-| STAT-HYP-03 | Phase 33 | Pending |
-| STAT-HYP-04 | Phase 33 | Pending |
-| STAT-HYP-05 | Phase 33 | Pending |
-| STAT-HYP-06 | Phase 33 | Pending |
-| STAT-HYP-07 | Phase 33 | Pending |
-| STAT-DST-01 | Phase 33 | Pending |
-| STAT-DST-02 | Phase 33 | Pending |
-| STAT-DST-03 | Phase 33 | Pending |
-| STAT-DST-04 | Phase 33 | Pending |
-| STAT-DST-05 | Phase 33 | Pending |
-| STAT-DST-06 | Phase 33 | Pending |
-| STAT-DST-07 | Phase 33 | Pending |
-| STAT-RNG-01 | Phase 33 | Pending |
-| STAT-RNG-02 | Phase 33 | Pending |
-| STAT-RNG-03 | Phase 33 | Pending |
-| STAT-RNG-04 | Phase 33 | Pending |
+| STAT-FW-01 | Phase 33 | Complete |
+| STAT-FW-02 | Phase 33 | Complete |
+| STAT-FW-03 | Phase 33 | Complete |
+| STAT-FW-04 | Phase 33 | Complete |
+| STAT-UNI-01 | Phase 33 | Complete |
+| STAT-UNI-02 | Phase 33 | Complete |
+| STAT-UNI-03 | Phase 33 | Complete |
+| STAT-UNI-04 | Phase 33 | Complete |
+| STAT-AOV-01 | Phase 33 | Complete |
+| STAT-AOV-02 | Phase 33 | Complete |
+| STAT-AOV-03 | Phase 33 | Complete |
+| STAT-AOV-04 | Phase 33 | Complete |
+| STAT-REG-01 | Phase 33 | Complete |
+| STAT-REG-02 | Phase 33 | Complete |
+| STAT-REG-03 | Phase 33 | Complete |
+| STAT-REG-04 | Phase 33 | Complete |
+| STAT-REG-05 | Phase 33 | Complete |
+| STAT-REG-06 | Phase 33 | Complete |
+| STAT-REG-07 | Phase 33 | Complete |
+| STAT-REG-08 | Phase 33 | Complete |
+| STAT-REG-09 | Phase 33 | Complete |
+| STAT-HYP-01 | Phase 33 | Complete |
+| STAT-HYP-02 | Phase 33 | Complete |
+| STAT-HYP-03 | Phase 33 | Complete |
+| STAT-HYP-04 | Phase 33 | Complete |
+| STAT-HYP-05 | Phase 33 | Complete |
+| STAT-HYP-06 | Phase 33 | Complete |
+| STAT-HYP-07 | Phase 33 | Complete |
+| STAT-DST-01 | Phase 33 | Complete |
+| STAT-DST-02 | Phase 33 | Complete |
+| STAT-DST-03 | Phase 33 | Complete |
+| STAT-DST-04 | Phase 33 | Complete |
+| STAT-DST-05 | Phase 33 | Complete |
+| STAT-DST-06 | Phase 33 | Complete |
+| STAT-DST-07 | Phase 33 | Complete |
+| STAT-RNG-01 | Phase 33 | Complete |
+| STAT-RNG-02 | Phase 33 | Complete |
+| STAT-RNG-03 | Phase 33 | Complete |
+| STAT-RNG-04 | Phase 33 | Complete |
 | STAT-CLI-01 | Phase 34 | Pending |
 | STAT-CLI-02 | Phase 34 | Pending |
 | STAT-CLI-03 | Phase 34 | Pending |

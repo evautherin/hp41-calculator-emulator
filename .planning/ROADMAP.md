@@ -163,7 +163,7 @@ Plans:
 | — | v2.1 | quick tasks | Complete | 2026-05-13 |
 | 20–27 | v2.2 | 26/26 | Complete | 2026-05-15 |
 | 28–32 | v3.0 | 31/31 | Complete | 2026-05-20 |
-| 33 | v3.1 | 9/9 | Complete   | 2026-05-22 |
+| 33 | v3.1 | 9/9 | Complete    | 2026-05-22 |
 | 34 | v3.1 | 0/0 | Not started | - |
 | 35 | v3.1 | 0/0 | Not started | - |
 | 36 | v3.1 | 0/0 | Not started | - |
