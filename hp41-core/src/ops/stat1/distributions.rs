@@ -1,75 +1,29 @@
 // Algorithm independently re-derived from HP Stat 1 Pac Owner's Manual 00041-90030 (1979);
 // Free42 source consulted only as sanity-check oracle, not copied.
 //
-//! `stat1::distributions` — hand-coded f64-bridge distribution primitives.
+//! `stat1::distributions` — hand-coded f64-bridge distribution primitives
+//! consumed by Plans 33-03 (ΣNORMD, ΣCHISQD) + 33-07 (ΣPTST, ΣTSTAT).
+//! Every primitive validated against ≥6 inline scipy oracle tuples (D-33.6).
 //!
-//! Plan 33-02 ships three pure-algorithmic primitives consumed by Plans
-//! 33-03 (ΣNORMD, ΣCHISQD) and 33-07 (ΣPTST, ΣTSTAT). NO `Op` variants are
-//! added in this plan — these are bare `pub fn`s living inside `stat1`.
-//! Every primitive is validated against ≥6 inline scipy.stats / scipy.special
-//! oracle tuples in the `#[cfg(test)] mod tests` block per D-33.6.
-//!
-//! ## Algorithms + Sources (NON-GPL, NOT consulted from Free42 core_math2.cc)
-//!
-//! - **`norm_cdf_inv_f64`** — inverse standard-normal CDF.
-//!   - Algorithm: Peter J. Acklam (1996/1999), "An algorithm for computing the
-//!     inverse normal cumulative distribution function". Algorithmically
-//!     equivalent to AS 241 (Wichura 1988).
-//!   - Source: <https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/>
-//!   - License: Public domain (Acklam released the algorithm without restriction).
-//!
-//! - **`gamma_regularized_f64`** — regularized lower incomplete gamma P(s, x).
-//!   - Algorithm: AS 239 (Shea 1988), gser/gcf split at `x < s + 1`.
-//!   - Source: Numerical Recipes in C, 3rd ed. §6.2 (`gammp`/`gser`/`gcf`).
-//!   - License: Algorithm published in Applied Statistics, free academic use,
-//!     NOT GPL.
-//!
-//! - **`beta_regularized_f64`** — regularized incomplete beta I_x(a, b).
-//!   - Algorithm: AS 63 (Majumder & Bhattacharjee 1973), symmetric-swap +
-//!     modified-Lentz continued fraction.
-//!   - Source: Numerical Recipes in C, 3rd ed. §6.4 (`betai`/`betacf`).
-//!   - License: Algorithm published in Applied Statistics, free academic use,
-//!     NOT GPL.
-//!
-//! - **`ln_gamma`** — private helper for the regularized gamma and beta
-//!   primitives. Lanczos / Stirling series per Numerical Recipes §6.1
-//!   (`gammln`), AS 245 equivalent. Free academic use, NOT GPL.
-//!
-//! Per CLAUDE.md "Frozen Invariants — Core engine":
-//! - `#![deny(clippy::unwrap_used)]` is in force at crate root; production
-//!   code uses `?`-propagation or `.expect("reason")`. The `#[cfg(test)]`
-//!   block carries `#[allow(clippy::unwrap_used)]`.
-//! - No `println!` / `eprintln!` — distribution primitives are pure functions
-//!   with no side effects on `state.print_buffer`.
-//!
-//! Per CLAUDE.md "Free42 GPL-contamination guard":
-//! - The byte-for-byte disclaim header (lines 1–2) matches the math1/*.rs
-//!   pattern so `scripts/check-free42-contamination.sh` allow-lists this file
-//!   uniformly via the `DISCLAIM_LINE` substring.
-//! - All public function names in this file (`norm_cdf_inv_f64`,
-//!   `gamma_regularized_f64`, `beta_regularized_f64`) deliberately diverge
-//!   from any Free42 stats-domain prefix convention (the contamination
-//!   guard's PATTERN list lives in `scripts/check-free42-contamination.sh`
-//!   so this comment does not echo it).
+//! Sources (all NON-GPL, NOT from Free42 core_math2.cc):
+//! - `norm_cdf_inv_f64`: Acklam (1996/1999) ≡ AS 241 (Wichura 1988).
+//!   <https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/>.
+//!   Public domain.
+//! - `gamma_regularized_f64`: AS 239 (Shea 1988) / Numerical Recipes 3e §6.2.
+//! - `beta_regularized_f64`: AS 63 (Majumder & Bhattacharjee 1973) / NR §6.4.
+//! - `ln_gamma` (private): Lanczos series per NR §6.1 / AS 245.
 
-// Acklam (1996/1999) and AS 239 / AS 63 coefficient tables are written
-// verbatim from their published sources. clippy::excessive_precision would
-// nudge trailing-zero literals like `1.383_577_518_672_690e2` toward
-// `1.383_577_518_672_69e2`; both produce bit-identical f64 values, but
-// preserving the source's verbatim string form keeps the citation discipline
-// (per CLAUDE.md "Free42 GPL-contamination guard" / RESEARCH.md "DO NOT
-// paraphrase or 'improve' — copy-paste verbatim from the source").
+// Acklam / AS 239 / AS 63 coefficients are verbatim from their published
+// sources; clippy::excessive_precision is silenced to preserve citation form.
 #![allow(clippy::excessive_precision)]
 
 use crate::error::HpError;
 
-// ── Acklam (1996/1999) coefficient table ────────────────────────────────────
-//
-// Reference: <https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/>
-// Public-domain mirror of Acklam's algorithm (algorithmically equivalent to
-// AS 241 / Wichura 1988). 21 coefficients across four named tables. DO NOT
-// paraphrase — Acklam's accuracy claim (relative error < 1.15e-9 across the
-// entire (0,1) domain) is bounded by the EXACT values below.
+// Acklam (1996/1999) coefficient table. Source:
+// <https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/>
+// (public-domain mirror; algorithmically equivalent to AS 241 / Wichura 1988).
+// 21 coefficients verbatim — DO NOT paraphrase; Acklam's <1.15e-9 relative
+// error bound depends on the exact values below.
 
 const ACKLAM_A1: f64 = -3.969_683_028_665_376e1;
 const ACKLAM_A2: f64 = 2.209_460_984_245_205e2;
@@ -77,71 +31,50 @@ const ACKLAM_A3: f64 = -2.759_285_104_469_687e2;
 const ACKLAM_A4: f64 = 1.383_577_518_672_690e2;
 const ACKLAM_A5: f64 = -3.066_479_806_614_716e1;
 const ACKLAM_A6: f64 = 2.506_628_277_459_239e0;
-
 const ACKLAM_B1: f64 = -5.447_609_879_822_406e1;
 const ACKLAM_B2: f64 = 1.615_858_368_580_409e2;
 const ACKLAM_B3: f64 = -1.556_989_798_598_866e2;
 const ACKLAM_B4: f64 = 6.680_131_188_771_972e1;
 const ACKLAM_B5: f64 = -1.328_068_155_288_572e1;
-
 const ACKLAM_C1: f64 = -7.784_894_002_430_293e-3;
 const ACKLAM_C2: f64 = -3.223_964_580_411_365e-1;
 const ACKLAM_C3: f64 = -2.400_758_277_161_838e0;
 const ACKLAM_C4: f64 = -2.549_732_539_343_734e0;
 const ACKLAM_C5: f64 = 4.374_664_141_464_968e0;
 const ACKLAM_C6: f64 = 2.938_163_982_698_783e0;
-
 const ACKLAM_D1: f64 = 7.784_695_709_041_462e-3;
 const ACKLAM_D2: f64 = 3.224_671_290_700_398e-1;
 const ACKLAM_D3: f64 = 2.445_134_137_142_996e0;
 const ACKLAM_D4: f64 = 3.754_408_661_907_416e0;
 
-/// Region split-points for Acklam's three-branch rational approximation.
-/// `p < ACKLAM_P_LOW` → lower tail; `p > ACKLAM_P_HIGH` → upper tail;
-/// otherwise central. Values from Acklam (1996/1999).
+/// Region split-points for Acklam's three-branch rational approximation
+/// (Acklam 1996/1999): lower tail below, central in-band, upper tail above.
 const ACKLAM_P_LOW: f64 = 0.024_25;
 const ACKLAM_P_HIGH: f64 = 1.0 - ACKLAM_P_LOW;
 
-/// Inverse standard-normal cumulative distribution function Φ⁻¹(p).
-///
-/// Returns `x` such that Φ(x) = p, for p ∈ (0, 1). Closed-form rational
-/// approximation per Acklam (1996/1999), accuracy ~1.15e-9 relative error
-/// across the entire open interval (covered by ≥6 inline scipy oracle
-/// tuples in `tests` below).
+/// Inverse standard-normal CDF Φ⁻¹(p) for p ∈ (0, 1). Acklam rational
+/// approximation, ~1.15e-9 relative error (≥6 inline scipy oracle tuples).
 ///
 /// # Errors
 ///
-/// Returns `Err(HpError::Domain)` if:
-/// - `p` is not finite (NaN or ±∞), or
-/// - `p` is outside the open interval `(0, 1)` (the asymptotes p=0 and
-///   p=1 map to ±∞ which cannot be represented exactly in f64 — the
-///   outer ΣNORMD Op layer in Plan 33-03 surfaces these to the user
-///   as a domain error per OM 00041-90030 quantile-prompt semantics).
-///
-/// # References
-///
-/// - Acklam, Peter J. (1996/1999), "An algorithm for computing the inverse
-///   normal cumulative distribution function".
-/// - Mirror: <https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/>
+/// `HpError::Domain` if `p` is not finite or outside `(0, 1)` (asymptotes
+/// p ∈ {0, 1} map to ±∞; the outer ΣNORMD Op surfaces these to the user).
 pub fn norm_cdf_inv_f64(p: f64) -> Result<f64, HpError> {
     if !p.is_finite() || !(0.0..=1.0).contains(&p) {
         return Err(HpError::Domain);
     }
-    // Closed asymptotes: p=0 → -∞, p=1 → +∞ — surface as Domain (Plan 33-03
-    // ΣNORMD inverse Op may bisection-clip these, but the bare primitive is
-    // strict per RESEARCH.md line 307–311).
+    // Asymptotes p ∈ {0, 1} → ±∞: bare primitive surfaces as Domain;
+    // the Plan 33-03 ΣNORMD inverse Op may bisection-clip if it chooses.
     if p == 0.0 || p == 1.0 {
         return Err(HpError::Domain);
     }
-
+    // Three-branch rational approximation: lower-tail / central / upper-tail.
     let x = if p < ACKLAM_P_LOW {
-        // Lower tail: q = sqrt(-2·ln(p))
         let q = (-2.0_f64 * p.ln()).sqrt();
         (((((ACKLAM_C1 * q + ACKLAM_C2) * q + ACKLAM_C3) * q + ACKLAM_C4) * q + ACKLAM_C5) * q
             + ACKLAM_C6)
             / ((((ACKLAM_D1 * q + ACKLAM_D2) * q + ACKLAM_D3) * q + ACKLAM_D4) * q + 1.0)
     } else if p <= ACKLAM_P_HIGH {
-        // Central region: q = p − 0.5, r = q²
         let q = p - 0.5;
         let r = q * q;
         (((((ACKLAM_A1 * r + ACKLAM_A2) * r + ACKLAM_A3) * r + ACKLAM_A4) * r + ACKLAM_A5) * r
@@ -151,23 +84,18 @@ pub fn norm_cdf_inv_f64(p: f64) -> Result<f64, HpError> {
                 * r
                 + 1.0)
     } else {
-        // Upper tail: q = sqrt(-2·ln(1-p)), negate
         let q = (-2.0_f64 * (1.0 - p).ln()).sqrt();
         -(((((ACKLAM_C1 * q + ACKLAM_C2) * q + ACKLAM_C3) * q + ACKLAM_C4) * q + ACKLAM_C5) * q
             + ACKLAM_C6)
             / ((((ACKLAM_D1 * q + ACKLAM_D2) * q + ACKLAM_D3) * q + ACKLAM_D4) * q + 1.0)
     };
-
     Ok(x)
 }
 
-// ── ln_gamma (Numerical Recipes §6.1 / AS 245 Lanczos) ──────────────────────
-//
-// Reference: Numerical Recipes in C, 3rd ed., §6.1 (`gammln`).
-// The 6-coefficient Lanczos series with shifted argument is the canonical
-// f64-precision implementation. NOT consulted from Free42 core_math2.cc.
+// ln_gamma — 6-coefficient Lanczos series per Numerical Recipes 3e §6.1
+// (`gammln`) ≡ AS 245. NOT consulted from Free42 core_math2.cc.
 
-/// Lanczos coefficients for ln Γ(z) per Numerical Recipes §6.1.
+/// Lanczos coefficients for ln Γ(z) per NR §6.1.
 const LANCZOS_COEFS: [f64; 6] = [
     76.180_091_729_471_46,
     -86.505_320_329_416_77,
@@ -177,68 +105,56 @@ const LANCZOS_COEFS: [f64; 6] = [
     -0.000_005_395_239_384_953,
 ];
 
-/// `ln Γ(a)` — natural log of the gamma function for `a > 0`.
-///
-/// Implements the 6-coefficient Lanczos series with shifted argument
-/// (Numerical Recipes §6.1 `gammln`). Returns `Err(HpError::Domain)` for
-/// `a <= 0` or non-finite `a`. Accuracy ~1e-15 relative error across the
-/// positive real line.
-///
-/// Private to this module — `gamma_regularized_f64` and `beta_regularized_f64`
-/// are its only consumers.
+/// `ln Γ(a)` for `a > 0` — Lanczos series, accuracy ~1e-15. Private to
+/// this module; consumed by `gamma_regularized_f64` and `beta_regularized_f64`.
+/// `Err(HpError::Domain)` for `a <= 0` or non-finite `a`.
 fn ln_gamma(a: f64) -> Result<f64, HpError> {
     if !a.is_finite() || a <= 0.0 {
         return Err(HpError::Domain);
     }
-    // Per Numerical Recipes §6.1 `gammln`:
-    //   tmp  = (a + 0.5)·ln(a + 5.5) − (a + 5.5)
-    //   ser  = 1.000000000190015 + Σ_j cof[j] / (a + j + 1)   for j = 0..5
-    //   ln Γ(a) = tmp + ln(√(2π) · ser / a)
+    // NR §6.1 `gammln`:
+    //   tmp = (a+0.5)·ln(a+5.5) − (a+5.5),
+    //   ser = 1.000000000190015 + Σ_j cof[j] / (a+j+1),
+    //   ln Γ(a) = tmp + ln(√(2π) · ser / a).  (√(2π) = 2.5066282746310005)
     let tmp_arg = a + 5.5;
     let tmp = (a + 0.5) * tmp_arg.ln() - tmp_arg;
     let mut ser = 1.000_000_000_190_015;
     for (j, c) in LANCZOS_COEFS.iter().enumerate() {
         ser += c / (a + (j as f64) + 1.0);
     }
-    // 2.5066282746310005 = ln(√(2π)) exponentiated; here it's √(2π) itself.
     Ok(tmp + (2.506_628_274_631_000_5 * ser / a).ln())
 }
 
-// ── gamma_regularized_f64 (AS 239 / Numerical Recipes §6.2) ────────────────
-//
-// Regularized lower incomplete gamma P(s, x) = γ(s, x) / Γ(s).
-//
-// Reference: Numerical Recipes in C, 3rd ed., §6.2 (`gammp`/`gser`/`gcf`).
-// Algorithm equivalent to AS 239 (Shea 1988). NOT consulted from Free42
-// core_math2.cc.
-//
-// Strategy: power series for `x < s + 1`, continued fraction for `x >= s + 1`
-// (modified Lentz). Iteration cap 50 per SPEC.md Req. 34 — exceeding the cap
-// returns Err(HpError::Domain) so the outer ΣCHISQD Op layer surfaces the
-// non-convergence rather than silently looping.
+// gamma_regularized_f64 — AS 239 (Shea 1988) ≡ NR 3e §6.2 (`gammp`/`gser`/`gcf`).
+// Strategy: power series for `x < s+1`, modified-Lentz CF for `x >= s+1`.
+// 50-iteration cap (SPEC.md Req. 34); non-convergence → Err(Domain) so the
+// outer ΣCHISQD Op layer can surface it. NOT from Free42 core_math2.cc.
 
-/// Iteration cap for gser / gcf / betacf inner loops, per SPEC.md Req. 34.
+/// Iteration cap for gser/gcf/betacf inner loops (SPEC.md Req. 34).
 const ITER_CAP: usize = 50;
 
-/// Convergence tolerance for series + CF expansions. Calibrated against the
-/// SPEC.md Req. 34 50-iteration cap and Req. 33's 1e-9 oracle-agreement
-/// band. At `EPS_CONV = 1e-9` the worst-case boundary inputs (gser path
-/// with `x ≈ s`, e.g. s=x=50) converge at iter 49 while still delivering
-/// ~6.2e-10 relative agreement against scipy oracle values. Tighter
-/// thresholds (e.g. 1e-12 / 1e-15) bust the 50-iter cap on these boundary
-/// cases — see 33-02-SUMMARY.md "Convergence trace" for the iter-by-iter
-/// numbers. Calibration verified against scipy.special.gammainc across all
-/// six gamma oracle tuples.
+/// Convergence tolerance for series + CF expansions. Calibrated for the
+/// 50-iter cap + Req. 33's 1e-9 oracle band: at 1e-9 the worst-case
+/// boundary input (s=x=50) converges at iter 49 with ~6.2e-10 vs scipy.
+/// Tighter values (1e-12/1e-15) bust the cap — see 33-02-SUMMARY.md
+/// "Convergence trace".
 const EPS_CONV: f64 = 1e-9;
 
-/// Floating-point under-flow floor for the modified-Lentz CF guard.
+/// Underflow floor for the modified-Lentz CF guard.
 const FP_MIN: f64 = 1e-300;
 
-/// Power-series expansion for the regularized lower incomplete gamma,
-/// valid for `x < s + 1`. Multiplier `exp(-x + s·ln(x) - ln Γ(s))`.
-///
-/// Returns `Err(HpError::Domain)` on non-convergence within `ITER_CAP`
-/// iterations. Per Numerical Recipes §6.2.
+/// Lentz-CF underflow floor: clamp `v` to FP_MIN if its magnitude falls below.
+#[inline]
+fn lentz_floor(v: f64) -> f64 {
+    if v.abs() < FP_MIN {
+        FP_MIN
+    } else {
+        v
+    }
+}
+
+/// Power-series expansion for P(s, x), valid for `x < s + 1`. Multiplier
+/// `exp(-x + s·ln(x) - ln Γ(s))`. `Err(HpError::Domain)` on non-convergence.
 fn gser(s: f64, x: f64) -> Result<f64, HpError> {
     if x <= 0.0 {
         return Ok(0.0);
@@ -258,11 +174,8 @@ fn gser(s: f64, x: f64) -> Result<f64, HpError> {
     Err(HpError::Domain)
 }
 
-/// Continued-fraction expansion (modified Lentz) for the regularized
-/// upper incomplete gamma Q(s, x) = 1 - P(s, x), valid for `x >= s + 1`.
-///
-/// Returns `Err(HpError::Domain)` on non-convergence within `ITER_CAP`
-/// iterations. Per Numerical Recipes §6.2.
+/// Modified-Lentz CF for Q(s, x) = 1 - P(s, x), valid for `x >= s + 1`.
+/// `Err(HpError::Domain)` on non-convergence. Per NR §6.2.
 fn gcf(s: f64, x: f64) -> Result<f64, HpError> {
     let ln_gs = ln_gamma(s)?;
     let mut b = x + 1.0 - s;
@@ -272,14 +185,8 @@ fn gcf(s: f64, x: f64) -> Result<f64, HpError> {
     for i in 1..=ITER_CAP {
         let an = -(i as f64) * (i as f64 - s);
         b += 2.0;
-        d = an * d + b;
-        if d.abs() < FP_MIN {
-            d = FP_MIN;
-        }
-        c = b + an / c;
-        if c.abs() < FP_MIN {
-            c = FP_MIN;
-        }
+        d = lentz_floor(an * d + b);
+        c = lentz_floor(b + an / c);
         d = 1.0 / d;
         let del = d * c;
         h *= del;
@@ -290,23 +197,14 @@ fn gcf(s: f64, x: f64) -> Result<f64, HpError> {
     Err(HpError::Domain)
 }
 
-/// Regularized lower incomplete gamma function P(s, x) = γ(s, x) / Γ(s).
-///
-/// For `s > 0` and `x >= 0`, returns the cumulative-distribution-style value
-/// in [0, 1]. Algorithm selection: series for `x < s + 1`, continued
-/// fraction for `x >= s + 1` (AS 239 / Numerical Recipes §6.2 `gammp`).
+/// Regularized lower incomplete gamma P(s, x) = γ(s, x) / Γ(s) for `s > 0`,
+/// `x >= 0`. Returns a value in [0, 1]. Algorithm split at `x < s+1`
+/// (AS 239 / NR 3e §6.2 `gammp`).
 ///
 /// # Errors
 ///
-/// - `HpError::Domain` if `s` or `x` is non-finite.
-/// - `HpError::Domain` if `s <= 0` or `x < 0`.
-/// - `HpError::Domain` on iteration-cap exhaustion in `gser` or `gcf`
-///   (cap = 50 per SPEC.md Req. 34).
-///
-/// # References
-///
-/// - AS 239 (Shea 1988, Applied Statistics).
-/// - Numerical Recipes in C, 3rd ed., §6.2 (`gammp` / `gser` / `gcf`).
+/// `HpError::Domain` if `s` or `x` is non-finite, if `s <= 0` or `x < 0`,
+/// or on iteration-cap exhaustion (cap = 50 per SPEC.md Req. 34).
 pub fn gamma_regularized_f64(s: f64, x: f64) -> Result<f64, HpError> {
     if !s.is_finite() || !x.is_finite() || s <= 0.0 || x < 0.0 {
         return Err(HpError::Domain);
@@ -319,6 +217,82 @@ pub fn gamma_regularized_f64(s: f64, x: f64) -> Result<f64, HpError> {
     } else {
         // P(s, x) = 1 - Q(s, x)
         gcf(s, x).map(|q| 1.0 - q)
+    }
+}
+
+// beta_regularized_f64 — AS 63 (Majumder & Bhattacharjee 1973) ≡ NR 3e §6.4
+// (`betai`/`betacf`). Strategy: symmetric boundary swap at
+// `x < (a+1)/(a+b+2)`; below → direct CF, above → identity
+// I_x(a,b) = 1 - I_{1-x}(b,a). Modified-Lentz CF, 50-iter cap. NOT from
+// Free42 core_math2.cc.
+
+/// Modified-Lentz CF for I_x(a, b) per NR §6.4. `Err(HpError::Domain)` on
+/// non-convergence within `ITER_CAP`.
+fn betacf(a: f64, b: f64, x: f64) -> Result<f64, HpError> {
+    let qab = a + b;
+    let qap = a + 1.0;
+    let qam = a - 1.0;
+    let mut c = 1.0_f64;
+    let mut d = 1.0 / lentz_floor(1.0 - qab * x / qap);
+    let mut h = d;
+    for m in 1..=ITER_CAP {
+        let m_f = m as f64;
+        let m2 = 2.0 * m_f;
+        // Even step (d_{2m}): m(b-m)x / ((qam+m2)(a+m2))
+        let aa = m_f * (b - m_f) * x / ((qam + m2) * (a + m2));
+        d = lentz_floor(1.0 + aa * d);
+        c = lentz_floor(1.0 + aa / c);
+        d = 1.0 / d;
+        h *= d * c;
+        // Odd step (d_{2m+1}): -(a+m)(qab+m)x / ((a+m2)(qap+m2))
+        let aa = -(a + m_f) * (qab + m_f) * x / ((a + m2) * (qap + m2));
+        d = lentz_floor(1.0 + aa * d);
+        c = lentz_floor(1.0 + aa / c);
+        d = 1.0 / d;
+        let del = d * c;
+        h *= del;
+        if (del - 1.0).abs() < EPS_CONV {
+            return Ok(h);
+        }
+    }
+    Err(HpError::Domain)
+}
+
+/// Regularized incomplete beta I_x(a, b) = B(x; a, b) / B(a, b) for
+/// `a, b > 0` and `x ∈ [0, 1]`. Returns a value in [0, 1]. Symmetric
+/// boundary swap then modified-Lentz CF (AS 63 / NR 3e §6.4 `betai`).
+///
+/// # Errors
+///
+/// `HpError::Domain` if `a`, `b`, or `x` is non-finite, if `a <= 0`,
+/// `b <= 0`, or `x` is outside `[0, 1]`, or on iteration-cap exhaustion
+/// (cap = 50 per SPEC.md Req. 34).
+pub fn beta_regularized_f64(a: f64, b: f64, x: f64) -> Result<f64, HpError> {
+    if !a.is_finite() || !b.is_finite() || !x.is_finite() {
+        return Err(HpError::Domain);
+    }
+    if a <= 0.0 || b <= 0.0 || !(0.0..=1.0).contains(&x) {
+        return Err(HpError::Domain);
+    }
+    if x == 0.0 {
+        return Ok(0.0);
+    }
+    if x == 1.0 {
+        return Ok(1.0);
+    }
+    // bt = x^a · (1-x)^b / (a · B(a,b))
+    //    = exp(ln Γ(a+b) − ln Γ(a) − ln Γ(b) + a·ln(x) + b·ln(1-x))
+    let ln_gab = ln_gamma(a + b)?;
+    let ln_ga = ln_gamma(a)?;
+    let ln_gb = ln_gamma(b)?;
+    let bt = (ln_gab - ln_ga - ln_gb + a * x.ln() + b * (1.0 - x).ln()).exp();
+    // Symmetric boundary swap: direct CF below threshold; identity above.
+    if x < (a + 1.0) / (a + b + 2.0) {
+        let cf = betacf(a, b, x)?;
+        Ok(bt * cf / a)
+    } else {
+        let cf = betacf(b, a, 1.0 - x)?;
+        Ok(1.0 - bt * cf / b)
     }
 }
 
@@ -597,6 +571,143 @@ mod tests {
         );
         assert_eq!(
             gamma_regularized_f64(1.0, f64::NAN).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    // ── beta_regularized_f64 (AS 63 / NR §6.4) ──────────────────────────────
+    //
+    // ≥6 scipy.special.betainc oracle tuples per D-33.6 / SPEC.md Req. 33.
+    // Mix of symmetric (a=b, exact 0.5 at x=0.5) and skew cases, plus the
+    // swap-path test at the threshold x < (a+1)/(a+b+2). Two exact endpoints
+    // (x=0 → 0; x=1 → 1) test the closed-form shortcuts.
+
+    #[test]
+    fn beta_regularized_symmetric_at_midpoint() {
+        // scipy.special.betainc(2, 2, 0.5) = 0.5 (exact by symmetry)
+        let v = beta_regularized_f64(2.0, 2.0, 0.5).unwrap();
+        assert!((v - 0.5).abs() < 1e-12, "expected ~0.5, got {v}");
+    }
+
+    #[test]
+    fn beta_regularized_skew_low_x() {
+        // scipy.special.betainc(0.5, 0.5, 0.25) = 0.3333333333333333
+        // Arcsine-distribution CDF at 0.25 — closed-form 2·arcsin(√0.25)/π
+        // = 2·arcsin(0.5)/π = 2·(π/6)/π = 1/3.
+        assert_relative_eq!(
+            beta_regularized_f64(0.5, 0.5, 0.25).unwrap(),
+            0.333_333_333_333_333_3,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn beta_regularized_at_upper_endpoint() {
+        // scipy.special.betainc(2.5, 0.5, 1) = 1.0 (exact endpoint)
+        let v = beta_regularized_f64(2.5, 0.5, 1.0).unwrap();
+        assert!((v - 1.0).abs() < 1e-12, "expected 1.0, got {v}");
+    }
+
+    #[test]
+    fn beta_regularized_large_balanced() {
+        // scipy.special.betainc(10, 10, 0.5) = 0.5 (exact by symmetry, swap
+        // arm fires: 0.5 < (10+1)/(10+10+2) = 0.5 is FALSE).
+        // Tolerance is 1e-10 (not 1e-12) because the swap path computes
+        // `1 - bt·cf/b` which introduces a small cancellation error
+        // (~1e-11 at f64); the direct path (`bt·cf/a`) would be exact, but
+        // the swap is mandated by AS 63 / NR §6.4 for x >= threshold.
+        // 1e-10 is still inside SPEC.md Req. 33's 1e-9 oracle band.
+        let v = beta_regularized_f64(10.0, 10.0, 0.5).unwrap();
+        assert!((v - 0.5).abs() < 1e-10, "expected ~0.5, got {v}");
+    }
+
+    #[test]
+    fn beta_regularized_balanced_low_tail() {
+        // scipy.special.betainc(5, 5, 0.1) = 0.0008909200000000001
+        // Symmetric a=b, far below midpoint — direct CF path
+        // (0.1 < (5+1)/(5+5+2) = 0.5).
+        assert_relative_eq!(
+            beta_regularized_f64(5.0, 5.0, 0.1).unwrap(),
+            0.000_890_920_000_000_000_1,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn beta_regularized_cross_boundary() {
+        // scipy.special.betainc(3, 4, 0.6) = 0.8208
+        // Tests the swap path: 0.6 > (3+1)/(3+4+2) = 4/9 ≈ 0.444, so swap.
+        assert_relative_eq!(
+            beta_regularized_f64(3.0, 4.0, 0.6).unwrap(),
+            0.820_8,
+            max_relative = 1e-9
+        );
+    }
+
+    // beta_regularized edge tests.
+
+    #[test]
+    fn beta_regularized_a_zero_is_domain_err() {
+        assert_eq!(
+            beta_regularized_f64(0.0, 1.0, 0.5).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn beta_regularized_b_zero_is_domain_err() {
+        assert_eq!(
+            beta_regularized_f64(1.0, 0.0, 0.5).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn beta_regularized_x_negative_is_domain_err() {
+        assert_eq!(
+            beta_regularized_f64(1.0, 1.0, -0.1).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn beta_regularized_x_above_one_is_domain_err() {
+        assert_eq!(
+            beta_regularized_f64(1.0, 1.0, 1.1).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn beta_regularized_x_zero_returns_zero() {
+        assert_eq!(beta_regularized_f64(2.0, 3.0, 0.0).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn beta_regularized_x_one_returns_one() {
+        assert_eq!(beta_regularized_f64(2.0, 3.0, 1.0).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn beta_regularized_a_negative_is_domain_err() {
+        assert_eq!(
+            beta_regularized_f64(-1.0, 1.0, 0.5).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn beta_regularized_nan_is_domain_err() {
+        assert_eq!(
+            beta_regularized_f64(f64::NAN, 1.0, 0.5).unwrap_err(),
+            HpError::Domain
+        );
+        assert_eq!(
+            beta_regularized_f64(1.0, f64::NAN, 0.5).unwrap_err(),
+            HpError::Domain
+        );
+        assert_eq!(
+            beta_regularized_f64(1.0, 1.0, f64::NAN).unwrap_err(),
             HpError::Domain
         );
     }
