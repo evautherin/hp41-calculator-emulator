@@ -837,6 +837,21 @@ pub enum Op {
     ///
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣXSQEV (p. 55).
     SigmaXsqev,
+    /// ΣEFXSQ — Chi-square goodness-of-fit with expected PROPORTIONS.
+    ///
+    /// Reads `k` from R00 and interleaved observed/proportion pairs from
+    /// R01 (O₀, p₀, O₁, p₁, ...). Computes `Σf = Σ O_i`, converts each
+    /// `p_i` to an expected count `E_i = Σf · p_i` (in place, mutating
+    /// R02/R04/R06 per OM convention), then applies the same
+    /// `χ² = Σ (O − E)² / E` reducer as `SigmaXsqev`.
+    ///
+    /// Validates `|Σ p_i − 1.0| ≤ 1e-9` (OM "Inputs" sum-to-1 contract);
+    /// returns `HpError::Domain` for out-of-tolerance proportion sums or
+    /// for any `p_i ≤ 0`. Silent renormalization would produce silently
+    /// wrong χ² values per Pitfall 21.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣEFXSQ (p. 55).
+    SigmaEfxsq,
 
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
@@ -1268,6 +1283,7 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ─────────────
         Op::SigmaSpear => crate::ops::stat1::nonparam::op_sigma_spear(state),
         Op::SigmaXsqev => crate::ops::stat1::nonparam::op_sigma_xsqev(state),
+        Op::SigmaEfxsq => crate::ops::stat1::nonparam::op_sigma_efxsq(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way

@@ -998,6 +998,7 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // pattern (NOT the user-callback Plan 28-07/08 pattern).
         Op::SigmaSpear => crate::ops::dispatch(state, Op::SigmaSpear),
         Op::SigmaXsqev => crate::ops::dispatch(state, Op::SigmaXsqev),
+        Op::SigmaEfxsq => crate::ops::dispatch(state, Op::SigmaEfxsq),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Pure-data op routed through dispatch (mirrors hyperbolics +
         // Plan 28-10 Triangle/TRANS pattern). Will be replaced when Plans
