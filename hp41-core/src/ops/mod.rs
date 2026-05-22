@@ -807,6 +807,52 @@ pub enum Op {
     /// "T3D" mnemonic disambiguates from 2D TRANS in xrom_resolve (Plan 28-10 decision).
     Trans3d,
 
+    // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ────────────────
+    /// ΣSPEAR — Spearman rank correlation coefficient (closed-form).
+    ///
+    /// Consumes the existing v1.x R01–R06 Σ-register block populated by
+    /// `op_sigma_plus`. The user accumulates `d² = (rank_x − rank_y)²`
+    /// values as single-variable Σ+ samples; ΣSPEAR computes
+    /// `ρ_s = 1 − 6·Σd² / (n·(n²−1))` from R02 (Σx = Σd²) and R03 (n).
+    ///
+    /// Closed-form — no iteration, no distribution-function call,
+    /// no modal prompt. Smallest footprint program in the Pac (SIZE 003).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣSPEAR (p. 64).
+    SigmaSpear,
+    /// ΣXSQEV — Chi-square goodness-of-fit with observed + expected counts.
+    ///
+    /// Reads `k` (number of categories) from R00 and the interleaved
+    /// observed/expected pairs starting at R01 (O₀, E₀, O₁, E₁, ...).
+    /// Computes `χ² = Σ (O − E)² / E` and pushes the result onto stack X.
+    ///
+    /// Domain error: `k < 1`, `k > STAT1_XSQEV_KMAX` (= 3 for SIZE 008),
+    /// or any expected value `E_i == 0` (chi-square is undefined when
+    /// expected = 0).
+    ///
+    /// Closed-form — no iteration over a convergence loop, just a fixed
+    /// k-bounded accumulator (k ≤ STAT1_XSQEV_KMAX, no cancel check
+    /// required). Standard goodness-of-fit df = k − 1; the p-value is
+    /// the downstream caller's responsibility (chain via ΣCHISQD).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣXSQEV (p. 55).
+    SigmaXsqev,
+    /// ΣEFXSQ — Chi-square goodness-of-fit with expected PROPORTIONS.
+    ///
+    /// Reads `k` from R00 and interleaved observed/proportion pairs from
+    /// R01 (O₀, p₀, O₁, p₁, ...). Computes `Σf = Σ O_i`, converts each
+    /// `p_i` to an expected count `E_i = Σf · p_i` (in place, mutating
+    /// R02/R04/R06 per OM convention), then applies the same
+    /// `χ² = Σ (O − E)² / E` reducer as `SigmaXsqev`.
+    ///
+    /// Validates `|Σ p_i − 1.0| ≤ 1e-9` (OM "Inputs" sum-to-1 contract);
+    /// returns `HpError::Domain` for out-of-tolerance proportion sums or
+    /// for any `p_i ≤ 0`. Silent renormalization would produce silently
+    /// wrong χ² values per Pitfall 21.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣEFXSQ (p. 55).
+    SigmaEfxsq,
+
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
     // `Stat1Stub` is a placeholder Op referenced by every entry in the
@@ -1234,6 +1280,10 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TriSsa => math1::tri::op_tri_ssa(state),
         Op::Trans2d => math1::trans::op_trans2d(state),
         Op::Trans3d => math1::trans::op_trans3d(state),
+        // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ─────────────
+        Op::SigmaSpear => crate::ops::stat1::nonparam::op_sigma_spear(state),
+        Op::SigmaXsqev => crate::ops::stat1::nonparam::op_sigma_xsqev(state),
+        Op::SigmaEfxsq => crate::ops::stat1::nonparam::op_sigma_efxsq(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way
