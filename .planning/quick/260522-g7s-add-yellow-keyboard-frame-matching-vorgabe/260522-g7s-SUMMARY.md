@@ -3,7 +3,7 @@ quick_id: 260522-g7s
 slug: add-yellow-keyboard-frame-matching-vorgabe
 status: complete
 date: "2026-05-22"
-commit: 509344a
+commit: 509344a (initial) + follow-up (frame top-edge correction)
 ---
 
 # Quick Task 260522-g7s — SUMMARY
@@ -19,15 +19,18 @@ animations) are byte-identical to the pre-change render.
 ## Implementation
 
 One edit in `hp41-gui/src/Keyboard.tsx`: insert a stroke-only `<rect>`
-between the existing body / bevel rects and the `KEY_DEFS.map(...)` loop:
+between the existing body / bevel rects and the `KEY_DEFS.map(...)` loop.
+The frame wraps the **main keyboard grid only** — the ON / USER / PRGM /
+ALPHA top-row band sits ABOVE the frame (faithful to the physical unit,
+where the brass surround starts below the top-row keys):
 
 ```jsx
-{/* HP-41 gold trim — thin frame along the outer perimeter ... */}
+{/* HP-41 gold trim — thin frame around the MAIN KEYBOARD GRID only. ... */}
 <rect
   x={1.25}
-  y={1.25}
+  y={PAD + TOP_ROW_H + TOP_GAP / 2}
   width={KEYBOARD_W - 2.5}
-  height={KEYBOARD_H - 2.5}
+  height={KEYBOARD_H - PAD - TOP_ROW_H - TOP_GAP / 2 - 1.25}
   fill="none"
   stroke="#c8b878"
   strokeWidth={1.5}
@@ -35,9 +38,12 @@ between the existing body / bevel rects and the `KEY_DEFS.map(...)` loop:
 />
 ```
 
-- **Inset 1.25**: SVG strokes are centered on the path; without the inset
-  the outer 0.75 of the stroke would be clipped at `x = 0` / `y = 0` /
-  `x = KEYBOARD_W` / `y = KEYBOARD_H`.
+- **`y = PAD + TOP_ROW_H + TOP_GAP / 2`**: top edge is centered in the
+  12-px gap between the top-row band and the main grid, so the frame
+  visibly begins below the ON / USER / PRGM / ALPHA row.
+- **Inset 1.25 on left / right / bottom**: SVG strokes are centered on
+  the path; without the inset the outer 0.75 of the stroke would be
+  clipped at the viewBox edges.
 - **`rx={8.75}`**: matches the body rect's `rx={10}` minus the inset so
   the corner curvature stays concentric with the dark body.
 - **`#c8b878`**: warm pale gold; same family as the SHIFT cap (`#d68a1c`)
