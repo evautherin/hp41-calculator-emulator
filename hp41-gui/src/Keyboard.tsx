@@ -269,6 +269,22 @@ export function Keyboard({
       <rect width={KEYBOARD_W} height={KEYBOARD_H} fill="url(#body-grad)" rx={10} />
       <rect width={KEYBOARD_W} height={14} fill="url(#bevel-hi)" rx={10} opacity={0.4} />
 
+      {/* HP-41 gold trim — thin frame along the outer perimeter of the
+          keyboard panel (matches the brass surround on the physical unit).
+          Inset by 1.25 so the 1.5-wide stroke sits fully inside the viewBox
+          (SVG strokes are centered on the path; without the inset the outer
+          half would be clipped at x=0 / y=0). */}
+      <rect
+        x={1.25}
+        y={1.25}
+        width={KEYBOARD_W - 2.5}
+        height={KEYBOARD_H - 2.5}
+        fill="none"
+        stroke="#c8b878"
+        strokeWidth={1.5}
+        rx={8.75}
+      />
+
       {KEY_DEFS.map(key => {
         const { x, y, w, h } = keyPosition(key);
         const isPressed = pressedKey === key.id && Boolean(key.id);

@@ -147,6 +147,7 @@ None — roadmap defined; Phase 33 spec-phase OM reading is a planned dependency
 | 260513-v21a | v2.1 Card Reader: WDTA/RDTA/WPRGM/RDPRGM + XEQ-by-name + cards module + PR #9 fixes | 2026-05-13 | 72530dc…f4b3f8b | — (no GSD dir; see MILESTONES.md v2.1) |
 | 260513-v21b | v2.1 Keyboard Authenticity: 5-col grid, three-label keys, one-shot SHIFT, run_stop Tauri cmd, stub-error pattern, toast overlay, PR #10 fixes | 2026-05-13 | 8cd2de4…ff56b97 | — (no GSD dir; see MILESTONES.md v2.1) |
 | 260520-v30p | v3.0 post-graduation polish batch: MSRV-CI `uninlined_format_args` fix, E2E SINH+MATRIX assertion path, right-panel XROM-exclusion filter, `?` overlay Clear-widget z-order, `?` overlay incremental substring search | 2026-05-20 | (within `v2.2..v3.0` range) | — (recorded under v3.0 narrative in PROJECT.md) |
+| 260522-g7s | GUI: add thin gold trim frame around keyboard SVG to match user reference `gui-vorgabe.png` (cosmetic; no backend/IPC change) | 2026-05-22 | TBD | [260522-g7s-add-yellow-keyboard-frame-matching-vorgabe](./quick/260522-g7s-add-yellow-keyboard-frame-matching-vorgabe/) |
 
 ---
 
