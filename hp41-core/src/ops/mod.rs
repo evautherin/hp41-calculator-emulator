@@ -1076,6 +1076,65 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣTSTAT (p. 52).
     SigmaTstat,
 
+    // ── Phase 33 Plan 33-08: ΣMLRXY — 2-predictor multiple linear regression ──
+    /// ΣMLRXY — 2-predictor multiple linear regression (`y = b₀ + b₁·x₁ +
+    /// b₂·x₂`). Reads 9 sufficient statistics (n, Σy, Σx₁, Σx₂, Σx₁², Σx₂²,
+    /// Σx₁x₂, Σx₁y, Σx₂y) from `STAT1_MLRXY_*_REG` (named consts in
+    /// `stat1::mod`); solves the 3×3 normal equations via the
+    /// `stat1::regression::solve_normal_equations` self-contained Gauss
+    /// elimination with partial pivoting (SPEC.md Req. 21 LOCKS no
+    /// `ops::math1::matrix::*` imports). Pushes (b₀ → Z, b₁ → Y, b₂ → X)
+    /// with LiftEffect::Enable on each push.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 19 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMLRXY (p. 40).
+    SigmaMlrxy,
+
+    // ── Phase 33 Plan 33-08: ΣMLRXYZ — 3-predictor multiple linear regression ──
+    /// ΣMLRXYZ — 3-predictor multiple linear regression
+    /// (`y = b₀ + b₁·x₁ + b₂·x₂ + b₃·x₃`). Reads 14 sufficient statistics
+    /// from `STAT1_MLRXYZ_*_REG`; solves the 4×4 normal equations via the
+    /// same self-contained Gauss elimination as ΣMLRXY. Pushes (b₀ → T,
+    /// b₁ → Z, b₂ → Y, b₃ → X) with LiftEffect::Enable on each push.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 20 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMLRXYZ (p. 43).
+    SigmaMlrxyz,
+
+    // ── Phase 33 Plan 33-08: ΣPOLYP — polynomial regression workflow ────────
+    /// ΣPOLYP — polynomial regression modal opener
+    /// (`y = a₀ + a₁·x + ... + a_d·x^d`).
+    ///
+    /// Opens at `Stat1Step::PolypDegreePrompt(0)` with prompt `DEGREE=?`
+    /// (SPEC.md Req. 22 OM-override: literal string not locked, only the
+    /// modal-prompt-driven workflow shape). On submit, `submit_step` reads
+    /// d from X (1 ≤ d ≤ `STAT1_POLYP_DEGREE_MAX = 5`), stores in
+    /// `STAT1_POLYP_DEGREE_REG`, and invokes the private
+    /// `compute_polyp_coefficients` helper to fit the pre-populated
+    /// higher-power Σ sums via (d+1)×(d+1) normal equations + the same
+    /// self-contained Gauss elimination as ΣMLRXY/Z. Coefficients are
+    /// stored at `STAT1_POLYP_COEF_BASE_REG`..+d+1 (read by ΣPOLYC for
+    /// Horner eval).
+    ///
+    /// LiftEffect: Neutral on modal open; Enable on result push (compute
+    /// step pushes the leading coefficient a_d to X).
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 22 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOLYP (p. 47).
+    SigmaPolypWorkflow,
+
+    // ── Phase 33 Plan 33-08: ΣPOLYC — Horner evaluation ─────────────────────
+    /// ΣPOLYC — Horner evaluation of the most-recent ΣPOLYP coefficient set.
+    ///
+    /// Reads d from `STAT1_POLYP_DEGREE_REG` and coefficients a_0..a_d
+    /// from `STAT1_POLYP_COEF_BASE_REG`..+d+1; reads evaluation point x
+    /// from stack X. Computes ŷ via Horner's method (single-pass multiply-
+    /// add chain — NOT iterative). Pushes ŷ to X with LiftEffect::Enable.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 23 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOLYC (p. 48).
+    SigmaPolyc,
+
     // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
     /// ΣNORMD — Normal-distribution three-mode modal opener.
     ///
@@ -1124,26 +1183,21 @@ pub enum Op {
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCHISQD (p. 71).
     SigmaChisqdWorkflow,
 
-    // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
-    //
-    // `Stat1Stub` is a placeholder Op referenced by every entry in the
-    // `STAT_1.ops` slice + the `stat1_resolve` match block in
-    // `hp41-core/src/ops/math1/xrom.rs`. Plans 33-03..33-08 incrementally
-    // replace those references with real `Op::Sigma*` variants (per
-    // SPEC.md "Stat 1 Pac Mnemonics" table) and DELETE this stub variant
-    // by the end of Phase 33 — Plan 33-08 is the last plan that removes
-    // any remaining `Op::Stat1Stub` references.
-    //
-    // Dispatching `Op::Stat1Stub` (interactively or from a program) returns
-    // `Err(HpError::InvalidOp)` — see `crate::ops::stat1::op_stat1_stub`.
-    // Do NOT use this variant directly; the contract is: the user types
-    // `XEQ "ΣNORMD"`, the resolver chain reaches `stat1_resolve("ΣNORMD")`
-    // which returns `Op::Stat1Stub` while Plans 33-03+ are pending, and
-    // the dispatcher surfaces the InvalidOp error so the missing-feature
-    // condition is visible (rather than silently mapped to a no-op).
-    /// Plan-33-01 scaffolding placeholder for every STAT_1.ops entry until
-    /// Plans 33-03..33-08 land the real Sigma* variants and DELETE this stub.
-    Stat1Stub,
+    // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──────
+    /// RAND — pseudorandom uniform [0, 1) via LCG `r ← FRC(9821·r +
+    /// 0.211327)` (NPS p. 21 community formula, Don Malm / HP-65 User's
+    /// Library). Reads + writes `state.rand_seed`; pushes new value to
+    /// stack X with LiftEffect::Enable. Decimal-exact (no f64 conversion);
+    /// deterministic from any seed.
+    ///
+    /// Source: emulator extension (D-33.4 / SPEC.md Req. 35) — not in OM.
+    Rand,
+    /// SEED — open the `SEED?` modal; on submit, copies stack-X into
+    /// `state.rand_seed`. LiftEffect::Neutral on open. Submit handled
+    /// by `stat1::modal::submit_step(SeedPrompt)`.
+    ///
+    /// Source: emulator extension (D-33.4 / SPEC.md Req. 36) — not in OM.
+    Seed,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -1577,16 +1631,20 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaPtst => crate::ops::stat1::hypothesis::op_sigma_ptst(state),
         // ── Phase 33 Plan 33-07: ΣTSTAT pooled-variance two-sample t-test ───
         Op::SigmaTstat => crate::ops::stat1::hypothesis::op_sigma_tstat(state),
+        // ── Phase 33 Plan 33-08: Multiple + polynomial regression ───────────
+        Op::SigmaMlrxy => crate::ops::stat1::regression::op_sigma_mlrxy(state),
+        Op::SigmaMlrxyz => crate::ops::stat1::regression::op_sigma_mlrxyz(state),
+        Op::SigmaPolypWorkflow => {
+            crate::ops::stat1::regression::op_sigma_polyp_workflow(state)
+        }
+        Op::SigmaPolyc => crate::ops::stat1::regression::op_sigma_polyc(state),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
         Op::SigmaChisqdWorkflow => crate::ops::stat1::chisqd::op_sigma_chisqd_workflow(state),
-        // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
-        // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
-        // Plans 33-03..33-08 land the real Sigma* variants. The 4-way
-        // exhaustive-match invariant requires items 1 (dispatch) AND 2
-        // (execute_op) to land together — see CLAUDE.md.
-        Op::Stat1Stub => crate::ops::stat1::op_stat1_stub(state),
+        // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
+        Op::Rand => crate::ops::stat1::rand::op_rand(state),
+        Op::Seed => crate::ops::stat1::rand::op_seed(state),
     }
 }
 

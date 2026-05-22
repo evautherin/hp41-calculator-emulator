@@ -1029,17 +1029,23 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::SigmaPtst => crate::ops::dispatch(state, Op::SigmaPtst),
         // ── Phase 33 Plan 33-07: ΣTSTAT pooled-variance two-sample t-test ───
         Op::SigmaTstat => crate::ops::dispatch(state, Op::SigmaTstat),
+        // ── Phase 33 Plan 33-08: Multiple + polynomial regression ───────────
+        // Pure-data ops (closed-form Gauss elimination + Horner eval);
+        // modal opener (SigmaPolypWorkflow) follows the PolyWorkflow
+        // pattern. All four route through dispatch().
+        Op::SigmaMlrxy => crate::ops::dispatch(state, Op::SigmaMlrxy),
+        Op::SigmaMlrxyz => crate::ops::dispatch(state, Op::SigmaMlrxyz),
+        Op::SigmaPolypWorkflow => crate::ops::dispatch(state, Op::SigmaPolypWorkflow),
+        Op::SigmaPolyc => crate::ops::dispatch(state, Op::SigmaPolyc),
         // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
         // Modal opener (mirrors PolyWorkflow / MatrixWorkflow / etc. pattern);
         // pure-dispatch routing through dispatch().
         Op::SigmaNormdWorkflow => crate::ops::dispatch(state, Op::SigmaNormdWorkflow),
         // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
         Op::SigmaChisqdWorkflow => crate::ops::dispatch(state, Op::SigmaChisqdWorkflow),
-        // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
-        // Pure-data op routed through dispatch (mirrors hyperbolics +
-        // Plan 28-10 Triangle/TRANS pattern). Will be replaced when Plans
-        // 33-03..33-08 land the real Sigma* variants.
-        Op::Stat1Stub => crate::ops::dispatch(state, Op::Stat1Stub),
+        // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
+        Op::Rand => crate::ops::dispatch(state, Op::Rand),
+        Op::Seed => crate::ops::dispatch(state, Op::Seed),
     }
 }
 

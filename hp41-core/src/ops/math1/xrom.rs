@@ -131,13 +131,13 @@ pub const MATH_1: XromModule = XromModule {
 ///   26 total entries. Unicode Σ encoded as `\u{03A3}` per Plan-28
 ///   convention (`\u{00D7}` × in MATH_1.ops at line 57).
 ///
-/// **Plan 33-01 scaffolding:** every entry currently maps to `Op::Stat1Stub`
-/// (a single placeholder variant in `crate::ops::Op`) because the real
-/// `Op::Sigma*` variants land incrementally in Plans 33-03..33-08. The
-/// `xrom_shadowing.rs` CI gate already cross-checks the slice against
-/// `MATH_1.ops` and `builtin_card_op` for disjointness; the per-mnemonic
-/// dispatch becomes meaningful once Plans 33-03+ replace `Op::Stat1Stub`
-/// references with real variants.
+/// **Plan 33-08 final state:** all 26 entries point to real `Op::Sigma*`
+/// / `Op::Rand` / `Op::Seed` variants. The Plan 33-01 scaffolding
+/// placeholder Op variant has been removed end-of-Phase-33. The
+/// `xrom_shadowing.rs` CI gate cross-checks the slice against
+/// `MATH_1.ops` and `builtin_card_op` for disjointness; the bidirectional
+/// `stat1_ops_mnemonics_resolve_consistently` test cross-checks this
+/// slice against `stat1_resolve`.
 pub const STAT_1: XromModule = XromModule {
     id: 2,
     name: "STAT 1B",
@@ -159,19 +159,16 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}EXP", Op::SigmaExp),    // ΣEXP    — Plan 33-05
         ("\u{03A3}LOGI", Op::SigmaLogi),  // ΣLOGI   — Plan 33-05
         ("\u{03A3}POW", Op::SigmaPow),    // ΣPOW    — Plan 33-05
-        ("\u{03A3}MLRXY", Op::Stat1Stub),  // ΣMLRXY  — Plan 33-08
-        ("\u{03A3}MLRXYZ", Op::Stat1Stub), // ΣMLRXYZ — Plan 33-08
-        ("\u{03A3}POLYP", Op::Stat1Stub),  // ΣPOLYP  — Plan 33-08
-        ("\u{03A3}POLYC", Op::Stat1Stub),  // ΣPOLYC  — Plan 33-08
+        ("\u{03A3}MLRXY", Op::SigmaMlrxy),  // ΣMLRXY  — Plan 33-08
+        ("\u{03A3}MLRXYZ", Op::SigmaMlrxyz), // ΣMLRXYZ — Plan 33-08
+        ("\u{03A3}POLYP", Op::SigmaPolypWorkflow), // ΣPOLYP — Plan 33-08
+        ("\u{03A3}POLYC", Op::SigmaPolyc),  // ΣPOLYC  — Plan 33-08
         // ── Stat 1 Pac Hypothesis Tests ────────────────────────────────────────
         // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
         ("\u{03A3}PTST", Op::SigmaPtst),   // ΣPTST   — Plan 33-07
         ("\u{03A3}TSTAT", Op::SigmaTstat), // ΣTSTAT  — Plan 33-07
         // ── Stat 1 Pac Nonparametric / Chi-Square Evaluation / Contingency ────
-        // Plan 33-04 swapped ΣSPEAR (Task 1) + ΣXSQEV (Task 2) + ΣEFXSQ
-        // (Task 3) from Op::Stat1Stub to their real Sigma* variants.
-        // 5 of 26 Op::Stat1Stub references now swapped (3 from this plan;
-        // remaining 21 are owned by Plans 33-03 / 33-05 / 33-06 / 33-07 / 33-08).
+        // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ real Op variants.
         ("\u{03A3}XSQEV", Op::SigmaXsqev), // ΣXSQEV  — Plan 33-04
         ("\u{03A3}EFXSQ", Op::SigmaEfxsq), // ΣEFXSQ  — Plan 33-04
         ("\u{03A3}CTKKK", Op::SigmaCtkkk),  // ΣCTKKK  — Plan 33-06
@@ -182,8 +179,9 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}NORMD", Op::SigmaNormdWorkflow),   // ΣNORMD  — Plan 33-03
         ("\u{03A3}CHISQD", Op::SigmaChisqdWorkflow), // ΣCHISQD — Plan 33-03
         // ── Stat 1 Pac RAND/SEED (emulator extension per D-33.4) ──────────────
-        ("RAND", Op::Stat1Stub),           // RAND    — Plan 33-08
-        ("SEED", Op::Stat1Stub),           // SEED    — Plan 33-08
+        // Plan 33-08: RAND + SEED → real Op variants (final stub swap).
+        ("RAND", Op::Rand),                // RAND    — Plan 33-08
+        ("SEED", Op::Seed),                // SEED    — Plan 33-08
     ],
 };
 
@@ -305,10 +303,9 @@ fn math1_resolve(name: &str) -> Option<Op> {
 
 /// Stat 1 Pac (bit 1) mnemonic resolver — D-33.3 freeze exception.
 ///
-/// Every arm currently maps to `Op::Stat1Stub` (Plan 33-01 scaffolding);
-/// Plans 33-03..33-08 replace each Σ-prefixed mnemonic with the real
-/// `Op::Sigma*` variant and DELETE the `Op::Stat1Stub` variant by end
-/// of Phase 33.
+/// Each arm maps to a real `Op::Sigma*` / `Op::Rand` / `Op::Seed`
+/// variant (Plan 33-08 final state; the Plan 33-01 scaffolding
+/// placeholder Op variant was removed at the end of Phase 33).
 ///
 /// Bidirectional consistency with `STAT_1.ops`: the
 /// `stat1_ops_mnemonics_resolve_consistently` test below iterates the
@@ -333,10 +330,11 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}EXP" => Some(Op::SigmaExp),
         "\u{03A3}LOGI" => Some(Op::SigmaLogi),
         "\u{03A3}POW" => Some(Op::SigmaPow),
-        "\u{03A3}MLRXY" => Some(Op::Stat1Stub),
-        "\u{03A3}MLRXYZ" => Some(Op::Stat1Stub),
-        "\u{03A3}POLYP" => Some(Op::Stat1Stub),
-        "\u{03A3}POLYC" => Some(Op::Stat1Stub),
+        // Plan 33-08: Multiple + polynomial regression → real Sigma* variants.
+        "\u{03A3}MLRXY" => Some(Op::SigmaMlrxy),
+        "\u{03A3}MLRXYZ" => Some(Op::SigmaMlrxyz),
+        "\u{03A3}POLYP" => Some(Op::SigmaPolypWorkflow),
+        "\u{03A3}POLYC" => Some(Op::SigmaPolyc),
         // Hypothesis Tests
         // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
         "\u{03A3}PTST" => Some(Op::SigmaPtst),
@@ -353,9 +351,9 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
         "\u{03A3}NORMD" => Some(Op::SigmaNormdWorkflow),
         "\u{03A3}CHISQD" => Some(Op::SigmaChisqdWorkflow),
-        // RAND / SEED (emulator extension per D-33.4)
-        "RAND" => Some(Op::Stat1Stub),
-        "SEED" => Some(Op::Stat1Stub),
+        // Plan 33-08: RAND + SEED → real Op variants (emulator extension).
+        "RAND" => Some(Op::Rand),
+        "SEED" => Some(Op::Seed),
         _ => None,
     }
 }
@@ -529,7 +527,7 @@ mod tests {
     // ONLY (not bit 0 alone). SPEC.md Req. 2 / D-33.3 bit-1 arm invariant.
     //
     // Plan 33-03 swap: ΣNORMD now resolves to `Op::SigmaNormdWorkflow`
-    // (the real 3-mode modal opener) rather than the 33-01 Stat1Stub
+    // (the real 3-mode modal opener) rather than the 33-01 scaffolding
     // placeholder. The bit-1 isolation check is identical.
     #[test]
     fn resolve_uses_bit_1_for_stat1() {
