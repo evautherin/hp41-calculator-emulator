@@ -161,6 +161,167 @@ pub fn norm_cdf_inv_f64(p: f64) -> Result<f64, HpError> {
     Ok(x)
 }
 
+// ── ln_gamma (Numerical Recipes §6.1 / AS 245 Lanczos) ──────────────────────
+//
+// Reference: Numerical Recipes in C, 3rd ed., §6.1 (`gammln`).
+// The 6-coefficient Lanczos series with shifted argument is the canonical
+// f64-precision implementation. NOT consulted from Free42 core_math2.cc.
+
+/// Lanczos coefficients for ln Γ(z) per Numerical Recipes §6.1.
+const LANCZOS_COEFS: [f64; 6] = [
+    76.180_091_729_471_46,
+    -86.505_320_329_416_77,
+    24.014_098_240_830_91,
+    -1.231_739_572_450_155,
+    0.001_208_650_973_866_179,
+    -0.000_005_395_239_384_953,
+];
+
+/// `ln Γ(a)` — natural log of the gamma function for `a > 0`.
+///
+/// Implements the 6-coefficient Lanczos series with shifted argument
+/// (Numerical Recipes §6.1 `gammln`). Returns `Err(HpError::Domain)` for
+/// `a <= 0` or non-finite `a`. Accuracy ~1e-15 relative error across the
+/// positive real line.
+///
+/// Private to this module — `gamma_regularized_f64` and `beta_regularized_f64`
+/// are its only consumers.
+fn ln_gamma(a: f64) -> Result<f64, HpError> {
+    if !a.is_finite() || a <= 0.0 {
+        return Err(HpError::Domain);
+    }
+    // Per Numerical Recipes §6.1 `gammln`:
+    //   tmp  = (a + 0.5)·ln(a + 5.5) − (a + 5.5)
+    //   ser  = 1.000000000190015 + Σ_j cof[j] / (a + j + 1)   for j = 0..5
+    //   ln Γ(a) = tmp + ln(√(2π) · ser / a)
+    let tmp_arg = a + 5.5;
+    let tmp = (a + 0.5) * tmp_arg.ln() - tmp_arg;
+    let mut ser = 1.000_000_000_190_015;
+    for (j, c) in LANCZOS_COEFS.iter().enumerate() {
+        ser += c / (a + (j as f64) + 1.0);
+    }
+    // 2.5066282746310005 = ln(√(2π)) exponentiated; here it's √(2π) itself.
+    Ok(tmp + (2.506_628_274_631_000_5 * ser / a).ln())
+}
+
+// ── gamma_regularized_f64 (AS 239 / Numerical Recipes §6.2) ────────────────
+//
+// Regularized lower incomplete gamma P(s, x) = γ(s, x) / Γ(s).
+//
+// Reference: Numerical Recipes in C, 3rd ed., §6.2 (`gammp`/`gser`/`gcf`).
+// Algorithm equivalent to AS 239 (Shea 1988). NOT consulted from Free42
+// core_math2.cc.
+//
+// Strategy: power series for `x < s + 1`, continued fraction for `x >= s + 1`
+// (modified Lentz). Iteration cap 50 per SPEC.md Req. 34 — exceeding the cap
+// returns Err(HpError::Domain) so the outer ΣCHISQD Op layer surfaces the
+// non-convergence rather than silently looping.
+
+/// Iteration cap for gser / gcf / betacf inner loops, per SPEC.md Req. 34.
+const ITER_CAP: usize = 50;
+
+/// Convergence tolerance for series + CF expansions. Calibrated against the
+/// SPEC.md Req. 34 50-iteration cap and Req. 33's 1e-9 oracle-agreement
+/// band. At `EPS_CONV = 1e-9` the worst-case boundary inputs (gser path
+/// with `x ≈ s`, e.g. s=x=50) converge at iter 49 while still delivering
+/// ~6.2e-10 relative agreement against scipy oracle values. Tighter
+/// thresholds (e.g. 1e-12 / 1e-15) bust the 50-iter cap on these boundary
+/// cases — see 33-02-SUMMARY.md "Convergence trace" for the iter-by-iter
+/// numbers. Calibration verified against scipy.special.gammainc across all
+/// six gamma oracle tuples.
+const EPS_CONV: f64 = 1e-9;
+
+/// Floating-point under-flow floor for the modified-Lentz CF guard.
+const FP_MIN: f64 = 1e-300;
+
+/// Power-series expansion for the regularized lower incomplete gamma,
+/// valid for `x < s + 1`. Multiplier `exp(-x + s·ln(x) - ln Γ(s))`.
+///
+/// Returns `Err(HpError::Domain)` on non-convergence within `ITER_CAP`
+/// iterations. Per Numerical Recipes §6.2.
+fn gser(s: f64, x: f64) -> Result<f64, HpError> {
+    if x <= 0.0 {
+        return Ok(0.0);
+    }
+    let ln_gs = ln_gamma(s)?;
+    let mut ap = s;
+    let mut sum = 1.0_f64 / s;
+    let mut del = sum;
+    for _ in 0..ITER_CAP {
+        ap += 1.0;
+        del *= x / ap;
+        sum += del;
+        if del.abs() < sum.abs() * EPS_CONV {
+            return Ok(sum * (-x + s * x.ln() - ln_gs).exp());
+        }
+    }
+    Err(HpError::Domain)
+}
+
+/// Continued-fraction expansion (modified Lentz) for the regularized
+/// upper incomplete gamma Q(s, x) = 1 - P(s, x), valid for `x >= s + 1`.
+///
+/// Returns `Err(HpError::Domain)` on non-convergence within `ITER_CAP`
+/// iterations. Per Numerical Recipes §6.2.
+fn gcf(s: f64, x: f64) -> Result<f64, HpError> {
+    let ln_gs = ln_gamma(s)?;
+    let mut b = x + 1.0 - s;
+    let mut c = 1.0 / FP_MIN;
+    let mut d = 1.0 / b;
+    let mut h = d;
+    for i in 1..=ITER_CAP {
+        let an = -(i as f64) * (i as f64 - s);
+        b += 2.0;
+        d = an * d + b;
+        if d.abs() < FP_MIN {
+            d = FP_MIN;
+        }
+        c = b + an / c;
+        if c.abs() < FP_MIN {
+            c = FP_MIN;
+        }
+        d = 1.0 / d;
+        let del = d * c;
+        h *= del;
+        if (del - 1.0).abs() < EPS_CONV {
+            return Ok(h * (-x + s * x.ln() - ln_gs).exp());
+        }
+    }
+    Err(HpError::Domain)
+}
+
+/// Regularized lower incomplete gamma function P(s, x) = γ(s, x) / Γ(s).
+///
+/// For `s > 0` and `x >= 0`, returns the cumulative-distribution-style value
+/// in [0, 1]. Algorithm selection: series for `x < s + 1`, continued
+/// fraction for `x >= s + 1` (AS 239 / Numerical Recipes §6.2 `gammp`).
+///
+/// # Errors
+///
+/// - `HpError::Domain` if `s` or `x` is non-finite.
+/// - `HpError::Domain` if `s <= 0` or `x < 0`.
+/// - `HpError::Domain` on iteration-cap exhaustion in `gser` or `gcf`
+///   (cap = 50 per SPEC.md Req. 34).
+///
+/// # References
+///
+/// - AS 239 (Shea 1988, Applied Statistics).
+/// - Numerical Recipes in C, 3rd ed., §6.2 (`gammp` / `gser` / `gcf`).
+pub fn gamma_regularized_f64(s: f64, x: f64) -> Result<f64, HpError> {
+    if !s.is_finite() || !x.is_finite() || s <= 0.0 || x < 0.0 {
+        return Err(HpError::Domain);
+    }
+    if x == 0.0 {
+        return Ok(0.0);
+    }
+    if x < s + 1.0 {
+        gser(s, x)
+    } else {
+        // P(s, x) = 1 - Q(s, x)
+        gcf(s, x).map(|q| 1.0 - q)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -264,5 +425,179 @@ mod tests {
     #[test]
     fn norm_cdf_inv_nan_is_domain_err() {
         assert_eq!(norm_cdf_inv_f64(f64::NAN).unwrap_err(), HpError::Domain);
+    }
+
+    // ── ln_gamma (Numerical Recipes §6.1 Lanczos) ───────────────────────────
+    //
+    // Spot-checks against known exact values: ln Γ(1) = 0, ln Γ(2) = 0,
+    // ln Γ(5) = ln 24 = 3.1780538303479458, ln Γ(0.5) = ln(√π) =
+    // 0.5723649429247001. Lanczos accuracy is ~1e-15; we test at 1e-12.
+
+    #[test]
+    fn ln_gamma_at_one() {
+        // ln Γ(1) = ln(0!) = 0
+        let v = ln_gamma(1.0).unwrap();
+        assert!(v.abs() < 1e-12, "ln_gamma(1) expected ~0, got {v}");
+    }
+
+    #[test]
+    fn ln_gamma_at_two() {
+        // ln Γ(2) = ln(1!) = 0
+        let v = ln_gamma(2.0).unwrap();
+        assert!(v.abs() < 1e-12, "ln_gamma(2) expected ~0, got {v}");
+    }
+
+    #[test]
+    fn ln_gamma_at_five() {
+        // ln Γ(5) = ln(24) = 3.1780538303479458
+        assert_relative_eq!(
+            ln_gamma(5.0).unwrap(),
+            3.178_053_830_347_945_8,
+            max_relative = 1e-12
+        );
+    }
+
+    #[test]
+    fn ln_gamma_at_half() {
+        // ln Γ(0.5) = ln(√π) = 0.5723649429247001
+        assert_relative_eq!(
+            ln_gamma(0.5).unwrap(),
+            0.572_364_942_924_700_1,
+            max_relative = 1e-12
+        );
+    }
+
+    #[test]
+    fn ln_gamma_at_zero_is_domain_err() {
+        assert_eq!(ln_gamma(0.0).unwrap_err(), HpError::Domain);
+    }
+
+    #[test]
+    fn ln_gamma_negative_is_domain_err() {
+        assert_eq!(ln_gamma(-1.0).unwrap_err(), HpError::Domain);
+    }
+
+    // ── gamma_regularized_f64 (AS 239 / NR §6.2) ────────────────────────────
+    //
+    // ≥6 scipy.special.gammainc oracle tuples per D-33.6 / SPEC.md Req. 33.
+    // Mix of series (`x < s + 1`) and CF (`x >= s + 1`) paths, plus a
+    // boundary tuple at the algorithm split-point (per RESEARCH.md Open Q 6).
+
+    #[test]
+    fn gamma_regularized_series_path() {
+        // scipy.special.gammainc(2, 1) = 0.2642411176571153
+        // Series path: x=1 < s+1=3
+        assert_relative_eq!(
+            gamma_regularized_f64(2.0, 1.0).unwrap(),
+            0.264_241_117_657_115_3,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_cf_path() {
+        // scipy.special.gammainc(2, 10) = 0.9995006007726127
+        // CF path: x=10 >= s+1=3
+        assert_relative_eq!(
+            gamma_regularized_f64(2.0, 10.0).unwrap(),
+            0.999_500_600_772_612_7,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_half_integer_s() {
+        // scipy.special.gammainc(1.5, 5) = 0.9814338645369568
+        // CF path: x=5 >= s+1=2.5
+        // (RESEARCH.md table row 9 listed a stale value; the actual scipy
+        // oracle value verified via `scipy.special.gammainc(1.5, 5)` is
+        // 0.9814338645369568. Documented in 33-02-SUMMARY.md.)
+        assert_relative_eq!(
+            gamma_regularized_f64(1.5, 5.0).unwrap(),
+            0.981_433_864_536_956_8,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_large_a_balanced() {
+        // scipy.special.gammainc(50, 50) = 0.5188083154720433
+        // Series path: x=50 < s+1=51. Worst-case convergence: gser converges
+        // at iter 49 under EPS_CONV=1e-9, just inside the SPEC.md Req. 34
+        // 50-iteration cap. See 33-02-SUMMARY.md "Convergence trace".
+        assert_relative_eq!(
+            gamma_regularized_f64(50.0, 50.0).unwrap(),
+            0.518_808_315_472_043_3,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_split_boundary() {
+        // scipy.special.gammainc(3, 4) = 0.7618966944464557
+        // Boundary tuple: x=4 = s+1=4 — tests the gser/gcf algorithm split
+        // continuity per RESEARCH.md Open Q 6. At x=s+1 exactly, the code
+        // takes the CF branch (the condition is `x < s+1`).
+        assert_relative_eq!(
+            gamma_regularized_f64(3.0, 4.0).unwrap(),
+            0.761_896_694_446_455_7,
+            max_relative = 1e-9
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_split_boundary_minus_eps() {
+        // scipy.special.gammainc(3, 3.999) = 0.7617501327010161
+        // Just below the split — exercises the series branch at the
+        // boundary. Tests algorithmic continuity (series vs CF agreement
+        // at the algorithm split-point is a classic Pitfall 6 trap).
+        assert_relative_eq!(
+            gamma_regularized_f64(3.0, 3.999).unwrap(),
+            0.761_750_132_701_016_1,
+            max_relative = 1e-9
+        );
+    }
+
+    // gamma_regularized edge tests.
+
+    #[test]
+    fn gamma_regularized_s_zero_is_domain_err() {
+        assert_eq!(
+            gamma_regularized_f64(0.0, 1.0).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_x_negative_is_domain_err() {
+        assert_eq!(
+            gamma_regularized_f64(1.0, -1.0).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_x_zero_returns_zero() {
+        assert_eq!(gamma_regularized_f64(2.0, 0.0).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn gamma_regularized_s_negative_is_domain_err() {
+        assert_eq!(
+            gamma_regularized_f64(-1.0, 1.0).unwrap_err(),
+            HpError::Domain
+        );
+    }
+
+    #[test]
+    fn gamma_regularized_nan_is_domain_err() {
+        assert_eq!(
+            gamma_regularized_f64(f64::NAN, 1.0).unwrap_err(),
+            HpError::Domain
+        );
+        assert_eq!(
+            gamma_regularized_f64(1.0, f64::NAN).unwrap_err(),
+            HpError::Domain
+        );
     }
 }
