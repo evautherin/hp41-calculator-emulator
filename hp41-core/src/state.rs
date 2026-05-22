@@ -252,6 +252,39 @@ pub struct CalcState {
     /// Transient — never persisted (`#[serde(default = "default_cancel_requested", skip)]`).
     #[serde(default = "default_cancel_requested", skip)]
     pub cancel_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+
+    /// Transient ν carrier for the ΣCHISQD two-step modal prompt
+    /// sequence (REVIEW.md WR-03 / WR-04 mitigation).
+    ///
+    /// Plan 33-03 originally stashed ν in `state.stack.t` between the
+    /// ν-prompt submit and the mode-choice submit (D-33.5 — "no new
+    /// transient `CalcState` field"). That design was unsafe: any
+    /// stack-lifting Op invoked between the two submits (most
+    /// arithmetic, push-lifts from backspace edits, XEQ calls)
+    /// silently clobbered T, leaving the mode-choice submit reading
+    /// garbage ν data. The user's original T value was also
+    /// destructively overwritten with no recovery path.
+    ///
+    /// This field is the conservative remedy: a transient
+    /// `Option<u32>` carrier set by `submit_step(ChisqdNuPrompt)` and
+    /// read + cleared by `submit_step(ChisqdModeChoice)`. The stack
+    /// is no longer used as a side-channel — `submit_step(ChisqdNu
+    /// Prompt)` now performs the standard 4-slot HP-41 stack drop
+    /// (`x ← y, y ← z, z ← t, t ← t`) preserving the user's original
+    /// T value.
+    ///
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    /// Cleared on every `op_sigma_chisqd_workflow` interactive open
+    /// AND on every `submit_step(ChisqdModeChoice)` exit (success or
+    /// error) so a stale carrier never leaks into a subsequent
+    /// ΣCHISQD cycle.
+    ///
+    /// The "no new persistent field" constraint from D-33.5 banned
+    /// PERSISTENT additions; transient `#[serde(default, skip)]`
+    /// fields are the existing pattern (see `modal_program`,
+    /// `modal_prompt`, `integ_state`, etc.) and were always permitted.
+    #[serde(default, skip)]
+    pub pending_chisqd_nu: Option<u32>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
@@ -313,6 +346,9 @@ impl CalcState {
             solve_state: None,
             difeq_state: None,
             cancel_requested: default_cancel_requested(),
+            // Phase 33 (v3.1) review-fix: transient ΣCHISQD ν carrier
+            // (REVIEW.md WR-03/WR-04 — replaces the stack-T side channel).
+            pending_chisqd_nu: None,
         }
     }
 }

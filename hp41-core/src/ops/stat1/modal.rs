@@ -26,22 +26,40 @@
 //! (no `_ =>` catch-all per CLAUDE.md "Core engine — no panics" + the
 //! FN-CLI-04 invariant inherited from `math1::modal::ModalProgram`).
 //!
-//! ## ν storage strategy (D-33.5 — no new transient CalcState fields)
+//! ## ν storage strategy (REVIEW.md WR-03 / WR-04 — transient carrier field)
 //!
 //! Between `ChisqdNuPrompt` and `ChisqdModeChoice`, the captured ν value
-//! must persist WITHOUT adding a new `CalcState` field. We re-use the
-//! `state.stack.t` register (deepest stack slot, untouched by typical
-//! modal-prompt interaction): `submit_step(ChisqdNuPrompt)` writes ν to
-//! `state.stack.t`, then `submit_step(ChisqdModeChoice)` reads it back.
-//! This mirrors the Math Pac I POLY precedent (degree stored in R06,
-//! `poly.rs:477`) but uses T instead because:
-//!   (a) no new register slot needs to be reserved;
-//!   (b) the user's stack-X (entered as mode index) and stack-Y are not
-//!       clobbered between the two prompts;
-//!   (c) D-33.5 explicitly bans new `CalcState` fields for transient
-//!       Stat 1 Pac state.
+//! persists in the dedicated transient `state.pending_chisqd_nu:
+//! Option<u32>` field (`#[serde(default, skip)]`; see `state.rs`).
 //!
-//! Plan 33-08 SEED will use the same `state.stack.t` carrier pattern.
+//! ### Plan 33-03 history (pre-review): stack-T side-channel
+//!
+//! The initial implementation stashed ν in `state.stack.t` to honor
+//! D-33.5's "no new CalcState field" guidance. That design proved
+//! unsafe because any stack-lifting Op invoked between the two
+//! modal submits (most arithmetic, push-lifts from backspace edits,
+//! XEQ calls to user routines) silently clobbered T — the
+//! mode-choice submit then read garbage ν data and silently computed
+//! a wrong PDF/CDF. The user's original T value was also destroyed.
+//!
+//! ### Current design (post-WR-03 fix): transient carrier field
+//!
+//! `submit_step(ChisqdNuPrompt)` writes the validated ν to
+//! `state.pending_chisqd_nu = Some(u32)` and then performs a STANDARD
+//! HP-41 4-slot stack drop (`x ← y, y ← z, z ← t, t ← t`) preserving
+//! the user's original T value. `submit_step(ChisqdModeChoice)`
+//! `take()`s + clears the carrier, returning `Domain` if it was empty
+//! (out-of-sequence call) rather than consuming undefined data.
+//!
+//! D-33.5's "no new persistent field" rule was always understood to
+//! permit transient `#[serde(default, skip)]` fields — the existing
+//! `modal_program` / `modal_prompt` / `integ_state` / `solve_state` /
+//! `cancel_requested` fields are precedents.
+//!
+//! Plan 33-08 SEED uses a different pattern (direct write into
+//! `state.rand_seed` at submit time + defensive normalization in
+//! `op_rand` per the REVIEW.md CR-01 fix) — no transient carrier
+//! needed.
 //!
 //! ## Why this file lives in `stat1/` not `math1/`
 //!
@@ -72,13 +90,19 @@ pub enum Stat1Step {
     NormdModeChoice,
     /// ΣCHISQD — awaiting degrees-of-freedom ν entry in X.
     ///
-    /// `submit_step` reads X as a positive integer, stores it in
-    /// `state.stack.t` (the deepest stack slot — D-33.5 transient storage
-    /// without a new CalcState field), then transitions to
-    /// `ChisqdModeChoice` with prompt `ΣCHISQD MODE?`.
+    /// `submit_step` reads X as a positive integer, stores it in the
+    /// transient `state.pending_chisqd_nu: Option<u32>` carrier
+    /// (REVIEW.md WR-03/WR-04 — replaces the unsafe stack-T side
+    /// channel from the initial Plan 33-03 design), then transitions
+    /// to `ChisqdModeChoice` with prompt `ΣCHISQD MODE?`. The user's
+    /// original T value is preserved by the standard 4-slot HP-41
+    /// stack drop.
     ChisqdNuPrompt,
-    /// ΣCHISQD — ν is captured in `state.stack.t`; awaiting mode index
-    /// in X (1 = PDF, 2 = CDF).
+    /// ΣCHISQD — ν is captured in the transient
+    /// `state.pending_chisqd_nu` carrier; awaiting mode index in X
+    /// (1 = PDF, 2 = CDF). `submit_step` `take()`s + clears the
+    /// carrier; out-of-sequence invocation (carrier empty) returns
+    /// `Domain` rather than reading garbage.
     ChisqdModeChoice,
     /// ΣPOLYP — awaiting polynomial degree `d` entry in X (1 ≤ d ≤
     /// [`crate::ops::stat1::STAT1_POLYP_DEGREE_MAX`]; OM override per
@@ -162,19 +186,27 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
                 // the user's place in the workflow — D-07 never-discard.
                 return Err(HpError::Domain);
             }
-            // D-33.5 transient storage: stash ν in state.stack.t (the
-            // deepest stack slot). Drop X (the ν the user just submitted)
-            // so the next prompt's X-input is collected cleanly.
-            state.stack.t = state.stack.x.clone(); // ν → T
-            // Drop X off the stack (X←Y, Y←Z, Z←T-was — but T was just
-            // overwritten with ν, so use a saved copy of the original T
-            // value to preserve the standard HP-41 stack-drop semantics).
+            // REVIEW.md WR-03/WR-04 mitigation: store ν in the
+            // transient `pending_chisqd_nu` carrier rather than the
+            // stack T register. The previous design used T as a
+            // side-channel between the two modal-submit calls but any
+            // stack-lifting Op (most arithmetic, backspace push-lifts,
+            // XEQ calls) silently clobbered T → mode-choice submit
+            // read garbage ν → silent wrong PDF/CDF computation. The
+            // new transient field is unaffected by stack ops and
+            // is cleared on success/error in the ChisqdModeChoice arm
+            // below.
+            #[allow(clippy::cast_sign_loss)]
+            // safe: nu_i32 > 0 enforced above.
+            let nu_u32 = nu_i32 as u32;
+            state.pending_chisqd_nu = Some(nu_u32);
+            // Standard 4-slot HP-41 stack drop: X←Y, Y←Z, Z←T, T←T
+            // (HP-41 duplicates T on drop). The user's original T
+            // value is now preserved — no more silent destruction.
             state.stack.x = state.stack.y.clone();
             state.stack.y = state.stack.z.clone();
-            // Note: we deliberately do NOT touch z ← t here, because
-            // t is now ν (the carrier value). The user's original T
-            // is lost — acceptable trade-off per D-33.5 (no new
-            // CalcState field, deepest stack slot re-used).
+            state.stack.z = state.stack.t.clone();
+            // (T unchanged — HP-41 stack-drop convention.)
             // Advance modal to ChisqdModeChoice.
             state.modal_program =
                 Some(crate::ops::math1::modal::ModalProgram::Stat1(Stat1Step::ChisqdModeChoice));
@@ -185,24 +217,31 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             // Read mode index from X (truncate to integer; reject fractional).
             let mode_index = state.stack.x.trunc_int();
             let mode_i32 = mode_index.inner().to_i32_safe()?;
-            // Recover ν from state.stack.t (where ChisqdNuPrompt stashed it).
-            // trunc_int is defensive — T was written from a trunc'd value
-            // already, but a future round of testing might bypass that.
-            let nu_dec = state.stack.t.trunc_int();
-            let nu_i32 = nu_dec.inner().to_i32_safe()?;
-            if nu_i32 <= 0 {
+            // Recover ν from the transient carrier (REVIEW.md WR-03):
+            // the field is set by ChisqdNuPrompt and unaffected by
+            // any stack mutation between the two submits. Take +
+            // clear so a subsequent ΣCHISQD cycle starts fresh.
+            let nu_u32 = state.pending_chisqd_nu.take().ok_or_else(|| {
+                // No prior ν submit (caller invoked ChisqdModeChoice
+                // out of sequence) — clear modal state and surface
+                // Domain rather than silently consuming garbage.
+                state.modal_program = None;
+                state.modal_prompt = None;
+                HpError::Domain
+            })?;
+            if nu_u32 == 0 {
                 state.modal_program = None;
                 state.modal_prompt = None;
                 return Err(HpError::Domain);
             }
-            let nu_u32 = nu_i32 as u32;
-            // Drop X (the mode index); the χ² statistic x was entered
-            // earlier and now sits in X (Y becomes X). Use the standard
-            // HP-41 drop pattern, but DUPLICATE T on drop per hardware
-            // (rather than letting it stay as ν — which would be
-            // confusing if the user inspected the stack post-eval).
+            // Standard HP-41 stack drop: X←Y (where the user's χ²
+            // statistic x sits), Y←Z, Z←T, T←T (duplicates per
+            // hardware). With ν no longer occupying T, the drop
+            // is straightforward.
             state.stack.x = state.stack.y.clone();
             state.stack.y = state.stack.z.clone();
+            state.stack.z = state.stack.t.clone();
+            // (T unchanged.)
             // Clear modal state BEFORE dispatching so the eval function
             // sees a clean modal context.
             state.modal_program = None;
@@ -398,7 +437,8 @@ mod tests {
     }
 
     /// Catches: submit_step(ChisqdNuPrompt) failing to ADVANCE to
-    /// ChisqdModeChoice + stash ν in state.stack.t (Task 4 wiring).
+    /// ChisqdModeChoice + stash ν in `state.pending_chisqd_nu` carrier
+    /// (REVIEW.md WR-03 — replaces the previous stack-T side channel).
     #[test]
     fn submit_chisqd_nu_prompt_advances_to_mode_choice() {
         let mut state = CalcState::new();
@@ -406,6 +446,9 @@ mod tests {
             Stat1Step::ChisqdNuPrompt,
         ));
         state.stack.x = crate::num::HpNum::from(3i32);
+        // Seed T with a distinctive value so we can verify the
+        // standard HP-41 drop preserves it (no more T-clobber).
+        state.stack.t = crate::num::HpNum::from(42i32);
         let r = submit_step(&mut state, Stat1Step::ChisqdNuPrompt);
         assert_eq!(r, Ok(()));
         // Modal advances to ChisqdModeChoice with the "ΣCHISQD MODE?" prompt.
@@ -417,8 +460,54 @@ mod tests {
             state.modal_prompt,
             Some("\u{03A3}CHISQD MODE?".to_string())
         );
-        // ν stashed in stack.T (D-33.5 transient carrier).
-        assert_eq!(state.stack.t, crate::num::HpNum::from(3i32));
+        // ν stashed in the transient carrier (post-WR-03 design).
+        assert_eq!(state.pending_chisqd_nu, Some(3));
+        // User's original T is preserved (no more side-channel clobber).
+        assert_eq!(state.stack.t, crate::num::HpNum::from(42i32));
+    }
+
+    /// Catches: submit_step(ChisqdModeChoice) silently consuming
+    /// stale data when invoked out of sequence (carrier empty).
+    /// REVIEW.md WR-03 regression guard — the new design returns
+    /// Domain rather than reading garbage from the stack.
+    #[test]
+    fn submit_chisqd_mode_choice_without_nu_carrier_is_domain_err() {
+        let mut state = CalcState::new();
+        state.modal_program = Some(crate::ops::math1::modal::ModalProgram::Stat1(
+            Stat1Step::ChisqdModeChoice,
+        ));
+        // pending_chisqd_nu is None by default — caller forgot to
+        // submit ν first.
+        state.stack.x = crate::num::HpNum::from(1i32); // mode = PDF
+        let r = submit_step(&mut state, Stat1Step::ChisqdModeChoice);
+        assert_eq!(r, Err(HpError::Domain));
+        // Modal state cleared even on error (D-07 never-discard).
+        assert!(state.modal_program.is_none());
+        assert!(state.modal_prompt.is_none());
+    }
+
+    /// Catches: ΣCHISQD T-clobber regression — confirm that arbitrary
+    /// stack-lifting Ops invoked BETWEEN the two submits do not
+    /// corrupt the ν carrier. REVIEW.md WR-03 acceptance test.
+    #[test]
+    fn submit_chisqd_nu_survives_stack_lift_between_submits() {
+        let mut state = CalcState::new();
+        // Open modal at NuPrompt, submit ν=5.
+        state.modal_program = Some(crate::ops::math1::modal::ModalProgram::Stat1(
+            Stat1Step::ChisqdNuPrompt,
+        ));
+        state.stack.x = crate::num::HpNum::from(5i32);
+        submit_step(&mut state, Stat1Step::ChisqdNuPrompt).unwrap();
+        assert_eq!(state.pending_chisqd_nu, Some(5));
+
+        // User invokes some arbitrary stack-lifting Op between
+        // submits — e.g., adds 1 to the entered χ² statistic. This
+        // would have clobbered T under the old design.
+        state.stack.t = crate::num::HpNum::zero(); // simulate any stack-lift
+        state.stack.z = crate::num::HpNum::from(99i32);
+
+        // ν carrier still holds 5 (decoupled from stack).
+        assert_eq!(state.pending_chisqd_nu, Some(5));
     }
 
     /// Catches: submit_step(ChisqdNuPrompt) accepting non-positive ν

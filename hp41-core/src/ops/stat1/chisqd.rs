@@ -9,29 +9,40 @@
 //! ## Modal flow (two-step prompt sequence)
 //!
 //! 1. `op_sigma_chisqd_workflow` opens at `Stat1Step::ChisqdNuPrompt` with
-//!    prompt `ν=?` (Unicode ν = `\u{03BD}`).
+//!    prompt `ν=?` (Unicode ν = `\u{03BD}`). The transient
+//!    `state.pending_chisqd_nu` carrier is cleared at this point so
+//!    no stale ν from a previous cycle can leak through.
 //! 2. User enters ν (positive integer) in X, presses R/S.
 //!    `submit_step(ChisqdNuPrompt)` validates ν ∈ [1, ∞), STORES ν in
-//!    `state.stack.t` (D-33.5 — no new transient CalcState field; the
-//!    deepest stack slot is untouched by typical modal-prompt
-//!    interaction), then transitions to `ChisqdModeChoice` with prompt
-//!    `ΣCHISQD MODE?`.
+//!    the transient `state.pending_chisqd_nu: Option<u32>` carrier
+//!    (REVIEW.md WR-03/WR-04 — replaces the unsafe Plan 33-03
+//!    stack-T side channel), performs the standard HP-41 4-slot
+//!    stack drop (preserving the user's original T value), then
+//!    transitions to `ChisqdModeChoice` with prompt `ΣCHISQD MODE?`.
 //! 3. User enters x (the χ² statistic) in Y, then mode index in X
 //!    (1 = PDF, 2 = CDF), presses R/S.
-//!    `submit_step(ChisqdModeChoice)` reads mode from X, drops X, reads
-//!    x from X (was Y), RECOVERS ν from `state.stack.t`, dispatches to
-//!    `op_sigma_chisqd_eval_pdf(state, ν)` or
+//!    `submit_step(ChisqdModeChoice)` reads mode from X, `take()`s +
+//!    clears ν from the transient carrier (Domain if empty —
+//!    out-of-sequence guard), drops X, reads x from X (was Y),
+//!    dispatches to `op_sigma_chisqd_eval_pdf(state, ν)` or
 //!    `op_sigma_chisqd_eval_cdf(state, ν)`.
 //!
-//! ## ν-storage trade-off
+//! ## ν-storage design (post-REVIEW.md WR-03)
 //!
-//! Per D-33.5 we cannot add a new `CalcState` field. We re-use the T
-//! register because: (a) no new register slot needs to be reserved;
-//! (b) HP-41 hardware drops T on stack-lift but DUPLICATES it on
-//! stack-drop, so a user interacting only via R/S submit will not
-//! clobber T (the user enters x in X, then mode in X — both REPLACE X,
-//! lifting Y but NOT touching T). Plan 33-08 SEED will use the same
-//! carrier pattern.
+//! Plan 33-03 originally stashed ν in `state.stack.t` to honor D-33.5's
+//! "no new CalcState field" guidance. Code review (WR-03/WR-04) found
+//! this design unsafe: any stack-lifting Op invoked between the two
+//! modal submits (most arithmetic, backspace push-lifts, XEQ user
+//! calls) silently clobbered T → mode-choice submit read garbage
+//! → silently wrong PDF/CDF. The user's original T value was also
+//! destroyed.
+//!
+//! The post-fix design uses a dedicated transient `Option<u32>` field
+//! in `CalcState` (`#[serde(default, skip)]`, never persisted), which
+//! is unaffected by stack mutation. The carrier is cleared at every
+//! `op_sigma_chisqd_workflow` interactive open AND at every
+//! `submit_step(ChisqdModeChoice)` exit (success or error) so a stale
+//! value cannot leak between ΣCHISQD cycles.
 //!
 //! ## Numerical paths
 //!
@@ -89,6 +100,9 @@ use std::sync::atomic::Ordering;
 pub fn op_sigma_chisqd_workflow(state: &mut CalcState) -> Result<(), HpError> {
     // T-31-W1-sticky-cancel parity: reset cancel_requested at interactive open.
     state.cancel_requested.store(false, Ordering::Relaxed);
+    // REVIEW.md WR-03 fix: clear any stale ν carrier from a prior
+    // incomplete cycle so the new prompt starts from a clean slate.
+    state.pending_chisqd_nu = None;
     state.modal_program = Some(ModalProgram::Stat1(Stat1Step::ChisqdNuPrompt));
     state.modal_prompt = Some("\u{03BD}=?".to_string());
     apply_lift_effect(state, LiftEffect::Neutral);
