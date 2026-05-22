@@ -226,6 +226,64 @@ pub const STAT1_NORMD_MAX_REG: usize = 18;
 /// Per-slot semantics in `stat1/chisqd.rs` (Plan 33-03).
 pub const STAT1_CHISQD_MAX_REG: usize = 6;
 
+// ── Plan 33-04 Task 2: ΣXSQEV per-slot register consts (P21 mitigation) ────
+//
+// ΣXSQEV / ΣEFXSQ both use SIZE 008 (R00..R07) per OM 00041-90030 p. 55.
+// The 8-register block is INTERLEAVED observed/expected pairs for up to 3
+// categories, matching the typical HP-41 Stat Pac convention for
+// goodness-of-fit accumulators:
+//
+//   R00 = k (number of categories; 1 ≤ k ≤ STAT1_XSQEV_KMAX = 3)
+//   R01 = O₀  (observed count for cell 0)
+//   R02 = E₀  (expected count for cell 0; for ΣEFXSQ, expected PROPORTION)
+//   R03 = O₁
+//   R04 = E₁
+//   R05 = O₂
+//   R06 = E₂
+//   R07 = scratch / χ² accumulator (output, also placed on stack X)
+//
+// The base + stride pair (`STAT1_XSQEV_OBS_BASE_REG = 1`,
+// `STAT1_XSQEV_STRIDE = 2`) lets each Op address cell `i` as
+// `regs[OBS_BASE + STRIDE * i]` (observed) and
+// `regs[EXP_BASE + STRIDE * i]` (expected) — all bounded by the
+// per-program SIZE-floor `STAT1_XSQEV_MAX_REG` (= 7).
+
+/// ΣXSQEV / ΣEFXSQ: register holding `k`, the number of categories
+/// (1 ≤ k ≤ 3 for SIZE 008 block).
+///
+/// OM 00041-90030 p. 55 (Chi-Square Evaluation).
+pub const STAT1_XSQEV_K_REG: usize = 0;
+
+/// ΣXSQEV / ΣEFXSQ: base register for the first observed-count cell.
+///
+/// Cell `i` observed value is at `regs[STAT1_XSQEV_OBS_BASE_REG + STAT1_XSQEV_STRIDE * i]`.
+///
+/// OM 00041-90030 p. 55.
+pub const STAT1_XSQEV_OBS_BASE_REG: usize = 1;
+
+/// ΣXSQEV / ΣEFXSQ: base register for the first expected-count cell
+/// (or expected-proportion cell for ΣEFXSQ).
+///
+/// Cell `i` expected value is at `regs[STAT1_XSQEV_EXP_BASE_REG + STAT1_XSQEV_STRIDE * i]`.
+///
+/// OM 00041-90030 p. 55.
+pub const STAT1_XSQEV_EXP_BASE_REG: usize = 2;
+
+/// ΣXSQEV / ΣEFXSQ: stride between successive observed (or expected) cells
+/// in the interleaved 8-register layout (R00..R07).
+///
+/// OM 00041-90030 p. 55.
+pub const STAT1_XSQEV_STRIDE: usize = 2;
+
+/// ΣXSQEV / ΣEFXSQ: maximum number of categories `k` the SIZE-008 block can
+/// accommodate (P21 hard-defensive cap: any larger k is a domain error).
+///
+/// Derived from `STAT1_XSQEV_MAX_REG + 1` minus the `k`-slot (R00) and
+/// divided by `STAT1_XSQEV_STRIDE` (2 slots per cell — O and E). With
+/// SIZE 008 / R00..R07: (8 − 1) / 2 = 3 (integer division; the trailing
+/// R07 scratch slot is the output and is not used as data).
+pub const STAT1_XSQEV_KMAX: usize = 3;
+
 // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─────
 
 use crate::error::HpError;

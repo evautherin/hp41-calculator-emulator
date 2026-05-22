@@ -820,6 +820,23 @@ pub enum Op {
     ///
     /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣSPEAR (p. 64).
     SigmaSpear,
+    /// ΣXSQEV — Chi-square goodness-of-fit with observed + expected counts.
+    ///
+    /// Reads `k` (number of categories) from R00 and the interleaved
+    /// observed/expected pairs starting at R01 (O₀, E₀, O₁, E₁, ...).
+    /// Computes `χ² = Σ (O − E)² / E` and pushes the result onto stack X.
+    ///
+    /// Domain error: `k < 1`, `k > STAT1_XSQEV_KMAX` (= 3 for SIZE 008),
+    /// or any expected value `E_i == 0` (chi-square is undefined when
+    /// expected = 0).
+    ///
+    /// Closed-form — no iteration over a convergence loop, just a fixed
+    /// k-bounded accumulator (k ≤ STAT1_XSQEV_KMAX, no cancel check
+    /// required). Standard goodness-of-fit df = k − 1; the p-value is
+    /// the downstream caller's responsibility (chain via ΣCHISQD).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣXSQEV (p. 55).
+    SigmaXsqev,
 
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
@@ -1250,6 +1267,7 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::Trans3d => math1::trans::op_trans3d(state),
         // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ─────────────
         Op::SigmaSpear => crate::ops::stat1::nonparam::op_sigma_spear(state),
+        Op::SigmaXsqev => crate::ops::stat1::nonparam::op_sigma_xsqev(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way

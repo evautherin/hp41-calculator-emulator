@@ -39,11 +39,15 @@
 //!
 //! - HP-41C Stat 1 Pac Owner's Manual 00041-90030 (1979) §ΣSPEAR (p. 64),
 //!   §ΣXSQEV / ΣEFXSQ (p. 55).
-//! - `scipy.stats.spearmanr` (oracle).
+//! - `scipy.stats.spearmanr` (oracle for ΣSPEAR).
+//! - `scipy.stats.chisquare` (oracle for ΣXSQEV / ΣEFXSQ).
 
 use crate::error::HpError;
 use crate::num::HpNum;
-use crate::ops::stat1::STAT1_MAX_REG;
+use crate::ops::stat1::{
+    STAT1_MAX_REG, STAT1_XSQEV_EXP_BASE_REG, STAT1_XSQEV_KMAX, STAT1_XSQEV_K_REG,
+    STAT1_XSQEV_MAX_REG, STAT1_XSQEV_OBS_BASE_REG, STAT1_XSQEV_STRIDE,
+};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 
@@ -123,6 +127,108 @@ pub fn op_sigma_spear(state: &mut CalcState) -> Result<(), HpError> {
     enter_number(state, rho_s);
     apply_lift_effect(state, LiftEffect::Enable);
     Ok(())
+}
+
+// ── ΣXSQEV — Chi-Square Goodness-of-Fit (Observed + Expected Counts) ────────
+
+/// ΣXSQEV — closed-form chi-square goodness-of-fit statistic.
+///
+/// `χ² = Σ (O_i − E_i)² / E_i`
+///
+/// Reads `k` (number of categories) from R00 and interleaved
+/// observed/expected pairs starting at R01:
+///
+/// ```text
+/// R00 = k
+/// R01 = O₀   R02 = E₀
+/// R03 = O₁   R04 = E₁
+/// R05 = O₂   R06 = E₂
+/// R07 = scratch (overwritten with χ²)
+/// ```
+///
+/// Result: χ² is pushed to stack X with `LiftEffect::Enable`. The
+/// scratch slot R07 is also written for OM-faithful behavior (matching
+/// HP's documented "Result also stored in R07" semantics per p. 55).
+///
+/// # Errors
+///
+/// - `HpError::InvalidOp` if `state.regs.len() < STAT1_MAX_REG + 1`
+///   (SIZE-floor guard).
+/// - `HpError::Domain` if `k < 1` or `k > STAT1_XSQEV_KMAX` (`= 3` for
+///   SIZE 008).
+/// - `HpError::Domain` if any expected count `E_i == 0` (chi-square is
+///   undefined when expected = 0).
+///
+/// # df (degrees of freedom — informational, not computed here)
+///
+/// Standard goodness-of-fit `df = k − 1` (no parameters estimated from
+/// the data; expected counts are externally specified). This is the
+/// downstream caller's responsibility — ΣCHISQD (Plan 33-03) consumes
+/// the χ² value and a separately-supplied ν to compute the p-value.
+///
+/// # Source
+///
+/// HP-41C Stat 1 Pac Owner's Manual 00041-90030 (1979) §ΣXSQEV (p. 55).
+/// Oracle:
+/// `scipy.stats.chisquare(f_obs=[10,20,30], f_exp=[15,20,25]).statistic`
+/// returns `2.666666666666667` (≈ 8/3).
+pub fn op_sigma_xsqev(state: &mut CalcState) -> Result<(), HpError> {
+    require_stat1_size_floor(state)?;
+    let chi_sq = compute_chi_square_from_counts(state)?;
+
+    // Write to scratch slot R07 (OM "Result" register) AND push to X.
+    state.regs[STAT1_XSQEV_MAX_REG] = chi_sq.clone();
+    state.stack.lift_enabled = true;
+    enter_number(state, chi_sq);
+    apply_lift_effect(state, LiftEffect::Enable);
+    Ok(())
+}
+
+/// Compute χ² from interleaved O/E pairs in the SIZE 008 block. Shared
+/// reducer used by [`op_sigma_xsqev`] directly; [`op_sigma_efxsq`]
+/// (Task 3) will call this AFTER converting proportions to expected
+/// counts in-place.
+fn compute_chi_square_from_counts(state: &CalcState) -> Result<HpNum, HpError> {
+    // Read k (number of categories) from R00 and validate domain.
+    let k_num = state.regs[STAT1_XSQEV_K_REG].clone();
+    let k = decode_category_count(&k_num)?;
+
+    let mut chi_sq = HpNum::zero();
+    for i in 0..k {
+        let obs_reg = STAT1_XSQEV_OBS_BASE_REG + STAT1_XSQEV_STRIDE * i;
+        let exp_reg = STAT1_XSQEV_EXP_BASE_REG + STAT1_XSQEV_STRIDE * i;
+        let obs = state.regs[obs_reg].clone();
+        let exp = state.regs[exp_reg].clone();
+        if exp.is_zero() {
+            return Err(HpError::Domain);
+        }
+        let diff = obs.checked_sub(&exp)?;
+        let term = diff.checked_sq()?.checked_div(&exp)?;
+        chi_sq = chi_sq.checked_add(&term)?;
+    }
+    Ok(chi_sq)
+}
+
+/// Decode `k` (number of categories) from an `HpNum` register value.
+/// Truncates toward zero per HP-41 INT convention, then validates the
+/// `1 ≤ k ≤ STAT1_XSQEV_KMAX` domain. Returns `HpError::Domain` for
+/// out-of-range values (matches HP-41's "out of bounds" semantics; the
+/// closed-form Op cannot produce a meaningful χ² for k < 1 or for k
+/// exceeding the 8-register block's cell capacity).
+///
+/// P21 mitigation: never uses `.floor()` or `.fmod()` on an f64 — the
+/// integer extraction routes through `HpNum::trunc_int()` which uses
+/// `Decimal::trunc()`. See CLAUDE.md "Frozen Invariants — Core engine"
+/// ISG/DSE counter rule.
+fn decode_category_count(k_num: &HpNum) -> Result<usize, HpError> {
+    use rust_decimal::prelude::ToPrimitive;
+    let k_int_dec = k_num.trunc_int().inner();
+    // Must be non-negative and within usize range.
+    let k = k_int_dec.to_usize().ok_or(HpError::Domain)?;
+    if !(1..=STAT1_XSQEV_KMAX).contains(&k) {
+        return Err(HpError::Domain);
+    }
+    Ok(k)
 }
 
 #[cfg(test)]
@@ -206,5 +312,92 @@ mod tests {
         state.regs[2] = HpNum::zero();
         state.regs[3] = HpNum::from(1i32);
         assert_eq!(op_sigma_spear(&mut state).unwrap_err(), HpError::InvalidOp);
+    }
+
+    // ── ΣXSQEV tests ────────────────────────────────────────────────────────
+
+    /// SPEC.md Req. 26 oracle: obs=[10,20,30], exp=[15,20,25] → χ² = 8/3
+    /// ≈ 2.6666666666666665.
+    ///
+    /// Manual: (10−15)²/15 + (20−20)²/20 + (30−25)²/25
+    ///       = 25/15 + 0 + 25/25 = 5/3 + 0 + 1 = 8/3 ≈ 2.6667.
+    /// `scipy.stats.chisquare([10,20,30], f_exp=[15,20,25]).statistic`
+    ///   returns `2.666666666666667`.
+    #[test]
+    fn xsqev_basic() {
+        let mut state = CalcState::new();
+        // R00 = k = 3
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
+        // Interleaved O/E: (R01,R02), (R03,R04), (R05,R06)
+        state.regs[1] = HpNum::from(10i32);
+        state.regs[2] = HpNum::from(15i32);
+        state.regs[3] = HpNum::from(20i32);
+        state.regs[4] = HpNum::from(20i32);
+        state.regs[5] = HpNum::from(30i32);
+        state.regs[6] = HpNum::from(25i32);
+        op_sigma_xsqev(&mut state).unwrap();
+        assert_relative_eq!(x_as_f64(&state), 8.0 / 3.0, max_relative = 1e-9);
+        // Result also lands in R07 scratch slot.
+        assert_relative_eq!(
+            state.regs[STAT1_XSQEV_MAX_REG].inner().to_f64().unwrap(),
+            8.0 / 3.0,
+            max_relative = 1e-9
+        );
+    }
+
+    /// Perfect fit (O == E) → χ² = 0.
+    #[test]
+    fn xsqev_perfect_fit() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
+        state.regs[1] = HpNum::from(20i32);
+        state.regs[2] = HpNum::from(20i32);
+        state.regs[3] = HpNum::from(30i32);
+        state.regs[4] = HpNum::from(30i32);
+        state.regs[5] = HpNum::from(50i32);
+        state.regs[6] = HpNum::from(50i32);
+        op_sigma_xsqev(&mut state).unwrap();
+        assert_eq!(state.stack.x, HpNum::zero());
+    }
+
+    /// Zero expected count → Domain error (would divide by zero).
+    #[test]
+    fn xsqev_zero_expected_returns_domain_error() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32);
+        state.regs[1] = HpNum::from(10i32);
+        state.regs[2] = HpNum::zero(); // expected = 0 → undefined
+        state.regs[3] = HpNum::from(20i32);
+        state.regs[4] = HpNum::from(15i32);
+        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
+    }
+
+    /// SIZE-floor guard fires.
+    #[test]
+    fn xsqev_size_floor_guard() {
+        let mut state = CalcState::new();
+        state.regs.truncate(STAT1_MAX_REG); // one too few
+        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::InvalidOp);
+    }
+
+    /// k out of domain (k = 0 and k > KMAX both rejected).
+    #[test]
+    fn xsqev_k_out_of_range_returns_domain_error() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::zero();
+        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1);
+        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
+    }
+
+    /// Single-category (k=1) trivial case: obs=10, exp=10 → χ² = 0.
+    #[test]
+    fn xsqev_single_category() {
+        let mut state = CalcState::new();
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(1i32);
+        state.regs[1] = HpNum::from(10i32);
+        state.regs[2] = HpNum::from(10i32);
+        op_sigma_xsqev(&mut state).unwrap();
+        assert_eq!(state.stack.x, HpNum::zero());
     }
 }
