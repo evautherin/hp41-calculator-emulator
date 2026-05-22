@@ -86,20 +86,41 @@ pub enum Stat1Step {
 /// Per-step submit dispatch — called by `math1::submit_modal` when the
 /// active modal is `ModalProgram::Stat1(...)` and the user presses R/S.
 ///
-/// Plan 33-03 ships exhaustive dispatch for the three real variants.
-/// The eval-function calls land in Tasks 3 + 4 of this plan; for now
-/// each arm clears the modal state and returns `Err(HpError::InvalidOp)`
-/// — Tasks 3 (ΣNORMD eval) + 4 (ΣCHISQD eval) will overwrite the body of
-/// each arm with the appropriate Op-eval call.
+/// Variant routing:
+///
+/// - `NormdModeChoice` — reads X = mode index (1 = CDF, 2 = PDF, 3 =
+///   inverse). The mode dispatch convention is "X holds the mode index;
+///   the z-score (or probability) was entered into Y BEFORE the user
+///   pressed R/S to enter the mode index" — mirrors the HP-41 Σ+
+///   two-value-entry convention. After reading the mode, drop X →
+///   Y → X (so the z-score is now in X) and call the appropriate
+///   `op_sigma_normd_eval_*` function. Clear modal state on success.
+/// - `ChisqdNuPrompt` — Task 4 of this plan ships this body.
+/// - `ChisqdModeChoice` — Task 4 of this plan ships this body.
 pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError> {
     match step {
         Stat1Step::NormdModeChoice => {
-            // Task 3 (this plan) overwrites this arm: read X = mode index
-            // ∈ {1, 2, 3}, dispatch to op_sigma_normd_eval_{cdf, pdf,
-            // inverse}, clear modal_program / modal_prompt on success.
+            // Read mode index from X (truncate-to-integer per HP-41
+            // convention — fractional indices are rejected as Domain).
+            let mode_index = state.stack.x.trunc_int();
+            let mode_i32 = mode_index.inner().to_i32_safe()?;
+            // Drop X (the mode index); the z-score / probability the user
+            // entered earlier is now in X. HP-41 "drop": X←Y, Y←Z, Z←T,
+            // T←T (T duplicated per hardware). lift_enabled stays true so
+            // the eval result push behaves as a unary_result.
+            state.stack.x = state.stack.y.clone();
+            state.stack.y = state.stack.z.clone();
+            state.stack.z = state.stack.t.clone();
+            // Clear modal state BEFORE dispatching so the eval function
+            // sees a clean modal context (eval ops are non-modal).
             state.modal_program = None;
             state.modal_prompt = None;
-            Err(HpError::InvalidOp)
+            match mode_i32 {
+                1 => crate::ops::stat1::normd::op_sigma_normd_eval_cdf(state),
+                2 => crate::ops::stat1::normd::op_sigma_normd_eval_pdf(state),
+                3 => crate::ops::stat1::normd::op_sigma_normd_eval_inverse(state),
+                _ => Err(HpError::Domain),
+            }
         }
         Stat1Step::ChisqdNuPrompt => {
             // Task 4 (this plan) overwrites this arm: read X = ν (positive
@@ -117,6 +138,20 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
             state.modal_prompt = None;
             Err(HpError::InvalidOp)
         }
+    }
+}
+
+/// Local extension trait for `rust_decimal::Decimal` → `i32` conversion
+/// with `HpError::Domain` mapping. Keeps the `submit_step` body
+/// dependency-free of `rust_decimal::prelude::ToPrimitive` in this scope.
+trait DecimalToI32Safe {
+    fn to_i32_safe(&self) -> Result<i32, HpError>;
+}
+
+impl DecimalToI32Safe for rust_decimal::Decimal {
+    fn to_i32_safe(&self) -> Result<i32, HpError> {
+        use rust_decimal::prelude::ToPrimitive;
+        self.to_i32().ok_or(HpError::Domain)
     }
 }
 

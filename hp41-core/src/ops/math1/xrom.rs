@@ -177,8 +177,9 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}CTKK", Op::Stat1Stub),   // ΣCTKK   — Plan 33-06
         ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
         // ── Stat 1 Pac Distributions ───────────────────────────────────────────
-        ("\u{03A3}NORMD", Op::Stat1Stub),  // ΣNORMD  — Plan 33-03
-        ("\u{03A3}CHISQD", Op::Stat1Stub), // ΣCHISQD — Plan 33-03
+        // Plan 33-03: ΣNORMD → real Sigma* variant (3-mode dispatcher).
+        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow), // ΣNORMD  — Plan 33-03
+        ("\u{03A3}CHISQD", Op::Stat1Stub),         // ΣCHISQD — Plan 33-03
         // ── Stat 1 Pac RAND/SEED (emulator extension per D-33.4) ──────────────
         ("RAND", Op::Stat1Stub),           // RAND    — Plan 33-08
         ("SEED", Op::Stat1Stub),           // SEED    — Plan 33-08
@@ -344,7 +345,8 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}CTKK" => Some(Op::Stat1Stub),
         "\u{03A3}SPEAR" => Some(Op::SigmaSpear),
         // Distributions
-        "\u{03A3}NORMD" => Some(Op::Stat1Stub),
+        // Plan 33-03: ΣNORMD → real Sigma* variant (3-mode dispatcher).
+        "\u{03A3}NORMD" => Some(Op::SigmaNormdWorkflow),
         "\u{03A3}CHISQD" => Some(Op::Stat1Stub),
         // RAND / SEED (emulator extension per D-33.4)
         "RAND" => Some(Op::Stat1Stub),
@@ -520,13 +522,17 @@ mod tests {
 
     // Catches: bit-1 isolation regression — STAT_1 must resolve under bit 1
     // ONLY (not bit 0 alone). SPEC.md Req. 2 / D-33.3 bit-1 arm invariant.
+    //
+    // Plan 33-03 swap: ΣNORMD now resolves to `Op::SigmaNormdWorkflow`
+    // (the real 3-mode modal opener) rather than the 33-01 Stat1Stub
+    // placeholder. The bit-1 isolation check is identical.
     #[test]
     fn resolve_uses_bit_1_for_stat1() {
         // bit 1 set, bit 0 clear — Stat 1 IS loaded, Math 1 is NOT
         let with_bit1 = xrom_resolve("\u{03A3}NORMD", 0b0000_0010);
         assert_eq!(
             with_bit1,
-            Some(Op::Stat1Stub),
+            Some(Op::SigmaNormdWorkflow),
             "xrom_resolve('ΣNORMD', bit1=1) must route through stat1_resolve"
         );
 
