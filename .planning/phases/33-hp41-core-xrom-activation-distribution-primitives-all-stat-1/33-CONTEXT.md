@@ -55,7 +55,13 @@
   - `fn stat1_resolve(name: &str) -> Option<Op>`
   - Bit-1 arm at line 134 (replacing the existing stub comment `// if modules & 0b0000_0010 != 0 { stat1_resolve(name) }`)
   - The bit-1 stub was always intended for v3.1+ per its inline comment; this is not an unplanned freeze violation but the realization of the stub's documented purpose.
-- **D-33.3a:** Document the freeze exception in `CLAUDE.md` under the "Frozen Invariants → Core engine" section — `xrom.rs` is the registry for the resolver chain and was carved out for v3.1+ extension at v3.0 ship time. The rest of `math1/` (complex.rs, difeq.rs, four.rs, hyperbolics.rs, integ.rs, matrix.rs, mod.rs, modal.rs, poly.rs, solve.rs, trans.rs, tri.rs) remains strictly frozen.
+- **D-33.3a:** Document the freeze exception in `CLAUDE.md` under the "Frozen Invariants → Core engine" section — `xrom.rs` is the registry for the resolver chain and was carved out for v3.1+ extension at v3.0 ship time. The rest of `math1/` (complex.rs, difeq.rs, four.rs, hyperbolics.rs, integ.rs, matrix.rs, mod.rs, poly.rs, solve.rs, trans.rs, tri.rs) remains strictly frozen — note that `modal.rs` is no longer in this list (see D-33.3b).
+- **D-33.3b** (amended 2026-05-22, user-confirmed during `/gsd-plan-phase 33`): Break the `math1/` freeze a SECOND time for `modal.rs` only. Extend `hp41-core/src/ops/math1/modal.rs` in place with:
+  - `ModalProgram::Stat1(stat1::modal::Stat1Step)` enum variant (one line, alongside `Matrix`, `Solve`, `Poly`, `Integ`, `Difeq`, `Four`)
+  - Sibling dispatch arms for `submit_step()`, `current_prompt()`, and `requires_alpha_label()` — each delegating to the `stat1::modal` impls (3-arm parity with the existing 6 variants)
+  - `Stat1Step` itself lives in the new `hp41-core/src/ops/stat1/modal.rs` so the math1/modal.rs delta stays to ~8 lines of pure dispatch wiring (no Stat 1 Pac semantics leak into the frozen module)
+  - Update CLAUDE.md "Frozen Invariants → Core engine" to list `modal.rs` alongside `xrom.rs` as the two carved-out files; the rest of math1/ remains strictly frozen
+  - Rationale: chosen over a parallel `Stat1ModalProgram` enum (would have required ~80 lines of plumbing across state.rs + commands.rs + app.rs to thread two modal-program enums) and over inline single-prompt Ops (would have diverged from OM 00041-90094 user flow for SEED, ΣPOLYP DEGREE=?, ΣCHISQD ν=? and risked failing SPEC.md acceptance criteria). The 8-line freeze amendment beats permanent infrastructure duplication.
 
 ### RAND / SEED Policy
 
