@@ -164,11 +164,13 @@ pub const STAT_1: XromModule = XromModule {
         ("\u{03A3}PTST", Op::Stat1Stub),   // ΣPTST   — Plan 33-07
         ("\u{03A3}TSTAT", Op::Stat1Stub),  // ΣTSTAT  — Plan 33-07
         // ── Stat 1 Pac Nonparametric / Chi-Square Evaluation / Contingency ────
+        // Plan 33-04 Task 1 swapped ΣSPEAR from Op::Stat1Stub to its real
+        // Op::SigmaSpear variant (closed-form Spearman rank correlation).
         ("\u{03A3}XSQEV", Op::Stat1Stub),  // ΣXSQEV  — Plan 33-04
         ("\u{03A3}EFXSQ", Op::Stat1Stub),  // ΣEFXSQ  — Plan 33-04
         ("\u{03A3}CTKKK", Op::Stat1Stub),  // ΣCTKKK  — Plan 33-06
         ("\u{03A3}CTKK", Op::Stat1Stub),   // ΣCTKK   — Plan 33-06
-        ("\u{03A3}SPEAR", Op::Stat1Stub),  // ΣSPEAR  — Plan 33-04
+        ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
         // ── Stat 1 Pac Distributions ───────────────────────────────────────────
         ("\u{03A3}NORMD", Op::Stat1Stub),  // ΣNORMD  — Plan 33-03
         ("\u{03A3}CHISQD", Op::Stat1Stub), // ΣCHISQD — Plan 33-03
@@ -328,11 +330,12 @@ fn stat1_resolve(name: &str) -> Option<Op> {
         "\u{03A3}PTST" => Some(Op::Stat1Stub),
         "\u{03A3}TSTAT" => Some(Op::Stat1Stub),
         // Nonparametric / Chi-Square Evaluation / Contingency
+        // Plan 33-04 Task 1: ΣSPEAR now real Op::SigmaSpear variant.
         "\u{03A3}XSQEV" => Some(Op::Stat1Stub),
         "\u{03A3}EFXSQ" => Some(Op::Stat1Stub),
         "\u{03A3}CTKKK" => Some(Op::Stat1Stub),
         "\u{03A3}CTKK" => Some(Op::Stat1Stub),
-        "\u{03A3}SPEAR" => Some(Op::Stat1Stub),
+        "\u{03A3}SPEAR" => Some(Op::SigmaSpear),
         // Distributions
         "\u{03A3}NORMD" => Some(Op::Stat1Stub),
         "\u{03A3}CHISQD" => Some(Op::Stat1Stub),

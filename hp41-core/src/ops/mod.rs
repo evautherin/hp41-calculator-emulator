@@ -807,6 +807,20 @@ pub enum Op {
     /// "T3D" mnemonic disambiguates from 2D TRANS in xrom_resolve (Plan 28-10 decision).
     Trans3d,
 
+    // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ────────────────
+    /// ΣSPEAR — Spearman rank correlation coefficient (closed-form).
+    ///
+    /// Consumes the existing v1.x R01–R06 Σ-register block populated by
+    /// `op_sigma_plus`. The user accumulates `d² = (rank_x − rank_y)²`
+    /// values as single-variable Σ+ samples; ΣSPEAR computes
+    /// `ρ_s = 1 − 6·Σd² / (n·(n²−1))` from R02 (Σx = Σd²) and R03 (n).
+    ///
+    /// Closed-form — no iteration, no distribution-function call,
+    /// no modal prompt. Smallest footprint program in the Pac (SIZE 003).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣSPEAR (p. 64).
+    SigmaSpear,
+
     // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ──
     //
     // `Stat1Stub` is a placeholder Op referenced by every entry in the
@@ -1234,6 +1248,8 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TriSsa => math1::tri::op_tri_ssa(state),
         Op::Trans2d => math1::trans::op_trans2d(state),
         Op::Trans3d => math1::trans::op_trans3d(state),
+        // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ─────────────
+        Op::SigmaSpear => crate::ops::stat1::nonparam::op_sigma_spear(state),
         // ── Phase 33 Plan 33-01 scaffolding (TO BE REMOVED by end of Phase 33) ─
         // Op::Stat1Stub is the placeholder for every STAT_1.ops entry until
         // Plans 33-03..33-08 land the real Sigma* variants. The 4-way
