@@ -92,12 +92,12 @@ Requirements for v3.1 Stat 1 Pac Emulation. Each maps to exactly one phase durin
 
 ### Documentation (STAT-DOC)
 
-- [ ] **STAT-DOC-01**: `docs/hp41-stat1-divergences.md` written — three-bucket catalog (OM divergences / emulator extensions including RAND/SEED + the XROM-7 vs XROM-2 mnemonic-prefix convention / behavioral policies); parallel to `docs/hp41-math1-divergences.md`
-- [ ] **STAT-DOC-02**: `scripts/docs-matrix/` extended to three-input (cv + math1 + stat1) regenerator; `just docs-matrix` rebuilds all three function matrices; `just docs-matrix-check` CI drift gate covers all three
-- [ ] **STAT-DOC-03**: `docs/hp41-stat1-function-matrix.md` regenerated from canonical `docs/hp41-stat1-functions.json` via `just docs-matrix`
-- [ ] **STAT-DOC-04**: ADRs written for any new architectural decisions in Phase 33 — at minimum: (a) RNG-state placement (CalcState field with non-skip serde), (b) ANOVA / multiple-regression register-layout finalization, (c) hand-coded distribution primitives policy (statrs rejected, AS 239/63/241 chosen)
-- [ ] **STAT-DOC-05**: README v3.1 section + CLAUDE.md `### v3.1 additions` block describe Stat 1 Pac integration, RNG bonus utility scope, and updated Op-variant count
-- [ ] **STAT-DOC-06**: `docs/architecture-history.md` expanded with v3.1 phase narrative + decision rationale (per the v3.0 history-pattern); milestone-summary one-liner in `.planning/MILESTONES.md` follows v3.0 shape
+- [x] **STAT-DOC-01**: `docs/hp41-stat1-divergences.md` written — three-bucket catalog (OM divergences / emulator extensions including RAND/SEED + the XROM-7 vs XROM-2 mnemonic-prefix convention / behavioral policies); parallel to `docs/hp41-math1-divergences.md`
+- [x] **STAT-DOC-02**: `scripts/docs-matrix/` extended to three-input (cv + math1 + stat1) regenerator; `just docs-matrix` rebuilds all three function matrices; `just docs-matrix-check` CI drift gate covers all three
+- [x] **STAT-DOC-03**: `docs/hp41-stat1-function-matrix.md` regenerated from canonical `docs/hp41-stat1-functions.json` via `just docs-matrix`
+- [x] **STAT-DOC-04**: ADRs written for any new architectural decisions in Phase 33 — at minimum: (a) RNG-state placement (CalcState field with non-skip serde), (b) ANOVA / multiple-regression register-layout finalization, (c) hand-coded distribution primitives policy (statrs rejected, AS 239/63/241 chosen)
+- [x] **STAT-DOC-05**: README v3.1 section + CLAUDE.md `### v3.1 additions` block describe Stat 1 Pac integration, RNG bonus utility scope, and updated Op-variant count
+- [x] **STAT-DOC-06**: `docs/architecture-history.md` expanded with v3.1 phase narrative + decision rationale (per the v3.0 history-pattern); milestone-summary one-liner in `.planning/MILESTONES.md` follows v3.0 shape
 
 ### Quality Gates (STAT-QUAL)
 
@@ -220,12 +220,12 @@ Which phases cover which requirements. Filled by `gsd-roadmapper` during roadmap
 | STAT-GUI-03 | Phase 36 | Pending |
 | STAT-GUI-04 | Phase 36 | Pending |
 | STAT-GUI-05 | Phase 36 | Pending |
-| STAT-DOC-01 | Phase 35 | Pending |
-| STAT-DOC-02 | Phase 35 | Pending |
-| STAT-DOC-03 | Phase 35 | Pending |
-| STAT-DOC-04 | Phase 35 | Pending |
-| STAT-DOC-05 | Phase 35 | Pending |
-| STAT-DOC-06 | Phase 35 | Pending |
+| STAT-DOC-01 | Phase 35 | Complete |
+| STAT-DOC-02 | Phase 35 | Complete |
+| STAT-DOC-03 | Phase 35 | Complete |
+| STAT-DOC-04 | Phase 35 | Complete |
+| STAT-DOC-05 | Phase 35 | Complete |
+| STAT-DOC-06 | Phase 35 | Complete |
 | STAT-QUAL-01 | Phase 37 | Pending |
 | STAT-QUAL-02 | Phase 37 | Pending |
 | STAT-QUAL-03 | Phase 37 | Pending |
