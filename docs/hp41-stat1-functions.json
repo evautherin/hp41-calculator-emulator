@@ -1,0 +1,266 @@
+[
+    {
+        "op_variant": "SigmaBstat",
+        "display_name": "ΣBSTAT",
+        "category": "Stat1 Univariate",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣBSTAT\"",
+        "description": "Extended univariate summary (weighted mean, CV)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 1 }
+    },
+    {
+        "op_variant": "SigmaBstg",
+        "display_name": "ΣBSTG",
+        "category": "Stat1 Univariate",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣBSTG\"",
+        "description": "Grouped-data univariate summary",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 2 }
+    },
+    {
+        "op_variant": "SigmaMmtug",
+        "display_name": "ΣMMTUG",
+        "category": "Stat1 Univariate",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣMMTUG\"",
+        "description": "Moments — ungrouped data (mean, variance, skew, kurtosis)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 3 }
+    },
+    {
+        "op_variant": "SigmaMmtgd",
+        "display_name": "ΣMMTGD",
+        "category": "Stat1 Univariate",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣMMTGD\"",
+        "description": "Moments — grouped data (mean, variance, skew, kurtosis)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 4 }
+    },
+    {
+        "op_variant": "SigmaAovone",
+        "display_name": "ΣAOVONE",
+        "category": "Stat1 ANOVA",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣAOVONE\"",
+        "description": "One-way ANOVA: F-ratio across multiple groups",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 5 }
+    },
+    {
+        "op_variant": "SigmaAovtwo",
+        "display_name": "ΣAOVTWO",
+        "category": "Stat1 ANOVA",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣAOVTWO\"",
+        "description": "Two-way ANOVA: two-factor analysis of variance",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 6 }
+    },
+    {
+        "op_variant": "SigmaAnocov",
+        "display_name": "ΣANOCOV",
+        "category": "Stat1 ANOVA",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣANOCOV\"",
+        "description": "Analysis of covariance (single covariate)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 7 }
+    },
+    {
+        "op_variant": "SigmaLin",
+        "display_name": "ΣLIN",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣLIN\"",
+        "description": "Linear curve fit: y = a + b·x",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 8 }
+    },
+    {
+        "op_variant": "SigmaExp",
+        "display_name": "ΣEXP",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣEXP\"",
+        "description": "Exponential curve fit: y = a·e^(b·x)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 9 }
+    },
+    {
+        "op_variant": "SigmaLogi",
+        "display_name": "ΣLOGI",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣLOGI\"",
+        "description": "Logarithmic curve fit: y = a + b·ln(x)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 10 }
+    },
+    {
+        "op_variant": "SigmaPow",
+        "display_name": "ΣPOW",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣPOW\"",
+        "description": "Power curve fit: y = a·x^b",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 11 }
+    },
+    {
+        "op_variant": "SigmaMlrxy",
+        "display_name": "ΣMLRXY",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣMLRXY\"",
+        "description": "Multiple linear regression — two predictors (Y on X)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 12 }
+    },
+    {
+        "op_variant": "SigmaMlrxyz",
+        "display_name": "ΣMLRXYZ",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣMLRXYZ\"",
+        "description": "Multiple linear regression — three predictors (Y on X,Z)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 13 }
+    },
+    {
+        "op_variant": "SigmaPolypWorkflow",
+        "display_name": "ΣPOLYP",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣPOLYP\"",
+        "description": "Polynomial regression — accepts degree via modal prompt",
+        "divergences": ["DEGREE=? modal prompt is HP-41 emulator convention transcribed from Math Pac I POLY precedent (OM 00041-90030 does not specify the degree-entry interaction)."],
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 14 }
+    },
+    {
+        "op_variant": "SigmaPolyc",
+        "display_name": "ΣPOLYC",
+        "category": "Stat1 Regression",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣPOLYC\"",
+        "description": "Polynomial coefficient recall after ΣPOLYP fit",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 15 }
+    },
+    {
+        "op_variant": "SigmaPtst",
+        "display_name": "ΣPTST",
+        "category": "Stat1 Hypothesis",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣPTST\"",
+        "description": "Paired-sample t-test (within-subject differences)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 16 }
+    },
+    {
+        "op_variant": "SigmaTstat",
+        "display_name": "ΣTSTAT",
+        "category": "Stat1 Hypothesis",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣTSTAT\"",
+        "description": "Two-sample t-test (pooled-variance assumption)",
+        "divergences": ["Pooled-variance two-sample t-test only; Welch's unequal-variance variant is explicitly excluded per REQUIREMENTS.md Out-of-Scope (Phase 33 SPEC.md Req. 25)."],
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 17 }
+    },
+    {
+        "op_variant": "SigmaXsqev",
+        "display_name": "ΣXSQEV",
+        "category": "Stat1 Nonparam",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣXSQEV\"",
+        "description": "Chi-square goodness-of-fit evaluation",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 18 }
+    },
+    {
+        "op_variant": "SigmaEfxsq",
+        "display_name": "ΣEFXSQ",
+        "category": "Stat1 Nonparam",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣEFXSQ\"",
+        "description": "Chi-square with expected-frequency input",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 19 }
+    },
+    {
+        "op_variant": "SigmaCtkkk",
+        "display_name": "ΣCTKKK",
+        "category": "Stat1 Nonparam",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣCTKKK\"",
+        "description": "Contingency table — Kendall's tau-c statistic",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 20 }
+    },
+    {
+        "op_variant": "SigmaCtkk",
+        "display_name": "ΣCTKK",
+        "category": "Stat1 Nonparam",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣCTKK\"",
+        "description": "Contingency table — Kendall's tau-b (corrected)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 21 }
+    },
+    {
+        "op_variant": "SigmaSpear",
+        "display_name": "ΣSPEAR",
+        "category": "Stat1 Nonparam",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣSPEAR\"",
+        "description": "Spearman rank correlation coefficient",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 22 }
+    },
+    {
+        "op_variant": "SigmaNormdWorkflow",
+        "display_name": "ΣNORMD",
+        "category": "Stat1 Distributions",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣNORMD\"",
+        "description": "Standard normal CDF / PDF / inverse (probit) — three-mode dispatcher",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 23 }
+    },
+    {
+        "op_variant": "SigmaChisqdWorkflow",
+        "display_name": "ΣCHISQD",
+        "category": "Stat1 Distributions",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"ΣCHISQD\"",
+        "description": "Chi-square distribution CDF / PDF (prompts for ν)",
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 24 }
+    },
+    {
+        "op_variant": "Rand",
+        "display_name": "RAND",
+        "category": "Stat1 RNG",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"RAND\"",
+        "description": "Next pseudorandom uniform on [0,1) via Don Malm LCG",
+        "divergences": ["v3.1 emulator extension — not part of OM 00041-90030 'feature-complete' claim. LCG formula r_{n+1} = FRC(9821*r_n + 0.211327) per NPS p. 21 / Don Malm community convention."],
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 25 }
+    },
+    {
+        "op_variant": "Seed",
+        "display_name": "SEED",
+        "category": "Stat1 RNG",
+        "status": "implemented",
+        "phase": "33",
+        "key_path": "XEQ \"SEED\"",
+        "description": "Seed the RAND generator from X (modal prompt 'SEED?')",
+        "divergences": ["v3.1 emulator extension — not part of OM 00041-90030 'feature-complete' claim. LCG formula r_{n+1} = FRC(9821*r_n + 0.211327) per NPS p. 21 / Don Malm community convention."],
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 26 }
+    }
+]
