@@ -71,6 +71,8 @@ fn render_markdown(entries: &[Entry], json_path: &str) -> String {
         ("# HP-41CV ROM Function Matrix", "`docs/hp41cv-functions.json`")
     } else if basename.ends_with("hp41-math1-functions.json") {
         ("# HP-41C Math Pac I Function Matrix", "`docs/hp41-math1-functions.json`")
+    } else if basename.ends_with("hp41-stat1-functions.json") {
+        ("# HP-41C Stat 1 Pac Function Matrix", "`docs/hp41-stat1-functions.json`")
     } else {
         ("# Function Matrix", "`{json_path}`")
     };
