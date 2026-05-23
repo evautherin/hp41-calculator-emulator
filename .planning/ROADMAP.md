@@ -70,7 +70,7 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 ### ⏳ v3.1 — Stat 1 Pac Emulation (Phases 33–37)
 
 - [x] **Phase 33: hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops** — Spec-phase OM layout transcription; contamination-guard extension (Pitfall 27, first); STAT_1 XROM registration (bit 1); `default_xrom_modules` migration (0b0000_0001 → 0b0000_0011); `rand_seed` CalcState field; `stat1/distributions.rs` (3 numerical primitives); all ~24 Op variants across `stat1/` module tree; 4-way invariant items 1 + 2 complete. Estimate 9–11 plans. (completed 2026-05-22)
-- [ ] **Phase 34: hp41-cli — CLI Integration** — `docs/hp41-stat1-functions.json` canonical source; third `OnceLock<Vec<HelpEntry>>`; ~24 new `op_display_name` arms; "Stat 1 Pac (XROM 2)" help-overlay section; `xrom_shadowing.rs` extended to STAT_1.ops; modal-prompt routing for multi-step Stat 1 workflows. Estimate 2–3 plans.
+- [x] **Phase 34: hp41-cli — CLI Integration** — `docs/hp41-stat1-functions.json` canonical source; third `OnceLock<Vec<HelpEntry>>`; ~24 new `op_display_name` arms; "Stat 1 Pac (XROM 2)" help-overlay section; `xrom_shadowing.rs` extended to STAT_1.ops; modal-prompt routing for multi-step Stat 1 workflows. Estimate 2–3 plans. (completed 2026-05-23)
 - [ ] **Phase 35: Documentation & ADRs** — `docs/hp41-stat1-divergences.md` three-bucket catalog; `scripts/docs-matrix` three-input extension; `docs/hp41-stat1-function-matrix.md` generated; new ADRs for v3.1 architectural decisions (RNG-state serde, register layout, distribution-primitive policy); README v3.1 section + CLAUDE.md `### v3.1 additions` block; `docs/architecture-history.md` v3.1 narrative. Estimate 3–4 plans.
 - [ ] **Phase 36: hp41-gui — GUI Integration** — ~24 new `op_display_name` arms in GUI `prgm_display.rs`; CATALOG 2 gains "STAT 1B" XROM entry; help overlay "Stat 1 Pac (XROM 2)" parallel-load section; modal-prompt routing for Stat 1 multi-step workflows; `request_cancel` reuse for iterative-quantile paths (ΣNORMD inverse + ΣCHISQD CDF). Estimate 3–5 plans.
 - [ ] **Phase 37: Test Hardening & Quality Gates** — `hp41-core` coverage hold ≥ 95.39 % lines / ≥ 94.26 % regions; per-file `stat1/*.rs` floor ≥ 90 %; two-level tolerance discipline (1e-9 closed-form, 1e-7 iterative); `stat1_op_test_count.rs` meta-gate; `xrom_shadowing.rs` STAT_1 extension; backward-compat test for v3.0 save migration; `numerical_accuracy.rs` extended with ~30 Stat 1 oracle cases; `lint_stat1_assertions.rs`; `stat1_rand_determinism.rs`; E2E smoke extended with one Stat 1 Pac workflow on Ubuntu. Estimate 6–10 plans.
@@ -127,7 +127,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 34-02-PLAN.md — 26 op_display_name arms (closes CI break, 4-way invariant item 3) + function_matrix_parity 3-pool partition + phase25_xeq_by_name Stat 1 extension + phase34_modal_flow.rs + phase34_key_ref_includes_stat1.rs + just ci verification (STAT-CLI-01, 03, 04, 05)
+- [x] 34-02-PLAN.md — 26 op_display_name arms (closes CI break, 4-way invariant item 3) + function_matrix_parity 3-pool partition + phase25_xeq_by_name Stat 1 extension + phase34_modal_flow.rs + phase34_key_ref_includes_stat1.rs + just ci verification (STAT-CLI-01, 03, 04, 05)
 
 ### Phase 35: Documentation & ADRs
 
@@ -188,7 +188,7 @@ Plans:
 | 20–27 | v2.2 | 26/26 | Complete | 2026-05-15 |
 | 28–32 | v3.0 | 31/31 | Complete | 2026-05-20 |
 | 33 | v3.1 | 9/9 | Complete    | 2026-05-22 |
-| 34 | v3.1 | 1/2 | In Progress|  |
+| 34 | v3.1 | 2/2 | Complete   | 2026-05-23 |
 | 35 | v3.1 | 0/0 | Not started | - |
 | 36 | v3.1 | 0/0 | Not started | - |
 | 37 | v3.1 | 0/0 | Not started | - |
