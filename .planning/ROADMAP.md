@@ -145,9 +145,14 @@ Plans:
 **UI hint**: no
 Plans:
 
+**Wave 1**
+
 - [ ] 35-01-PLAN.md — Tooling + matrix regeneration + 33-SPEC-AMENDMENT: scripts/docs-matrix basename dispatch 4-line extension + justfile third invocation + docs/hp41-stat1-function-matrix.md generation + .planning/phases/33-.../33-SPEC-AMENDMENT.md 6-row drift table (STAT-DOC-01, STAT-DOC-02, STAT-DOC-03)
 - [ ] 35-02-PLAN.md — docs/hp41-stat1-divergences.md three-bucket catalog with ≥ 11 D-35-NN entries (6 oracle drifts in bucket 3 cross-referencing 33-SPEC-AMENDMENT.md + RAND/SEED + ΣPOLYP DEGREE=? in bucket 2 + ΣTSTAT pooled-only + XROM-7 vs XROM-2 prefix + math1/ freeze second carve-out in bucket 3) (STAT-DOC-03)
 - [ ] 35-03-PLAN.md — 5 new ADRs in docs/adr/v3.1-001..005-*.md (RNG state placement, distribution primitives policy + Free42 disclaim, ANOVA register layout, math1/ freeze second carve-out, ModalProgram::Stat1 enum extension) — long-form D-30.6 template, lock date 2026-05-22 (STAT-DOC-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 35-04-PLAN.md — Narrative docs (Wave 2, depends on 35-03): README v3.1 soft-claim + matrix link, CLAUDE.md FIRST-EVER ### v3.1 additions block + math1/ freeze carve-out amendment gated by ADR-v3.1-004, PROJECT.md Shipped/Current focus update, docs/architecture-history.md v3.1 narrative section, .planning/MILESTONES.md v3.1 stub (STAT-DOC-05, STAT-DOC-06)
 
 ### Phase 36: hp41-gui — GUI Integration
