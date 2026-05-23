@@ -536,7 +536,10 @@ fn test_pool_partition_is_exhaustive() {
          v3.1 supports only module_id in {{None (built-ins), 7 (Math 1), 2 (Stat 1)}}. \
          Adding a new XROM module requires updating function_matrix_parity.rs partition."
     );
-    assert!(builtin_count >= 130, "built-in pool shrank: {builtin_count}");
+    assert!(
+        builtin_count >= 130,
+        "built-in pool shrank: {builtin_count}"
+    );
     assert_eq!(math1_count, 45, "Math 1 pool count drift: {math1_count}");
     assert_eq!(stat1_count, 26, "Stat 1 pool count drift: {stat1_count}");
 }
