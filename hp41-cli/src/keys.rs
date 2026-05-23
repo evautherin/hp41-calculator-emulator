@@ -329,11 +329,22 @@ pub fn shifted_key_to_op(key: KeyEvent, app: &mut App) -> Option<Op> {
 }
 
 /// CLI-local resolver for the 8 non-keyboard HP-41CV conditional-test
-/// mnemonics. Accepts BOTH ASCII-pure and Unicode-symbol spellings per
-/// D-25.10 + RESEARCH §"Conditional tests". Returns `None` for the four
-/// v2.1 card-reader names (those fall through to `Op::Xeq` →
+/// mnemonics + the keyboardless `PI` built-in. Accepts BOTH ASCII-pure and
+/// Unicode-symbol spellings of the conditional tests per D-25.10 + RESEARCH
+/// §"Conditional tests". Returns `None` for the four v2.1 card-reader names
+/// (those fall through to `Op::Xeq` →
 /// `hp41_core::ops::program::builtin_card_op` via the modal Enter-arm) and
 /// for unknown names.
+///
+/// The `"PI"` arm exists because `Op::Pi` has `key_path: null` in
+/// `docs/hp41cv-functions.json` — there is no f-shifted key bound to it in
+/// this CLI build (real HP-41 sits PI on Shift-`R/S`, omitted from the
+/// CLI layout). `XEQ "PI"` is therefore the sole live keyboard route; without
+/// this arm the resolver fell through to `xrom_resolve` (no match — PI is a
+/// built-in opcode, not a Math Pac I XROM entry) and surfaced `InvalidOp`.
+/// Programs continue to use the direct `Op::Pi` opcode — no
+/// `builtin_card_op` mirror needed, since real-world programs never write
+/// `XEQ "PI"`.
 ///
 /// Why CLI-local AND hp41-core both carry the mapping (Plan 03):
 ///   - This CLI-local path gives immediate dispatch from the XEQ-by-Name
@@ -373,6 +384,10 @@ pub fn xeq_by_name_local_resolve(name: &str, xrom_modules: u8) -> Option<Op> {
         "X<=0?" | "X\u{2264}0?" => Some(Op::Test(TestKind::XLeZero)),
         // X ≥ 0 — two spellings.
         "X>=0?" | "X\u{2265}0?" => Some(Op::Test(TestKind::XGeZero)),
+        // Keyboardless built-in: PI has `key_path: null` in
+        // `docs/hp41cv-functions.json`, so `XEQ "PI"` is its only live
+        // route. See the rustdoc above for the full rationale.
+        "PI" => Some(Op::Pi),
         // Final fallback: XROM resolver (C-28.4 — fires LAST).
         // For Math Pac I, this resolves ~45 XEQ-by-name entries when
         // `xrom_modules & 0b0000_0001 != 0` (Math Pac I loaded).

@@ -235,6 +235,47 @@ fn xeq_by_name_resolves_x_ge_zero() {
     );
 }
 
+/// `XEQ "PI"` reaches `Op::Pi`. PI has `key_path: null` in
+/// `docs/hp41cv-functions.json` — no f-shifted key is bound to it in this
+/// CLI build — so the XEQ-by-Name route is the only live way to push π
+/// onto X from the keyboard. Regression guard against a re-introduction
+/// of the v3.0 gap where the resolver fell through to `xrom_resolve`
+/// (which does not list PI, since PI is a built-in opcode, not a Math Pac I
+/// XROM entry) and surfaced `InvalidOp`.
+#[test]
+fn xeq_by_name_resolves_pi() {
+    // XROM-loaded and XROM-unloaded both resolve — PI is a built-in arm
+    // that fires BEFORE the xrom fallback, so module state is irrelevant.
+    assert_eq!(xeq_by_name_local_resolve("PI", 0b0000_0001), Some(Op::Pi));
+    assert_eq!(xeq_by_name_local_resolve("PI", 0b0000_0000), Some(Op::Pi));
+
+    // End-to-end through the modal: typing `PI` + Enter pushes π onto X
+    // with no error message surfaced.
+    let (app, _tmp, msg) = type_name_and_enter("PI");
+    assert!(
+        msg.is_none(),
+        "XEQ \"PI\" must dispatch cleanly; got message={msg:?}"
+    );
+    // Symmetry check: the resolver path must produce the same X as a direct
+    // dispatch of Op::Pi on a fresh state. Avoids depending on rust_decimal
+    // in the CLI test crate.
+    let mut reference = CalcState::new();
+    hp41_core::ops::dispatch(&mut reference, Op::Pi).expect("op_pi on fresh state must succeed");
+    assert_eq!(
+        app.state.stack.x, reference.stack.x,
+        "X after XEQ \"PI\" must equal X after direct Op::Pi dispatch"
+    );
+}
+
+/// Case sensitivity: HP-41 ROM names are uppercase. `xeq "pi"` (lowercase)
+/// must NOT resolve — it should fall through to `xrom_resolve` (which has
+/// no match) and surface as `InvalidOp` rather than silently dispatching.
+#[test]
+fn xeq_by_name_pi_is_case_sensitive() {
+    assert_eq!(xeq_by_name_local_resolve("pi", 0b0000_0001), None);
+    assert_eq!(xeq_by_name_local_resolve("Pi", 0b0000_0001), None);
+}
+
 /// Explicit Unicode-only path: type `X` `≠` `Y` `?` via crossterm
 /// `KeyCode::Char('≠')` events. Confirms the modal's `handle_key` accumulates
 /// non-ASCII Unicode chars correctly (XEQ_NAME_CAP counts in bytes? No —
