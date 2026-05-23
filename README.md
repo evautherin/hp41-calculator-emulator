@@ -50,6 +50,8 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
 - Persistent state via JSON at `~/.hp41/autosave.json` — human-readable, version-stable, shared between CLI and GUI
 - v3.0 ships Math Pac I behavioral emulation, feature-complete per Owner's Manual 00041-90034
   ([documented divergences](docs/hp41-math1-divergences.md)) — see [Math Pac I Function Matrix](docs/hp41-math1-function-matrix.md)
+- Stat 1 Pac behavioral emulation (13 programs, 26 XEQ entry points,
+  RAND/SEED extension, [documented divergences](docs/hp41-stat1-divergences.md)) — see [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md)
 
 **Terminal UI (`hp41-cli`)**
 
@@ -134,6 +136,7 @@ The GUI and CLI share state via `~/.hp41/autosave.json` — they auto-save every
 | [Operations Reference](docs/operations-reference.md) | All ~130 operations by category |
 | [Function Matrix](docs/hp41cv-function-matrix.md) | Per-op status, keyboard path, divergences |
 | [Math Pac I Function Matrix](docs/hp41-math1-function-matrix.md) | Math Pac I XROM entries with module/function IDs |
+| [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md) | Stat 1 Pac XROM entries (module 2) with function IDs and divergences |
 | [Keyboard Layout](docs/keyboard-layout.md) | Key layout and shifted functions |
 | [Programming Guide](docs/programming-guide.md) | Stack model, programs, flags, loops |
 | [Architecture](docs/architecture.md) | Emulator internals for contributors |

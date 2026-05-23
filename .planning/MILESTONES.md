@@ -277,4 +277,16 @@ Behavioral emulation of the HP-41C **Math Pac I** (HP part number 00041-90034, O
 - HP-copyrighted ROM-image redistribution remains permanently out of scope.
 
 ---
+
+## v3.1 — Stat 1 Pac Emulation (IN PROGRESS)
+
+**Status:** Phase 35 shipped 2026-05-23; Phase 36 (GUI Integration) + Phase 37 (Test Hardening & Quality Gates) IN PROGRESS. Milestone tag waits for Phase 37 ship via `/gsd-complete-milestone`.
+
+**Scope:** Behavioral emulation of the HP-41C Stat 1 Pac (HP 00041-90030, 1979) as the second XROM application module (XROM ID 2). 13 programs / 26 XEQ entry points across univariate / ANOVA / regression / hypothesis / nonparametric / distribution / RNG families. Phases 33–37.
+
+**Shipped Phases:** Phase 33 (2026-05-22) hp41-core XROM activation + distribution primitives + all 26 Op variants. Phase 34 (2026-05-23) hp41-cli integration: 26 `op_display_name` arms + 3-pool JSON help + `?` overlay "Stat 1 Pac (XROM 2)" section. Phase 35 (2026-05-23) documentation & ADRs: 5 new ADRs (v3.1-001..005), divergence catalog (12 D-35-NN entries), function matrix, `33-SPEC-AMENDMENT.md`, README v3.1 soft-claim, CLAUDE.md `### v3.1 additions` block (FIRST-EVER `### v3.x additions` block per D-35.5) + math1/ freeze carve-out amendment gated by ADR-v3.1-004.
+
+**Status placeholder — full milestone-summary entry lands at Phase 37 ship via `/gsd-complete-milestone`.**
+
+---
 *For current project status, see .planning/STATE.md*
