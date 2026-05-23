@@ -75,7 +75,94 @@ are deliberate, documented additions that improve usability without conflicting 
 behavior for OM-specified inputs. Every extension in this section is marked with
 "N/A — emulator extension" in the OM citation field.)*
 
-*<populated below — D-35-07 onward — once Task 2 lands the bucket-2 entries.>*
+---
+
+### D-35-07: RAND / SEED LCG — v3.1 Emulator Extension
+
+- **OM citation**: `N/A — emulator extension`. The HP-41C Stat 1 Pac Owner's Manual
+  HP 00041-90030 (1979) does NOT list a top-level RAND or SEED XROM entry point per
+  the Phase 33 OM read (33-08-SUMMARY.md research finding); the Quick Reference Card
+  HP 00041-90061 (June 1979) confirms this absence. RAND / SEED are a v3.1 emulator
+  extension per the NPS document ZP4 program convention and the HP-65 User's Library
+  (Don Malm) historical LCG-formula provenance. STAT-RNG-04 (REQUIREMENTS.md) classifies
+  RAND / SEED as the only Stat 1 Pac surface that is NOT part of the
+  "feature-complete per OM 00041-90030" claim.
+
+- **Our behavior**: `XEQ "RAND"` generates the next pseudorandom uniform via the
+  linear-congruential generator `r_{n+1} = FRC(9821 · r_n + 0.211327)` per
+  NPS55-84-003 (Zehna, 1984) p. 21–22, pushes it to the stack, and writes back to
+  `state.rand_seed`. `XEQ "SEED"` opens an ALPHA `SEED?` modal prompt and writes the
+  submitted (and FRC-normalized to `[0, 1)`) value to `state.rand_seed: HpNum`. The
+  seed survives serde save/load via `#[serde(default)]` WITHOUT `#[serde(skip)]` —
+  the ONLY v3.1 `CalcState` field with this serde shape (all other v3.1 fields are
+  either `#[serde(skip)]` transient or carry the standard `#[serde(default)]` plus
+  `#[serde(skip)]` combination). Round-trip reproducibility is asserted by integration
+  test `rand_sequence_deterministic_after_save_load`
+  (`hp41-core/tests/stat1_rand_determinism.rs:55-93`).
+
+- **OM behavior**: `N/A — emulator extension`. The OM does not specify RAND or SEED.
+
+- **Rationale**: NPS55-84-003 p. 21–22 cites the LCG formula
+  `r_{n+1} = FRC(9821 · r_n + 0.211327)` as HP-65 User's Library convention attributed
+  to Don Malm; HP-41C Standard Applications (1979) p. 24 carries the same formula
+  independently. Implementing RAND / SEED is community-convention parity with
+  widely-circulated HP-41 user programs across three independent primary sources
+  (NPS, Don Malm, HP-41C Standard Applications). The non-`skip` serde shape was chosen
+  to preserve reproducible simulations across sessions (STAT-RNG-03 / Pitfall 20) —
+  losing the seed on every save/load would break the deliberate-reproducibility
+  contract that SEED's existence implies. Rejected alternative: implement RAND
+  without persistence (would force users to re-seed on every session restart, defeating
+  SEED's purpose).
+
+- **See**: `docs/adr/v3.1-001-rng-state-placement.md` (Plan 35-03 ADR; forward-
+  reference within Phase 35 ship); `hp41-core/src/ops/stat1/rand.rs`;
+  `hp41-core/src/state.rs:201-202` (`rand_seed` field with unique serde shape);
+  `hp41-core/tests/stat1_rand_determinism.rs` (3 integration tests); STAT-RNG-01..04
+  (REQUIREMENTS.md); D-33.4 / D-33.4a (33-CONTEXT.md); NPS55-84-003 p. 21–22;
+  HP-41C Standard Applications (1979) p. 24; HP-65 User's Library (Don Malm,
+  community-attributed); Pitfall 20 (RNG serde, research/PITFALLS.md).
+
+---
+
+### D-35-08: ΣPOLYP "DEGREE=?" Prompt — Math Pac I POLY Precedent Inheritance
+
+- **OM citation**: HP 00041-90030 (1979), §ΣPOLYP polynomial-regression program
+  description — the OM specifies a degree-prompt mechanism (the user enters polynomial
+  degree `d` before regression accumulation), but the exact on-screen prompt wording
+  is tentatively transcribed from the Math Pac I `POLY` program convention per ROADMAP
+  STAT-REG-07 success criterion ("tentative `DEGREE=?` per Math Pac I `POLY` precedent
+  — verified in Phase 33"). This makes the prompt wording itself a v3.1 emulator
+  transcription pinned to the Math Pac I precedent; the underlying degree-prompt
+  mechanism is OM-faithful.
+
+- **Our behavior**: `XEQ "ΣPOLYP"` opens a modal prompt displaying the literal ALPHA
+  string `DEGREE=?` and accepts a `u8` degree `d` via R/S submit. The degree flows
+  through the existing v3.0 modal-program infrastructure as
+  `ModalProgram::Stat1(Stat1Step::PolypDegreePrompt(u8))` per D-33.3b — the same
+  modal machinery introduced for Math Pac I `POLY` `DEGREE=?` is re-used unchanged.
+  Out-of-range `d` (d < 1 or d > 5 per OM polynomial-regression range) returns
+  `HpError::OutOfRange`.
+
+- **OM behavior**: The OM specifies that the user enters degree `d` before the
+  regression begins. The precise on-screen ALPHA-prompt wording on real HP-41C
+  hardware may use different characters or abbreviations (the OM uses prose
+  description, not a screenshot transcript); our `DEGREE=?` is the emulator
+  transcription consistent with the Math Pac I `POLY` precedent.
+
+- **Rationale**: Re-uses the locked Math Pac I prompt-wording style (precedent
+  established v3.0 / Phase 28 for `POLY` and inherited verbatim here). Alternatives
+  considered: an ALPHA-only `"DEG?"` (4 chars, more terse — rejected for parity with
+  Math Pac I), `"D=?"` (3 chars, even more terse — rejected for clarity), or a
+  CATALOG-style `"POLY DEGREE?"` prefix (rejected as inconsistent with the Stat 1 Pac
+  Σ-prefix convention). `DEGREE=?` preserves the v3.0 UX precedent at zero cost.
+
+- **See**: `docs/hp41-stat1-functions.json` ΣPOLYP entry inline `divergences` field
+  (cross-reference, not duplication, per D-34.3 surgical-inline convention);
+  `hp41-core/src/ops/stat1/regression.rs` (`op_sigma_polyp`);
+  `hp41-core/src/ops/stat1/modal.rs::Stat1Step::PolypDegreePrompt`;
+  `hp41-core/src/ops/math1/modal.rs` (D-33.3b carve-out — `ModalProgram::Stat1(...)`
+  dispatch arm); ROADMAP STAT-REG-07; D-34.3 (34-CONTEXT.md inline-JSON-divergences
+  convention).
 
 ---
 
@@ -330,3 +417,181 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
   D-35.1 (35-CONTEXT.md).
 
 ---
+
+### D-35-09: ΣTSTAT Pooled-Variance Convention — Welch's Unequal-Variance t Excluded
+
+- **OM citation**: HP 00041-90030 (1979), §ΣTSTAT two-sample t-test program
+  description — the OM specifies pooled-variance convention. Cross-confirmed by NPS
+  document NPS55-84-003 (Zehna, 1984) ZS-4 / ZS-5 program listings (p. 30+), which
+  describe the Stat 1 Pac's two-sample t as pooled-variance with df = n₁ + n₂ − 2,
+  NOT Welch's unequal-variance approximation with df = Welch-Satterthwaite. The OM
+  citation is direct; the NPS citation is secondary cross-validation.
+
+- **Our behavior**: `XEQ "ΣTSTAT"` computes the two-sample t-statistic with pooled
+  variance:
+  `t = (μ₁ − μ₂) / (s_p · √(1/n₁ + 1/n₂))` where
+  `s_p² = ((n₁−1)·s₁² + (n₂−1)·s₂²) / (n₁ + n₂ − 2)`; the degrees-of-freedom is
+  `df = n₁ + n₂ − 2` (integer). Welch's unequal-variance t is NOT implemented
+  (deliberate anti-feature per REQUIREMENTS.md "Out of Scope"). The p-value derives
+  from the AS 63 incomplete-beta-backed Student-t CDF at the integer df.
+
+- **OM behavior**: Identical (pooled-variance per OM specification and NPS
+  confirmation).
+
+- **Rationale**: NPS55-84-003 p. 30+ ZS-4 / ZS-5 confirms Stat 1 Pac uses pooled
+  variance; Welch's t is not part of the Stat 1 Pac OM specification and would change
+  the df calculation to the Welch-Satterthwaite approximation (non-integer df,
+  different p-value). Welch's t is locked out per REQUIREMENTS.md "Out of Scope" line
+  for "Welch's t-test (unequal variance)" — implementing it would silently change
+  user-facing results in ways that diverge from OM-quoted-example expectations.
+  Rejected alternative: ship both pooled and Welch behind a mode flag — rejected for
+  added API complexity and divergence from the OM single-mode contract.
+
+- **See**: `hp41-core/src/ops/stat1/hypothesis.rs::op_sigma_tstat`; 33-SPEC.md Req. 25
+  (pooled-variance lock); NPS55-84-003 p. 30+ (ZS-4 / ZS-5 cross-validation);
+  REQUIREMENTS.md "Out of Scope" (Welch's t exclusion); D-33.1 item 4 (33-CONTEXT.md
+  pooled-vs-Welch resolution); D-35-06 (this catalog — paired AS 63 deep-tail
+  precision entry).
+
+---
+
+### D-35-10: XROM-7 (Math Pac I) vs XROM-2 (Stat 1 Pac) Module-ID Prefix Convention
+
+- **OM citation**: HP 00041-90030 Quick Reference Card 00041-90061 (1979) + the HP-41
+  module-database catalog at `calc.fjk.ch/db/hp41mod.php` "Statistics Pac 1B" entry —
+  Stat 1 Pac is XROM module-ID **2** on real HP-41C hardware
+  (`hp41-core/src/ops/math1/xrom.rs::STAT_1.id = 2` per Phase 33 D-33.1). Math Pac I
+  uses XROM module-ID **7** (locked v3.0 / Phase 28 — `MATH_1.id = 7` is the
+  emulator-internal numbering decision preserving the HP records' original module ID
+  for Math Pac). Both modules use a `Σ`-mnemonic-prefix convention for many entry
+  points, but the disambiguator at resolver time is the module-ID bit, NOT the
+  mnemonic prefix.
+
+- **Our behavior**: `STAT_1.id = 2` is the canonical Stat 1 Pac XROM ID; mnemonic
+  prefix `Σ` is used for most Stat 1 entry points (Σ-register-using statistical
+  convention). Math Pac I mnemonics use `Σ`-prefix for the few Σ-register-aware
+  entries (and other prefixes elsewhere); both modules share the `Σ` prefix family
+  but their entries are disjoint sets. `xrom_resolve` distinguishes the modules via
+  the module-bit lookup in the resolver chain
+  (`bit 0 = MATH_1`, `bit 1 = STAT_1`, fired LAST in the resolver chain per Pitfall 1),
+  NOT via mnemonic-prefix matching. The cross-XROM no-shadow invariant is asserted by
+  `hp41-cli/tests/xrom_shadowing.rs` extended for STAT_1.ops.
+
+- **OM behavior**: Identical — Stat 1 Pac is XROM 2 per HP hardware records (HP records
+  assign module IDs uniquely at manufacture). The `Σ`-prefix mnemonic convention is
+  hardware-faithful for both pacs.
+
+- **Rationale**: Stat 1 Pac's hardware XROM ID is 2 (uniquely assigned at manufacture
+  per HP module catalog); Math Pac I uses ID 7 by HP records (the original HP Math Pac
+  module ID is 7 per `calc.fjk.ch/db/hp41mod.php`); we preserve both IDs faithfully.
+  The `Σ`-prefix convention applies to BOTH pacs because both are derived from
+  Σ-register-using HP statistical / extended-univariate conventions — but the module
+  IDs are the canonical disambiguator and the no-shadow CI gate is what makes this
+  invariant load-bearing. Rejected alternative: assign Stat 1 Pac a unique mnemonic
+  prefix (e.g., `S∘` or `Stat∘`) to avoid the `Σ` overlap — rejected because it would
+  break OM-mnemonic-fidelity (the OM uses `Σ`-prefix throughout).
+
+- **See**: `hp41-core/src/ops/math1/xrom.rs::STAT_1` (id = 2);
+  `hp41-core/src/ops/math1/xrom.rs::MATH_1` (id = 7); `xrom_resolve` bit-1 arm;
+  `hp41-cli/tests/xrom_shadowing.rs` (extended for STAT_1.ops);
+  `calc.fjk.ch/db/hp41mod.php` "Statistics Pac 1B" entry; Pitfall 1 (resolver
+  LAST-fires); Pitfall 22 (mnemonic shadowing); D-33.1 (33-CONTEXT.md).
+
+---
+
+### D-35-11: math1/ Freeze Second Carve-Out — xrom.rs + modal.rs (ADR-v3.1-004 Cross-Reference)
+
+- **OM citation**: `N/A — emulator architectural policy`. The OM does not specify the
+  module-freeze convention; this is a v3.x emulator-architecture decision documented
+  in CLAUDE.md `## Frozen Invariants → Core engine`.
+
+- **Our behavior**: `hp41-core/src/ops/math1/` is frozen since Plan 25-01 (v3.0
+  invariant per CLAUDE.md "frozen since Plan 25-01"). v3.1 carves out TWO surgical
+  exceptions per ADR-v3.1-004:
+  - `math1/xrom.rs` (Plan 33-01 + D-33.3 / D-33.3a) — extends the XROM registry to
+    register `STAT_1` const and adds the bit-1 dispatch arm. The bit-1 stub was
+    always intended for v3.1+ extension per its inline comment in v3.0; this is the
+    realization of the documented stub purpose, not an unplanned freeze violation.
+  - `math1/modal.rs` (Plan 33-01 + D-33.3b — amended 2026-05-22 during
+    `/gsd-plan-phase 33`, user-confirmed) — adds the `ModalProgram::Stat1(Stat1Step)`
+    enum variant + 3-arm dispatch wiring (~8 lines of pure dispatch). `Stat1Step`
+    semantics live entirely in the NEW `hp41-core/src/ops/stat1/modal.rs` so no
+    Stat 1 Pac semantics leak into the frozen module.
+
+  The rest of `hp41-core/src/ops/math1/` (complex.rs, difeq.rs, four.rs,
+  hyperbolics.rs, integ.rs, matrix.rs, mod.rs (modulo 2-line stat1 variant arm),
+  poly.rs, solve.rs, trans.rs, tri.rs) remains strictly frozen and bit-identical
+  to v3.0.
+
+- **OM behavior**: `N/A — emulator architectural policy`.
+
+- **Rationale**: Adding a new XROM module necessitates editing the registry (xrom.rs)
+  and the modal dispatcher (modal.rs); spawning parallel registry / modal-program
+  infrastructure was the rejected alternative — cost: ~80 lines of cross-frontend
+  duplication across `state.rs` + `commands.rs` + `app.rs` to thread two modal-program
+  enums per D-33.3b. Carving out two surgically-narrow files (8-line modal.rs delta +
+  XROM registry-extension xrom.rs delta) is the minimum-blast-radius choice and
+  preserves the 4-way exhaustive-match invariant intact (the new `Stat1(Stat1Step)`
+  variant lands in all four required match sites). ADR-v3.1-004 (Plan 35-03)
+  documents the architectural lock with the full rejected-alternative quote;
+  CLAUDE.md `## Frozen Invariants → Core engine` will list the carve-outs in
+  Plan 35-04 (narrative-docs).
+
+- **See**: `docs/adr/v3.1-004-math1-freeze-second-carve-out.md` (Plan 35-03 ADR —
+  forward-reference within Phase 35 ship); `docs/adr/v3.1-005-modalprogram-stat1-enum-extension.md`
+  (Plan 35-03 sister ADR — `ModalProgram::Stat1` lock viewed from the enum-design
+  angle); `hp41-core/src/ops/math1/xrom.rs` (STAT_1 const + bit-1 arm);
+  `hp41-core/src/ops/math1/modal.rs` (Stat1 dispatch arm); 33-CONTEXT.md D-33.3 /
+  D-33.3a / D-33.3b; CLAUDE.md `## Frozen Invariants → Core engine` (Plan 35-04
+  amendment target).
+
+---
+
+### D-35-12: RAND First-Call Output from Default-Zero Seed — Deterministic 0.211327
+
+- **OM citation**: `N/A — emulator behavioral policy`. The OM does not specify the
+  RAND default-seed value (RAND / SEED are emulator extensions per D-35-07).
+
+- **Our behavior**: `state.rand_seed` defaults to `HpNum::zero()` on fresh
+  `CalcState::default()` construction
+  (`hp41-core/src/state.rs:340` — `rand_seed: HpNum::zero()`). The first `XEQ "RAND"`
+  call on a fresh session (or on a v2.2 save file migrated via `migrate_after_load()`
+  where `rand_seed` is absent and defaults to zero via `#[serde(default)]`) therefore
+  applies the LCG to seed 0 and returns
+  `FRC(9821 · 0 + 0.211327) = FRC(0.211327) = 0.211327` deterministically. Every
+  fresh session that calls RAND without first calling SEED produces the identical
+  starting sequence (`0.211327`, then the LCG continues from `r = 0.211327`).
+
+- **OM behavior**: `N/A — emulator policy` (the OM does not specify RAND / SEED).
+
+- **Rationale**: A predictable default-zero seed is the cleanest policy for a
+  pseudorandom generator that explicitly supports `SEED` for reproducibility — users
+  who want randomness should call `SEED` with a session-unique value (e.g., a
+  user-typed entropy phrase or a timestamp echo); users who skip `SEED` get a
+  deterministic sequence, which is exactly the contract that `SEED`'s existence
+  implies. Rejected alternative: seed from system entropy (e.g., `getrandom()`) on
+  fresh-session construction — rejected because (a) it would diverge from
+  reproducibility-by-default which is the OM-extension contract, (b) it would add a
+  platform-dependency for entropy sourcing in `hp41-core` (which must stay
+  UI / OS / CLI-independent per the workspace-isolation invariant), and (c) v2.2
+  save-file migration (which sets `rand_seed = 0` via `#[serde(default)]`) would
+  silently behave differently from fresh-session construction. The current behavior
+  is the principle-of-least-surprise choice. This entry is the catalog routing of
+  33-REVIEW.md IN-05 per CONTEXT.md Claude's Discretion line 149 (IN-05 routes here
+  rather than to ADR-v3.1-001 Footnotes because the first-call observable behavior
+  is a bucket-3 behavioral-policy concern, not a Footnote-grade rationale detail).
+
+- **See**: `hp41-core/src/state.rs:340` (`rand_seed: HpNum::zero()` default);
+  `hp41-core/src/state.rs:386-391` (`migrate_after_load` — sets bit 1 but leaves
+  `rand_seed` at its serde-default zero); `hp41-core/src/ops/stat1/rand.rs::op_rand`
+  (LCG application); 33-REVIEW.md IN-05 (originating Info finding); D-33.4 /
+  D-33.4a (33-CONTEXT.md RAND/SEED policy); D-35-07 (this catalog — paired RAND/SEED
+  primary entry); ADR-v3.1-001 (Plan 35-03 RNG state placement).
+
+---
+
+*Last updated: 2026-05-23. Catalog established in Plan 35-02 (Phase 35 / STAT-DOC-03).*
+
+*Next planned update: Phase 37 may add entries for cross-platform numerical-drift
+documentation discovered during the STAT-QUAL-04 coverage push, and additional
+behavioral policies discovered during Phase 36 GUI integration.*
