@@ -53,7 +53,7 @@ These are final — `docs/architecture-history.md` documents how each came to be
 - **ISG/DSE counter:** extract fields by string-splitting at the decimal point — **never** `floor()`/`fmod()`. See `ops/program.rs::parse_counter()`.
 - **No async, no panics:** `#![deny(clippy::unwrap_used)]` at crate root. Production code uses `.expect("reason")` or `?`-propagation. Test modules carry `#[allow(clippy::unwrap_used)]`. `hp41-gui` mutex locks use `.unwrap_or_else(|e| e.into_inner())` for poisoned-lock recovery.
 - **Print emulation:** `println!`/`eprintln!` are forbidden in `hp41-core`. PRX/PRA/PRSTK push into `state.print_buffer` (`#[serde(skip)]`); CLI drains via `call_dispatch_and_drain()` (interactive) and `drain_and_show_print_output()` (programmatic paths) — wire ALL `run_program()` call sites or print output gets dropped.
-- **`hp41-core/src/ops/math1/` is frozen** since Plan 25-01. Math Pac I algorithms re-derived from HP OM 00041-90034 (1979); Free42 consulted as sanity-check oracle only, **not** copied. Every file in this directory carries the verbatim disclaim header.
+- **`hp41-core/src/ops/math1/` is frozen** since Plan 25-01. Math Pac I algorithms re-derived from HP OM 00041-90034 (1979); Free42 consulted as sanity-check oracle only, **not** copied. Every file in this directory carries the verbatim disclaim header. **Exception (v3.1):** `xrom.rs` (D-33.3 / [ADR-v3.1-004](docs/adr/v3.1-004-math1-freeze-second-carve-out.md) — XROM registry for v3.1+ extension; bit-1 stub was always intended for v3.1+) and `modal.rs` (D-33.3b / ADR-v3.1-004 — ~8-line dispatch wiring for `ModalProgram::Stat1` variant; `Stat1Step` semantics live in the new `stat1/modal.rs` so no Stat 1 Pac code leaks into the frozen module). All OTHER files in `math1/` remain frozen.
 
 ### 4-way exhaustive-match invariant
 
@@ -116,6 +116,70 @@ Every new `CalcState` field carries `#[serde(default)]`. Transient fields also c
 *Origin: `architecture-history.md` §v3.0 / Phase 28 (ADR-002 disclaim policy) + §v3.0 / Phase 32 (`check-free42-contamination.sh` CI gate).*
 
 CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` + dedicated `.github/workflows/ci.yml::license-audit` parallel job. Greps for 12 distinctive Free42 / Intel BID / decNumber / GPL/AGPL identifiers; bare `Free42` excluded from the pattern because legitimate cross-check references exist.
+
+### v3.1 additions (Stat 1 Pac Emulation, Phases 33–35 — 36–37 IN PROGRESS)
+
+*Origin: see `docs/architecture-history.md` §v3.1 additions for the long-form per-phase narrative; this block is the CLAUDE.md decision-summary surface (the FIRST-EVER `### v3.x additions` block per D-35.5; v3.0 narrative lives only in `architecture-history.md`).*
+
+#### Phase 33 — XROM Activation + Distribution Primitives + All Stat 1 Ops (shipped 2026-05-22)
+
+- **STAT_1 XromModule (XROM ID 2) registered (STAT-FW-01 / D-33.3):** `MATH_1.id = 7` + `STAT_1.id = 2` per hardware records; `xrom_resolve` bit-1 arm fires LAST after bit-0 (Pitfall 1 + Pitfall 22 preserved).
+- **`default_xrom_modules() = 0b0000_0011` + `migrate_after_load()` (STAT-FW-02 / D-33.7):** v3.0 save files with `xrom_modules: 1` auto-upgrade at startup; `state.rs:386-391` is the canonical migration site (D-33.7 single-source-of-truth — both CLI and GUI persistence layers call it).
+- **3 hand-coded distribution primitives ([ADR-v3.1-002](docs/adr/v3.1-002-distribution-primitives-policy.md) / D-33.5):** `norm_cdf_inv_f64` (Acklam/Wichura AS 241), `gamma_regularized_f64` (Cody AS 239), `beta_regularized_f64` (Lentz AS 63); ~140 LOC total in `hp41-core/src/ops/stat1/distributions.rs`; `statrs` runtime dep REJECTED per `.planning/research/SUMMARY.md` (zero new runtime deps); Free42 disclaim verbatim per Pitfall 19 ("Algorithm independently re-derived from primary sources (Wichura AS 241 / Cody AS 239 / Lentz AS 63); Free42 source consulted only as sanity-check oracle, not copied."); `scripts/check-free42-contamination.sh` extended from 12 → 18 tokens (D-32.7 reassignment, STAT-QUAL-09 met in Plan 33-00).
+- **OM Storage Registers transcription policy ([ADR-v3.1-003](docs/adr/v3.1-003-anova-register-layout.md) / D-33.1 / D-33.5):** `hp41-core/src/ops/stat1/mod.rs` `//!` doc-comment header + ~30 named consts (`STAT1_AOV_*_REG`, `STAT1_MLRXY_*_REG`, `STAT1_CTKKK_*_REG`, etc.); P21 silent-wrong-answer trap mitigated before any Op was written; all ANOVA / regression / contingency-table register accesses go through named consts (REVIEW WR-01 fix in `anova.rs` commit `b29aa03`).
+- **`rand_seed: HpNum` on CalcState with `#[serde(default)]` WITHOUT `#[serde(skip)]` ([ADR-v3.1-001](docs/adr/v3.1-001-rng-state-placement.md) / D-33.4 / D-33.4a):** the ONLY v3.1 CalcState field with this serde shape (Pitfall 20 muscle-memory trap mitigated — every other v3.1 transient field follows the standard `skip` pattern); reproducible RNG across save/load cycles per STAT-RNG-03; field at `state.rs:201-202`; `rand_seed_serde_round_trip` test is the field-level CI guard. First-call-from-default-zero deterministic output `0.211327` documented as D-35-12 in `docs/hp41-stat1-divergences.md` (routes 33-REVIEW.md IN-05).
+- **`math1/` freeze second carve-out ([ADR-v3.1-004](docs/adr/v3.1-004-math1-freeze-second-carve-out.md) / D-33.3 + D-33.3b):** `xrom.rs` (D-33.3) + `modal.rs` (D-33.3b) sanctioned exceptions; `Stat1Step` enum + 5 modal variants live in NEW `stat1/modal.rs` (outside freeze); rejected ~80-line parallel `Stat1ModalProgram` alternative.
+- **`ModalProgram::Stat1(Stat1Step)` enum extension ([ADR-v3.1-005](docs/adr/v3.1-005-modalprogram-stat1-enum-extension.md) / D-33.3b):** single `ModalProgram` enum gains the `Stat1` variant; 4-way exhaustive-match invariant items 1+2 preserved; future v3.2+ pacs (Time, Advantage) inherit the pattern (`ModalProgram::Time(TimeStep)` etc.).
+- **26 new `Op` variants** in `dispatch()` + `execute_op()` (4-way invariant items 1+2 complete; items 3+4 sanctioned-deferred to Phase 34 / Phase 36 — intentional `non-exhaustive patterns` CI break in `hp41-cli`/`hp41-gui` until Phase 34 closes item 3).
+- **Quality gates held:** hp41-core line coverage 95.39 % / region coverage 94.26 % preserved (Phase 33 invariant); 1962 lib + integration tests pass; clippy `-D warnings` clean; Free42 contamination guard exits OK on both `math1/` and `stat1/` trees; D-33.8 STAT-QUAL-09 reassigned Phase 37 → Phase 33 (Plan 33-00) and met.
+
+#### Phase 34 — CLI Integration (shipped 2026-05-23)
+
+- **`docs/hp41-stat1-functions.json` authored (D-34.1):** 26-entry canonical source; 7-category convention (Stat1 Univariate / ANOVA / Regression / Hypothesis / Nonparam / Distributions / RNG); `xrom: { module: "Stat 1", module_id: 2, function_id: N }` block per entry per Phase 28 D-28.3 schema; surgical inline `divergences` field on RAND/SEED + ΣTSTAT + ΣPOLYP only per D-34.3 (full taxonomy lives in `docs/hp41-stat1-divergences.md` per D-35.4 — divergence entries CROSS-REFERENCE the JSON inline fields, do NOT duplicate them).
+- **Third `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs` (D-34.2):** `STAT1_HELP_ENTRIES` static + `help_entries_stat1()` accessor + merged `help_entries_all()` 3-pool chain (cv + math1 + stat1); malformed JSON panics at first access (hard build-blocker per D-25.17 carry-forward; JSON-canonical-data-flow invariant extended to the third source-of-truth).
+- **26 new `op_display_name` arms in `hp41-cli/src/prgm_display.rs`** (4-way invariant item 3 complete; no `_ =>` catch-all). `function_matrix_parity.rs` 3-pool partition test cross-checks Op ↔ JSON bidirectional consistency across all three JSON pools.
+- **`?` help overlay "Stat 1 Pac (XROM 2)" section (D-34.5):** parallel-loads alongside "Math 1 Pac (XROM 7)"; incremental substring search (v3.0 polish-batch feature) spans all three JSON pools.
+- **Modal-prompt routing reuses v3.0 infrastructure (D-34.4):** ΣPOLYP `DEGREE=?`, SEED `SEED?`, ΣCHISQD ν entry — all route through existing `print_buffer` + `modal_program` + `modal_prompt` channels; no new transient CalcState fields beyond `rand_seed` (STAT-RNG-03 / Pitfall 20).
+- **`xrom_shadowing.rs` extended to `STAT_1.ops` (D-34.6):** all 26 Stat 1 mnemonics confirmed disjoint from `MATH_1.ops` + `BUILTIN_CARD_OP_NAMES` allowlist (Pitfall 22 verified end-to-end across both XROM modules).
+- **Right-panel `key_ref_entries()` filter unchanged:** the v3.0 polish-batch `entry.xrom.is_none()` filter excludes XROM-module functions from the right panel; Stat 1 entries inherit this behavior (discoverable via `?` overlay's "Stat 1 Pac (XROM 2)" section, not the right panel).
+- **No core/GUI changes in Phase 34:** SC-4 invariant trivially preserved; v3.0 surface unchanged.
+
+#### Phase 35 — Documentation & ADRs (shipped 2026-05-23)
+
+- **`scripts/docs-matrix` three-input extension (D-35.1 / D-30.1 carry-forward):** justfile invokes the renderer three times (cv + math1 + stat1); binary signature stays 1-in/1-out — only edit is a 4-line basename dispatch branch in `scripts/docs-matrix/src/main.rs:70-76`; hp41cv + math1 matrices bit-for-bit unchanged after regeneration (D-30.2 invariant preserved); `just docs-matrix-check` CI gate covers all three matrices.
+- **`docs/hp41-stat1-function-matrix.md` generated (26 entries):** new sibling file; carries XROM column showing `Stat 1 / 2-N` per entry; reachable via README v3.1 soft-claim link.
+- **`docs/hp41-stat1-divergences.md` authored (D-35.4):** three-bucket numbered catalog (OM Divergences / Emulator Extensions / Behavioral Policies) with 12 `D-35-NN` entries in the 5-field shape (OM citation / Our behavior / OM behavior / Rationale / See); the 6 oracle drifts queued from 33-VERIFICATION.md land as D-35-01..06 (bucket 3 — Behavioral Policies, since these are mathematical-ground-truth scipy-vs-SPEC corrections); citation provenance per Pitfall 18 enforced.
+- **`33-SPEC-AMENDMENT.md` history-preserving supplement (D-35.1):** sibling to `33-SPEC.md` (NOT in-place edit); 6-row table mapping each oracle drift to scipy-correct value + test file:line + drift root cause + D-35-NN cross-ref. Tests are ground truth; SPEC.md preserved as planning-archaeology.
+- **5 new ADRs (D-35.2):** [v3.1-001 rng-state-placement](docs/adr/v3.1-001-rng-state-placement.md) + [v3.1-002 distribution-primitives-policy](docs/adr/v3.1-002-distribution-primitives-policy.md) (Free42 disclaim verbatim per Pitfall 19) + [v3.1-003 anova-register-layout](docs/adr/v3.1-003-anova-register-layout.md) + [v3.1-004 math1-freeze-second-carve-out](docs/adr/v3.1-004-math1-freeze-second-carve-out.md) + [v3.1-005 modalprogram-stat1-enum-extension](docs/adr/v3.1-005-modalprogram-stat1-enum-extension.md); each long-form per D-30.6; `## Alternatives Considered` quotes 33-CONTEXT.md verbatim per D-30.7.
+- **README v3.1 soft-claim (D-35.3):** `- Stat 1 Pac behavioral emulation (13 programs, 26 XEQ entry points, RAND/SEED extension, documented divergences)` under `## Features`. The OM-cited hard claim (Stat 1 Pac completeness per OM 00041-90030) is deferred to Phase 37 conditional on STAT-QUAL-04 + STAT-QUAL-11 (same gating discipline as v3.0 D-30.9 → D-32.5 graduation pattern).
+- **`## Frozen Invariants → Core engine` amendment landed in this plan:** the math1/ freeze sentence now lists `xrom.rs` + `modal.rs` as carve-outs gated by ADR-v3.1-004 (this is the amendment you're reading above).
+- **`docs/architecture-history.md` v3.1 narrative:** new `## v3.1 additions (Stat 1 Pac Emulation, Phases 33–35 — 36–37 IN PROGRESS)` section parallel to the v3.0 section; Phase 33-35 populated; Phase 36-37 stubs.
+
+#### Phase 36 — GUI Integration (in progress)
+
+#### Phase 37 — Test Hardening & Quality Gates (in progress)
+
+**Frozen invariants preserved across v3.1 (so far):**
+
+- SC-4 invariant: every Phase 33–35 change respects the stricter grep — Stat 1 Pac math lives in `hp41-core/src/ops/stat1/`. The `math1/` second carve-out (`xrom.rs` + `modal.rs`) is documented per ADR-v3.1-004; no Stat 1 Pac code leaks INTO the frozen `math1/` module (`Stat1Step` semantics live in `stat1/modal.rs`, outside the freeze boundary).
+- 4-exhaustive-match invariant: every new `Op` variant landed in `dispatch()` + `execute_op()` (Phase 33) + CLI `prgm_display.rs` (Phase 34) before any caller could compile in that scope; GUI `prgm_display.rs` (Phase 36, in progress) closes item 4.
+- `#![deny(clippy::unwrap_used)]` continues to apply in `hp41-core`; new test files in v3.1 carry `#[allow]` at file scope per the established pattern.
+- Save-file backward compat: every new `CalcState` field in Phase 33 carries `#[serde(default)]`; transient fields use `skip`. The `rand_seed` field is the documented exception (`default` WITHOUT `skip` per STAT-RNG-03 / Pitfall 20).
+- MSRV 1.88 unchanged through Phase 33-35. Zero new runtime deps (statrs rejected per ADR-v3.1-002).
+- Free42 GPL contamination guard: extended from 12 → 18 tokens per Phase 33 Plan 33-00 D-32.7 reassignment (STAT-QUAL-09 met); both `math1/` and `stat1/` trees scanned at every CI run; script exits OK.
+
+**v3.1 file landmarks (forward-pointers; full file table updates land at v3.1 milestone ship per the v3.0 cadence):**
+
+- `hp41-core/src/ops/stat1/` — Stat 1 Pac (XROM 2) implementation tree; sibling to `math1/`; carries the verbatim Free42 disclaim header on every file.
+- `hp41-core/src/ops/stat1/distributions.rs` — 3 hand-coded f64-bridge distribution primitives (~140 LOC) per ADR-v3.1-002.
+- `hp41-core/src/ops/stat1/mod.rs` — OM 00041-90030 "Storage Registers" transcription header + ~30 named consts per ADR-v3.1-003.
+- `hp41-core/src/ops/stat1/modal.rs` — `Stat1Step` enum + dispatch (lives OUTSIDE the math1/ freeze; per ADR-v3.1-004 the second carve-out keeps `math1/modal.rs` to ~8 lines of pure dispatch).
+- `hp41-core/src/ops/stat1/random.rs` — RAND/SEED LCG (NPS p. 21-22 + Don Malm community provenance per ADR-v3.1-001); `rand_seed` field at `state.rs:201-202`.
+- `docs/hp41-stat1-functions.json` — third JSON source-of-truth (26 entries; D-34.1 7-category convention).
+- `docs/hp41-stat1-function-matrix.md` — generated via `just docs-matrix` (third invocation; D-35.1).
+- `docs/hp41-stat1-divergences.md` — 12 D-35-NN entries across 3 buckets (0 OM divergences + 2 emulator extensions + 10 behavioral policies; D-35.4 numbering scheme).
+- `docs/adr/v3.1-{001..005}-*.md` — 5 long-form ADRs (D-30.6 template; D-35.2 scope).
+- `.planning/phases/33-…/33-SPEC-AMENDMENT.md` — history-preserving SPEC supplement; 6 oracle drifts reconciled (D-35.1).
 
 ## Tech Stack
 
