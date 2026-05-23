@@ -123,7 +123,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 34-01-PLAN.md — Author docs/hp41-stat1-functions.json (26 entries, D-34.1/D-34.3/C-28.3) + third OnceLock pool + help_entries_stat1() + help_entries_all() 3-pool chain + phase34_help_data_stat1.rs smoke test (STAT-CLI-02)
+- [x] 34-01-PLAN.md — Author docs/hp41-stat1-functions.json (26 entries, D-34.1/D-34.3/C-28.3) + third OnceLock pool + help_entries_stat1() + help_entries_all() 3-pool chain + phase34_help_data_stat1.rs smoke test (STAT-CLI-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -188,7 +188,7 @@ Plans:
 | 20–27 | v2.2 | 26/26 | Complete | 2026-05-15 |
 | 28–32 | v3.0 | 31/31 | Complete | 2026-05-20 |
 | 33 | v3.1 | 9/9 | Complete    | 2026-05-22 |
-| 34 | v3.1 | 0/2 | Planned     | - |
+| 34 | v3.1 | 1/2 | In Progress|  |
 | 35 | v3.1 | 0/0 | Not started | - |
 | 36 | v3.1 | 0/0 | Not started | - |
 | 37 | v3.1 | 0/0 | Not started | - |

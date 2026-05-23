@@ -77,7 +77,7 @@ Requirements for v3.1 Stat 1 Pac Emulation. Each maps to exactly one phase durin
 ### CLI Integration (STAT-CLI)
 
 - [ ] **STAT-CLI-01**: `xeq_by_name_local_resolve` (in `hp41-cli/src/keys.rs`) falls through to the existing `xrom_resolve` — no CLI code change beyond confirming the fall-through still fires AFTER built-in resolution (Pitfall 1 invariant preserved)
-- [ ] **STAT-CLI-02**: `docs/hp41-stat1-functions.json` loaded via `include_str!` into a third `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs`; `help_entries_all()` chains all three pools (`hp41cv-functions.json` + `hp41-math1-functions.json` + `hp41-stat1-functions.json`); malformed JSON panics at first access (hard build-blocker by design, matching Math Pac I pattern)
+- [x] **STAT-CLI-02**: `docs/hp41-stat1-functions.json` loaded via `include_str!` into a third `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs`; `help_entries_all()` chains all three pools (`hp41cv-functions.json` + `hp41-math1-functions.json` + `hp41-stat1-functions.json`); malformed JSON panics at first access (hard build-blocker by design, matching Math Pac I pattern)
 - [ ] **STAT-CLI-03**: ~24 new `op_display_name` arms land in `hp41-cli/src/prgm_display.rs` — exhaustive match preserved, NO `_ =>` catch-all (4-way invariant item 3)
 - [ ] **STAT-CLI-04**: `?` help overlay surfaces a "Stat 1 Pac (XROM 2)" section parallel to the existing "Math 1 Pac (XROM 7)" section; search treats both XROM sections as first-class
 - [ ] **STAT-CLI-05**: Modal-prompt routing for Stat 1 Pac multi-step workflows (e.g. degree prompt for ΣPOLYP, seed prompt for SEED) reuses existing `print_buffer` + `modal_program` infrastructure — no new transient `CalcState` fields required beyond `rand_seed` (STAT-RNG-03)
@@ -211,7 +211,7 @@ Which phases cover which requirements. Filled by `gsd-roadmapper` during roadmap
 | STAT-RNG-03 | Phase 33 | Complete |
 | STAT-RNG-04 | Phase 33 | Complete |
 | STAT-CLI-01 | Phase 34 | Pending |
-| STAT-CLI-02 | Phase 34 | Pending |
+| STAT-CLI-02 | Phase 34 | Complete |
 | STAT-CLI-03 | Phase 34 | Pending |
 | STAT-CLI-04 | Phase 34 | Pending |
 | STAT-CLI-05 | Phase 34 | Pending |
