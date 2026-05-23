@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: — Stat 1 Pac Emulation
 status: completed
-last_updated: "2026-05-23T11:32:43.334Z"
+last_updated: "2026-05-23T13:01:42.647Z"
 last_activity: 2026-05-23 -- Phase 34 marked complete
 progress:
   total_phases: 5
@@ -154,10 +154,10 @@ None — roadmap defined; Phase 33 spec-phase OM reading is a planned dependency
 
 ## Session Continuity
 
-**Last active:** 2026-05-22
-**Last action:** Phase 33 context gathered via `/gsd-discuss-phase 33` — 9 implementation decisions captured in `.planning/phases/33-hp41-core-xrom-activation-distribution-primitives-all-stat-1/33-CONTEXT.md` (commit 1f46b9d). Decisions: (D-33.1) `/gsd-spec-phase 33` first to lock 5 pending OM conventions + quantile convergence + Free42 stats identifiers as LOCKED requirements; (D-33.2) 9-plan slicing per SUMMARY.md build-step order; (D-33.3) math1/xrom.rs freeze exception for STAT_1 bit-1 arm; (D-33.4) RAND/SEED as documented emulator extension; (D-33.5) 11-file `ops/stat1/` layout with `tests.rs`→`hypothesis.rs` rename; (D-33.6) inline scipy.stats oracle constants; (D-33.7) `CalcState::migrate_after_load()` in `hp41-core/src/state.rs`; (D-33.8) STAT-QUAL-09 reassigned Phase 37 → Phase 33 (Plan 33-00).
-**Next action:** `/gsd-spec-phase 33` — lock the 7 LOCKED items per D-33.1 (Σ-register layout for ΣMMTUG/ΣAOVONE/ΣAOVTWO/ΣANOCOV/ΣMLRXY/ΣCTKKK; ΣPOLYP degree prompt; ΣCHISQD ν convention; ΣTSTAT pooled vs Welch; RAND ROM-presence; quantile convergence criteria; Free42 stats-domain identifiers from `core_math2.cc`). Then `/gsd-plan-phase 33` to produce the 9 plans.
+**Last active:** 2026-05-23
+**Last action:** Phase 35 context gathered via `/gsd-discuss-phase 35` — 4 implementation decisions captured in `.planning/phases/35-documentation-adrs/35-CONTEXT.md` (commit 86b2517). Decisions: (D-35.1) history-preserving SPEC oracle drift reconciliation via `33-SPEC-AMENDMENT.md` sibling + per-drift `D-35-NN` entries in `docs/hp41-stat1-divergences.md` (6 drifts: ΣNORMD 1e-9→1e-5, ΣAOVONE F=100→50, ΣSPEAR 0.7→0.8, ΣEFXSQ χ², ΣBSTAT CV 0.4083→0.5270, ΣTSTAT deep-tail t); (D-35.2) 5 ADRs — v3.1-001 RNG-state, -002 distribution primitives (statrs rejected), -003 ANOVA register layout, -004 math1/ freeze second carve-out (xrom.rs + modal.rs), -005 ModalProgram::Stat1 enum extension; (D-35.3) README v3.1 soft-claim now, hard-claim graduation gated on Phase 37 (mirrors v3.0 D-30.9 → D-32.5); (D-35.4) `D-35-NN` phase-origin numbering scheme parallel to math1's `D-30-NN`. Recommended 4 plans: tooling+matrix+amendment / divergences / 5 ADRs / narrative-docs.
+**Next action:** `/gsd-plan-phase 35` — produce the 4 plans per D-35 plan-slicing recommendation. Optionally `/gsd-plan-phase 35 --skip-research` since Phase 35 reuses v3.0 Phase 30 structure verbatim (no new research needed — all canonical refs are already in 35-CONTEXT.md). After Phase 35 ships: Phase 36 (GUI integration).
 
 ---
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-22 — Phase 33 context gathered (9 decisions captured); next step `/gsd-spec-phase 33`*
+*Last updated: 2026-05-23 — Phase 35 context gathered (4 decisions captured); next step `/gsd-plan-phase 35`*
