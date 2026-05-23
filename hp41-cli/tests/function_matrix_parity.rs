@@ -12,7 +12,7 @@
 
 use std::collections::HashSet;
 
-use hp41_cli::help_data::{help_entries, help_entries_math1};
+use hp41_cli::help_data::{help_entries, help_entries_math1, help_entries_stat1};
 
 /// Hand-curated inventory of all `hp41_core::ops::Op` variants. Drift
 /// between this list and the enum is caught by `test_op_inventory_count_matches_enum`.
@@ -395,4 +395,148 @@ fn test_every_math1_json_entry_has_xrom_resolver_match() {
         orphans.is_empty(),
         "Math1 JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0000_0001): {orphans:?}"
     );
+}
+
+// ── Phase 34 Plan 02 Task 2: Stat 1 Pac bidirectional parity tests (STAT-CLI-04) ──
+//
+// Four tests guarding the hp41-stat1-functions.json ↔ STAT_1.ops ↔ Op::* chain:
+// 1. Inventory drift sentinel (STAT1_OP_VARIANT_NAMES length == 26)
+// 2. Forward parity: every STAT1_OP_VARIANT_NAMES entry has a JSON row
+// 3. Reverse parity: every JSON display_name resolves via xrom_resolve
+// 4. Pool partition guard: help_entries_all() partitions cleanly into 3 buckets
+//
+// Tests use the narrow help_entries_stat1() accessor (not help_entries_all()) for
+// per-pool tests so v2.2 / Math 1 pool assertions are unaffected. Test 4 uses
+// help_entries_all() to guard against rogue module_id values in future v3.2+ packs.
+
+/// Hand-curated inventory of all Stat 1 Pac `Op` variants shipped in Phase 33.
+/// Drift between this list and the `STAT_1.ops` table in `hp41-core/src/ops/math1/xrom.rs`
+/// is caught by `test_stat1_op_inventory_count`.
+///
+/// Maintenance gate: if Phase 35+ adds new Stat 1 Pac `Op` variants, append here
+/// AND add matching JSON rows to `docs/hp41-stat1-functions.json`.
+const STAT1_OP_VARIANT_NAMES: &[&str] = &[
+    // Plan 33-05/06: Stat 1 Pac Univariate / Bivariate (4)
+    "SigmaBstat",
+    "SigmaBstg",
+    "SigmaMmtug",
+    "SigmaMmtgd",
+    // Plan 33-06: Stat 1 Pac ANOVA Family (3)
+    "SigmaAovone",
+    "SigmaAovtwo",
+    "SigmaAnocov",
+    // Plan 33-05/08: Stat 1 Pac Curve Fitting + Regression (8)
+    "SigmaLin",
+    "SigmaExp",
+    "SigmaLogi",
+    "SigmaPow",
+    "SigmaMlrxy",
+    "SigmaMlrxyz",
+    "SigmaPolypWorkflow",
+    "SigmaPolyc",
+    // Plan 33-07: Stat 1 Pac Hypothesis Tests (2)
+    "SigmaPtst",
+    "SigmaTstat",
+    // Plan 33-04/06: Stat 1 Pac Nonparam / Chi-Sq Eval / Contingency (5)
+    "SigmaXsqev",
+    "SigmaEfxsq",
+    "SigmaCtkkk",
+    "SigmaCtkk",
+    "SigmaSpear",
+    // Plan 33-03: Stat 1 Pac Distributions (2)
+    "SigmaNormdWorkflow",
+    "SigmaChisqdWorkflow",
+    // Plan 33-08: Stat 1 Pac RNG (2)
+    "Rand",
+    "Seed",
+];
+
+#[test]
+fn test_stat1_op_inventory_count() {
+    assert_eq!(
+        STAT1_OP_VARIANT_NAMES.len(),
+        26,
+        "STAT1_OP_VARIANT_NAMES inventory drift — expected 26 Stat 1 Pac Op variants per Phase 33 ship. \
+         Did a future plan add Op variants without updating this inventory and docs/hp41-stat1-functions.json?"
+    );
+}
+
+#[test]
+fn test_every_stat1_rom_op_has_stat1_json_entry() {
+    // Catches: forward parity gap — a Stat 1 Pac Op variant without a JSON entry.
+    // Uses help_entries_stat1() (narrow accessor) to assert against only the Stat 1 pool.
+    // Failure message lists missing variants by name for easy diagnosis.
+    let json_variants: HashSet<&str> = help_entries_stat1()
+        .iter()
+        .map(|e| e.op_variant.as_str())
+        .collect();
+
+    let mut missing: Vec<&str> = Vec::new();
+    for name in STAT1_OP_VARIANT_NAMES {
+        if !json_variants.contains(name) {
+            missing.push(name);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "Stat 1 Pac Op::* variants missing from docs/hp41-stat1-functions.json: {missing:?}"
+    );
+}
+
+#[test]
+fn test_every_stat1_json_entry_has_xrom_resolver_match() {
+    // Catches: reverse parity gap — a JSON entry whose display_name cannot be
+    // resolved by xrom_resolve (C-28.4). Uses 0b0000_0011 (the v3.1 default
+    // per Phase 33 D-33.1: both Math 1 + Stat 1 loaded) so the bidirectional
+    // invariant holds for the production bitfield state, not a hypothetical
+    // Stat-1-only bitfield.
+    let mut orphans: Vec<String> = Vec::new();
+    for entry in help_entries_stat1() {
+        let resolved =
+            hp41_core::ops::math1::xrom::xrom_resolve(entry.display_name.as_str(), 0b0000_0011);
+        if resolved.is_none() {
+            orphans.push(format!(
+                "'{}' (display_name='{}') — not found in STAT_1.ops / xrom_resolve",
+                entry.op_variant, entry.display_name
+            ));
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "Stat 1 JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0000_0011): {orphans:?}"
+    );
+}
+
+#[test]
+fn test_pool_partition_is_exhaustive() {
+    // Partition help_entries_all() by xrom.module_id. The three buckets
+    // are: None (built-ins, >= 130), Some(7) (Math Pac I, == 45), Some(2)
+    // (Stat 1 Pac, == 26). Any other value is rogue and fails the test.
+    //
+    // This guards future v3.2+ Time / Advantage / Stat 2 Pac additions:
+    // before they merge, this test fires (because Some(<new_id>) is not
+    // in the recognized set), forcing the new pool to be registered in
+    // the partition.
+    use hp41_cli::help_data::help_entries_all;
+    let mut builtin_count = 0usize;
+    let mut math1_count = 0usize;
+    let mut stat1_count = 0usize;
+    let mut rogue: Vec<(String, u8)> = Vec::new();
+    for entry in help_entries_all() {
+        match entry.xrom.as_ref().map(|x| x.module_id) {
+            None => builtin_count += 1,
+            Some(7) => math1_count += 1,
+            Some(2) => stat1_count += 1,
+            Some(other) => rogue.push((entry.op_variant.clone(), other)),
+        }
+    }
+    assert!(
+        rogue.is_empty(),
+        "Unknown xrom.module_id values in help_entries_all(): {rogue:?}. \
+         v3.1 supports only module_id in {{None (built-ins), 7 (Math 1), 2 (Stat 1)}}. \
+         Adding a new XROM module requires updating function_matrix_parity.rs partition."
+    );
+    assert!(builtin_count >= 130, "built-in pool shrank: {builtin_count}");
+    assert_eq!(math1_count, 45, "Math 1 pool count drift: {math1_count}");
+    assert_eq!(stat1_count, 26, "Stat 1 pool count drift: {stat1_count}");
 }
