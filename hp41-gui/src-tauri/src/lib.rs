@@ -60,6 +60,11 @@ pub fn run() {
             app.manage(Mutex::new(initial_state));
             app.manage(cancel_flag);
 
+            if let Some(w) = app.get_webview_window("main") {
+                let version = env!("CARGO_PKG_VERSION");
+                let _ = w.set_title(&format!("HP-41 Calculator — v{version}"));
+            }
+
             // D-01: spawn auto-save background thread — 30s sleep, then lock, then save.
             // D-02: save failures are logged to stderr; no UI notification.
             let handle = app.handle().clone();
