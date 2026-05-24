@@ -22,6 +22,7 @@ pub mod sound;
 pub mod stack_ops;
 pub mod stat1;
 pub mod stats;
+pub mod time;
 
 use alpha::{op_alpha_append, op_alpha_backspace, op_alpha_clear, op_alpha_toggle};
 use arithmetic::{op_add, op_div, op_mul, op_sub};
@@ -1198,6 +1199,80 @@ pub enum Op {
     ///
     /// Source: emulator extension (D-33.4 / SPEC.md Req. 36) — not in OM.
     Seed,
+
+    // ── Phase 38 (v3.2): Time Module (XROM 26) ───────────────────────────────
+    // Phase 38 sanctioned CI break in hp41-cli/hp41-gui (non-exhaustive patterns)
+    // — Phase 39 closes item 3 (CLI op_display_name), Phase 41 closes item 4 (GUI).
+    /// ADATE — Append formatted date to ALPHA register (per Flag 31 mode).
+    TimeAdate,
+    /// ALMCAT — Alarm catalog browsing mode.
+    TimeAlmcat,
+    /// ALMNOW — Trigger all past-due alarms immediately.
+    TimeAlmnow,
+    /// ATIME — Append formatted time to ALPHA register (12/24h per clock_12h).
+    TimeAtime,
+    /// ATIME24 — Append formatted time in 24-hour format to ALPHA register.
+    TimeAtime24,
+    /// CLK12 — Set 12-hour clock display mode.
+    TimeClk12,
+    /// CLK24 — Set 24-hour clock display mode.
+    TimeClk24,
+    /// CLKT — Enable continuous time-only display.
+    TimeClkt,
+    /// CLKTD — Enable continuous time+date display.
+    TimeClktd,
+    /// CLOCK — Disable continuous clock display.
+    TimeClock,
+    /// CORRECT — Apply clock accuracy correction from stack X.
+    TimeCorrect,
+    /// DATE — Read current date to stack X (per Flag 31 format).
+    TimeDate,
+    /// DATE+ — Add X days to date in Y, push result to X.
+    TimeDatePlus,
+    /// DDAYS — Compute days between dates in Y and X.
+    TimeDdays,
+    /// DMY — Set DMY date mode (Flag 31 set).
+    TimeDmy,
+    /// DOW — Day-of-week for date in X.
+    TimeDow,
+    /// MDY — Set MDY date mode (Flag 31 clear).
+    TimeMdy,
+    /// RCLAF — Recall alarm flags (count) to stack X.
+    TimeRclaf,
+    /// RCLALM — Recall next alarm entry to stack.
+    TimeRclalm,
+    /// RCLSW — Recall stopwatch elapsed time to stack X.
+    TimeRclsw,
+    /// RUNSW — Start the stopwatch.
+    TimeRunsw,
+    /// SETAF — Set alarm flags from stack X.
+    TimeSetaf,
+    /// SETDATE — Set clock date from stack X (opens SetDatePrompt modal).
+    TimeSetdate,
+    /// SETIME — Set clock time from stack X (opens SetTimePrompt modal).
+    TimeSetime,
+    /// SETSW — Set (preset) stopwatch accumulated time from stack X.
+    TimeSetsw,
+    /// STOPSW — Stop (pause) the stopwatch.
+    TimeStopsw,
+    /// SW — Enter stopwatch keyboard display mode.
+    TimeSw,
+    /// T+X — Add X seconds to the clock time offset.
+    TimeTplusx,
+    /// TIME — Read current time to stack X (HH.MMSScc format).
+    TimeTime,
+    /// XYZALM — Set alarm from stack X (time) and ALPHA (type/message).
+    TimeXyzalm,
+    /// CLALMA — Clear all alarms.
+    TimeClalma,
+    /// CLALMX — Clear one alarm entry by index X.
+    TimeClalmx,
+    /// CLRALMS — Clear all alarms (alias for CLALMA).
+    TimeClralms,
+    /// SWPT — Split/lap: record current elapsed as split reference.
+    TimeSwpt,
+    /// STPW — Stop and reset the stopwatch (full reset to Idle).
+    TimeStpw,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -1643,6 +1718,43 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
         Op::Rand => crate::ops::stat1::rand::op_rand(state),
         Op::Seed => crate::ops::stat1::rand::op_seed(state),
+        // ── Phase 38 (v3.2): Time Module (XROM 26) ──────────────────────────
+        // Phase 38 sanctioned CI break — Phase 39 closes item 3, Phase 41 closes item 4.
+        Op::TimeTime => crate::ops::time::clock::op_time(state),
+        Op::TimeDate => crate::ops::time::clock::op_date(state),
+        Op::TimeSetime => crate::ops::time::clock::op_setime(state),
+        Op::TimeSetdate => crate::ops::time::clock::op_setdate(state),
+        Op::TimeTplusx => crate::ops::time::clock::op_tplusx(state),
+        Op::TimeCorrect => crate::ops::time::clock::op_correct(state),
+        Op::TimeClk12 => crate::ops::time::clock::op_clk12(state),
+        Op::TimeClk24 => crate::ops::time::clock::op_clk24(state),
+        Op::TimeClkt => crate::ops::time::clock::op_clkt(state),
+        Op::TimeClktd => crate::ops::time::clock::op_clktd(state),
+        Op::TimeClock => crate::ops::time::clock::op_clock(state),
+        Op::TimeDatePlus => crate::ops::time::date_arith::op_date_plus(state),
+        Op::TimeDdays => crate::ops::time::date_arith::op_ddays(state),
+        Op::TimeDow => crate::ops::time::date_arith::op_dow(state),
+        Op::TimeDmy => crate::ops::time::date_arith::op_dmy(state),
+        Op::TimeMdy => crate::ops::time::date_arith::op_mdy(state),
+        Op::TimeAdate => crate::ops::time::alpha_time::op_adate(state),
+        Op::TimeAtime => crate::ops::time::alpha_time::op_atime(state),
+        Op::TimeAtime24 => crate::ops::time::alpha_time::op_atime24(state),
+        Op::TimeRunsw => crate::ops::time::stopwatch::op_runsw(state),
+        Op::TimeStopsw => crate::ops::time::stopwatch::op_stopsw(state),
+        Op::TimeSetsw => crate::ops::time::stopwatch::op_setsw(state),
+        Op::TimeRclsw => crate::ops::time::stopwatch::op_rclsw(state),
+        Op::TimeSwpt => crate::ops::time::stopwatch::op_swpt(state),
+        Op::TimeStpw => crate::ops::time::stopwatch::op_stpw(state),
+        Op::TimeSw => crate::ops::time::stopwatch::op_sw(state),
+        Op::TimeXyzalm => crate::ops::time::alarm::op_xyzalm(state),
+        Op::TimeRclalm => crate::ops::time::alarm::op_rclalm(state),
+        Op::TimeAlmcat => crate::ops::time::alarm::op_almcat(state),
+        Op::TimeAlmnow => crate::ops::time::alarm::op_almnow(state),
+        Op::TimeRclaf => crate::ops::time::alarm::op_rclaf(state),
+        Op::TimeSetaf => crate::ops::time::alarm::op_setaf(state),
+        Op::TimeClalma => crate::ops::time::alarm::op_clalma(state),
+        Op::TimeClalmx => crate::ops::time::alarm::op_clalmx(state),
+        Op::TimeClralms => crate::ops::time::alarm::op_clralms(state),
     }
 }
 

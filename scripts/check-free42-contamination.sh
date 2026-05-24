@@ -22,15 +22,16 @@ set -euo pipefail
 
 MATH1_DIR="hp41-core/src/ops/math1"
 STAT1_DIR="hp41-core/src/ops/stat1"
+TIME_DIR="hp41-core/src/ops/time"
 DISCLAIM_LINE='Free42 source consulted only as sanity-check oracle'
 
-# WR-01: explicit directory existence check — if either MATH1_DIR or STAT1_DIR
-# is missing (refactor moved files, script invoked from wrong cwd, future
+# WR-01: explicit directory existence check — if any scanned directory is
+# missing (refactor moved files, script invoked from wrong cwd, future
 # module split), the grep pipeline would silently exit 0 ("no contamination")
 # because a missing-path grep returns non-zero, causing the pipeline failure
 # to evaluate as "no matches". That would neutralise the Pitfall 19 / D-32.7
 # license guard. Exit 2 on missing directory is unambiguous.
-for dir in "$MATH1_DIR" "$STAT1_DIR"; do
+for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR"; do
     if [[ ! -d "$dir" ]]; then
         echo "FAIL: $dir does not exist — license guard cannot run." >&2
         exit 2
@@ -52,9 +53,14 @@ done
 # legitimate "Free42 v3.0.5: <value>" cross-check references exist across
 # the codebase (per Phase 32 RESEARCH.md). The 18 tokens below are tight
 # enough to never match those.
-PATTERN='phloat|Phloat|bid128_|decNumber|decContext|vartype|arg_struct|prgm_lines|bcd_t|Thomas Okken|AGPL|GNU General Public License|math_normal_|math_chi2_|math_t_dist_|math_F_dist_|math_gamma_|math_beta_inc'
+# D-32.7 (12 math1-era tokens) + D-33.8 (6 stat1-era prefix tokens) + Phase 38 (3 time-era tokens) = 21 total.
+# Phase 38 adds 3 time-module identifiers drawn from Free42 core_commands7.cc
+# function-name conventions: `core_commands7` (Free42 time-module source file),
+# `date2j` (Free42 internal Julian-Day conversion function name),
+# `j2date` (Free42 internal Julian-Day-to-date function name).
+PATTERN='phloat|Phloat|bid128_|decNumber|decContext|vartype|arg_struct|prgm_lines|bcd_t|Thomas Okken|AGPL|GNU General Public License|math_normal_|math_chi2_|math_t_dist_|math_F_dist_|math_gamma_|math_beta_inc|core_commands7|date2j|j2date'
 
-for dir in "$MATH1_DIR" "$STAT1_DIR"; do
+for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR"; do
     if matches=$(grep -rn -E "$PATTERN" "$dir" | grep -v "$DISCLAIM_LINE"); then
         echo "FAIL: Free42 contamination detected in $dir:"
         echo "$matches"
@@ -62,5 +68,5 @@ for dir in "$MATH1_DIR" "$STAT1_DIR"; do
     fi
 done
 
-echo "OK: no Free42 contamination detected in $MATH1_DIR/ or $STAT1_DIR/"
+echo "OK: no Free42 contamination detected in $MATH1_DIR/ or $STAT1_DIR/ or $TIME_DIR/"
 exit 0

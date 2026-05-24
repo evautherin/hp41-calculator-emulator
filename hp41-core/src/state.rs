@@ -24,6 +24,7 @@
 //   - No f64 arithmetic on HP-41 register values anywhere in hp41-core.
 
 use crate::num::{HpNum, HpValue};
+use crate::ops::time::{alarm::AlarmEntry, ClockDisplayMode, StopwatchMode};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -285,19 +286,86 @@ pub struct CalcState {
     /// `modal_prompt`, `integ_state`, etc.) and were always permitted.
     #[serde(default, skip)]
     pub pending_chisqd_nu: Option<u32>,
+
+    // ── Phase 38 (v3.2): Time Module (XROM 26) ──────────────────────────────
+
+    /// Wall-clock offset in seconds (D-38.2).
+    /// SETIME computes `delta = entered_unix_secs - SystemTime::now()` and stores here.
+    /// Default: 0 (system time unmodified). Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub time_offset_secs: i64,
+
+    /// 12-hour clock display mode flag (D-38.2).
+    /// true = 12-hour format (with AM/PM); false = 24-hour format.
+    /// Default: false (24-hour). Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub clock_12h: bool,
+
+    /// Continuous clock display mode (D-38.2).
+    /// Off = no display; TimeOnly = CLKT; TimeAndDate = CLKTD.
+    /// Default: `ClockDisplayMode::Off`. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub clock_display_mode: ClockDisplayMode,
+
+    /// Clock accuracy correction factor (D-38.2).
+    /// Written by CORRECT from stack X. Default: HpNum::zero().
+    /// Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub accuracy_factor: HpNum,
+
+    /// Alarm list (D-38.8 / D-38.10).
+    /// Default: empty Vec (no alarms). Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub alarms: Vec<AlarmEntry>,
+
+    /// Stopwatch operating mode (D-38.7).
+    /// Default: `StopwatchMode::Idle`. Persistent — `#[serde(default)]`.
+    /// D-38.6: `migrate_after_load()` transitions Running → Stopped on load.
+    #[serde(default)]
+    pub stopwatch_mode: StopwatchMode,
+
+    /// Accumulated stopwatch time in seconds not in the current run (D-38.7).
+    /// Default: 0.0. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub stopwatch_accumulated: f64,
+
+    /// Split/lap reference time in seconds (D-38.7).
+    /// Written by SWPT. Default: 0.0. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub stopwatch_split: f64,
+
+    /// Transient: start instant of the current stopwatch run (D-38.6).
+    /// `None` when mode ≠ Running. Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub stopwatch_start: Option<std::time::Instant>,
+
+    /// Transient: true while CLKT/CLKTD continuous clock display is active (D-38.2).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub clock_active: bool,
+
+    /// Transient: true while the SW stopwatch keyboard mode is active (D-38.7).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub stopwatch_keyboard_mode: bool,
+
+    /// Transient: true while ALMCAT alarm catalog browsing is active (D-38.10).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub alarm_catalog_mode: bool,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
 
-/// Default value for `xrom_modules`: bit 0 = Math 1, bit 1 = Stat 1,
-/// both pre-loaded per v3.1 scope (D-33.2).
+/// Default value for `xrom_modules`: bit 0 = Math 1, bit 1 = Stat 1, bit 2 = Time Module,
+/// all pre-loaded per v3.2 scope (D-carried.5).
 ///
-/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flips bit 1 on
-/// because Stat 1 Pac is part of the same milestone deliverable
-/// (REQUIREMENTS.md STAT-FW-02). Migration of v3.0 save files lacking
-/// bit 1 happens in `CalcState::migrate_after_load()` (D-33.7).
+/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flipped bit 1 on (D-33.2).
+/// v3.2 flips bit 2 on because Time Module (XROM 26) is part of this milestone
+/// (TIME-FW-01). Migration of v3.1 save files lacking bit 2 happens in
+/// `CalcState::migrate_after_load()`.
 fn default_xrom_modules() -> u8 {
-    0b0000_0011
+    0b0000_0111
 }
 
 /// Default value for `cancel_requested`: a new Arc<AtomicBool> initialized to false.
@@ -349,6 +417,19 @@ impl CalcState {
             // Phase 33 (v3.1) review-fix: transient ΣCHISQD ν carrier
             // (REVIEW.md WR-03/WR-04 — replaces the stack-T side channel).
             pending_chisqd_nu: None,
+            // Phase 38 (v3.2): Time Module (XROM 26) fields
+            time_offset_secs: 0,
+            clock_12h: false,
+            clock_display_mode: ClockDisplayMode::default(),
+            accuracy_factor: HpNum::zero(),
+            alarms: Vec::new(),
+            stopwatch_mode: StopwatchMode::default(),
+            stopwatch_accumulated: 0.0,
+            stopwatch_split: 0.0,
+            stopwatch_start: None,
+            clock_active: false,
+            stopwatch_keyboard_mode: false,
+            alarm_catalog_mode: false,
         }
     }
 }
@@ -387,6 +468,21 @@ impl CalcState {
         // v3.0 → v3.1: ensure STAT_1 bit (bit 1) is set.
         if self.xrom_modules & 0b0000_0010 == 0 {
             self.xrom_modules |= 0b0000_0010;
+        }
+        // v3.1 → v3.2: ensure TIME_MODULE bit (bit 2) is set.
+        // v3.1 save files persist `"xrom_modules": 3` (bits 0+1 = Math 1 + Stat 1).
+        // Without this migration, v3.1 users opening a v3.2 binary would see
+        // Time Module silently disabled — `XEQ "TIME"` would return InvalidOp.
+        if self.xrom_modules & 0b0000_0100 == 0 {
+            self.xrom_modules |= 0b0000_0100;
+        }
+        // D-38.6: freeze a Running stopwatch on load.
+        // `stopwatch_start: Option<Instant>` is `#[serde(skip)]` and thus always
+        // `None` after deserialization. A Running stopwatch with no Instant is
+        // indeterminate — freeze to Stopped so RCLSW/STOPSW sees a stable state.
+        if self.stopwatch_mode == StopwatchMode::Running {
+            self.stopwatch_mode = StopwatchMode::Stopped;
+            self.stopwatch_start = None;
         }
     }
 }
