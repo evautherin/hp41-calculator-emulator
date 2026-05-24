@@ -23,7 +23,7 @@ pub fn op_sto(state: &mut CalcState, reg: u8) -> Result<(), HpError> {
     // packed-text shadow so ARCL never reads a stale string after a
     // numeric STO. Wave-0 sidecar-clearing audit.
     state.text_regs.remove(&reg);
-    state.regs[idx] = state.stack.x.clone(); // safe — bounds-checked above
+    state.regs[idx] = state.stack.x.clone().into(); // safe — bounds-checked above
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -36,7 +36,7 @@ pub fn op_rcl(state: &mut CalcState, reg: u8) -> Result<(), HpError> {
         .regs
         .get(reg as usize)
         .ok_or(HpError::InvalidOp)?
-        .clone();
+        .numeric_or_zero();
     // Force lift_enabled = true so enter_number performs the stack lift.
     // This matches HP-41 hardware: RCL always lifts regardless of prior state.
     state.stack.lift_enabled = true;
@@ -59,10 +59,18 @@ pub fn op_sto_arith(state: &mut CalcState, reg: u8, kind: StoArithKind) -> Resul
     }
     // Compute first — do NOT write to state.regs[idx] until we know the op succeeds.
     let new_val = match kind {
-        StoArithKind::Add => state.regs[idx].checked_add(&state.stack.x)?,
-        StoArithKind::Sub => state.regs[idx].checked_sub(&state.stack.x)?,
-        StoArithKind::Mul => state.regs[idx].checked_mul(&state.stack.x)?,
-        StoArithKind::Div => state.regs[idx].checked_div(&state.stack.x)?,
+        StoArithKind::Add => state.regs[idx]
+            .numeric_or_zero()
+            .checked_add(&state.stack.x)?,
+        StoArithKind::Sub => state.regs[idx]
+            .numeric_or_zero()
+            .checked_sub(&state.stack.x)?,
+        StoArithKind::Mul => state.regs[idx]
+            .numeric_or_zero()
+            .checked_mul(&state.stack.x)?,
+        StoArithKind::Div => state.regs[idx]
+            .numeric_or_zero()
+            .checked_div(&state.stack.x)?,
     };
     // Phase 23 D-23.4: clear the packed-text shadow before overwriting the
     // numeric slot. Performed AFTER the checked_* computation so a failing
@@ -70,7 +78,7 @@ pub fn op_sto_arith(state: &mut CalcState, reg: u8, kind: StoArithKind) -> Resul
     // (atomicity). Wave-0 sidecar-clearing audit.
     state.text_regs.remove(&reg);
     // Write only after successful computation (Pitfall 6 guard)
-    state.regs[idx] = new_val;
+    state.regs[idx] = new_val.into();
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -122,7 +130,7 @@ pub fn op_clreg(state: &mut CalcState) -> Result<(), HpError> {
     // After Op::Size(50), CLREG yields 50 zero registers — NOT silently
     // re-grown back to 100.
     let n = state.regs.len();
-    state.regs = vec![crate::num::HpNum::zero(); n];
+    state.regs = vec![crate::num::HpValue::default(); n];
     // Phase 23 D-23.4: a CLREG that left text shadows in place would
     // leave ghost ARCL output behind. Clear the entire sidecar map.
     state.text_regs.clear();
@@ -297,14 +305,14 @@ mod phase23_sidecar_audit_tests {
             None,
             "op_sto must clear the text_regs sidecar for the target register (D-23.4)"
         );
-        assert_eq!(state.regs[5], HpNum::from(3i32));
+        assert_eq!(state.regs[5], crate::num::HpValue::from(3i32));
     }
 
     #[test]
     fn test_op_sto_arith_clears_text_regs_sidecar() {
         let mut state = CalcState::new();
         state.text_regs.insert(5, "HELLO".to_string());
-        state.regs[5] = HpNum::from(10i32);
+        state.regs[5] = HpNum::from(10i32).into();
         state.stack.x = HpNum::from(3i32);
         op_sto_arith(&mut state, 5, StoArithKind::Add).unwrap();
         assert_eq!(
@@ -312,7 +320,7 @@ mod phase23_sidecar_audit_tests {
             None,
             "op_sto_arith must clear the text_regs sidecar for the target register (D-23.4)"
         );
-        assert_eq!(state.regs[5], HpNum::from(13i32));
+        assert_eq!(state.regs[5], crate::num::HpValue::from(13i32));
     }
 
     #[test]
@@ -322,7 +330,7 @@ mod phase23_sidecar_audit_tests {
         // pattern mirrored at the sidecar layer.
         let mut state = CalcState::new();
         state.text_regs.insert(5, "HELLO".to_string());
-        state.regs[5] = HpNum::from(10i32);
+        state.regs[5] = HpNum::from(10i32).into();
         state.stack.x = HpNum::from(0i32);
         let result = op_sto_arith(&mut state, 5, StoArithKind::Div);
         assert!(result.is_err(), "div-by-zero must return Err");
@@ -333,7 +341,7 @@ mod phase23_sidecar_audit_tests {
         );
         assert_eq!(
             state.regs[5],
-            HpNum::from(10i32),
+            crate::num::HpValue::from(10i32),
             "failing op_sto_arith must leave the numeric slot untouched"
         );
     }
@@ -350,7 +358,11 @@ mod phase23_sidecar_audit_tests {
             "op_clreg must clear the entire text_regs sidecar map (D-23.4)"
         );
         for r in &state.regs {
-            assert_eq!(r, &HpNum::zero(), "all numeric regs must be zero");
+            assert_eq!(
+                r,
+                &crate::num::HpValue::default(),
+                "all numeric regs must be zero"
+            );
         }
     }
 

@@ -1310,7 +1310,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hp41-core"
-version = "0.1.0"
+version = "3.1.1"
 dependencies = [
  "rust_decimal",
  "serde",
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "hp41-gui"
-version = "0.1.0"
+version = "3.1.1"
 dependencies = [
  "dirs",
  "hp41-core",

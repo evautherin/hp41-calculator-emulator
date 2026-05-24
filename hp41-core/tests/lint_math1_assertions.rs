@@ -28,7 +28,7 @@
 //!   ```text
 //!   assert_eq!(state.modal_prompt, Some("ORDER=?".to_string()))      // string
 //!   assert_eq!(result, Err(HpError::InvalidOp))                       // enum
-//!   assert_eq!(state.regs[0], HpNum::from(5i32))                      // int (LINT-EXEMPT)
+//!   assert_eq!(state.regs[0], hp41_core::HpValue::from(5i32))                      // int (LINT-EXEMPT)
 //!   ```
 //! - **Forbidden** (decimal / float equality — drift-prone):
 //!   ```text

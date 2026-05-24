@@ -20,7 +20,7 @@ fn test_size_basic() {
     dispatch(&mut s, Op::Size(50)).unwrap();
     assert_eq!(s.regs.len(), 50);
     for r in &s.regs {
-        assert_eq!(*r, HpNum::zero());
+        assert_eq!(*r, hp41_core::HpValue::default());
     }
 }
 
@@ -64,14 +64,14 @@ fn test_size_shrink_truncates_tail() {
     // surviving cells preserved.
     let mut s = CalcState::new();
     for r in s.regs.iter_mut() {
-        *r = HpNum::from(7i32);
+        *r = HpNum::from(7i32).into();
     }
     dispatch(&mut s, Op::Size(10)).unwrap();
     assert_eq!(s.regs.len(), 10);
     for r in &s.regs {
         assert_eq!(
             *r,
-            HpNum::from(7i32),
+            hp41_core::HpValue::from(7i32),
             "shrink must preserve surviving values"
         );
     }
@@ -83,18 +83,22 @@ fn test_size_grow_zero_fills() {
     // surviving cells preserved.
     let mut s = CalcState::new();
     for r in s.regs.iter_mut() {
-        *r = HpNum::from(3i32);
+        *r = HpNum::from(3i32).into();
     }
     dispatch(&mut s, Op::Size(5)).unwrap();
     dispatch(&mut s, Op::Size(20)).unwrap();
     assert_eq!(s.regs.len(), 20);
     // First 5 retained their value
     for r in &s.regs[..5] {
-        assert_eq!(*r, HpNum::from(3i32), "preserved cells");
+        assert_eq!(*r, hp41_core::HpValue::from(3i32), "preserved cells");
     }
     // Cells 5..20 are zero-filled
     for r in &s.regs[5..20] {
-        assert_eq!(*r, HpNum::zero(), "grown cells must be zero");
+        assert_eq!(
+            *r,
+            hp41_core::HpValue::default(),
+            "grown cells must be zero"
+        );
     }
 }
 
@@ -162,12 +166,16 @@ fn test_clreg_after_size_honors_current_size() {
     dispatch(&mut s, Op::Size(20)).unwrap();
     // Stamp values then call Clreg
     for r in s.regs.iter_mut() {
-        *r = HpNum::from(99i32);
+        *r = HpNum::from(99i32).into();
     }
     dispatch(&mut s, Op::Clreg).unwrap();
     assert_eq!(s.regs.len(), 20, "CLREG must honor current SIZE (was 20)");
     for r in &s.regs {
-        assert_eq!(*r, HpNum::zero(), "CLREG must zero each surviving cell");
+        assert_eq!(
+            *r,
+            hp41_core::HpValue::default(),
+            "CLREG must zero each surviving cell"
+        );
     }
 }
 
@@ -298,7 +306,7 @@ fn test_clst_preserves_regs() {
     // CLST should only touch the 4-level stack; regs untouched.
     let mut s = CalcState::new();
     for (i, r) in s.regs.iter_mut().enumerate() {
-        *r = HpNum::from(i as i32);
+        *r = HpNum::from(i as i32).into();
     }
     let regs_before = s.regs.clone();
 
@@ -329,7 +337,7 @@ fn test_pack_is_noop() {
     s.alpha_reg = "STAYS".to_string();
     s.program = vec![Op::Add, Op::Sub];
     for (i, r) in s.regs.iter_mut().enumerate() {
-        *r = HpNum::from((i + 10) as i32);
+        *r = HpNum::from((i + 10) as i32).into();
     }
     let regs_before = s.regs.clone();
     let program_before = s.program.clone();

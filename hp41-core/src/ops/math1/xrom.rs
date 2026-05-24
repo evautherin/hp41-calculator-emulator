@@ -117,6 +117,74 @@ pub const MATH_1: XromModule = XromModule {
     ],
 };
 
+/// Stat 1 Pac module registry (D-33.3 freeze exception — second Stat-related
+/// entry in this otherwise-frozen file, alongside the bit-1 arm in
+/// `xrom_resolve` below).
+///
+/// - `id = 2` — HP hardware Statistics Pac 1 XROM module ID per
+///   `calc.fjk.ch/db/hp41mod.php` ("Statistics Pac 1B" XROM #2).
+/// - `name = "STAT 1B"` — CATALOG 2 display string per
+///   HP Stat 1 Pac Owner's Manual 00041-90030 (1979).
+/// - `ops` — locked from SPEC.md §"Stat 1 Pac Mnemonics" (14 entry points
+///   from QRC 00041-90061 + 12 secondary entry points enumerated by the
+///   QRC's per-program rows + RAND/SEED emulator extensions per D-33.4).
+///   26 total entries. Unicode Σ encoded as `\u{03A3}` per Plan-28
+///   convention (`\u{00D7}` × in MATH_1.ops at line 57).
+///
+/// **Plan 33-08 final state:** all 26 entries point to real `Op::Sigma*`
+/// / `Op::Rand` / `Op::Seed` variants. The Plan 33-01 scaffolding
+/// placeholder Op variant has been removed end-of-Phase-33. The
+/// `xrom_shadowing.rs` CI gate cross-checks the slice against
+/// `MATH_1.ops` and `builtin_card_op` for disjointness; the bidirectional
+/// `stat1_ops_mnemonics_resolve_consistently` test cross-checks this
+/// slice against `stat1_resolve`.
+pub const STAT_1: XromModule = XromModule {
+    id: 2,
+    name: "STAT 1B",
+    ops: &[
+        // ── Stat 1 Pac Univariate / Bivariate Summaries ────────────────────────
+        // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
+        ("\u{03A3}BSTAT", Op::SigmaBstat), // ΣBSTAT — Plan 33-05
+        ("\u{03A3}BSTG", Op::SigmaBstg),   // ΣBSTG  — Plan 33-05
+        ("\u{03A3}MMTUG", Op::SigmaMmtug), // ΣMMTUG — Plan 33-06
+        ("\u{03A3}MMTGD", Op::SigmaMmtgd), // ΣMMTGD — Plan 33-06
+        // ── Stat 1 Pac ANOVA Family ────────────────────────────────────────────
+        ("\u{03A3}AOVONE", Op::SigmaAovone), // ΣAOVONE — Plan 33-06
+        ("\u{03A3}AOVTWO", Op::SigmaAovtwo), // ΣAOVTWO — Plan 33-06
+        ("\u{03A3}ANOCOV", Op::SigmaAnocov), // ΣANOCOV — Plan 33-06
+        // ── Stat 1 Pac Curve Fitting + Regression ─────────────────────────────
+        // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants via
+        // log-linearization + op_sigma_plus delegate (anti-duplication).
+        ("\u{03A3}LIN", Op::SigmaLin),       // ΣLIN    — Plan 33-05
+        ("\u{03A3}EXP", Op::SigmaExp),       // ΣEXP    — Plan 33-05
+        ("\u{03A3}LOGI", Op::SigmaLogi),     // ΣLOGI   — Plan 33-05
+        ("\u{03A3}POW", Op::SigmaPow),       // ΣPOW    — Plan 33-05
+        ("\u{03A3}MLRXY", Op::SigmaMlrxy),   // ΣMLRXY  — Plan 33-08
+        ("\u{03A3}MLRXYZ", Op::SigmaMlrxyz), // ΣMLRXYZ — Plan 33-08
+        ("\u{03A3}POLYP", Op::SigmaPolypWorkflow), // ΣPOLYP — Plan 33-08
+        ("\u{03A3}POLYC", Op::SigmaPolyc),   // ΣPOLYC  — Plan 33-08
+        // ── Stat 1 Pac Hypothesis Tests ────────────────────────────────────────
+        // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
+        ("\u{03A3}PTST", Op::SigmaPtst),   // ΣPTST   — Plan 33-07
+        ("\u{03A3}TSTAT", Op::SigmaTstat), // ΣTSTAT  — Plan 33-07
+        // ── Stat 1 Pac Nonparametric / Chi-Square Evaluation / Contingency ────
+        // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ real Op variants.
+        ("\u{03A3}XSQEV", Op::SigmaXsqev), // ΣXSQEV  — Plan 33-04
+        ("\u{03A3}EFXSQ", Op::SigmaEfxsq), // ΣEFXSQ  — Plan 33-04
+        ("\u{03A3}CTKKK", Op::SigmaCtkkk), // ΣCTKKK  — Plan 33-06
+        ("\u{03A3}CTKK", Op::SigmaCtkk),   // ΣCTKK   — Plan 33-06
+        ("\u{03A3}SPEAR", Op::SigmaSpear), // ΣSPEAR  — Plan 33-04
+        // ── Stat 1 Pac Distributions ───────────────────────────────────────────
+        // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
+        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow), // ΣNORMD  — Plan 33-03
+        ("\u{03A3}CHISQD", Op::SigmaChisqdWorkflow), // ΣCHISQD — Plan 33-03
+        // ── Stat 1 Pac RAND/SEED (emulator extension per D-33.4) ──────────────
+        // Plan 33-08: RAND + SEED → real Op variants (final stub swap).
+        ("RAND", Op::Rand), // RAND    — Plan 33-08
+        ("SEED", Op::Seed), // SEED    — Plan 33-08
+    ],
+};
+
 /// Resolve an XEQ-by-name label against loaded XROM modules.
 ///
 /// Returns `Some(Op)` if `name` matches a Math Pac I mnemonic AND bit 0 of
@@ -130,8 +198,16 @@ pub fn xrom_resolve(name: &str, modules: u8) -> Option<Op> {
             return Some(op);
         }
     }
-    // Future v3.1+ modules go here:
-    // if modules & 0b0000_0010 != 0 { stat1_resolve(name) }
+    // Phase 33 (v3.1): Stat 1 Pac bit-1 arm activated per D-33.3 freeze
+    // exception. Order matters — Stat 1 fires AFTER Math 1 so a future
+    // Plan that wants Math 1 to "win" over a stat1 alias just needs to
+    // keep its Math 1 entry intact (current `MATH_1.ops` x `STAT_1.ops`
+    // disjointness is CI-gated in `tests/xrom_shadowing.rs`).
+    if modules & 0b0000_0010 != 0 {
+        if let Some(op) = stat1_resolve(name) {
+            return Some(op);
+        }
+    }
     None
 }
 
@@ -225,10 +301,67 @@ fn math1_resolve(name: &str) -> Option<Op> {
     }
 }
 
+/// Stat 1 Pac (bit 1) mnemonic resolver — D-33.3 freeze exception.
+///
+/// Each arm maps to a real `Op::Sigma*` / `Op::Rand` / `Op::Seed`
+/// variant (Plan 33-08 final state; the Plan 33-01 scaffolding
+/// placeholder Op variant was removed at the end of Phase 33).
+///
+/// Bidirectional consistency with `STAT_1.ops`: the
+/// `stat1_ops_mnemonics_resolve_consistently` test below iterates the
+/// slice and asserts every mnemonic round-trips through this match.
+fn stat1_resolve(name: &str) -> Option<Op> {
+    match name {
+        // Univariate / Bivariate Summaries
+        // Plan 33-05: ΣBSTAT + ΣBSTG → real Sigma* variants.
+        "\u{03A3}BSTAT" => Some(Op::SigmaBstat),
+        "\u{03A3}BSTG" => Some(Op::SigmaBstg),
+        // Plan 33-06: ΣMMTUG + ΣMMTGD → real Sigma* variants.
+        "\u{03A3}MMTUG" => Some(Op::SigmaMmtug),
+        "\u{03A3}MMTGD" => Some(Op::SigmaMmtgd),
+        // ANOVA Family
+        // Plan 33-06: ΣAOVONE + ΣAOVTWO + ΣANOCOV → real Sigma* variants.
+        "\u{03A3}AOVONE" => Some(Op::SigmaAovone),
+        "\u{03A3}AOVTWO" => Some(Op::SigmaAovtwo),
+        "\u{03A3}ANOCOV" => Some(Op::SigmaAnocov),
+        // Curve Fitting + Regression
+        // Plan 33-05: ΣLIN / ΣEXP / ΣLOGI / ΣPOW → real Sigma* variants.
+        "\u{03A3}LIN" => Some(Op::SigmaLin),
+        "\u{03A3}EXP" => Some(Op::SigmaExp),
+        "\u{03A3}LOGI" => Some(Op::SigmaLogi),
+        "\u{03A3}POW" => Some(Op::SigmaPow),
+        // Plan 33-08: Multiple + polynomial regression → real Sigma* variants.
+        "\u{03A3}MLRXY" => Some(Op::SigmaMlrxy),
+        "\u{03A3}MLRXYZ" => Some(Op::SigmaMlrxyz),
+        "\u{03A3}POLYP" => Some(Op::SigmaPolypWorkflow),
+        "\u{03A3}POLYC" => Some(Op::SigmaPolyc),
+        // Hypothesis Tests
+        // Plan 33-07: ΣPTST + ΣTSTAT → real Sigma* variants (Tasks 1+2).
+        "\u{03A3}PTST" => Some(Op::SigmaPtst),
+        "\u{03A3}TSTAT" => Some(Op::SigmaTstat),
+        // Nonparametric / Chi-Square Evaluation / Contingency
+        // Plan 33-04: ΣSPEAR + ΣXSQEV + ΣEFXSQ → real Sigma* variants.
+        "\u{03A3}XSQEV" => Some(Op::SigmaXsqev),
+        "\u{03A3}EFXSQ" => Some(Op::SigmaEfxsq),
+        // Plan 33-06: ΣCTKKK + ΣCTKK → real Sigma* variants.
+        "\u{03A3}CTKKK" => Some(Op::SigmaCtkkk),
+        "\u{03A3}CTKK" => Some(Op::SigmaCtkk),
+        "\u{03A3}SPEAR" => Some(Op::SigmaSpear),
+        // Distributions
+        // Plan 33-03: ΣNORMD + ΣCHISQD → real Sigma* variants.
+        "\u{03A3}NORMD" => Some(Op::SigmaNormdWorkflow),
+        "\u{03A3}CHISQD" => Some(Op::SigmaChisqdWorkflow),
+        // Plan 33-08: RAND + SEED → real Op variants (emulator extension).
+        "RAND" => Some(Op::Rand),
+        "SEED" => Some(Op::Seed),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{xrom_resolve, MATH_1};
+    use super::{xrom_resolve, MATH_1, STAT_1};
     use crate::ops::Op;
 
     const NONEXISTENT_NAME: &str = "__MATH1_PROBE_NONEXISTENT__";
@@ -345,5 +478,80 @@ mod tests {
                 "MATH_1.ops mnemonic {name:?} must resolve to {expected_op:?} via xrom_resolve"
             );
         }
+    }
+
+    // ── Phase 33 Plan 33-01: STAT_1 const + bit-1 arm tests ───────────────────
+
+    // Catches: STAT_1 const field regression (id or display name typo).
+    #[test]
+    fn stat1_const_id_and_name() {
+        assert_eq!(
+            STAT_1.id, 2,
+            "STAT_1.id must be 2 (HP Stat 1 Pac hardware module ID per calc.fjk.ch)"
+        );
+        assert_eq!(
+            STAT_1.name, "STAT 1B",
+            "STAT_1.name must be 'STAT 1B' (HP-41C CATALOG 2 display string per OM 00041-90030)"
+        );
+    }
+
+    // Catches: STAT_1.ops slice growing/shrinking without intent.
+    // Count: 14 Σ-prefixed entries from QRC + 10 secondary Σ-prefixed entries
+    // (BSTG, MMTGD, MLRXYZ, POLYC, EFXSQ, CTKK + LIN/EXP/LOGI/POW which are
+    //  4 secondary curve-fit entries) + RAND + SEED emulator extensions
+    // = 26 entries (locked at SPEC.md §"Stat 1 Pac Mnemonics").
+    #[test]
+    fn stat1_ops_has_correct_entry_count() {
+        assert_eq!(
+            STAT_1.ops.len(),
+            26,
+            "STAT_1.ops must carry exactly 26 entries — 24 Σ-prefixed mnemonics + RAND + SEED (SPEC.md §\"Stat 1 Pac Mnemonics\")"
+        );
+    }
+
+    // Catches: STAT_1.ops mnemonic strings not matching stat1_resolve keys
+    // (bidirectional consistency — drift in either direction is a CI failure).
+    #[test]
+    fn stat1_ops_mnemonics_resolve_consistently() {
+        for (name, expected_op) in STAT_1.ops {
+            let resolved = xrom_resolve(name, 0b0000_0011);
+            assert_eq!(
+                resolved.as_ref(),
+                Some(expected_op),
+                "STAT_1.ops mnemonic {name:?} must resolve to {expected_op:?} via xrom_resolve(name, 0b0000_0011)"
+            );
+        }
+    }
+
+    // Catches: bit-1 isolation regression — STAT_1 must resolve under bit 1
+    // ONLY (not bit 0 alone). SPEC.md Req. 2 / D-33.3 bit-1 arm invariant.
+    //
+    // Plan 33-03 swap: ΣNORMD now resolves to `Op::SigmaNormdWorkflow`
+    // (the real 3-mode modal opener) rather than the 33-01 scaffolding
+    // placeholder. The bit-1 isolation check is identical.
+    #[test]
+    fn resolve_uses_bit_1_for_stat1() {
+        // bit 1 set, bit 0 clear — Stat 1 IS loaded, Math 1 is NOT
+        let with_bit1 = xrom_resolve("\u{03A3}NORMD", 0b0000_0010);
+        assert_eq!(
+            with_bit1,
+            Some(Op::SigmaNormdWorkflow),
+            "xrom_resolve('ΣNORMD', bit1=1) must route through stat1_resolve"
+        );
+
+        // bit 0 set, bit 1 clear — Math 1 IS loaded, Stat 1 is NOT.
+        // A Σ-prefixed mnemonic is NOT a Math 1 entry, so resolution returns None.
+        let with_bit0 = xrom_resolve("\u{03A3}NORMD", 0b0000_0001);
+        assert!(
+            with_bit0.is_none(),
+            "xrom_resolve('ΣNORMD', bit0=1, bit1=0) must return None (bit-1 isolation)"
+        );
+
+        // both bits clear — no XROM modules loaded → None.
+        let neither = xrom_resolve("\u{03A3}NORMD", 0b0000_0000);
+        assert!(
+            neither.is_none(),
+            "xrom_resolve must return None when neither bit is set"
+        );
     }
 }

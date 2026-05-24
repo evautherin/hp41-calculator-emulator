@@ -329,11 +329,22 @@ pub fn shifted_key_to_op(key: KeyEvent, app: &mut App) -> Option<Op> {
 }
 
 /// CLI-local resolver for the 8 non-keyboard HP-41CV conditional-test
-/// mnemonics. Accepts BOTH ASCII-pure and Unicode-symbol spellings per
-/// D-25.10 + RESEARCH §"Conditional tests". Returns `None` for the four
-/// v2.1 card-reader names (those fall through to `Op::Xeq` →
+/// mnemonics + the keyboardless `PI` built-in. Accepts BOTH ASCII-pure and
+/// Unicode-symbol spellings of the conditional tests per D-25.10 + RESEARCH
+/// §"Conditional tests". Returns `None` for the four v2.1 card-reader names
+/// (those fall through to `Op::Xeq` →
 /// `hp41_core::ops::program::builtin_card_op` via the modal Enter-arm) and
 /// for unknown names.
+///
+/// The `"PI"` arm exists because `Op::Pi` has `key_path: null` in
+/// `docs/hp41cv-functions.json` — there is no f-shifted key bound to it in
+/// this CLI build (real HP-41 sits PI on Shift-`R/S`, omitted from the
+/// CLI layout). `XEQ "PI"` is therefore the sole live keyboard route; without
+/// this arm the resolver fell through to `xrom_resolve` (no match — PI is a
+/// built-in opcode, not a Math Pac I XROM entry) and surfaced `InvalidOp`.
+/// Programs continue to use the direct `Op::Pi` opcode — no
+/// `builtin_card_op` mirror needed, since real-world programs never write
+/// `XEQ "PI"`.
 ///
 /// Why CLI-local AND hp41-core both carry the mapping (Plan 03):
 ///   - This CLI-local path gives immediate dispatch from the XEQ-by-Name
@@ -373,12 +384,83 @@ pub fn xeq_by_name_local_resolve(name: &str, xrom_modules: u8) -> Option<Op> {
         "X<=0?" | "X\u{2264}0?" => Some(Op::Test(TestKind::XLeZero)),
         // X ≥ 0 — two spellings.
         "X>=0?" | "X\u{2265}0?" => Some(Op::Test(TestKind::XGeZero)),
+        // --- ROM built-in ops reachable via XEQ-by-name (v3.1.1) ---
+        // Accepts canonical HP-41 display names from hp41cv-functions.json.
+        // Trig
+        "SIN" => Some(Op::Sin),
+        "COS" => Some(Op::Cos),
+        "TAN" => Some(Op::Tan),
+        "ASIN" => Some(Op::Asin),
+        "ACOS" => Some(Op::Acos),
+        "ATAN" => Some(Op::Atan),
+        // Log / exponential
+        "LN" => Some(Op::Ln),
+        "LOG" => Some(Op::Log),
+        "E^X" => Some(Op::Exp),
+        "10^X" => Some(Op::TenPow),
+        // Power / root
+        "SQRT" => Some(Op::Sqrt),
+        "X^2" | "XSQ" => Some(Op::Sq),
+        "Y^X" => Some(Op::YPow),
+        "1/X" | "RECIP" => Some(Op::Recip),
+        // Basic arithmetic / utility
+        "PI" => Some(Op::Pi),
+        "ABS" => Some(Op::Abs),
+        "INT" => Some(Op::Int),
+        "FRC" => Some(Op::Frc),
+        "SIGN" => Some(Op::Sign),
+        "N!" | "FACT" => Some(Op::Fact),
+        "MOD" => Some(Op::Mod),
+        "RND" => Some(Op::Rnd),
+        // Conversions
+        "P->R" | "P\u{2192}R" => Some(Op::PolarToRect),
+        "R->P" | "R\u{2192}P" => Some(Op::RectToPolar),
+        "HMS->H" | "HMS\u{2192}H" => Some(Op::HmsToH),
+        "H->HMS" | "H\u{2192}HMS" => Some(Op::HToHms),
+        "HMS+" => Some(Op::HmsAdd),
+        "HMS-" => Some(Op::HmsSub),
+        // Angle mode
+        "DEG" => Some(Op::SetDeg),
+        "RAD" => Some(Op::SetRad),
+        "GRAD" => Some(Op::SetGrad),
+        // Stack
+        "R^" | "R\u{2191}" | "RUP" => Some(Op::Rup),
+        "CLST" => Some(Op::Clst),
+        "CLREG" => Some(Op::Clreg),
+        "CLA" => Some(Op::Cla),
+        // Statistics
+        "SIGMA+" | "\u{03A3}+" => Some(Op::SigmaPlus),
+        "SIGMA-" | "\u{03A3}-" => Some(Op::SigmaMinus),
+        "MEAN" => Some(Op::Mean),
+        "SDEV" => Some(Op::Sdev),
+        "L.R." | "LR" => Some(Op::LR),
+        "YHAT" => Some(Op::Yhat),
+        "CORR" => Some(Op::Corr),
+        "CL SIGMA" | "CL\u{03A3}" | "CLSIGMA" => Some(Op::ClSigmaStat),
+        // Display / alpha / sound
+        "AVIEW" => Some(Op::AView),
+        "PROMPT" => Some(Op::Prompt),
+        "AON" => Some(Op::Aon),
+        "AOFF" => Some(Op::Aoff),
+        "CLD" => Some(Op::Cld),
+        "BEEP" => Some(Op::Beep),
+        "CLRALPHA" => Some(Op::AlphaClear),
+        // ALPHA ops
+        "ATOX" => Some(Op::Atox),
+        "XTOA" => Some(Op::Xtoa),
+        "AROT" => Some(Op::Arot),
+        "POSA" => Some(Op::Posa),
+        // Program control (non-parameterized)
+        "RTN" => Some(Op::Rtn),
+        "STOP" => Some(Op::Stop),
+        "PSE" => Some(Op::Pse),
+        "PACK" => Some(Op::Pack),
+        "INS" => Some(Op::Ins),
+        // Print
+        "PRX" => Some(Op::PRX),
+        "PRA" => Some(Op::PRA),
+        "PRSTK" => Some(Op::PRSTK),
         // Final fallback: XROM resolver (C-28.4 — fires LAST).
-        // For Math Pac I, this resolves ~45 XEQ-by-name entries when
-        // `xrom_modules & 0b0000_0001 != 0` (Math Pac I loaded).
-        // Card-reader names (WPRGM/RDPRGM/WDTA/RDTA) and user LBLs still fall
-        // through `xrom_resolve` to `None` and are handled by `Op::Xeq(acc)`
-        // in the modal Enter-arm.
         _ => hp41_core::ops::math1::xrom::xrom_resolve(name, xrom_modules),
     }
 }
@@ -623,7 +705,7 @@ mod tests {
     fn test_g_dispatches_clreg() {
         // 'g' maps to Op::Clreg — verify all storage registers are zeroed
         let mut state = CalcState::new();
-        state.regs[5] = hp41_core::HpNum::from(42);
+        state.regs[5] = hp41_core::HpNum::from(42).into();
         let result = hp41_core::ops::dispatch(&mut state, Op::Clreg);
         assert!(result.is_ok(), "Op::Clreg must not error");
         assert!(

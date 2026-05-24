@@ -21,9 +21,9 @@ use hp41_core::state::CalcState;
 fn wdta_full_pipeline_round_trips_data_registers() {
     // Setup: populate some registers, then "write" via WDTA.
     let mut state = CalcState::new();
-    state.regs[0] = HpNum::from(42i32);
-    state.regs[5] = HpNum::from(-3i32);
-    state.regs[99] = HpNum::from(123i32);
+    state.regs[0] = HpNum::from(42i32).into();
+    state.regs[5] = HpNum::from(-3i32).into();
+    state.regs[99] = HpNum::from(123i32).into();
     state.alpha_reg = "MYDATA".to_string();
 
     // Step 1: dispatch WDTA — must stage a WriteData request.
@@ -49,9 +49,9 @@ fn wdta_full_pipeline_round_trips_data_registers() {
     load_data_card(&mut other, card_back);
 
     // Verify registers round-tripped exactly.
-    assert_eq!(other.regs[0], HpNum::from(42i32));
-    assert_eq!(other.regs[5], HpNum::from(-3i32));
-    assert_eq!(other.regs[99], HpNum::from(123i32));
+    assert_eq!(other.regs[0], hp41_core::HpValue::from(42i32));
+    assert_eq!(other.regs[5], hp41_core::HpValue::from(-3i32));
+    assert_eq!(other.regs[99], hp41_core::HpValue::from(123i32));
     assert_eq!(other.regs.len(), 100);
 }
 
@@ -134,7 +134,7 @@ fn encode_program_rejects_unsupported_op() {
 fn data_card_format_tag_is_stable() {
     // Future tooling will identify our .card.json files by this exact tag.
     let mut state = CalcState::new();
-    state.regs[0] = HpNum::from(7i32);
+    state.regs[0] = HpNum::from(7i32).into();
     let card = capture_data_card(&state);
     let bytes = encode_data(&card).unwrap();
     let json = std::str::from_utf8(&bytes).unwrap();

@@ -17,7 +17,6 @@ pub mod raw;
 pub use data::{decode_data, encode_data, DataCard};
 pub use raw::{decode_program, encode_program};
 
-use crate::num::HpNum;
 use crate::ops::Op;
 use crate::state::CalcState;
 
@@ -79,7 +78,9 @@ const MIN_REGS_AFTER_LOAD: usize = 100;
 pub fn load_data_card(state: &mut CalcState, card: DataCard) {
     state.regs = card.registers;
     if state.regs.len() < MIN_REGS_AFTER_LOAD {
-        state.regs.resize(MIN_REGS_AFTER_LOAD, HpNum::zero());
+        state
+            .regs
+            .resize(MIN_REGS_AFTER_LOAD, crate::num::HpValue::default());
     }
 }
 
@@ -127,13 +128,13 @@ mod tests {
     #[test]
     fn capture_then_load_round_trips_registers() {
         let mut state = CalcState::new();
-        state.regs[0] = HpNum::from(42i32);
-        state.regs[7] = HpNum::from(-3i32);
+        state.regs[0] = HpNum::from(42i32).into();
+        state.regs[7] = HpNum::from(-3i32).into();
         let card = capture_data_card(&state);
         let mut state2 = CalcState::new();
         load_data_card(&mut state2, card);
-        assert_eq!(state2.regs[0], HpNum::from(42i32));
-        assert_eq!(state2.regs[7], HpNum::from(-3i32));
+        assert_eq!(state2.regs[0], crate::num::HpValue::from(42i32));
+        assert_eq!(state2.regs[7], crate::num::HpValue::from(-3i32));
         assert_eq!(state2.regs.len(), 100);
     }
 
@@ -143,7 +144,7 @@ mod tests {
         let small_card = DataCard {
             format: data::FORMAT_TAG.to_string(),
             version: data::FORMAT_VERSION,
-            registers: vec![HpNum::from(1i32); 16],
+            registers: vec![HpNum::from(1i32).into(); 16],
         };
         load_data_card(&mut state, small_card);
         assert_eq!(
@@ -151,11 +152,11 @@ mod tests {
             MIN_REGS_AFTER_LOAD,
             "load_data_card must keep regs.len() >= MIN_REGS_AFTER_LOAD so STO/RCL nn stays in bounds"
         );
-        assert_eq!(state.regs[0], HpNum::from(1i32));
-        assert_eq!(state.regs[15], HpNum::from(1i32));
+        assert_eq!(state.regs[0], crate::num::HpValue::from(1i32));
+        assert_eq!(state.regs[15], crate::num::HpValue::from(1i32));
         assert_eq!(
             state.regs[50],
-            HpNum::zero(),
+            crate::num::HpValue::default(),
             "padded slots must be zero, not garbage"
         );
     }
@@ -167,11 +168,11 @@ mod tests {
         let big_card = DataCard {
             format: data::FORMAT_TAG.to_string(),
             version: data::FORMAT_VERSION,
-            registers: vec![HpNum::from(7i32); 150],
+            registers: vec![HpNum::from(7i32).into(); 150],
         };
         load_data_card(&mut state, big_card);
         assert_eq!(state.regs.len(), 150);
-        assert_eq!(state.regs[149], HpNum::from(7i32));
+        assert_eq!(state.regs[149], crate::num::HpValue::from(7i32));
     }
 
     #[test]
@@ -185,10 +186,10 @@ mod tests {
         let small_card = DataCard {
             format: data::FORMAT_TAG.to_string(),
             version: data::FORMAT_VERSION,
-            registers: vec![HpNum::zero(); 16],
+            registers: vec![crate::num::HpValue::default(); 16],
         };
         load_data_card(&mut state, small_card);
         crate::ops::registers::op_sto(&mut state, 50).expect("op_sto must succeed after card load");
-        assert_eq!(state.regs[50], HpNum::from(42i32));
+        assert_eq!(state.regs[50], crate::num::HpValue::from(42i32));
     }
 }

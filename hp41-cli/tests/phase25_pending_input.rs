@@ -234,7 +234,7 @@ fn pending_prompt_exhaustive() {
 fn test_ind_toggle_via_shift_0() {
     let (mut app, _tmp) = make_app();
     // Seed register 5 to a sentinel so STO 05 results in a verifiable state.
-    app.state.regs[5] = HpNum::from(99);
+    app.state.regs[5] = HpNum::from(99).into();
     app.state.stack.x = HpNum::from(42);
 
     // Open the STO modal.
@@ -290,7 +290,7 @@ fn test_ind_toggle_via_shift_0() {
     // op_sto_ind resolves the integer part of regs[5] = 99 and stores X there.
     assert_eq!(
         app.state.regs[99],
-        HpNum::from(42),
+        hp41_core::HpValue::from(42),
         "STO IND 05 must store X=42 into regs[regs[5].int_part] = regs[99]"
     );
 }
@@ -337,7 +337,7 @@ fn test_flag_prompt_dispatches() {
 fn test_flag_prompt_ind_dispatches_through_shift_0() {
     // Pre-set regs[5] to 12 so SF IND 05 resolves to flag 12.
     let (mut app, _tmp) = make_app();
-    app.state.regs[5] = HpNum::from(12);
+    app.state.regs[5] = HpNum::from(12).into();
     app.pending_input = Some(PendingInput::FlagPrompt {
         kind: FlagPromptKind::SetFlag,
         ind: false,

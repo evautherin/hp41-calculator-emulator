@@ -27,15 +27,19 @@ export type HelpOverlayProps = {
     onClose: () => void;
 };
 
-/// Section descriptor for the two top-level overlay sections.
+/// Section descriptor for the three top-level overlay sections.
 /// `predicate` selects which entries belong to this section.
+///
+/// Phase 36 Plan 36-02: widened id union from 'hp41cv' | 'math1' to include 'stat1'
+/// (third section for Stat 1 Pac XROM 2 entries per STAT-GUI-03).
 interface SectionDef {
-    id: 'hp41cv' | 'math1';
+    id: 'hp41cv' | 'math1' | 'stat1';
     heading: string;
     predicate: (e: HelpEntry) => boolean;
 }
 
-/// Two top-level sections per D-31.8. Order: built-in first, Math 1 Pac second.
+/// Three top-level sections per D-31.8 (extended Phase 36 Plan 36-02).
+/// Order: built-in first, Math 1 Pac second, Stat 1 Pac third (D-34.6).
 const SECTIONS: SectionDef[] = [
     {
         id: 'hp41cv',
@@ -47,22 +51,29 @@ const SECTIONS: SectionDef[] = [
         heading: 'Math 1 Pac (XROM 7)',
         predicate: (e: HelpEntry) => e.xrom?.module === 'Math 1',
     },
+    {
+        id: 'stat1',
+        heading: 'Stat 1 Pac (XROM 2)',
+        predicate: (e: HelpEntry) => e.xrom?.module === 'Stat 1',
+    },
 ];
 
 export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
     const [query, setQuery] = useState('');
 
-    // D-31.8: Both sections expanded by default; state resets on each overlay open.
-    const [expanded, setExpanded] = useState<{ hp41cv: boolean; math1: boolean }>({
+    // D-31.8: All sections expanded by default; state resets on each overlay open.
+    // Phase 36 Plan 36-02: widened from {hp41cv, math1} to {hp41cv, math1, stat1}.
+    const [expanded, setExpanded] = useState<{ hp41cv: boolean; math1: boolean; stat1: boolean }>({
         hp41cv: true,
         math1: true,
+        stat1: true,
     });
 
     // Reset query and expand state whenever overlay opens (clean-slate UX).
     useEffect(() => {
         if (open) {
             setQuery('');
-            setExpanded({ hp41cv: true, math1: true });
+            setExpanded({ hp41cv: true, math1: true, stat1: true });
         }
     }, [open]);
 
@@ -127,7 +138,7 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
 
     if (!open) return null;
 
-    const toggleSection = (id: 'hp41cv' | 'math1') => {
+    const toggleSection = (id: 'hp41cv' | 'math1' | 'stat1') => {
         setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
     };
 

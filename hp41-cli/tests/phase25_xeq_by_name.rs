@@ -235,6 +235,47 @@ fn xeq_by_name_resolves_x_ge_zero() {
     );
 }
 
+/// `XEQ "PI"` reaches `Op::Pi`. PI has `key_path: null` in
+/// `docs/hp41cv-functions.json` — no f-shifted key is bound to it in this
+/// CLI build — so the XEQ-by-Name route is the only live way to push π
+/// onto X from the keyboard. Regression guard against a re-introduction
+/// of the v3.0 gap where the resolver fell through to `xrom_resolve`
+/// (which does not list PI, since PI is a built-in opcode, not a Math Pac I
+/// XROM entry) and surfaced `InvalidOp`.
+#[test]
+fn xeq_by_name_resolves_pi() {
+    // XROM-loaded and XROM-unloaded both resolve — PI is a built-in arm
+    // that fires BEFORE the xrom fallback, so module state is irrelevant.
+    assert_eq!(xeq_by_name_local_resolve("PI", 0b0000_0001), Some(Op::Pi));
+    assert_eq!(xeq_by_name_local_resolve("PI", 0b0000_0000), Some(Op::Pi));
+
+    // End-to-end through the modal: typing `PI` + Enter pushes π onto X
+    // with no error message surfaced.
+    let (app, _tmp, msg) = type_name_and_enter("PI");
+    assert!(
+        msg.is_none(),
+        "XEQ \"PI\" must dispatch cleanly; got message={msg:?}"
+    );
+    // Symmetry check: the resolver path must produce the same X as a direct
+    // dispatch of Op::Pi on a fresh state. Avoids depending on rust_decimal
+    // in the CLI test crate.
+    let mut reference = CalcState::new();
+    hp41_core::ops::dispatch(&mut reference, Op::Pi).expect("op_pi on fresh state must succeed");
+    assert_eq!(
+        app.state.stack.x, reference.stack.x,
+        "X after XEQ \"PI\" must equal X after direct Op::Pi dispatch"
+    );
+}
+
+/// Case sensitivity: HP-41 ROM names are uppercase. `xeq "pi"` (lowercase)
+/// must NOT resolve — it should fall through to `xrom_resolve` (which has
+/// no match) and surface as `InvalidOp` rather than silently dispatching.
+#[test]
+fn xeq_by_name_pi_is_case_sensitive() {
+    assert_eq!(xeq_by_name_local_resolve("pi", 0b0000_0001), None);
+    assert_eq!(xeq_by_name_local_resolve("Pi", 0b0000_0001), None);
+}
+
 /// Explicit Unicode-only path: type `X` `≠` `Y` `?` via crossterm
 /// `KeyCode::Char('≠')` events. Confirms the modal's `handle_key` accumulates
 /// non-ASCII Unicode chars correctly (XEQ_NAME_CAP counts in bytes? No —
@@ -446,6 +487,48 @@ fn cli_resolver_matches_core_resolver() {
             xeq_by_name_local_resolve(name, 0b0000_0000),
             None,
             "CLI-local resolver must return None for Math Pac I name {name:?} when Math 1 module is unloaded (xrom_modules=0b0000_0000)"
+        );
+    }
+
+    // ── Phase 34 extension: Stat 1 Pac canonical table (STAT-CLI-01 verification) ──
+    // The existing Phase 29 final-fallback `_ => xrom_resolve(name, xrom_modules)` at
+    // keys.rs:397 routes Stat 1 names automatically once xrom_modules has bit 1 set.
+    // Phase 33 changed `default_xrom_modules()` to `0b0000_0011` so the default state
+    // has BOTH Math 1 + Stat 1 loaded. This block is verification-only — no `keys.rs`
+    // code change in Phase 34 (STAT-CLI-01 is verification-only per CONTEXT).
+    //
+    // 5 positive cases (xrom_modules = 0b0000_0011, the v3.1 default):
+    let stat1_cases: &[(&str, Op)] = &[
+        ("\u{03A3}NORMD", Op::SigmaNormdWorkflow),
+        ("\u{03A3}SPEAR", Op::SigmaSpear),
+        ("\u{03A3}BSTAT", Op::SigmaBstat),
+        ("RAND", Op::Rand),
+        ("SEED", Op::Seed),
+    ];
+    for (name, expected_op) in stat1_cases {
+        // Positive — v3.1 default (Math 1 + Stat 1 loaded): must resolve.
+        assert_eq!(
+            xeq_by_name_local_resolve(name, 0b0000_0011),
+            Some(expected_op.clone()),
+            "CLI-local resolver must agree with core xrom_resolve for Stat 1 \
+             name {name:?} when v3.1 default xrom_modules=0b0000_0011 is set \
+             (STAT-CLI-01 verification)"
+        );
+        // Stat 1 alone (bit 1, NOT bit 0): must also resolve — proves the
+        // bit-1 arm in xrom_resolve fires independently of bit 0.
+        assert_eq!(
+            xeq_by_name_local_resolve(name, 0b0000_0010),
+            Some(expected_op.clone()),
+            "Stat 1 name {name:?} must resolve when ONLY bit 1 (Stat 1) is \
+             set in xrom_modules — proves the bit-1 arm in xrom_resolve \
+             fires independently of bit 0"
+        );
+        // Negative — no XROM modules loaded: must NOT resolve.
+        assert_eq!(
+            xeq_by_name_local_resolve(name, 0b0000_0000),
+            None,
+            "Stat 1 name {name:?} must return None when xrom_modules=0 \
+             (XROM-unloaded state — bit-gating in xrom_resolve must hold)"
         );
     }
 }

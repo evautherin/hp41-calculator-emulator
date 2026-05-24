@@ -203,7 +203,14 @@ fn key_coverage_implemented_entries_dispatch() {
                 // the CLI-local path returns Some; for the 4 card-reader
                 // names it returns None and dispatch falls through to
                 // Op::Xeq(name) which builtin_card_op resolves.
-                let cli_local = xeq_by_name_local_resolve(&name, 0b0000_0001);
+                //
+                // Phase 34 (Plan 34-02 Rule 1 fix): use 0b0000_0011 (v3.1
+                // default — both Math 1 bit 0 + Stat 1 bit 1 loaded) so
+                // that Stat 1 XEQ-by-name entries from help_entries_all()
+                // resolve correctly. The BL-04 Math1-specific sub-loop below
+                // retains 0b0000_0001 to test Math1-only isolation; the new
+                // Stat1 sub-loop uses 0b0000_0011 (the v3.1 default bitfield).
+                let cli_local = xeq_by_name_local_resolve(&name, 0b0000_0011);
                 if cli_local.is_some() {
                     // Direct fast-path hit — accept and move on.
                     continue;
@@ -236,15 +243,16 @@ fn key_coverage_implemented_entries_dispatch() {
 
     // Pitfall 7 belt-and-braces: an empty JSON or wrong filter would let the
     // probe loop pass vacuously. BL-04 fix: now that we iterate the MERGED
-    // pool (v2.2 + Math Pac I), the floor goes from 50 → 95 to absorb the
-    // ~45 new Math1 XEQ-by-name entries. As-shipped pools: v2.2 has 62
-    // implemented rows with non-null key_path, Math1 adds ~45 → total ~107.
-    // The 95 threshold leaves headroom for minor JSON-authoring churn but
-    // catches any regression where Math1 entries are silently filtered out.
+    // pool (v2.2 + Math Pac I + Stat 1 Pac), the floor goes from 95 → 120 to
+    // absorb the ~26 new Stat1 XEQ-by-name entries added in Phase 34.
+    // As-shipped pools: v2.2 has 62 implemented rows with non-null key_path,
+    // Math1 adds ~45, Stat1 adds ~26 → total ~133. The 120 threshold leaves
+    // headroom for minor JSON-authoring churn but catches any regression where
+    // the Stat1 entries are silently filtered out.
     assert!(
-        probed >= 95,
+        probed >= 120,
         "key_coverage probed only {probed} entries — JSON pool is empty, \
-         the Math1 file failed to load, the filter is wrong, or \
+         a file failed to load, the filter is wrong, or \
          parse_key_path is over-eager about skipping"
     );
 
@@ -295,6 +303,50 @@ fn key_coverage_implemented_entries_dispatch() {
         math1_probed >= 40,
         "Math1 sub-loop probed only {math1_probed} entries — \
          help_entries_all is missing the Math1 pool, or every Math1 \
+         entry lost its xrom field"
+    );
+
+    // Phase 34 Plan 34-02 (Rule 1 fix): sub-loop for Stat 1 Pac entries
+    // (xrom.module_id == 2). Mirrors the BL-04 Math1 sub-loop but uses
+    // 0b0000_0011 (the v3.1 default — both Math 1 + Stat 1 loaded).
+    let mut stat1_probed = 0usize;
+    for entry in entries.iter() {
+        if entry.status != "implemented" {
+            continue;
+        }
+        let Some(xrom) = entry.xrom.as_ref() else {
+            continue;
+        };
+        // xrom.module_id == 2 is the HP Stat 1 Pac hardware ID.
+        // Stat 1 bit is bit 1 in xrom_modules: 0b0000_0010.
+        // Using the v3.1 default 0b0000_0011 so both modules are loaded.
+        if xrom.module_id != 2 {
+            continue;
+        }
+        let Some(key_path) = entry.key_path.as_deref() else {
+            continue;
+        };
+        let Some(rest) = key_path.strip_prefix("XEQ \"") else {
+            continue;
+        };
+        let Some(name) = rest.strip_suffix('"') else {
+            continue;
+        };
+        stat1_probed += 1;
+        let resolved = xeq_by_name_local_resolve(name, 0b0000_0011);
+        assert!(
+            resolved.is_some(),
+            "{} via XEQ \"{}\": xeq_by_name_local_resolve with v3.1 default \
+             modules loaded (0b0000_0011) returned None — JSON typo or \
+             missing STAT_1.ops entry?",
+            entry.op_variant,
+            name
+        );
+    }
+    assert!(
+        stat1_probed >= 20,
+        "Stat1 sub-loop probed only {stat1_probed} entries — \
+         help_entries_all is missing the Stat1 pool, or every Stat1 \
          entry lost its xrom field"
     );
 }

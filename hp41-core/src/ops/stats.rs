@@ -29,20 +29,28 @@ pub fn op_sigma_plus(state: &mut CalcState) -> Result<(), HpError> {
     let y = state.stack.y.clone();
 
     // Accumulate — compute each term atomically before writing (Pitfall guard)
-    let new_r1 = state.regs[1].checked_add(&x.checked_sq()?)?; // Σx² += x²
-    let new_r2 = state.regs[2].checked_add(&x)?; // Σx  += x
-    let new_r3 = state.regs[3].checked_add(&HpNum::from(1i32))?; // n   += 1
-    let new_r4 = state.regs[4].checked_add(&y.checked_sq()?)?; // Σy² += y²
-    let new_r5 = state.regs[5].checked_add(&y)?; // Σy  += y
-    let new_r6 = state.regs[6].checked_add(&x.checked_mul(&y)?)?; // Σxy += x·y
+    let new_r1 = state.regs[1]
+        .numeric_or_zero()
+        .checked_add(&x.checked_sq()?)?; // Σx² += x²
+    let new_r2 = state.regs[2].numeric_or_zero().checked_add(&x)?; // Σx  += x
+    let new_r3 = state.regs[3]
+        .numeric_or_zero()
+        .checked_add(&HpNum::from(1i32))?; // n   += 1
+    let new_r4 = state.regs[4]
+        .numeric_or_zero()
+        .checked_add(&y.checked_sq()?)?; // Σy² += y²
+    let new_r5 = state.regs[5].numeric_or_zero().checked_add(&y)?; // Σy  += y
+    let new_r6 = state.regs[6]
+        .numeric_or_zero()
+        .checked_add(&x.checked_mul(&y)?)?; // Σxy += x·y
 
     // Write all atomically after all computations succeed
-    state.regs[1] = new_r1;
-    state.regs[2] = new_r2;
-    state.regs[3] = new_r3.clone();
-    state.regs[4] = new_r4;
-    state.regs[5] = new_r5;
-    state.regs[6] = new_r6;
+    state.regs[1] = new_r1.into();
+    state.regs[2] = new_r2.into();
+    state.regs[3] = new_r3.clone().into();
+    state.regs[4] = new_r4.into();
+    state.regs[5] = new_r5.into();
+    state.regs[6] = new_r6.into();
 
     // Push count n into X (HP-41 hardware: Σ+ pushes new n to X)
     // Use op_rcl pattern: force lift_enabled = true before enter_number
@@ -55,6 +63,14 @@ pub fn op_sigma_plus(state: &mut CalcState) -> Result<(), HpError> {
 /// Σ−: remove X and Y from Σ registers R01–R06, then push count n into X.
 /// Reverses the effect of the most recently added (X,Y) data point.
 /// LiftEffect: Enable.
+///
+/// **STAT-UNI-04 [C] correction-key extension (Plan 33-06):** when
+/// `state.regs.len() >= STAT1_MAX_REG + 1`, ALSO reverses the extended
+/// `Σx³` (R07 = `STAT1_MMTUG_CUBE_REG`) and `Σx⁴` (R08 =
+/// `STAT1_MMTUG_QUAD_REG`) slots populated by `op_sigma_mmtug`. This
+/// is backward-compatible: under shrunk SIZE the extended slots are
+/// unaddressable and `op_sigma_minus` behaves exactly as the v1.x
+/// `Σ−`. SPEC.md Req. 10.
 pub fn op_sigma_minus(state: &mut CalcState) -> Result<(), HpError> {
     // Phase 22 D-22.11.1 / Pitfall 5: fail-closed when Σ block R01..R06
     // unaddressable under SIZE shrink.
@@ -64,19 +80,51 @@ pub fn op_sigma_minus(state: &mut CalcState) -> Result<(), HpError> {
     let x = state.stack.x.clone();
     let y = state.stack.y.clone();
 
-    let new_r1 = state.regs[1].checked_sub(&x.checked_sq()?)?;
-    let new_r2 = state.regs[2].checked_sub(&x)?;
-    let new_r3 = state.regs[3].checked_sub(&HpNum::from(1i32))?;
-    let new_r4 = state.regs[4].checked_sub(&y.checked_sq()?)?;
-    let new_r5 = state.regs[5].checked_sub(&y)?;
-    let new_r6 = state.regs[6].checked_sub(&x.checked_mul(&y)?)?;
+    let new_r1 = state.regs[1]
+        .numeric_or_zero()
+        .checked_sub(&x.checked_sq()?)?;
+    let new_r2 = state.regs[2].numeric_or_zero().checked_sub(&x)?;
+    let new_r3 = state.regs[3]
+        .numeric_or_zero()
+        .checked_sub(&HpNum::from(1i32))?;
+    let new_r4 = state.regs[4]
+        .numeric_or_zero()
+        .checked_sub(&y.checked_sq()?)?;
+    let new_r5 = state.regs[5].numeric_or_zero().checked_sub(&y)?;
+    let new_r6 = state.regs[6]
+        .numeric_or_zero()
+        .checked_sub(&x.checked_mul(&y)?)?;
 
-    state.regs[1] = new_r1;
-    state.regs[2] = new_r2;
-    state.regs[3] = new_r3.clone();
-    state.regs[4] = new_r4;
-    state.regs[5] = new_r5;
-    state.regs[6] = new_r6;
+    // Plan 33-06 STAT-UNI-04: extended-slot reversal IFF the SIZE allows.
+    // When SIZE has been shrunk below STAT1_MAX_REG + 1 this Op behaves
+    // exactly as v1.x (R01–R06 only); the user is responsible for not
+    // having called op_sigma_mmtug in that case. P21 / Pitfall 5
+    // mitigation: this path adds NO new failure modes for v1.x users.
+    let new_cube_quad = if state.regs.len() > crate::ops::stat1::STAT1_MAX_REG {
+        let x_sq = x.checked_sq()?;
+        let x_cube = x.checked_mul(&x_sq)?;
+        let x_quad = x_sq.checked_sq()?;
+        let new_cube = state.regs[crate::ops::stat1::STAT1_MMTUG_CUBE_REG]
+            .numeric_or_zero()
+            .checked_sub(&x_cube)?;
+        let new_quad = state.regs[crate::ops::stat1::STAT1_MMTUG_QUAD_REG]
+            .numeric_or_zero()
+            .checked_sub(&x_quad)?;
+        Some((new_cube, new_quad))
+    } else {
+        None
+    };
+
+    state.regs[1] = new_r1.into();
+    state.regs[2] = new_r2.into();
+    state.regs[3] = new_r3.clone().into();
+    state.regs[4] = new_r4.into();
+    state.regs[5] = new_r5.into();
+    state.regs[6] = new_r6.into();
+    if let Some((cube, quad)) = new_cube_quad {
+        state.regs[crate::ops::stat1::STAT1_MMTUG_CUBE_REG] = cube.into();
+        state.regs[crate::ops::stat1::STAT1_MMTUG_QUAD_REG] = quad.into();
+    }
 
     state.stack.lift_enabled = true;
     enter_number(state, new_r3);
@@ -92,12 +140,12 @@ pub fn op_mean(state: &mut CalcState) -> Result<(), HpError> {
     if state.regs.len() < 7 {
         return Err(HpError::InvalidOp);
     }
-    let n = state.regs[3].clone();
+    let n = state.regs[3].numeric_or_zero();
     if n.is_zero() {
         return Err(HpError::InvalidOp);
     }
-    let x_mean = state.regs[2].checked_div(&n)?; // x̄ = Σx / n
-    let y_mean = state.regs[5].checked_div(&n)?; // ȳ = Σy / n
+    let x_mean = state.regs[2].numeric_or_zero().checked_div(&n)?; // x̄ = Σx / n
+    let y_mean = state.regs[5].numeric_or_zero().checked_div(&n)?; // ȳ = Σy / n
 
     // Push ȳ first (will become Y after next push), then x̄ (lands in X)
     state.stack.lift_enabled = true;
@@ -119,7 +167,7 @@ pub fn op_sdev(state: &mut CalcState) -> Result<(), HpError> {
     if state.regs.len() < 7 {
         return Err(HpError::InvalidOp);
     }
-    let n = state.regs[3].clone();
+    let n = state.regs[3].numeric_or_zero();
     let n_minus_1 = n.checked_sub(&HpNum::from(1i32))?;
     if n_minus_1.is_zero() || n.is_zero() {
         return Err(HpError::InvalidOp); // need at least 2 data points
@@ -127,14 +175,14 @@ pub fn op_sdev(state: &mut CalcState) -> Result<(), HpError> {
     let n_times_n_minus_1 = n.checked_mul(&n_minus_1)?;
 
     // σx = sqrt((n·Σx² − (Σx)²) / (n·(n−1)))
-    let sum_x2 = &state.regs[1];
-    let sum_x = &state.regs[2];
+    let sum_x2 = &state.regs[1].numeric_or_zero();
+    let sum_x = &state.regs[2].numeric_or_zero();
     let denom_x = n.checked_mul(sum_x2)?.checked_sub(&sum_x.checked_sq()?)?;
     let sx = denom_x.checked_div(&n_times_n_minus_1)?.checked_sqrt()?;
 
     // σy = sqrt((n·Σy² − (Σy)²) / (n·(n−1)))
-    let sum_y2 = &state.regs[4];
-    let sum_y = &state.regs[5];
+    let sum_y2 = &state.regs[4].numeric_or_zero();
+    let sum_y = &state.regs[5].numeric_or_zero();
     let denom_y = n.checked_mul(sum_y2)?.checked_sub(&sum_y.checked_sq()?)?;
     let sy = denom_y.checked_div(&n_times_n_minus_1)?.checked_sqrt()?;
 
@@ -157,15 +205,15 @@ pub fn op_lr(state: &mut CalcState) -> Result<(), HpError> {
     if state.regs.len() < 7 {
         return Err(HpError::InvalidOp);
     }
-    let n = state.regs[3].clone();
+    let n = state.regs[3].numeric_or_zero();
     if n.is_zero() {
         return Err(HpError::InvalidOp);
     }
 
-    let sum_x = &state.regs[2];
-    let sum_y = &state.regs[5];
-    let sum_x2 = &state.regs[1];
-    let sum_xy = &state.regs[6];
+    let sum_x = &state.regs[2].numeric_or_zero();
+    let sum_y = &state.regs[5].numeric_or_zero();
+    let sum_x2 = &state.regs[1].numeric_or_zero();
+    let sum_xy = &state.regs[6].numeric_or_zero();
 
     // denominator = n·Σx² − (Σx)²
     let denom = n.checked_mul(sum_x2)?.checked_sub(&sum_x.checked_sq()?)?;
@@ -205,16 +253,16 @@ pub fn op_yhat(state: &mut CalcState) -> Result<(), HpError> {
     if state.regs.len() < 7 {
         return Err(HpError::InvalidOp);
     }
-    let n = state.regs[3].clone();
+    let n = state.regs[3].numeric_or_zero();
     if n.is_zero() {
         return Err(HpError::InvalidOp);
     }
 
     let x_val = state.stack.x.clone();
-    let sum_x = &state.regs[2];
-    let sum_y = &state.regs[5];
-    let sum_x2 = &state.regs[1];
-    let sum_xy = &state.regs[6];
+    let sum_x = &state.regs[2].numeric_or_zero();
+    let sum_y = &state.regs[5].numeric_or_zero();
+    let sum_x2 = &state.regs[1].numeric_or_zero();
+    let sum_xy = &state.regs[6].numeric_or_zero();
 
     let denom = n.checked_mul(sum_x2)?.checked_sub(&sum_x.checked_sq()?)?;
     if denom.is_zero() {
@@ -244,16 +292,16 @@ pub fn op_corr(state: &mut CalcState) -> Result<(), HpError> {
     if state.regs.len() < 7 {
         return Err(HpError::InvalidOp);
     }
-    let n = state.regs[3].clone();
+    let n = state.regs[3].numeric_or_zero();
     if n.is_zero() {
         return Err(HpError::InvalidOp);
     }
 
-    let sum_x = &state.regs[2];
-    let sum_y = &state.regs[5];
-    let sum_x2 = &state.regs[1];
-    let sum_y2 = &state.regs[4];
-    let sum_xy = &state.regs[6];
+    let sum_x = &state.regs[2].numeric_or_zero();
+    let sum_y = &state.regs[5].numeric_or_zero();
+    let sum_x2 = &state.regs[1].numeric_or_zero();
+    let sum_y2 = &state.regs[4].numeric_or_zero();
+    let sum_xy = &state.regs[6].numeric_or_zero();
 
     let numer = n
         .checked_mul(sum_xy)?
@@ -279,7 +327,7 @@ pub fn op_cl_sigma_stat(state: &mut CalcState) -> Result<(), HpError> {
         return Err(HpError::InvalidOp);
     }
     for i in 1..=6 {
-        state.regs[i] = HpNum::zero();
+        state.regs[i] = HpNum::zero().into();
     }
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())

@@ -47,11 +47,11 @@ fn make_difeq_order1(max_steps: u32) -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "DFQ".to_string();
-    state.regs[0] = HpNum::from(1i32); // ORDER=1
-    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)); // h=0.1
-    state.regs[2] = HpNum::from(0i32); // x0=0
-    state.regs[3] = HpNum::from(1i32); // y0=1
-    state.regs[5] = HpNum::from(max_steps as i32); // max_steps
+    state.regs[0] = HpNum::from(1i32).into(); // ORDER=1
+    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)).into(); // h=0.1
+    state.regs[2] = HpNum::from(0i32).into(); // x0=0
+    state.regs[3] = HpNum::from(1i32).into(); // y0=1
+    state.regs[5] = HpNum::from(max_steps as i32).into(); // max_steps
     (state, program)
 }
 
@@ -73,12 +73,12 @@ fn make_difeq_order2(max_steps: u32) -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "SHO".to_string();
-    state.regs[0] = HpNum::from(2i32); // ORDER=2
-    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)); // h=0.1
-    state.regs[2] = HpNum::from(0i32); // x0=0
-    state.regs[3] = HpNum::from(1i32); // y0=1
-    state.regs[4] = HpNum::from(0i32); // y'0=0
-    state.regs[5] = HpNum::from(max_steps as i32); // max_steps
+    state.regs[0] = HpNum::from(2i32).into(); // ORDER=2
+    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)).into(); // h=0.1
+    state.regs[2] = HpNum::from(0i32).into(); // x0=0
+    state.regs[3] = HpNum::from(1i32).into(); // y0=1
+    state.regs[4] = HpNum::from(0i32).into(); // y'0=0
+    state.regs[5] = HpNum::from(max_steps as i32).into(); // max_steps
     (state, program)
 }
 
@@ -152,11 +152,11 @@ fn difeq_run_loop_label_not_found_returns_invalid_op() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "MISSING".to_string(); // label not in program
-    state.regs[0] = HpNum::from(1i32); // ORDER=1
-    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO));
-    state.regs[2] = HpNum::from(0i32);
-    state.regs[3] = HpNum::from(1i32);
-    state.regs[5] = HpNum::from(3i32);
+    state.regs[0] = HpNum::from(1i32).into(); // ORDER=1
+    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[2] = HpNum::from(0i32).into();
+    state.regs[3] = HpNum::from(1i32).into();
+    state.regs[5] = HpNum::from(3i32).into();
 
     let result = op_difeq_run_loop(&mut state, &program);
     assert_eq!(
@@ -220,11 +220,11 @@ fn difeq_run_loop_propagates_user_fn_error() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "ERR_FN".to_string();
-    state.regs[0] = HpNum::from(1i32); // ORDER=1
-    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO));
-    state.regs[2] = HpNum::from(0i32); // x0=0 → f(0,y)=sqrt(-100) → error
-    state.regs[3] = HpNum::from(1i32); // y0=1
-    state.regs[5] = HpNum::from(5i32); // max_steps
+    state.regs[0] = HpNum::from(1i32).into(); // ORDER=1
+    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[2] = HpNum::from(0i32).into(); // x0=0 → f(0,y)=sqrt(-100) → error
+    state.regs[3] = HpNum::from(1i32).into(); // y0=1
+    state.regs[5] = HpNum::from(5i32).into(); // max_steps
 
     let result = op_difeq_run_loop(&mut state, &program);
     assert!(
@@ -410,7 +410,7 @@ fn submit_step_y0_prompt_order2_advances_to_y1_prime() {
     use hp41_core::ops::math1::modal::ModalProgram;
     let mut state = CalcState::new();
     // R00 = 2 (ORDER=2) — needed for the Y1PrimePrompt branch
-    state.regs[0] = HpNum::from(2i32);
+    state.regs[0] = HpNum::from(2i32).into();
     state.stack.x = HpNum::from(1i32); // y0=1
 
     let result = submit_step(&mut state, DifeqInputStep::Y0Prompt);

@@ -1,271 +1,191 @@
-# Research Summary: HP-41 Calculator Emulator v3.0 — Math Pac I
+# Project Research Summary
 
-**Synthesized:** 2026-05-16
-**Sources:** STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md, PROJECT.md
-**Milestone:** v3.0 — HP-41C Math Pac I (HP 00041-90034) behavioral emulation as the first XROM application module on top of the shipped v2.2 ROM-built-in calculator
-
----
+**Project:** HP-41 Calculator Emulator — v3.1 Stat 1 Pac Emulation
+**Domain:** Behavioral emulation of second HP-41 XROM application module (HP Stat 1 Pac, part 00041-14001)
+**Researched:** 2026-05-21
+**Confidence:** HIGH
 
 ## Executive Summary
 
-v3.0 lifts the HP-41C/CV emulator out of its built-in-ROM comfort zone and into **application-module territory** for the first time. The deliverable is behavioral emulation of the HP-41C Math Pac I, a 1979 plug-in cartridge containing 10 top-level prompt-driven workflow programs (`MATRIX`, `SOLVE`, `POLY`, `INTG`, `DIFEQ`, `FOUR`, complex-stack arithmetic, hyperbolics, triangle solutions, `TRANS` coordinate transforms) with roughly 55 named XEQ entry points. The technology cost is zero new runtime crates; the architectural cost is targeted — six new `CalcState` fields, ~40 new `Op` variants, one extension of the existing XEQ-by-name resolver chain, and a new prompt-driven modal layer alongside the v2.2 `PendingInput` system. The biggest risk is concentrated in two places: re-entering `run_loop` for the user-program callback that `SOLVE` / `INTG` / `DIFEQ` need, and choosing numerical-method algorithms that match the Owner's Manual's worked examples bit-for-bit (the silent-wrong-answer failure mode).
+The HP-41 Stat 1 Pac (XROM ID 2, OM 00041-90030, June 1979) is a FOCAL user-code ROM delivering 13 named programs across ~24 Op variants. Like Math Pac I, it runs as FOCAL-level behavioral emulation — not M-code emulation. The v3.0 XROM framework was explicitly designed as reusable infrastructure for this second module: the `xrom_resolve()` bit-1 stub comment, `XromModule` struct, and resolver-last chain are all already in place. The recommended approach is direct activation of the reserved bit-1 arm, followed by building a new `hp41-core/src/ops/stat1/` module tree that mirrors `ops/math1/` in structure, then propagating the 4-way exhaustive-match invariant through CLI and GUI exactly as Phases 28–31 did for Math Pac I.
 
-This is architecturally **integration, not redesign**. Every load-bearing pattern was settled in v1.0–v2.2: `CalcState` single source of truth, `LiftEffect`-tagged dispatch, JSON-canonical help pipeline, four-way exhaustive-match invariant, CLI ↔ GUI parity through shared hp41-core resolvers, `#[serde(default)]` save-file backward compat. Math Pac I inherits all of them. The single hard architectural choice — **Option A: one `Op` variant per Math Pac I function** — preserves the compile-time safety net that has caught dozens of bugs since Phase 1. The corresponding XROM registry (`xrom_resolve` in a new `hp41-core/src/ops/math1/`) is structurally identical to v1.1's `synthetic_byte_to_op` resolver: a string-keyed lookup that returns regular `Op::*` variants, never bypassing the exhaustive match.
+The numerical surface is larger than Math Pac I in one dimension — three hand-coded f64-bridge functions are needed (`norm_cdf_inv_f64` via Acklam/AS 241, `gamma_regularized_f64` via AS 239, `beta_regularized_f64` via AS 63) — but zero new runtime dependencies are required. `rust_decimal 1.42` already covers normal CDF/PDF, log, exp, sqrt, and trig. The `statrs` crate was evaluated and rejected: its mandatory `approx` dep would land in the production graph, its f64-only interface requires a conversion shim as long as the hand-coded alternative, and its modern Lanczos-gamma algorithm may diverge from the 1979-era Abramowitz and Stegun approximations the OM specifies. The ~850 LOC estimate across 9 new files is narrower than Math Pac I's scope (~1,500–2,000 LOC), consistent with Stat 1's simpler workflow structure — no complex numbers, no matrix overlay mode, no ODE solver.
 
-The recommended phase count is **5 (Phases 28–32)**: framework + math-1 ops in hp41-core, CLI integration, documentation, GUI integration, test hardening — mirroring v2.2's `core → cli → docs → gui → tests` shape. The framework first (Phase 28) is the gating phase; everything else is incremental.
+The primary risks are operational discipline, not algorithmic difficulty. P21 (Σ-register layout must be read from the OM "Storage Registers" section before any ANOVA or higher-moment Op is implemented) is the single most dangerous silent-wrong-answer trap. P24 (the `default_xrom_modules` default must change to `0b0000_0011` with a startup migration for v3.0 save files) is a backward-compat wrinkle with a clear fix. P20 (RNG seed must use `#[serde(default)]` without `skip`) is the exception to the normal transient-field pattern and easy to get wrong by muscle memory. The anti-feature list is firmly established: F-distribution, Binomial, Poisson, Hypergeometric, and histogram programs are explicitly absent from the Stat 1 Pac per the NPS document — adding them would be behavioral incorrectness, not completeness.
 
----
+## Key Findings
 
-## Scope Correction Note (2026-05-16)
+### Recommended Stack
 
-The downstream consumer prompt originally described v3.0 around `M+`, `MAT*`, `INV` (matrix transpose semantics), `PROOT`, `CABS`, `CARG`, `CCHS`, `CCONJ`, `V+`, `V-`, `VDOT` — discrete one-shot stack-acting ops. The FEATURES research, using the primary-source 1979 Math Pac Owner's Manual (HP 00041-90034) as ground truth, established that **those function names belong to the Advanced Matrix Pac and the Advantage Pac**, NOT to Math Pac I. The user confirmed the discovery on 2026-05-16 and locked v3.0 scope to **the real Math Pac I** — the physical cartridge currently in his calculator's slot.
+Zero new runtime dependencies in `hp41-core`. The three distribution-function primitives that `rust_decimal 1.42` does not provide are hand-coded at ~140 LOC in `ops/stat1/distributions.rs` using the established f64-bridge pattern from `num.rs`. The workspace MSRV (1.88), the full dependency set, and both CI workflows are unchanged.
 
-**What this changes:**
+**Core technologies:**
+- `rust_decimal 1.42`: Already covers normal CDF/PDF (`norm_cdf()`, `norm_pdf()`), erf, log, exp, sqrt, trig — direct use for most Stat 1 ops; no gaps for closed-form CDF/PDF paths
+- **Hand-coded f64-bridge** (Acklam/AS 241, AS 239, AS 63): ~140 LOC for inverse normal, incomplete gamma, incomplete beta; same pattern as `checked_asin`/`checked_acos`/`checked_atan` in `num.rs`
+- **HP-41 LCG RNG** (`FRC(9821·x + 0.211327)`): 5-line deterministic implementation; no external crate; seed stored in designated data register per OM
+- `approx 0.5.1` (dev-dep only): Already in `hp41-core/Cargo.toml` line 17 — no addition needed
+- **Rejected:** `statrs 0.18.0` (mandatory `approx` production dep + f64 shim overhead + algorithmic fidelity risk vs. 1979-era OM approximations); `rand`/`rand_distr` (5-line LCG makes them unnecessary)
 
-| Aspect | Originally assumed | Actual (Math Pac I) |
-|--------|--------------------|---------------------|
-| UX style | One-shot stack ops, v2.2-compatible | Multi-step prompt-driven modal flows (`ORDER=?`, `A1,1=?`, `FUNCTION NAME?`, `GUESS 1=?`) |
-| Function count | ~40 discrete ops | 10 top-level programs with ~55 XEQ entry points |
-| Implementation | Pure dispatch + LiftEffect | Modal state machine layered on `PendingInput`, plus user-program callback for `SOLVE`/`INTG`/`DIFEQ` |
-| Matrix ops | `M+`/`MAT*`/`INV` etc. | `MATRIX` workflow (input → DET → INV → SIMEQ → VMAT → EDIT → VCOL); flag 4/5 protocol; up to 14×14 |
-| Complex math | `CABS`/`CARG`/`CCHS`/`CCONJ` discrete | Two-complex-number stack (ζ/τ); `C+`/`C-`/`C×`/`C÷` arithmetic + 13 functions including `MAGZ`, `Z↑N`, `E↑Z`, `LNZ`, `SINZ` |
-| Polynomial | `PROOT` (Advantage Pac) | `POLY`/`ROOTS` for degree 2–5 with `U=u`/`V=v`/`U=u`/`-V=-v` complex-pair output |
+### Expected Features
 
-**What stays valid from the originally-assumed scope:**
+Confirmed from QRC 00041-90061 (read directly as 2-page PDF) and NPS document NPS55-84-003 (authoritative cross-reference confirming anti-features).
 
-The four crate-level decisions in STACK.md hold for EITHER scope — zero new runtime dependencies, hand-coded numerics on top of `rust_decimal`/`HpNum` with documented f64 bridges, `approx 0.5.1` as a single dev-dependency, static-linked XROM dispatch framework with no `.mod` runtime loader. The Op-strategy decision in ARCHITECTURE.md (Option A: one `Op` variant per Math Pac I function) is also scope-independent. The pitfalls catalogue in PITFALLS.md was drafted around the older scope assumption (it cites `PROOT`, `INTEG`, `CARG`, `MAT*` as if they were Math Pac I); the **pitfall categories** translate cleanly to the real scope (modal state, user-program callback re-entrancy, numerical-method ground truth, XROM-namespace collisions, long-running solver freezing the GUI, save-file mid-modal state, test coverage drift), but the specific function names cited need re-mapping to the real Math Pac I names (e.g. `PROOT` → `POLY`/`ROOTS`, `CARG` → not present, branch-cut concerns shift to `LNZ`/`Z↑W`).
+**Must have — table stakes for "OM 00041-90030 feature-complete" claim (~24 Op variants, 14 entry points):**
+- ΣBSTAT / ΣBSTG — extended univariate/bivariate summary from Σ-registers (LOW complexity)
+- ΣMMTUG / ΣMMTGD — 3rd/4th central moments, skewness, kurtosis; needs Σx³/Σx⁴ registers (MEDIUM)
+- ΣAOVONE / ΣAOVTWO / ΣANOCOV — one-way, two-way, covariance ANOVA; most register-intensive programs (MEDIUM to MEDIUM-HIGH)
+- ΣLIN / ΣEXP / ΣLOGI / ΣPOW — 4 curve-fitting transforms on Σ-registers; delegates to existing `op_sigma_plus()` (LOW-MEDIUM)
+- ΣMLRXY / ΣMLRXYZ — 2- and 3-variable multiple regression; self-contained Gauss-Jordan 2×2/3×3 solve (MEDIUM-HIGH)
+- ΣPOLYP / ΣPOLYC — polynomial regression fit and prediction; degree prompt pending OM verification (MEDIUM-HIGH)
+- ΣPTST / ΣTSTAT — one-sample and two-sample t-tests; CDF via `beta_regularized_f64` (MEDIUM)
+- ΣXSQEV / ΣEFXSQ — chi-square goodness-of-fit accumulator; 8 program steps; no distribution function (LOW)
+- ΣCTKKK / ΣCTKK — r×c contingency table chi-square; needs marginal-total registers (MEDIUM)
+- ΣSPEAR — Spearman rank correlation; only 3 program steps; pure Σ-register arithmetic (LOW)
+- ΣNORMD — normal CDF/PDF/inverse; three label-key dispatch modes; CDF/PDF are direct `rust_decimal` calls (LOW-MEDIUM)
+- ΣCHISQD — chi-square CDF/PDF; `gamma_regularized_f64` required; ν storage convention from OM (LOW-MEDIUM)
 
-**Roadmapper guidance:** prefer FEATURES.md (lines 36–222) as the authoritative function inventory. Use STACK.md's four decisions as written. Translate PITFALLS.md function names to FEATURES.md equivalents when phase-mapping. ARCHITECTURE.md's Op-strategy, CalcState-field, and re-entrancy plumbing are correct; its example Op variants (`Op::MatPlus`, `Op::CAdd`, `Op::PRoot`, `Op::VPlus`) need to be re-named to Math Pac I conventions (e.g. `Op::MatrixWorkflow`, `Op::CPlus`, `Op::PolyWorkflow`, `Op::Sinh`).
+**Should have — bonus pending OM verification:**
+- RAND/RNDMU subroutine — QRC does not list it as a top-level program; NPS confirms the formula; implement only if OM listing shows it as a named callable sub
 
----
+**Explicitly defer — anti-features confirmed absent from Stat 1 Pac:**
+- F-distribution evaluator — NPS (p. 49): "missing from STAT PAC"
+- Binomial / Poisson / Hypergeometric distributions — NPS (p. 42): "no binomial program in STAT PAC"
+- Histogram / frequency-table program — not in QRC; NPS uses standalone user programs for this
+- P(N,R) / C(N,R) permutations/combinations — user programs; built-in `FACT` covers n!
+- Confidence interval computations — user combines ΣTSTAT output with quantile lookup
+- Welch t-test, Mann-Whitney, non-parametric tests beyond Spearman — not in QRC
 
-## Stack Decisions (STACK.md condensed)
+### Architecture Approach
 
-Four crate-level calls, all scope-independent:
+Stat 1 slots into the v3.0 framework with surgical precision. No framework infrastructure changes are needed beyond activating the already-reserved bit-1 arm, adding the `STAT_1: XromModule` const, and building the new `ops/stat1/` module tree. The XROM resolver chain, modal machinery, user-callback infrastructure, `request_cancel` channel, JSON pipeline, and 4-way exhaustive-match invariant all reuse unchanged. Distribution quantile functions iterate privately (the POLY pattern, not the SOLVE/INTG user-callback pattern), so no new `*_state` CalcState fields are required. Likely zero net-new `CalcState` fields: all state lives in existing data registers and the existing transient `modal_program` field.
 
-| # | Decision | Rationale |
-|---|----------|-----------|
-| 1 | **HpNum is the unit of currency for every Math Pac I op** | Maintains v1.0–v2.2 type discipline (`rust_decimal` BCD with 10-digit rounding). Internal f64 bridges permitted in three documented cases (complex `atan2`, matrix LU pivoting on ≥ 5×5, polynomial-root iteration) using the established `num.rs::checked_asin` pattern. Save-file determinism and the 566-case accuracy harness's tolerance model rely on this. |
-| 2 | **Roll our own `ComplexHp { re, im }` — reject `num-complex 0.4.6`** | `Complex::sqrt/exp/ln/powc` require `T: Float`; `rust_decimal::Decimal` cannot satisfy `Float` (no IEEE-754 NaN/INFINITY layout). Forcing `Complex<f64>` at every stack boundary would trash 5+ digits of precision. Hand-coded `ComplexHp` lives cleanly inside `#![deny(clippy::unwrap_used)]`. |
-| 3 | **Hand-coded `MatrixView` — reject `nalgebra` / `faer` / `ndarray`** | All three impose `T: Float`/`T: Scalar` bounds that exclude `HpNum`; nalgebra alone adds ~150 KB compiled + ~10 transitive deps; ≤ 14×14 matrices never trip the BLAS path. Triple-loop multiplication, Gauss-Jordan inverse, and LU determinant fit in ~50 LOC each. |
-| 4 | **Hand-coded Simpson `INTG` + secant `SOLVE` + Runge-Kutta `DIFEQ` — reject `gauss-quad` / `quadrature` / `argmin` / `roots`** | Behavioral spec requires algorithm-faithful match to the Owner's Manual's worked examples; third-party iteration crates guarantee subtle output divergence. All three algorithms are documented in the 1979 OM and fit in well-bounded LOC. |
+**Major components:**
+1. `hp41-core/src/ops/stat1/` — 9-file module tree (~850 LOC): `mod.rs`, `distributions.rs` (3 special functions), `basic_stats.rs`, `anova.rs`, `regression.rs`, `tests.rs`, `nonparam.rs`, `normd.rs`, `chisqd.rs`
+2. `hp41-core/src/ops/math1/xrom.rs` — surgical extension only: `STAT_1` const + `stat1_resolve()` + bit-1 arm in `xrom_resolve()`; rest of `math1/` remains frozen per CLAUDE.md invariant
+3. `docs/hp41-stat1-functions.json` — third sibling JSON file per D-29.1 precedent; drives CLI help-overlay third section, docs-matrix output, and existing JSON parity CI tests automatically
+4. `scripts/docs-matrix/src/main.rs` + `justfile` — minimal extension: one new title-dispatch branch, two new `just` recipes (`docs-stat1`, `docs-stat1-check`)
+5. `hp41-cli/src/help_data.rs` + both `prgm_display.rs` files — third `OnceLock` (`STAT1_HELP_ENTRIES`) and new Op variant arms completing the 4-way match
 
-**Dev-dependencies:** `approx 0.5.1` only (relative-tolerance assertions for matrix / complex tests). **Runtime additions: zero.** MSRV stays at 1.88.
+**Key patterns to follow (established in v3.0):**
+- **XROM registration pattern**: `pub const STAT_1: XromModule` with `ops: &[(&str, Op)]` slice driving both resolver and `xrom_shadowing.rs` CI test
+- **Self-contained iteration pattern** (POLY, not SOLVE/INTG): distribution quantile loops check `state.cancel_requested` every 64 iterations; no user callback, no new CalcState scratch fields
+- **Σ-register delegate pattern**: curve fitting transforms x/y then calls `op_sigma_plus()` — never duplicates Σ arithmetic from `ops/stats.rs`
 
-**XROM framework:** static dispatch pattern (`pub const MATH_1: XromModule { id: 7, name: "MATH 1A", ops: &[...] }`), NOT a `.mod` file loader — dynamic loading is permanently excluded for legal reasons (HP-copyrighted ROM bytes never redistributed per PROJECT.md).
+### Critical Pitfalls
 
----
+1. **P21: Σ-register layout — read OM before writing any ANOVA/moment/regression code** — The register layout for ΣMMTUG (Σx³, Σx⁴ storage), ΣAOVONE/ΣAOVTWO/ΣANOCOV (group sums), ΣMLRXY (cross-products), and ΣCTKKK (marginal totals) must be transcribed from the Stat 1 Pac OM "Storage Registers" section before Phase 33 begins. Hard-coding a guessed layout produces silently wrong results. Add `STAT1_MAX_REG: usize` as a `pub const` derived from the OM table and guard every extended-register access with fail-closed `state.regs.len() < STAT1_MAX_REG + 1`.
 
-## Feature Inventory by Category (FEATURES.md)
+2. **P24: `xrom_modules` default migration** — `default_xrom_modules()` must change from `0b0000_0001` to `0b0000_0011` in Phase 33 Phase 0. V3.0 save files that explicitly stored `xrom_modules: 1` will deserialize with Stat 1 disabled (serde uses stored value, not new default). Add a startup migration in the persistence layer: if `xrom_modules & 0b0000_0010 == 0` after deserialization, set the bit and re-save. Add serde round-trip test with a v3.0 fixture.
 
-Table-stakes (T) = required for the "feature-complete Math Pac" claim. Differentiator (D) = ships fidelity, not strictly required. Anti-feature (A) = explicit defer/exclude.
+3. **P20: RNG serde — `#[serde(default)]` NOT skip** — If RAND is implemented, `rand_seed` must survive save/load for reproducible simulations. The `#[serde(default, skip)]` pattern used for all other transient fields is wrong for RNG state. Add a `tests/stat1_rand_determinism.rs` round-trip test. Also: `hp41-core` must never import `rand` or `getrandom` — add both to the Free42 contamination guard's blocked-imports list.
 
-### Hyperbolics — 6 ops (T)
-`SINH`, `COSH`, `TANH`, `ASINH`, `ACOSH`, `ATANH`. The ONLY family with one-shot UX matching v2.2 patterns. Each is `f(X) → X` via `rust_decimal` math, ~3 lines per op. **Lowest-cost / highest-confidence target** — implement first as proof of pattern.
+4. **P19: Quantile inversion — initial guess and convergence from OM before writing loops** — Inverse normal fails near tails (p ≤ 0.001 or p ≥ 0.999) with x₀ = 0 starting guess. Use A&S §26.2.17 rational approximation as starting point. Tie convergence threshold to `state.display_mode` exactly as `integ_threshold(mode)` does. Add bisection fallback when Newton step leaves valid domain. Cap at 50 Newton + 50 bisection steps before returning `HpError::Domain`.
 
-### Complex Stack & Operations — 17 ops (T arithmetic, T+D functions)
-Two-complex-number stack (ζ = X+iY, τ = Z+iT overlay) plus `C+`/`C-`/`C×`/`C÷` (T), `MAGZ`, `CINV`, `Z↑N`, `Z↑1/N`, `E↑Z`, `LNZ`, `SINZ`, `COSZ`, `TANZ` (T), and `A↑Z`, `LOGZ`, `Z↑W`, `Z↑1/W` (D). **No `CABS`/`CARG`/`CCHS`/`CCONJ` in Math Pac I** — those names belong to Advantage Pac. The pac's marquee feature. Uses R00–R04.
+5. **P22: Mnemonic shadowing — no STAT_1 mnemonic may duplicate a v2.2 built-in** — `MEAN`, `SDEV`, `CORR`, `LR`, `YHAT` are reserved v2.2 built-in names; the resolver gives built-ins priority. Confirm every `STAT_1.ops` mnemonic against `docs/hp41cv-functions.json` before registering in `xrom.rs`. Extend `tests/xrom_shadowing.rs` to cover all `STAT_1.ops` entries — a 5-line addition.
 
-### Polynomial Roots — 1 program (T)
-`POLY` (master, degree 2–5) + `ROOTS` (sub-entry) + evaluation. Coefficients R00–R04, working storage R00–R22. Complex root pair output in 4-line `U=u`/`V=v`/`U=u`/`-V=-v` format — exact reproduction is a fidelity gate. **No `PROOT`** — that's Advantage Pac.
+## Implications for Roadmap
 
-### Matrix Workflow — 1 program with 8 entry points (T)
-`MATRIX` master + `SIZE` + `VMAT` + `EDIT` + `DET` + `INV` + `SIMEQ` + `VCOL`. Gaussian elimination with partial pivoting. Order N at R14; column-major matrix elements from R15 onward. Up to 14×14. Flag 4 set during input phase, flag 5 set after SIMEQ stores column. `NO SOLUTION` display for singular matrices. **The most complex single program in the pac.**
+Based on combined research, a 5-phase structure starting at Phase 33 mirrors the v3.0 Math Pac I pattern (Phases 28–32) exactly. The critical dependency ordering: `distributions.rs` must be built and validated first (prerequisite for ΣNORMD, ΣCHISQD, ΣPTST/ΣTSTAT), and the OM register layout (P21) must be locked before ANOVA, higher-moment, multiple-regression, and contingency-table Ops are written.
 
-### Numerical Integration — 1 program, 2 modes (T)
-`INTG` discrete (T) — A=h, B=f(xⱼ) sample input, C=trapezoidal, D=Simpson; even-n check returns `N NOT EVEN`. `INTG` explicit (T) — A=(a,b) interval, B=n with `FUNCTION NAME?` prompt, Simpson with fixed n (no adaptive refinement; user controls accuracy). Uses R00–R07. **First feature requiring user-program callback infrastructure.**
+### Phase 33: hp41-core — Framework Extension and Core Ops
 
-### Real Root Solver — 1 program (T)
-`SOLVE` master with `FUNCTION NAME?` + `GUESS 1=?` + `GUESS 2=?` prompts. `SOL` sub-entry bypasses prompting. Modified secant iteration. Three termination paths: `NO ROOT FOUND`, `ROOT IS <v>`, `ROOT IS BETWEEN <v1> AND <v2>`. Uses R00–R06. **Reuses INTG's callback infrastructure.**
+**Rationale:** The three hand-coded distribution primitives are the deepest dependency. XROM framework activation (bit-1, `STAT_1` const, `default_xrom_modules` update to `0b0000_0011`) is a prerequisite for all subsequent phases. P21 register-layout resolution is the single most dangerous silent-wrong-answer risk and must precede any ANOVA/moment/regression Op implementation.
+**Delivers:** All ~24 Op variants in `hp41-core`, distribution primitives validated against scipy.stats oracle, `xrom_resolve` bit-1 arm active, `CalcState.xrom_modules` default `0b0000_0011`, `docs/hp41-stat1-divergences.md` stub with D-33-NN entries, 4-way match items 1+2 complete (dispatch + execute_op), Free42 contamination guard extended with stats-domain identifiers
+**Implementation order within phase:** (1) read OM "Storage Registers" + transcribe layout into `stats1/mod.rs` header; (2) `stat1/distributions.rs` + scipy.stats validation; (3) ΣNORMD + ΣCHISQD; (4) ΣSPEAR + ΣXSQEV/ΣEFXSQ; (5) ΣBSTAT/ΣBSTG + ΣLIN/ΣEXP/ΣLOGI/ΣPOW; (6) ΣMMTUG/ΣMMTGD + ANOVA family + ΣCTKKK/ΣCTKK; (7) ΣPTST/ΣTSTAT; (8) ΣMLRXY/ΣMLRXYZ + ΣPOLYP/ΣPOLYC; (9) RAND if OM confirms
+**Avoids:** P18 (Welford for raw-block variance ops), P19 (convergence from OM), P20 (RNG serde annotation locked), P21 (OM layout first), P22 (mnemonic check before xrom.rs registration), P25 (cancel_requested in every iterative loop), P27 (contamination guard updated before first stats1 source file is written)
+**Research flag:** NEEDS `/gsd-plan-phase --research-phase 33` — OM 00041-90030 "Storage Registers" section, RAND subroutine presence, quantile convergence criteria, ΣPOLYP degree prompt, ΣCHISQD ν storage convention, ΣTSTAT pooled vs. Welch assumption — all must be resolved before Op implementation begins.
 
-### Differential Equations — 1 program (D)
-`DIFEQ` with `FUNCTION NAME?` / `ORDER=?` (1 or 2) / `STEP SIZE=?` / `X0=?` / `Y0=?` (+ `Y'0=?` for 2nd order). 4th-order Runge-Kutta. Uses R00–R07.
+### Phase 34: hp41-cli — CLI Integration
 
-### Fourier Series — 1 program (D)
-`FOUR` with `NO. SAMPLES=?` / `NO. FREQ=?` / `1ST COEFF=?` + `Y1..YN=?` + `RECT?` toggle. USER-mode `E` key evaluates series at t after coefficients computed. Up to 10 (aₙ, bₙ) pairs. Uses R00–R26.
+**Rationale:** After all Op variants land in hp41-core (4-way invariant items 1+2), CLI requires item 3. The `xeq_by_name_local_resolve` path already routes through `xrom_resolve` — no resolver changes. `docs/hp41-stat1-functions.json` must exist before the `OnceLock` is wired in `help_data.rs`.
+**Delivers:** 4-way invariant item 3 complete, third help-overlay section ("Stat 1 Pac (XROM 2)"), `docs/hp41-stat1-functions.json` canonical source, `xrom_shadowing.rs` extended to STAT_1.ops, `function_matrix_parity.rs` and `key_coverage.rs` pick up Stat 1 automatically via `help_entries_all()` chain
+**Avoids:** P22 (xrom_shadowing CI gate active)
+**Research flag:** Standard patterns — SKIP research phase. Phase 29 (Math Pac I CLI) is the exact playbook.
 
-### Triangle Solutions — 5 programs (D)
-`SSS`, `ASA`, `SAA`, `SAS`, `SSA`. Each is its own prompt flow. Law of Sines / Cosines. `SSA` has ambiguous-case handling.
+### Phase 35: Documentation and ADRs
 
-### Coordinate Transformations — 1 program (D)
-`TRANS` 2D (A=init `x₀,y₀,θ`, C=forward, E=inverse) and 3D (A=origin, B=`a,b,c,θ` rotation axis, C=forward, E=inverse via Rodrigues' rotation). Uses R00–R24.
+**Rationale:** Divergence catalog entries, docs-matrix extension, and ADR authoring require Phase 33+34 implementation decisions to be final. Analogous to Phase 30 in the Math Pac I roadmap.
+**Delivers:** `docs/hp41-stat1-divergences.md` complete with D-33-NN entries (register layout, RNG algorithm, convergence criteria, CLΣSTAT extension policy, xrom_modules migration), `docs/hp41-stat1-function-matrix.md` generated, `justfile` with `docs-stat1` and `docs-stat1-check` recipes, new ADRs for v3.1 architectural decisions, README and CLAUDE.md v3.1 section
+**Avoids:** P26 (correct D-33-NN identifiers; file never conflated with math1 divergences)
+**Research flag:** Standard patterns — SKIP research phase. D-29.1 precedent fully established.
 
-### Anti-Features — Explicit defers / excludes (A)
-- `M+`/`M-`/`MAT*`/`TRANS` (transpose)/`IDN`/`RSUM`/`CSUM`/`MMOVE` → Advanced Matrix Pac, future v3.2+ scope
-- `V+`/`V-`/`VDOT`/`VLEN`/`VANG` → Advanced Matrix Pac, future v3.2+ scope
-- `PROOT` → Advantage Pac, future v3.3+ scope
-- `CABS`/`CARG`/`CCHS`/`CCONJ`/`CPOLAR`/`CRECT`/`CSQRT`/`CEXP`/`CLN`/`CY^X` → Advantage Pac naming, future v3.3+ (Math Pac I uses `MAGZ` + the Z↑/E↑Z/LNZ family)
-- Romberg adaptive integration → Advantage Pac's `∫f(x)`, not Math Pac I
-- `GAMMA`/`ERF`/`BESSEL`/probability distributions → Stat Pac or out-of-scope permanently
-- Cycle-accurate Nut-CPU execution, `.rom` redistribution, magnetic-card-loading the pac → permanently excluded (legal + scope)
+### Phase 36: hp41-gui — GUI Integration
 
----
+**Rationale:** GUI integration completes the 4-way exhaustive-match invariant (item 4). CATALOG 2 must gain the STAT_1 entry. Pattern is identical to Phase 31 (Math Pac I GUI).
+**Delivers:** 4-way invariant item 4 complete, CATALOG 2 shows "STAT 1B" entry, help overlay gains "Stat 1 Pac (XROM 2)" section parallel to "Math 1 Pac (XROM 7)", `key_map.rs` unchanged (all Stat Pac ops via XEQ-by-name), SC-4 invariant maintained (zero stat computation in GUI sources)
+**Research flag:** Standard patterns — SKIP research phase. Phase 31 (Math Pac I GUI) is the exact playbook.
 
-## Architecture Highlights (ARCHITECTURE.md)
+### Phase 37: Test Hardening and Quality Gates
 
-### Op-strategy: Option A (one Op variant per function)
+**Rationale:** Coverage gate maintenance (≥ 95% lines / ≥ 93% regions) requires ~90–110 new test cases for ~850 new LOC. Stat 1 introduces new pitfall categories (variance stability, quantile convergence, RNG determinism, cancellation) needing dedicated test files.
+**Delivers:** `stat1_accuracy.rs` with two-level tolerance policy (1e-9 closed-form distribution ops, 1e-7 iterative quantile ops), `stat1_variance_stability.rs` (P18 regression), `stat1_rand_determinism.rs` serde round-trip (P20), `stat1_cancellation.rs` (P25), `xrom_shadowing.rs` STAT_1 extension (P22), `v30_save_loads_with_stat1_off` backward-compat regression (P24), `numerical_accuracy.rs` extended with ~30 scipy.stats oracle cases, `stat1_op_test_count` meta-gate, E2E smoke for one Stat Pac XEQ workflow, Free42 contamination check against all new stats1 source files
+**Research flag:** Standard patterns — SKIP research phase. Phase 32 (Math Pac I test hardening) established all patterns.
 
-CHOSEN. Adds ~40 variants to `Op` enum (`Op::MatrixWorkflow`, `Op::CPlus`, `Op::Magz`, `Op::PolyWorkflow`, `Op::Sinh`, `Op::Integ`, `Op::Solve`, ...). Preserves the 4-exhaustive-match invariant (`dispatch()`, `execute_op()`, `hp41-cli/src/prgm_display.rs`, `hp41-gui/src-tauri/src/prgm_display.rs`) that has caught dozens of bugs Phases 1–27. **Rejected Option B** (`Op::XromCall(u16)` table dispatch) — forfeits exhaustive-match safety, doesn't unlock any v3.x requirement, would double the source-of-truth surface for tests.
+### Phase Ordering Rationale
 
-The XROM registry (`hp41-core/src/ops/math1/xrom.rs`) is a **resolver**, not a dispatcher — structurally identical to v1.1's `synthetic_byte_to_op` (returns a regular `Op::*` variant; dispatch flows through the normal exhaustive match).
+- `distributions.rs` precedes ΣNORMD, ΣCHISQD, ΣPTST/ΣTSTAT because those programs consume the primitives directly
+- OM register layout (P21) precedes the 5 most register-intensive programs (ΣMMTUG, ANOVA family, ΣMLRXY, ΣCTKKK); implementing them without the OM table produces silently wrong results that are hard to diagnose post-hoc
+- CLI (Phase 34) precedes GUI (Phase 36) because `xrom_shadowing.rs` CI gate validates the STAT_1.ops mnemonic list and catches P22 collisions before GUI integration
+- Docs (Phase 35) runs after CLI because the divergence catalog entries are informed by Phase 33–34 implementation decisions
+- Tests (Phase 37) runs last to sweep all 5 preceding phases; the `stat1_op_test_count` gate requires all Op variants to be present before counting
 
-### CalcState additions — six fields, all `#[serde(default)]`
+### Research Flags
 
-```rust
-xrom_modules: u8,              // bitfield; bit 0 = Math 1 loaded (default 0b1)
-complex_mode: bool,             // ζ/τ stack overlay active
-matrix_dim: Option<(u8, u8)>,   // active matrix dimensions
-matrix_active_reg: Option<u8>,  // base register pointer for matrix
-integ_state: Option<IntegState>,  // #[serde(skip)] — transient, never persisted
-solve_state: Option<SolveState>,  // #[serde(skip)] — transient, never persisted
-modal_program: Option<ModalProgram>,  // multi-step prompt flow state (NEW — driven by FEATURES.md)
-```
+**Needs `/gsd-plan-phase --research-phase N` during planning:**
+- **Phase 33:** NEEDS research phase — OM 00041-90030 "Storage Registers" section not yet fully read; RAND subroutine presence unconfirmed; quantile convergence criteria not yet extracted; ΣPOLYP degree prompt and ΣCHISQD ν convention unconfirmed; ΣTSTAT pooled vs. Welch assumption unresolved
 
-v1.0–v2.2 save files load cleanly via `#[serde(default = "default_xrom_modules")]`. v3.0 → v2.2 forward-compat drops the new fields silently per serde's unknown-field policy.
-
-### Re-entrancy: `run_loop`, NOT `run_program`
-
-`INTG`/`SOLVE`/`DIFEQ` re-enter `run_loop` directly (reusing the outer `run_program`'s program clone — avoids 30 KB × 1000 samples re-clone catastrophe). `state.is_running` stays `true` throughout. The 4-deep `state.call_stack` cap is preserved with pre-mutation guards (mirrors `Op::XeqInd` precedent at `hp41-core/src/ops/program.rs:479`). **Nested INTG/SOLVE is rejected at op entry** (`HpError::InvalidOp`) — matches the real Math Pac I ROM's documented behavior.
-
-### Modal state machine — new infrastructure (FEATURES.md → ARCHITECTURE.md mapping)
-
-Math Pac I is prompt-driven (`ORDER=?`, `A1,1=?`, `FUNCTION NAME?`, ...) — fundamentally different from v2.2's one-shot stack ops. **New modal layer** lives alongside the v2.2 `PendingInput` system but is structurally distinct: `ModalProgram` enum with per-program step state (`MatrixInputStep::OrderPrompt`, `::ElementPrompt(i, j)`, etc.). Prompts surface via `state.print_buffer` (existing channel; no new IPC).
-
-### XEQ-by-name resolver chain extension
-
-The single targeted hp41-core change. Current v2.2 chain: user-LBL → `xeq_by_name_local_resolve` → `builtin_card_op` → `Err(InvalidOp)`. v3.0 adds `xrom_resolve(name, state.xrom_modules)` AFTER `builtin_card_op`. The CLI fast-path (`hp41-cli/src/keys.rs:347`) and GUI modal (`hp41-gui/src/App.tsx` XEQ modal) both go through this — CLI ↔ GUI parity per D-25.6 is preserved automatically because the fallback lives in shared hp41-core code.
-
-### JSON-canonical pipeline — separate file per module
-
-NEW: `docs/hp41-math1-functions.json` (sibling to `docs/hp41cv-functions.json`), identical schema plus an `xrom: { module, module_id, function_id }` object per entry. `scripts/docs-matrix/` extended to two-input mode. `hp41-cli/src/help_data.rs` adds a SECOND `OnceLock<Vec<HelpEntry>>`. v2.2 JSON file is **unchanged** (no migration of 130 existing entries).
-
-### Build sequence (PROJECT.md — `core → cli → docs → gui → tests`)
-
-Phases 28–32 mirror v2.2 Phase 25 → 26 → 27 shape, expanded for Math Pac I's larger surface.
-
-### What does NOT change
-
-`Op` enum lives in the same place. `dispatch()` keeps single-match shape. `flush_entry_buf` is unchanged. `key_map::resolve` gets ZERO new bare-id arms (Math Pac I has no dedicated keys — XEQ-by-name modal only). SC-4 invariant trivially holds (all math logic lands in `hp41-core/src/ops/math1/`, zero `op_*`/`flush_entry_*`/`format_hpnum` symbols added to `hp41-gui`).
-
----
-
-## Top Pitfalls to Mitigate (PITFALLS.md, 7 critical)
-
-Note: function names below are PITFALLS.md's; translate to Math Pac I equivalents per the scope correction (e.g. `INTEG` → `INTG`, `PROOT` → `POLY`/`ROOTS`, `CARG` → `LNZ`/`Z↑W` branch-cut concerns instead).
-
-| # | Pitfall | Phase | Prevention |
-|---|---------|-------|------------|
-| 1 | **Function-name collision** between Math Pac I and built-in ops (`Σ+`, `MEAN`, `SDEV`, `MOD`, `FACT`, `ABS`). A v2.2 program that calls `XEQ "Σ+"` must not silently flip semantics after upgrade. | Phase 28 framework | Built-in mnemonics WIN against XROM in the resolver chain (xrom_resolve fires LAST). Disambiguated mnemonics (`MAT-Σ+`, `C-ABS`) for any true collision. CI gate `tests/xrom_shadowing.rs`. |
-| 2 | **`INTG` convergence depends on `DisplayMode`** — hardware ties convergence threshold to `FIX n` / `SCI n`. Hard-coding `1e-10` diverges from documented examples in a non-auditable way. | Phase 28 research-prep + Phase 30 impl | Encode `threshold = 10^(-decimals - 1)` in a single helper; unit-test threshold independently. Cap subdivisions at 2^15. Cite OM page-and-example per test (D-27.1 pattern). |
-| 3 | **`SOLVE` three input regimes have distinct hardware conventions** — no real root → local min of `|f|` OR `DATA ERROR` per mode; multiple roots → seed-rounding sensitivity; discontinuity → must surface step-limit error, not silent infinite loop. | Phase 30 | Encode three named branches with OM citations. 100-iteration cap. Reuse `MAX_STEPS = 1_000_000` budget per `run_program`. |
-| 4 | **User-callback re-entrancy corrupts solver state** — user fn can clobber INTG's R00–R07 scratch, can nest INTG/SOLVE, can change flags, can `STOP`/`GTO`-out. v2.2's `is_running: bool` was never designed for nested run_program. | Phase 28 framework decision; surfaces Phase 30 | Pick one of three policies in Phase 28: strict (`InvalidOp` on nest), counter-based (`run_depth: u8` with cap 2), or caller-side save/restore of scratch around each user-fn call. ARCHITECTURE.md recommends rejecting nested-INTG/SOLVE at op entry to match OM. Five regression tests in `tests/math1_user_callback.rs`. |
-| 5 | **`POLY`/`ROOTS` convergence failure on ill-conditioned polynomials** — 5-fold root at 1 in `(x-1)^5` produces a cluster of ~10⁻³ imaginary parts; hardware returns the cluster (multiplicity-as-cluster convention). Tests asserting exactness will fail when the implementation is correct. | Phase 30 | Document multiplicity-as-cluster in `docs/hp41-math1-divergences.md`. Treat `|imag| > 10⁹` during real-polynomial PROOT as did-not-converge → DATA ERROR. Owner's Manual Section 7 worked examples are the test source-of-truth. |
-| 6 | **Complex `LNZ` / `Z↑W` branch cuts + (0,0) handling** — `atan2(0,0)` must return 0 in DEG/RAD mode (NOT NaN, NOT `DATA ERROR`). `Z↑W` with zero divisor must `DATA ERROR`. `rust_decimal` has no `atan2` so the f64 bridge must explicitly handle (0,0). | Phase 28 (complex ops are first Math-1 implementation after framework) | `complex_atan2(im, re)` first arm handles (0,0)→0. Branch on zero-divisor BEFORE division. Edge-case suite in `tests/math1_complex_edge_cases.rs`. |
-| 7 | **`MATRIX` `INV` singularity detection EPSILON is hardware-specific** — community-cited as `5e-10` but OM quotes `1e-9` for `DET` zero-test. Wrong value means INV disagrees with OM on every near-singular example. | Phase 28 (matrix ops) | Source EPSILON from OM directly (Phase 28 research-prep MUST transcribe). Encode as `pub const EPSILON: HpNum` so it surfaces in code review. Three accuracy cases: `inv_singular`, `inv_near_singular`, `inv_back_sub_overflow`. |
-
-**Cross-cutting** (moderate / minor severity, all in PITFALLS.md):
-
-- Phase 28: enum-bloat vs `XromCall(u16)` dispatch (ADR locked; criterion gate `dispatch_overhead < 200 ns/op`)
-- Phase 30: cross-platform numerical drift (x86 vs ARM f64 last-bit) → relative tolerance `1e-7` documented as the Math Pac I floor
-- Phase 31 (GUI integration): GUI long-INTG freeze; cancellation channel via `cancel_requested: Arc<AtomicBool>` + `request_cancel` Tauri command
-- Phase 31: save-file mid-modal/mid-solver state (`integ_state`/`solve_state`/`modal_program` MUST be `#[serde(default, skip)]` from first commit)
-- Phase 31: Math Pac I discoverability through XEQ-by-name modal (40 mnemonics — `CATALOG 2` extension recommended)
-- Cross-cutting: JSON-canonical parity via dedicated test files; per-Op test count ≥ 5 to avoid mid-milestone coverage drop below 95 %; Free42 GPL contamination guard (consult-not-copy, with per-file header comment + audit script)
-
----
-
-## Roadmap Implications
-
-**Recommended phase count: 5 (Phases 28–32).** Phase numbering continues from v2.2's Phase 27. The shape mirrors v2.2's `core → cli → docs → gui → tests` build sequence.
-
-### Suggested phase structure
-
-| Phase | Name | Delivers | Research flag |
-|-------|------|----------|---------------|
-| **28** | XROM Framework + Math Pac I Core Ops (hp41-core) | XROM registry + `xrom_modules` field + 6 new CalcState fields. Plan-by-plan: 28-01 framework, 28-02 hyperbolics (proof-of-pattern), 28-03 complex stack + arithmetic, 28-04 complex functions (MAGZ/CINV/E↑Z/LNZ/SINZ/COSZ/TANZ/Z↑N/Z↑1/N), 28-05 POLY/ROOTS, 28-06 MATRIX workflow + DET/INV/SIMEQ, 28-07 INTG (with user-callback infrastructure), 28-08 SOLVE, 28-09 DIFEQ, 28-10 FOUR / triangles / TRANS. | **YES** — research-prep required BEFORE phase entry: OM transcription for `INV` EPSILON, `INTG` adaptive threshold formula, `SOLVE` three-regime behavior, `POLY` complex-pair output format, user-callback re-entrancy policy decision. |
-| **29** | CLI Integration | `xeq_by_name_local_resolve` xrom fallback; help_data.rs second OnceLock; prgm_display.rs ~40 new arms; KEY_REF_TABLE Math 1 entries; modal-prompt routing for `MATRIX`/`SOLVE`/`POLY`/`INTG`/`DIFEQ`/`FOUR`/`TRANS` workflows. | NO — well-trodden ground from v2.2 Phase 25. |
-| **30** | Documentation | `docs/hp41-math1-functions.json` populated; `scripts/docs-matrix/` two-input mode; `docs/hp41-math1-function-matrix.md` regenerated; README v3.0 soft-claim; `docs/hp41-math1-divergences.md` for multiplicity-as-cluster, INTG threshold tying, FACT extension policy, etc. | NO — pattern locked in v2.2 Phase 25. |
-| **31** | GUI Integration | hp41-gui prgm_display.rs ~40 new arms; XEQ modal verification of `xeq_M+` round-trip; `?` overlay loads Math 1 JSON; CATALOG 2 implementation; cancellation channel (`request_cancel` Tauri command); Web Audio for any new TONE-style ops (none expected in Math Pac I). | **YES** — research-prep for cancellation channel design (lock release strategy during long INTG/SOLVE); GUI modal-prompt rendering pattern (how to surface `ORDER=?` / `A1,1=?` prompts visually). |
-| **32** | Test Hardening | numerical_accuracy.rs extended from 566 → ~700+ cases per FEATURES.md; coverage gate held at ≥ 95 % (no atomic raise this milestone); E2E smoke extended with one Math Pac I keystroke flow (e.g. `XEQ "SINH" 1 → 1.1752`); Vitest CI-gated; MSRV unchanged. | NO — gates and patterns from v2.2 Phase 27 carry over. |
-
-### Build order rationale
-
-- **Framework + foundation first (Phase 28-01)** — nothing else compiles without the XROM registry, CalcState fields, and Op enum variants. This is the irrevocable decision phase: Op-strategy A, user-callback policy, INV EPSILON value, INTG threshold formula, JSON-pipeline two-file shape.
-- **Hyperbolics second (Plan 28-02)** — the SIX-op family with one-shot UX that matches v2.2 patterns exactly. Validates the framework end-to-end through CLI + GUI for the lowest-cost win. Immediate user value: anyone wanting `SINH` gets it.
-- **Complex stack third (Plans 28-03/04)** — the pac's marquee feature; biggest "wow" delivery. Builds on hyperbolics' framework validation. Plan 28-03 lands `ComplexStack { zeta, tau }` scaffolding + `C+`/`C-`/`C×`/`C÷`; 28-04 layers the 13 unary/binary complex functions.
-- **POLY before MATRIX (Plans 28-05 before 28-06)** — POLY is self-contained modal-state-machine; MATRIX is the most complex single program. Learning curve on modal infrastructure starts gentler.
-- **MATRIX before INTG/SOLVE (Plan 28-06 before 28-07/08)** — MATRIX is pure-data modal (no user-program callback); INTG/SOLVE add the user-callback layer on top of a known modal pattern. The Pitfall-4 re-entrancy decision MUST be locked before Plan 28-07 lands.
-- **DIFEQ + FOUR + triangles + TRANS last (Plans 28-09/10)** — differentiators, not table stakes. Can ship without and still claim "feature-complete Math Pac I core" if scope pressure builds.
-- **CLI / docs / GUI / tests as separate phases (29/30/31/32)** — same shape as v2.2 Phase 25 → 26 → 27. Each phase has crisp acceptance criteria; phase boundary is a release boundary.
-
-### MVP fallback path (FEATURES.md §"MVP Recommendation")
-
-If shipping a minimal v3.0-alpha to validate the architecture before completing everything:
-- **MVP-1:** Framework + hyperbolics (6 ops) + complex arithmetic + 5 most-used complex functions (`MAGZ`, `CINV`, `E↑Z`, `LNZ`, `SINZ`). ~3 plans of Phase 28.
-- **MVP-2:** Add POLY/ROOTS for quadratic only (degree 2). +1 plan.
-- **MVP-3:** Add MATRIX workflow for N ≤ 4 (smaller working set; same algorithm). +1 plan.
-
-This gets a usable Math Pac v3.0-alpha out in ~5 Phase-28 plans; remaining content lands iteratively without architecture changes.
-
----
+**Standard patterns — skip research phase:**
+- **Phase 34 (CLI):** Phase 29 playbook applies directly
+- **Phase 35 (Docs):** Phase 30 / D-29.1 precedent applies directly
+- **Phase 36 (GUI):** Phase 31 playbook applies directly
+- **Phase 37 (Tests):** Phase 32 patterns apply directly
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| **Stack** | HIGH | All crate metadata verified on crates.io 2026-05-16. `Float`-bound rejection for `num-complex`/`nalgebra` confirmed via docs.rs trait inspection. Zero new runtime deps is unambiguous. |
-| **Features** | HIGH | Primary source = HP-41C Math Pac Owner's Manual 00041-90034 (1979) + QRC 00041-90065. Full inventory transcribed from manual's Table of Contents and Appendix B. Cross-referenced against hpmuseum.org and HP-41 archive. The 10 programs / ~55 entry points are not in dispute. |
-| **Architecture** | HIGH | For pattern decisions (Op-strategy A, six CalcState fields, separate JSON file, run_loop re-entrancy), MEDIUM for example Op-variant names (drafted under the older scope assumption — names need re-mapping to Math Pac I conventions during Phase 28 planning). The core conclusions are scope-independent. |
-| **Pitfalls** | MEDIUM | OM-cited pitfalls (INTG threshold, SOLVE three regimes, INV EPSILON, POLY clustering) are HIGH confidence; community-cited pitfalls (Free42 GPL contamination, cross-platform f64 drift, GUI freeze severity) are MEDIUM. Function names in PITFALLS.md reference the older scope; pitfall CATEGORIES translate cleanly. |
+| Stack | HIGH | QRC read directly; rust_decimal MathematicalOps verified from docs.rs 2026-05-21; statrs rejection is codebase-verifiable; f64-bridge pattern validated by 763 numerical_accuracy.rs cases at 99.3% pass rate |
+| Features | HIGH | QRC 00041-90061 read directly; NPS55-84-003 confirms anti-feature list (F, Binomial, histograms confirmed absent); 14 entry points confirmed; open gaps are explicitly flagged and bounded |
+| Architecture | HIGH | Codebase read directly: bit-1 stub in xrom.rs confirmed, XromModule struct confirmed, ops/stats.rs R01–R06 layout confirmed, OnceLock pattern in help_data.rs confirmed, docs-matrix title-dispatch confirmed; XROM ID 2 confirmed from two independent external sources |
+| Pitfalls | MEDIUM-HIGH | P18/P21/P22/P24/P25 are codebase-verifiable (HIGH); P19/P23 depend on OM convergence spec not yet fully read (MEDIUM); P20 is architecturally certain (HIGH); P27 Free42 stats-domain identifiers are hypothetical candidates pending core_math2.cc verification (LOW) |
 
-**Overall confidence: HIGH on scope and HIGH on architectural integration. MEDIUM on specific numerical-method ground-truth details that require Phase 28 research-prep before implementation begins.**
+**Overall confidence:** HIGH
 
----
+### Gaps to Address
 
-## Open Questions (consolidated from all four research files)
+- **OM "Storage Registers" section (P21 — critical path):** Register layout for ΣMMTUG, ΣAOVONE/ΣAOVTWO/ΣANOCOV, ΣMLRXY, ΣCTKKK not yet confirmed. MUST be resolved in Phase 33 Phase 0 before those Ops are written. Source: OM 00041-90030 at literature.hpcalc.org.
 
-1. **XROM numbering** — Math Pac I is XROM 7 on real hardware (confirmed). Use `Op::Xrom(7, fn)` programmatic dispatch syntax? Bit position in `state.xrom_modules` — bit 0 (semantic: "Math 1 is the first XROM module we emulate") or bit 7 (semantic: "matches the real XROM ID")? **Decide Plan 28-01.** Recommend bit 0 (decoupled from hardware ID; the registry maps bit → XROM ID).
-2. **Complex stack location** — three options per FEATURES.md §"Open Questions" Q2: (a) dedicated `ComplexStack` struct on CalcState; (b) overlaid on T/Z/Y/X (ζ=Y+iX, τ=T+iZ — matches OM "two-element complex stack"); (c) in dedicated registers R02/R03 (ζ) / R04/R05 (τ — matches OM's actual R00–R04 block). **Decide Plan 28-03.** Recommend option (b) or (c) for fidelity.
-3. **`FACT` extension** — v2.2 has integer-only `FACT(0..69)`. Math Pac I MAY extend via gamma function (`FACT(2.5) = Γ(3.5)`), or MAY add a separate `GAMMA` and leave FACT alone. **Decide Phase 28 research-prep** before any commit lands. Recommend leaving FACT alone + adding GAMMA only if OM names it.
-4. **User-callback re-entrancy policy** — PITFALLS Pitfall 4: strict-reject, run_depth counter, or save-restore scratch? **Decide Phase 28 research-prep**, before Plan 28-07 (INTG). ARCHITECTURE.md's recommendation is strict-reject nested INTG/SOLVE at op entry (matches OM); the within-INTG `STO` clobbering of scratch needs the save-restore policy regardless.
-5. **`INV` singularity EPSILON** — PITFALLS Pitfall 7: community-cited `5e-10` vs OM-quoted `1e-9`. **MUST transcribe OM** before Plan 28-06 lands.
-6. **`INTG` convergence threshold formula** — PITFALLS Pitfall 2: tied to `DisplayMode`. **MUST transcribe OM** before Plan 28-07 lands. Recommend `threshold = 10^(-decimals - 1)` as a single helper.
-7. **Modal-program persistence semantics** — `modal_program: Option<ModalProgram>` MUST be `#[serde(default, skip)]` from Plan 28-06 first commit (PITFALLS Pitfall 12). But: should the user be ABLE to suspend a `MATRIX` workflow mid-input via save/load? Recommend NO (matches real Math Pac I behavior — modal state is volatile).
-8. **GUI prompt rendering** — Math Pac I prompts (`ORDER=?`, `A1,1=?`, `FUNCTION NAME?`) appear in the ALPHA display register. How does this surface in the v2.0 GUI's 12-char LCD + print buffer? Recommend: use `state.print_buffer` for prompts (existing channel; appears in print panel below LCD). **Decide Phase 31 research-prep.**
-9. **GUI cancellation channel** — PITFALLS Pitfall 11: long INTG holds Mutex, freezes UI. Recommend `request_cancel` Tauri command + `state.cancel_requested: Arc<AtomicBool>` + every-64-samples lock release in `op_integ`. **Decide Plan 31-02.**
-10. **JSON file shape** — separate `hp41-math1-functions.json` (RECOMMENDED per ARCHITECTURE.md), OR add `module` field to combined `hp41cv-functions.json`? Recommend separate file (zero migration churn on 130 existing v2.2 entries; cleaner test surfaces). **Decide Plan 30-01.**
-11. **`docs-matrix` output** — two separate matrices OR one combined matrix with a Module column? **Decide Plan 30-02.** Either works; preference is two matrices for readability.
+- **RAND subroutine presence in ROM:** QRC does not list RAND as a top-level program. Confirm from OM listing before adding to STAT_1.ops. Defer implementation until Phase 33 Phase 0 resolves this.
 
----
+- **Quantile convergence criteria:** Whether Stat 1 uses display-mode-tied threshold (like Math Pac I `integ_threshold()`) or a fixed tolerance is unconfirmed. Extract from OM user instructions for ΣNORMD (inverse path) and ΣCHISQD in Phase 33 Phase 0; document as D-33-NN entry.
+
+- **ΣPOLYP degree prompt and ΣCHISQD ν storage convention:** QRC condensed notation does not show prompt strings. Tentative: "DEGREE=?" (Math Pac I precedent) and ν entered via [A] before x evaluation. Verify from OM in Phase 33 Phase 0.
+
+- **ΣTSTAT equal vs. unequal variance assumption:** QRC shows two-sample t-test without specifying pooled or Welch. NPS ZS-4/5 assumes pooled. Confirm from OM user instructions before implementing the degrees-of-freedom formula.
+
+- **Free42 stats-domain identifiers for contamination guard (P27):** Specific identifiers to add to `check-free42-contamination.sh` are hypothetical. Verify against `github.com/thomasokken/free42/blob/master/common/core_math2.cc` before Phase 33 Phase 0 to update the script.
 
 ## Sources
 
-**HIGH confidence (primary):**
-- HP-41C Math Pac Owner's Manual (00041-90034, 1979) — [hpcalc.org PDF](https://literature.hpcalc.org/community/hp41-pac-math-en.pdf) — authoritative function and algorithm spec
-- HP-41C Math Pac I Quick Reference Card (00041-90065, 1979) — [hpcalc.org PDF](https://literature.hpcalc.org/community/hp41-pac-math-qrc-en.pdf) — confirms QRC entries
-- HP-41C/CV Owner's Handbook (1980, 00041-90325) — built-in op semantics
-- crates.io API + GitHub manifest inspection (2026-05-16) for `rust_decimal`, `num-complex`, `nalgebra`, `faer`, `ndarray`, `roots`, `peroxide`, `gauss-quad`, `argmin`, `approx`
-- Direct codebase inspection: `hp41-core/src/state.rs`, `ops/mod.rs`, `ops/program.rs`, `num.rs`, `hp41-cli/src/keys.rs`, `help_data.rs`, `hp41-gui/src-tauri/src/key_map.rs`, `scripts/docs-matrix/src/main.rs`, `docs/hp41cv-functions.json`
-- `.planning/PROJECT.md`, `CLAUDE.md` (full file — SC-4, D-25.6, D-22.15, JSON pipeline, exhaustive-match invariants)
+### Primary (HIGH confidence)
+- HP-41C Stat Pac Quick Reference Card (00041-90061, June 1979) — all 13 programs, mnemonics, SIZE column, initialization/input/correction/results columns; read directly as 2-page PDF image at literature.hpcalc.org/community/hp41-pac-stat-qrc-en.pdf
+- Naval Postgraduate School NPS55-84-003 (Zehna, February 1984, DTIC AD-A140573) — confirms RNG formula, ΣNORMD workflow, anti-feature list (F, Binomial, histograms absent), t-test variant, ΣCHISQD ν convention
+- `calc.fjk.ch/db/hp41mod.php` HP-41 Module Database — "Statistics Pac 1B", XROM #2, 4k; confirms module ID
+- `rust_decimal::MathematicalOps` trait (docs.rs, 2026-05-21) — full method list verified; norm_cdf/norm_pdf/erf confirmed present; inverse normal, incomplete gamma, incomplete beta confirmed absent
+- Codebase direct reads: `hp41-core/src/ops/math1/xrom.rs` (bit-1 stub), `hp41-core/src/state.rs` (xrom_modules bitfield, default_xrom_modules()), `hp41-core/src/ops/stats.rs` (R01–R06 Σ-register layout), `hp41-cli/src/help_data.rs` (OnceLock pattern), `scripts/docs-matrix/src/main.rs` (title-dispatch pattern), `hp41-core/src/num.rs` lines 184–211 (f64-bridge pattern)
 
-**MEDIUM confidence (community / cross-reference):**
-- Museum of HP Calculators HP-41 software library — [hpmuseum.org/software/soft41.htm](https://www.hpmuseum.org/software/soft41.htm), [hpmuseum.org/software/xroms.htm](https://www.hpmuseum.org/software/xroms.htm)
-- HP-41 Matrix Operations community page — [hpmuseum.org/software/41/41matrix.htm](https://www.hpmuseum.org/software/41/41matrix.htm) — confirms 14×14 limit + Gaussian elimination algorithm
-- HP-41 Archive — [hp41.org](http://www.hp41.org/)
-- HPCalc community PDF index — [literature.hpcalc.org](https://literature.hpcalc.org/)
-- Mike Sebastian's HP-41 forensics pages — cross-platform numerical drift data
-- MoHPC forum discussions — community reverse-engineering of Math Pac internals
-- Carnahan, Luther & Wilkes, _Applied Numerical Methods_ (1969) — manual's cited matrix algorithm reference
-- Forsythe, Malcolm & Moler, _Computer Methods for Mathematical Computations_ (1972) — manual's secondary reference
+### Secondary (MEDIUM confidence)
+- `statrs 0.18.0` Cargo.toml (docs.rs) — dep list verified: mandatory `approx 0.5.0`, optional `nalgebra 0.33` + `rand 0.8`; MSRV 1.65 confirmed
+- HP-41 XROM numbering scheme (NN,FF): Math Pac = XROM 1,NN; Statistics Pac = XROM 2,NN — confirmed via multiple community sources; HP Museum xroms.htm was inaccessible during research
+- HP-41 RNG formula `FRC(9821·x + 0.211327)` — hpcalc.org/hp48/docs/misc/rand.txt, HP Museum forum, NPS document p. 21 (all three sources agree)
+- Acklam/AS 241 inverse normal rational approximation — stackedboxes.org/2017/05/01/acklams-normal-quantile-function/ (public-domain, well-known)
+- AS 239 (incomplete gamma series+CF) and AS 63 (incomplete beta CF) — Royal Statistical Society Applied Statistics; Numerical Recipes §6.2 and §6.4
 
-**LOW confidence (consult-only — DO NOT COPY):**
-- Free42 source code (Thomas Okken, GPL) — [thomasokken.com/free42/](https://thomasokken.com/free42/) — useful as a sanity-check oracle for INTG/SOLVE outputs ONLY; every Math Pac I algorithm in v3.0 must be independently re-derived from OM per PITFALLS Pitfall 19 + project's permissive-licensing position
-
-**Cross-referenced project context:**
-- `.planning/milestones/v2.0-research/SUMMARY.md` — structural template for this document
-- v2.2 settled invariants: `CLAUDE.md` (esp. f-prefix one-shot model, hybrid `PendingInput` struct-variants, JSON-canonical pipeline D-25.16, four-arm exhaustive match D-25.13, CLI ↔ GUI parity D-25.6, save-file backward compat via `#[serde(default)]`)
-- v3.0 scope lock: `.planning/PROJECT.md` (Math Pac I only; Stat 1 → v3.1; Time → v3.2; Advantage → v3.3; ROM-image redistribution permanently excluded)
+### Tertiary (LOW confidence — verify in Phase 33 Phase 0)
+- HP Stat 1 Pac Owner's Manual (00041-90030) "Storage Registers" section — not yet read directly; access via literature.hpcalc.org item 800 needs verification
+- Free42 `core_math2.cc` statistics identifiers — hypothetical candidates for contamination guard extension (P27); verify against github.com/thomasokken/free42 before Phase 33 Phase 0
+- RAND subroutine presence in Stat 1 Pac ROM — cited as community convention from NPS user programs; needs OM listing confirmation before adding to STAT_1.ops
 
 ---
-
-*End of SUMMARY.md — orchestrator may now proceed to REQUIREMENTS.md generation.*
+*Research completed: 2026-05-21*
+*Ready for roadmap: yes*

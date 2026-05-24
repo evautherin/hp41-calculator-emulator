@@ -20,6 +20,7 @@ pub mod program;
 pub mod registers;
 pub mod sound;
 pub mod stack_ops;
+pub mod stat1;
 pub mod stats;
 
 use alpha::{op_alpha_append, op_alpha_backspace, op_alpha_clear, op_alpha_toggle};
@@ -805,6 +806,398 @@ pub enum Op {
     /// Source: HP-41C Math Pac I OM, TRANS program (TRANS-03..04).
     /// "T3D" mnemonic disambiguates from 2D TRANS in xrom_resolve (Plan 28-10 decision).
     Trans3d,
+
+    // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ────────────────
+    /// ΣSPEAR — Spearman rank correlation coefficient (closed-form).
+    ///
+    /// Consumes the existing v1.x R01–R06 Σ-register block populated by
+    /// `op_sigma_plus`. The user accumulates `d² = (rank_x − rank_y)²`
+    /// values as single-variable Σ+ samples; ΣSPEAR computes
+    /// `ρ_s = 1 − 6·Σd² / (n·(n²−1))` from R02 (Σx = Σd²) and R03 (n).
+    ///
+    /// Closed-form — no iteration, no distribution-function call,
+    /// no modal prompt. Smallest footprint program in the Pac (SIZE 003).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣSPEAR (p. 64).
+    SigmaSpear,
+    /// ΣXSQEV — Chi-square goodness-of-fit with observed + expected counts.
+    ///
+    /// Reads `k` (number of categories) from R00 and the interleaved
+    /// observed/expected pairs starting at R01 (O₀, E₀, O₁, E₁, ...).
+    /// Computes `χ² = Σ (O − E)² / E` and pushes the result onto stack X.
+    ///
+    /// Domain error: `k < 1`, `k > STAT1_XSQEV_KMAX` (= 3 for SIZE 008),
+    /// or any expected value `E_i == 0` (chi-square is undefined when
+    /// expected = 0).
+    ///
+    /// Closed-form — no iteration over a convergence loop, just a fixed
+    /// k-bounded accumulator (k ≤ STAT1_XSQEV_KMAX, no cancel check
+    /// required). Standard goodness-of-fit df = k − 1; the p-value is
+    /// the downstream caller's responsibility (chain via ΣCHISQD).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣXSQEV (p. 55).
+    SigmaXsqev,
+    /// ΣEFXSQ — Chi-square goodness-of-fit with expected PROPORTIONS.
+    ///
+    /// Reads `k` from R00 and interleaved observed/proportion pairs from
+    /// R01 (O₀, p₀, O₁, p₁, ...). Computes `Σf = Σ O_i`, converts each
+    /// `p_i` to an expected count `E_i = Σf · p_i` (in place, mutating
+    /// R02/R04/R06 per OM convention), then applies the same
+    /// `χ² = Σ (O − E)² / E` reducer as `SigmaXsqev`.
+    ///
+    /// Validates `|Σ p_i − 1.0| ≤ 1e-9` (OM "Inputs" sum-to-1 contract);
+    /// returns `HpError::Domain` for out-of-tolerance proportion sums or
+    /// for any `p_i ≤ 0`. Silent renormalization would produce silently
+    /// wrong χ² values per Pitfall 21.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣEFXSQ (p. 55).
+    SigmaEfxsq,
+
+    // ── Phase 33 Plan 33-05: Univariate / weighted summary Ops ─────────────
+    /// ΣBSTAT — Univariate extended summary (closed-form).
+    ///
+    /// Reads `n = R03`, `Σx = R02`, `Σx² = R01` from the existing v1.x
+    /// Σ-register block populated by `op_sigma_plus`. Pushes the
+    /// coefficient of variation `CV_x = σ_x / μ_x` to stack X (Bessel-
+    /// corrected sample standard deviation divided by sample mean) and
+    /// the sample mean `μ_x = Σx / n` to Y.
+    ///
+    /// Closed-form — no iteration, no distribution-function call, no
+    /// modal prompt. Consumes existing R01–R06 read-only; no Stat-1
+    /// extended-register slots required.
+    ///
+    /// Errors: `InvalidOp` for `n < 2` or `μ_x == 0`; `Domain` for
+    /// degenerate variance via `checked_sqrt`.
+    ///
+    /// SPEC.md Req. 7 drift documented at module level in
+    /// `stat1::basic_stats` — see `33-05-SUMMARY.md`.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣBSTAT (p. 11).
+    SigmaBstat,
+    /// ΣBSTG — Bivariate weighted summary (closed-form).
+    ///
+    /// Treats the v1.x R01–R06 Σ-block as (data, weight) pairs: each Σ+
+    /// call accumulates one (x_i, w_i) pair so that R06 = Σ(x_i·w_i),
+    /// R05 = Σw_i, R02 = Σx_i. Pushes the weighted mean
+    /// `μ_w = R06 / R05` to stack X and the unweighted mean
+    /// `μ_x = R02 / R03` to Y.
+    ///
+    /// Closed-form — no iteration. Consumes R01–R06 read-only.
+    ///
+    /// Errors: `InvalidOp` for `n == 0` or `Σw == 0`.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣBSTG (p. 11–14).
+    SigmaBstg,
+
+    // ── Phase 33 Plan 33-05: Curve-fit accumulators (delegate pattern) ──────
+    /// ΣLIN — Linear curve-fit accumulator `ŷ = a + b·x`.
+    ///
+    /// Identity transform — pure delegate to
+    /// [`crate::ops::stats::op_sigma_plus`]. User calls XEQ "ΣLIN" once
+    /// per (x, y) point with x in Y, y in X (v1.x Σ+ convention). After
+    /// accumulation, the v1.x `op_lr` extracts slope and intercept from
+    /// R01–R06.
+    ///
+    /// Closed-form delegate — no iteration, no modal prompt.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣLIN (p. 35).
+    SigmaLin,
+    /// ΣEXP — Exponential curve-fit accumulator `ŷ = a·e^(b·x)`.
+    ///
+    /// Linearizes via `ln ŷ = ln a + b·x`. Transforms the Y channel
+    /// (`state.stack.x` per HP-41 Σ+ convention) by `ln` then delegates
+    /// to [`crate::ops::stats::op_sigma_plus`]. After accumulation,
+    /// `op_lr` extracts (b, ln a); final `a = e^intercept`.
+    ///
+    /// Errors: `Domain` if y ≤ 0; SIZE-floor / Overflow from delegate.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣEXP (p. 35).
+    SigmaExp,
+    /// ΣLOGI — Logarithmic curve-fit accumulator `ŷ = a + b·ln x`.
+    ///
+    /// Linearizes via the substitution `u = ln x`. Transforms the X
+    /// channel (`state.stack.y` per Σ+ convention) by `ln` then
+    /// delegates to [`crate::ops::stats::op_sigma_plus`]. After
+    /// accumulation, `op_lr` extracts (b, a) directly.
+    ///
+    /// Errors: `Domain` if x ≤ 0; SIZE-floor / Overflow from delegate.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣLOGI (p. 35).
+    SigmaLogi,
+    /// ΣPOW — Power curve-fit accumulator `ŷ = a·x^b`.
+    ///
+    /// Linearizes via `ln ŷ = ln a + b·ln x`. Transforms BOTH X and Y
+    /// channels by `ln` then delegates to
+    /// [`crate::ops::stats::op_sigma_plus`]. After accumulation,
+    /// `op_lr` extracts (b, ln a); final `a = e^intercept`.
+    ///
+    /// Errors: `Domain` if x ≤ 0 OR y ≤ 0; SIZE-floor / Overflow from
+    /// delegate.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOW (p. 35).
+    SigmaPow,
+
+    // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ────────
+    /// ΣMMTUG — Ungrouped third + fourth moment accumulator.
+    ///
+    /// Per-call accumulator: consumes `x` from stack X and updates the
+    /// Σ-block extended with `Σx³` (R07 = `STAT1_MMTUG_CUBE_REG`) and
+    /// `Σx⁴` (R08 = `STAT1_MMTUG_QUAD_REG`). Σx, Σx², n are updated via
+    /// delegation to [`crate::ops::stats::op_sigma_plus`] (anti-duplication
+    /// per PATTERNS.md Pattern 4). Central moments + skewness γ₁ +
+    /// excess kurtosis γ₂ are extracted from the accumulated block via
+    /// the public helper `crate::ops::stat1::moments::compute_moments`.
+    ///
+    /// STAT-UNI-04 [C] correction-key round-trip: `op_sigma_minus` was
+    /// extended in this plan to mirror every register written by ΣMMTUG.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMMTUG (p. 15).
+    SigmaMmtug,
+    /// ΣMMTGD — Grouped (frequency-weighted) variant of ΣMMTUG.
+    ///
+    /// Per-call accumulator: consumes `x` from stack X and frequency
+    /// count `f` from stack Y, contributing `f·xᵏ` to Σxᵏ for k = 1..4
+    /// and updating n = Σf. All five Σ-block writes happen atomically
+    /// in one block (no `op_sigma_plus` delegate — the delegate has no
+    /// frequency-weighting API).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMMTGD (p. 15).
+    SigmaMmtgd,
+
+    // ── Phase 33 Plan 33-06: ANOVA family (one-way / two-way / ANCOVA) ─────
+    /// ΣAOVONE — One-way ANOVA F-ratio across k groups.
+    ///
+    /// Reads `k` (group count) from R00, the grand sum / sum-of-squares
+    /// / N from R01..R03, and per-group blocks (Σxᵢ, Σxᵢ², nᵢ, scratch)
+    /// at stride 4 from `STAT1_AOV_GROUP_BASE_REG` (R04). Computes
+    /// SSB = Σ nᵢ·(x̄ᵢ − x̄)², SSW = Σ(Σxᵢ² − nᵢ·x̄ᵢ²), df_between = k−1,
+    /// df_within = N − k, and F = (SSB / df_between) / (SSW / df_within).
+    ///
+    /// Pushes F to stack X with `LiftEffect::Enable`. Tolerance: 1e-9
+    /// closed-form per SPEC.md Req. 11.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣAOVONE (p. 20).
+    SigmaAovone,
+    /// ΣAOVTWO — Two-way ANOVA (no replications) row + column F-ratios.
+    ///
+    /// Reads r×c data per OM register layout (R01..R<n>) plus marginal
+    /// row/column sums. Computes SS_total, SS_row, SS_col, SS_error;
+    /// df_row = r − 1, df_col = c − 1, df_error = (r − 1)(c − 1);
+    /// F_row = (SS_row / df_row) / (SS_error / df_error), and F_col
+    /// analogously. Pushes (F_col, F_row) (F_col to X, F_row to Y).
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 12 (cross-product sums).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣAOVTWO (p. 23).
+    SigmaAovtwo,
+    /// ΣANOCOV — One-way ANCOVA (analysis of covariance) F-ratio.
+    ///
+    /// Per OM 00041-90030 §ΣANOCOV (p. 28): reads per-group (x, y) pairs
+    /// where x = covariate, y = response (NPS ZA-3 convention), computes
+    /// pooled within-group regression coefficient
+    /// b_w = SSxy_within / SSxx_within, adjusts response SSE by removing
+    /// covariate effect, and returns F-ratio of adjusted between-group
+    /// vs adjusted within-group mean squares.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 13.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣANOCOV (p. 28); cross-
+    /// check against NPS55-84-003 §ZA-3.
+    SigmaAnocov,
+
+    // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ──────────────────────
+    /// ΣCTKKK — General r×c contingency-table χ².
+    ///
+    /// Reads r from R00, c from R01, and the row-major cell matrix from
+    /// R02 onward (cell (i,j) at R02 + i·c + j). Computes row sums Rᵢ,
+    /// column sums Cⱼ, grand total T, expected counts E_ij = (Rᵢ·Cⱼ)/T,
+    /// and χ² = ΣΣ (O_ij − E_ij)² / E_ij. Pushes χ² to stack X.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 28.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKKK (p. 60).
+    SigmaCtkkk,
+    /// ΣCTKK — Smaller-table contingency-table χ² (cap 2×2).
+    ///
+    /// Same algorithm as ΣCTKKK but with a 2×2 dimension cap per OM
+    /// p. 60. Pushes χ² to stack X.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 29.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCTKK (p. 60).
+    SigmaCtkk,
+
+    // ── Phase 33 Plan 33-07: Student-t hypothesis tests ─────────────────────
+    /// ΣPTST — One-sample Student-t test.
+    ///
+    /// Reads μ₀ (hypothesized mean) from stack X. Reads Σx² = R01,
+    /// Σx = R02, n = R03 from the existing v1.x R01–R06 Σ-block
+    /// (D-03 layout). Computes:
+    ///
+    /// ```text
+    ///   x̄  = Σx/n
+    ///   s² = (Σx² − n·x̄²) / (n−1)  (Bessel-corrected)
+    ///   t  = (x̄ − μ₀) / √(s²/n)
+    ///   df = n − 1
+    ///   p  = I_{ν/(ν+t²)}(ν/2, 1/2)  (two-sided via beta_regularized_f64)
+    /// ```
+    ///
+    /// Pushes p (lands at Y) then t (lands at X) per the op_mean
+    /// push-twice convention. LiftEffect: Enable.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 46 (chained through
+    /// distributions::beta_regularized_f64).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPTST (p. 52).
+    SigmaPtst,
+
+    /// ΣTSTAT — Pooled-variance two-sample Student-t test.
+    ///
+    /// **Welch's t-test (unequal variance) is EXPLICITLY excluded** per
+    /// SPEC.md Req. 25 + REQUIREMENTS.md Out-of-Scope. Pooled-variance
+    /// only. Reads per-group accumulators (Σx², Σx, n) from the
+    /// OM-traceable register layout (G1 at R01–R03, G2 at R07–R09;
+    /// see `stat1::mod` STAT1_TSTAT_G*_*_REG named consts). Computes:
+    ///
+    /// ```text
+    ///   s²_p = ((n₁−1)·s₁² + (n₂−1)·s₂²) / (n₁ + n₂ − 2)   POOLED
+    ///   t    = (x̄₁ − x̄₂) / √(s²_p · (1/n₁ + 1/n₂))
+    ///   df   = n₁ + n₂ − 2  (INTEGER)
+    ///   p    = I_{ν/(ν+t²)}(ν/2, 1/2)                       (two-sided)
+    /// ```
+    ///
+    /// Pushes p (lands at Y) then t (lands at X) with LiftEffect::Enable.
+    /// Sign convention: t = x̄₁ − x̄₂ (matches `scipy.stats.ttest_ind`
+    /// with `equal_var=True`).
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 46 (chained through
+    /// distributions::beta_regularized_f64).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣTSTAT (p. 52).
+    SigmaTstat,
+
+    // ── Phase 33 Plan 33-08: ΣMLRXY — 2-predictor multiple linear regression ──
+    /// ΣMLRXY — 2-predictor multiple linear regression (`y = b₀ + b₁·x₁ +
+    /// b₂·x₂`). Reads 9 sufficient statistics (n, Σy, Σx₁, Σx₂, Σx₁², Σx₂²,
+    /// Σx₁x₂, Σx₁y, Σx₂y) from `STAT1_MLRXY_*_REG` (named consts in
+    /// `stat1::mod`); solves the 3×3 normal equations via the
+    /// `stat1::regression::solve_normal_equations` self-contained Gauss
+    /// elimination with partial pivoting (SPEC.md Req. 21 LOCKS no
+    /// `ops::math1::matrix::*` imports). Pushes (b₀ → Z, b₁ → Y, b₂ → X)
+    /// with LiftEffect::Enable on each push.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 19 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMLRXY (p. 40).
+    SigmaMlrxy,
+
+    // ── Phase 33 Plan 33-08: ΣMLRXYZ — 3-predictor multiple linear regression ──
+    /// ΣMLRXYZ — 3-predictor multiple linear regression
+    /// (`y = b₀ + b₁·x₁ + b₂·x₂ + b₃·x₃`). Reads 14 sufficient statistics
+    /// from `STAT1_MLRXYZ_*_REG`; solves the 4×4 normal equations via the
+    /// same self-contained Gauss elimination as ΣMLRXY. Pushes (b₀ → T,
+    /// b₁ → Z, b₂ → Y, b₃ → X) with LiftEffect::Enable on each push.
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 20 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣMLRXYZ (p. 43).
+    SigmaMlrxyz,
+
+    // ── Phase 33 Plan 33-08: ΣPOLYP — polynomial regression workflow ────────
+    /// ΣPOLYP — polynomial regression modal opener
+    /// (`y = a₀ + a₁·x + ... + a_d·x^d`).
+    ///
+    /// Opens at `Stat1Step::PolypDegreePrompt(0)` with prompt `DEGREE=?`
+    /// (SPEC.md Req. 22 OM-override: literal string not locked, only the
+    /// modal-prompt-driven workflow shape). On submit, `submit_step` reads
+    /// d from X (1 ≤ d ≤ `STAT1_POLYP_DEGREE_MAX = 5`), stores in
+    /// `STAT1_POLYP_DEGREE_REG`, and invokes the private
+    /// `compute_polyp_coefficients` helper to fit the pre-populated
+    /// higher-power Σ sums via (d+1)×(d+1) normal equations + the same
+    /// self-contained Gauss elimination as ΣMLRXY/Z. Coefficients are
+    /// stored at `STAT1_POLYP_COEF_BASE_REG`..+d+1 (read by ΣPOLYC for
+    /// Horner eval).
+    ///
+    /// LiftEffect: Neutral on modal open; Enable on result push (compute
+    /// step pushes the leading coefficient a_d to X).
+    ///
+    /// Tolerance: 1e-7 iterative per SPEC.md Req. 22 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOLYP (p. 47).
+    SigmaPolypWorkflow,
+
+    // ── Phase 33 Plan 33-08: ΣPOLYC — Horner evaluation ─────────────────────
+    /// ΣPOLYC — Horner evaluation of the most-recent ΣPOLYP coefficient set.
+    ///
+    /// Reads d from `STAT1_POLYP_DEGREE_REG` and coefficients a_0..a_d
+    /// from `STAT1_POLYP_COEF_BASE_REG`..+d+1; reads evaluation point x
+    /// from stack X. Computes ŷ via Horner's method (single-pass multiply-
+    /// add chain — NOT iterative). Pushes ŷ to X with LiftEffect::Enable.
+    ///
+    /// Tolerance: 1e-9 closed-form per SPEC.md Req. 23 / 46.
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣPOLYC (p. 48).
+    SigmaPolyc,
+
+    // ── Phase 33 Plan 33-03: ΣNORMD 3-mode dispatcher ──────────────────────
+    /// ΣNORMD — Normal-distribution three-mode modal opener.
+    ///
+    /// Opens at `Stat1Step::NormdModeChoice` with prompt `ΣNORMD MODE?`.
+    /// User enters mode index in X (1 = CDF, 2 = PDF, 3 = inverse) and
+    /// presses R/S; `submit_step(NormdModeChoice)` in
+    /// `crate::ops::stat1::modal` dispatches to the appropriate
+    /// `op_sigma_normd_eval_*` evaluator:
+    ///
+    /// - CDF: closed-form upper-tail `Q(x) = 1 − Φ(x)` via
+    ///   `rust_decimal::MathematicalOps::norm_cdf`.
+    /// - PDF: closed-form `φ(x)` via
+    ///   `rust_decimal::MathematicalOps::checked_norm_pdf`.
+    /// - Inverse: iterative path — Acklam (AS 241) closed-form start
+    ///   from `distributions::norm_cdf_inv_f64`, then up to 50 Newton
+    ///   refinement steps gated by `state.cancel_requested` and the
+    ///   display-mode-tied `quantile_threshold(state.display_mode)`.
+    ///   Errors: `Canceled` on user cancel, `ConvergenceFailed` on
+    ///   iter-cap (SPEC.md Req. 34).
+    ///
+    /// LiftEffect: `Neutral` on open, `Enable` on result push (closed-form
+    /// modal-eval pattern).
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣNORMD (p. 67).
+    SigmaNormdWorkflow,
+
+    // ── Phase 33 Plan 33-03: ΣCHISQD ν-prompt + PDF/CDF dispatcher ─────────
+    /// ΣCHISQD — Chi-square distribution two-step modal opener.
+    ///
+    /// Opens at `Stat1Step::ChisqdNuPrompt` with prompt `ν=?`. User
+    /// enters ν (positive integer degrees-of-freedom) in X and presses
+    /// R/S; `submit_step(ChisqdNuPrompt)` stashes ν in `state.stack.t`
+    /// (D-33.5 — no new transient CalcState field) and transitions to
+    /// `ChisqdModeChoice` with prompt `ΣCHISQD MODE?`. User then enters
+    /// the χ² statistic x in Y, mode index in X (1 = PDF, 2 = CDF), and
+    /// `submit_step(ChisqdModeChoice)` reads mode, drops X, recovers ν
+    /// from T, dispatches to:
+    ///
+    /// - PDF: closed-form `f(x; ν) = x^(ν/2−1)·exp(−x/2) / (2^(ν/2)·Γ(ν/2))`
+    ///   via Decimal + `distributions::ln_gamma`.
+    /// - CDF: iterative `P(x; ν) = gamma_regularized_f64(ν/2, x/2)`
+    ///   wrapped with a per-call `cancel_requested` gate.
+    ///
+    /// LiftEffect: `Neutral` on open, `Enable` on result push.
+    ///
+    /// Source: HP-41C Stat 1 Pac OM 00041-90030 §ΣCHISQD (p. 71).
+    SigmaChisqdWorkflow,
+
+    // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──────
+    /// RAND — pseudorandom uniform [0, 1) via LCG `r ← FRC(9821·r +
+    /// 0.211327)` (NPS p. 21 community formula, Don Malm / HP-65 User's
+    /// Library). Reads + writes `state.rand_seed`; pushes new value to
+    /// stack X with LiftEffect::Enable. Decimal-exact (no f64 conversion);
+    /// deterministic from any seed.
+    ///
+    /// Source: emulator extension (D-33.4 / SPEC.md Req. 35) — not in OM.
+    Rand,
+    /// SEED — open the `SEED?` modal; on submit, copies stack-X into
+    /// `state.rand_seed`. LiftEffect::Neutral on open. Submit handled
+    /// by `stat1::modal::submit_step(SeedPrompt)`.
+    ///
+    /// Source: emulator extension (D-33.4 / SPEC.md Req. 36) — not in OM.
+    Seed,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -1212,6 +1605,44 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TriSsa => math1::tri::op_tri_ssa(state),
         Op::Trans2d => math1::trans::op_trans2d(state),
         Op::Trans3d => math1::trans::op_trans3d(state),
+        // ── Phase 33 Plan 33-04: Closed-form non-parametric Ops ─────────────
+        Op::SigmaSpear => crate::ops::stat1::nonparam::op_sigma_spear(state),
+        Op::SigmaXsqev => crate::ops::stat1::nonparam::op_sigma_xsqev(state),
+        Op::SigmaEfxsq => crate::ops::stat1::nonparam::op_sigma_efxsq(state),
+        // ── Phase 33 Plan 33-05: Univariate / weighted summary Ops ──────────
+        Op::SigmaBstat => crate::ops::stat1::basic_stats::op_sigma_bstat(state),
+        Op::SigmaBstg => crate::ops::stat1::basic_stats::op_sigma_bstg(state),
+        // ── Phase 33 Plan 33-05: Curve-fit accumulators (delegate pattern) ──
+        Op::SigmaLin => crate::ops::stat1::regression::op_sigma_lin(state),
+        Op::SigmaExp => crate::ops::stat1::regression::op_sigma_exp(state),
+        Op::SigmaLogi => crate::ops::stat1::regression::op_sigma_logi(state),
+        Op::SigmaPow => crate::ops::stat1::regression::op_sigma_pow(state),
+        // ── Phase 33 Plan 33-06: ΣMMTUG / ΣMMTGD third + fourth moments ─────
+        Op::SigmaMmtug => crate::ops::stat1::moments::op_sigma_mmtug(state),
+        Op::SigmaMmtgd => crate::ops::stat1::moments::op_sigma_mmtgd(state),
+        // ── Phase 33 Plan 33-06: ANOVA family (one-way / two-way / ANCOVA) ──
+        Op::SigmaAovone => crate::ops::stat1::anova::op_sigma_aovone(state),
+        Op::SigmaAovtwo => crate::ops::stat1::anova::op_sigma_aovtwo(state),
+        Op::SigmaAnocov => crate::ops::stat1::anova::op_sigma_anocov(state),
+        // ── Phase 33 Plan 33-06: Contingency-table χ² Ops ───────────────────
+        Op::SigmaCtkkk => crate::ops::stat1::nonparam::op_sigma_ctkkk(state),
+        Op::SigmaCtkk => crate::ops::stat1::nonparam::op_sigma_ctkk(state),
+        // ── Phase 33 Plan 33-07: ΣPTST one-sample t-test ────────────────────
+        Op::SigmaPtst => crate::ops::stat1::hypothesis::op_sigma_ptst(state),
+        // ── Phase 33 Plan 33-07: ΣTSTAT pooled-variance two-sample t-test ───
+        Op::SigmaTstat => crate::ops::stat1::hypothesis::op_sigma_tstat(state),
+        // ── Phase 33 Plan 33-08: Multiple + polynomial regression ───────────
+        Op::SigmaMlrxy => crate::ops::stat1::regression::op_sigma_mlrxy(state),
+        Op::SigmaMlrxyz => crate::ops::stat1::regression::op_sigma_mlrxyz(state),
+        Op::SigmaPolypWorkflow => crate::ops::stat1::regression::op_sigma_polyp_workflow(state),
+        Op::SigmaPolyc => crate::ops::stat1::regression::op_sigma_polyc(state),
+        // ── Phase 33 Plan 33-03: ΣNORMD modal opener ────────────────────────
+        Op::SigmaNormdWorkflow => crate::ops::stat1::normd::op_sigma_normd_workflow(state),
+        // ── Phase 33 Plan 33-03: ΣCHISQD modal opener ───────────────────────
+        Op::SigmaChisqdWorkflow => crate::ops::stat1::chisqd::op_sigma_chisqd_workflow(state),
+        // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
+        Op::Rand => crate::ops::stat1::rand::op_rand(state),
+        Op::Seed => crate::ops::stat1::rand::op_seed(state),
     }
 }
 

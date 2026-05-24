@@ -35,7 +35,7 @@ fn make_state_with_fn(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(n as i32);
+    state.regs[0] = HpNum::from(n as i32).into();
     state.stack.x = HpNum::from(Decimal::from_f64(a).unwrap_or(Decimal::ZERO));
     state.stack.y = HpNum::from(Decimal::from_f64(b).unwrap_or(Decimal::ZERO));
     state.stack.lift_enabled = false;
@@ -337,7 +337,7 @@ fn integ_missing_label_returns_invalid_op() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "NONEXISTENT".to_string(); // label not in program
-    state.regs[0] = HpNum::from(4i32);
+    state.regs[0] = HpNum::from(4i32).into();
     state.stack.x = HpNum::from(0i32);
     state.stack.y = HpNum::from(1i32);
 

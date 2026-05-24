@@ -30,11 +30,11 @@ fn make_difeq_exp_growth(max_steps: u32) -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "EG2".to_string();
-    state.regs[0] = HpNum::from(1i32);
-    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO));
-    state.regs[2] = HpNum::from(0i32);
-    state.regs[3] = HpNum::from(1i32);
-    state.regs[5] = HpNum::from(max_steps as i32);
+    state.regs[0] = HpNum::from(1i32).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(0.1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[2] = HpNum::from(0i32).into();
+    state.regs[3] = HpNum::from(1i32).into();
+    state.regs[5] = HpNum::from(max_steps as i32).into();
     (state, program)
 }
 
@@ -91,7 +91,7 @@ fn difeq_in_math1_ops() {
 fn difeq_state_populated_correctly() {
     let (mut state, program) = make_difeq_exp_growth(5);
     // Set invalid order to trigger the early-return path and check modal_prompt
-    state.regs[0] = HpNum::from(0i32); // ORDER=0 is invalid
+    state.regs[0] = HpNum::from(0i32).into(); // ORDER=0 is invalid
     let result = op_difeq_run_loop(&mut state, &program);
     assert_eq!(result, Ok(()), "Invalid ORDER must return Ok (not error)");
     assert_eq!(

@@ -14,7 +14,7 @@
 //! (LiftEffect summary).
 
 use crate::error::HpError;
-use crate::num::HpNum;
+use crate::num::{HpNum, HpValue};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 
@@ -89,7 +89,7 @@ pub fn op_arcl(state: &mut CalcState, reg: u8) -> Result<(), HpError> {
         // .expect rather than .unwrap to satisfy clippy::unwrap_used; the
         // index is guaranteed valid by the leading bounds check above.
         let r = state.regs.get(reg as usize).expect("bounds-checked above");
-        crate::format::format_hpnum(r, &state.display_mode)
+        crate::format::format_hpnum(&r.numeric_or_zero(), &state.display_mode)
     };
     // 24-char silent discard cap — multibyte-safe (Phase 2 ALPHA invariant).
     for c in text.chars() {
@@ -130,7 +130,7 @@ pub fn op_asto(state: &mut CalcState, reg: u8) -> Result<(), HpError> {
     // `if let Some` is defense-in-depth — the slot is guaranteed to exist
     // by the leading bounds check.
     if let Some(slot) = state.regs.get_mut(reg as usize) {
-        *slot = HpNum::zero();
+        *slot = HpValue::default();
     }
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
@@ -324,12 +324,12 @@ mod tests {
     fn test_arcl_appends_numeric_register_via_format_hpnum_in_fix_mode() {
         let mut state = CalcState::new();
         state.alpha_reg = "HELLO".to_string();
-        state.regs[5] = HpNum::from(Decimal::from_str("3.14").unwrap());
+        state.regs[5] = HpNum::from(Decimal::from_str("3.14").unwrap()).into();
         state.display_mode = DisplayMode::Fix(2);
         op_arcl(&mut state, 5).unwrap();
         let expected = format!(
             "HELLO{}",
-            format_hpnum(&state.regs[5], &DisplayMode::Fix(2))
+            format_hpnum(&state.regs[5].numeric_or_zero(), &DisplayMode::Fix(2))
         );
         assert_eq!(state.alpha_reg, expected);
     }
@@ -339,7 +339,7 @@ mod tests {
         // SC#1 verifier: switching FIX→SCI between two ARCLs of the same
         // register must produce a DIFFERENT appended suffix.
         let mut state = CalcState::new();
-        state.regs[5] = HpNum::from(Decimal::from_str("3.14").unwrap());
+        state.regs[5] = HpNum::from(Decimal::from_str("3.14").unwrap()).into();
 
         state.alpha_reg.clear();
         state.display_mode = DisplayMode::Fix(2);
@@ -372,7 +372,7 @@ mod tests {
         // a future refactor regressed the sidecar clear, ARCL's lookup
         // priority itself remains correct.
         let mut state = CalcState::new();
-        state.regs[5] = HpNum::from(Decimal::from_str("99.99").unwrap());
+        state.regs[5] = HpNum::from(Decimal::from_str("99.99").unwrap()).into();
         state.text_regs.insert(5, "TEXT".to_string());
         state.alpha_reg.clear();
         op_arcl(&mut state, 5).unwrap();
@@ -417,10 +417,14 @@ mod tests {
     fn test_asto_zeroes_numeric_slot_after_packing() {
         // No-drift invariant (D-23.4): after ASTO, the numeric slot is 0.
         let mut state = CalcState::new();
-        state.regs[7] = HpNum::from(Decimal::from_str("42.0").unwrap());
+        state.regs[7] = HpNum::from(Decimal::from_str("42.0").unwrap()).into();
         state.alpha_reg = "HELLO".to_string();
         op_asto(&mut state, 7).unwrap();
-        assert_eq!(state.regs[7], HpNum::zero(), "numeric slot must be zeroed");
+        assert_eq!(
+            state.regs[7],
+            crate::num::HpValue::default(),
+            "numeric slot must be zeroed"
+        );
         assert_eq!(state.text_regs.get(&7), Some(&"HELLO".to_string()));
     }
 

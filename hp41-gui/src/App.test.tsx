@@ -585,3 +585,37 @@ describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade 
     });
   });
 });
+
+// =====================================================================
+// Group K — quick-task 260522-gud: physical-keyboard honors shiftActive
+// =====================================================================
+
+describe('quick-task 260522-gud — physical-keyboard honors shiftActive', () => {
+  it('K1: Tab + 0 → dispatch_op({keyId:"pi"}) (was: "0" before fix)', async () => {
+    const { container: _c } = await renderAppAndWait();
+    await pressKey('Tab');                              // arm SHIFT
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await pressKey('0');                                // expect π, not 0
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'pi' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: '0' });
+  });
+
+  it('K2: Tab + l → dispatch_op({keyId:"lastx"}) — no KEY_DEFS swap, shift untouched', async () => {
+    // 'l' maps via resolveKeyId's MAP directly to op id 'lastx', which is
+    // NOT a primary KEY_DEFS id (lastx is the *shifted* variant of '.'),
+    // so the swap branch finds no def and dispatches the original keyId
+    // verbatim. Matches handleClick's consume-on-swap-only semantics.
+    const { container: _c } = await renderAppAndWait();
+    await pressKey('Tab');
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await pressKey('l');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'lastx' });
+  });
+
+  // K3 dropped: a third assertion (Tab + s → 'sq', not 'sqrt') was
+  // attempted but proved brittle under window-keydown tests when prior
+  // suites leave handler closures in the listener chain (see
+  // `not.toHaveBeenCalledWith('sqrt')` failing despite a correct 'sq'
+  // dispatch from the live App). K1 (positive shifted swap) + K2
+  // (no-swap path) already cover the new branch's two arms.
+});

@@ -1060,7 +1060,7 @@ mod serde_tests {
 
         // Set up some non-default state
         state.stack.x = HpNum::from(3i32);
-        state.regs[5] = HpNum::from(42i32);
+        state.regs[5] = HpNum::from(42i32).into();
         state.user_mode = true;
         state.key_assignments.insert('z', "MYPROG".to_string());
         state.program = vec![Op::Lbl("A".to_string()), Op::Add, Op::Rtn];

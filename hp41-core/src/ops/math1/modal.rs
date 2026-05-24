@@ -36,6 +36,19 @@ pub enum ModalProgram {
     Four(FourInputStep),
     /// TRANS workflow (Plan 28-10): coordinate transform setup.
     Trans(TransInputStep),
+    /// Stat 1 Pac workflows (Phase 33 — ΣNORMD / ΣCHISQD / ΣPOLYP / SEED).
+    ///
+    /// math1/ freeze exception per D-33.3b (user-confirmed 2026-05-22 during
+    /// `/gsd-plan-phase 33`): this single additive variant + three dispatch
+    /// arms is the SECOND freeze-carve-out for `math1/modal.rs`, alongside
+    /// `math1/xrom.rs` (D-33.3). Every other math1/ file remains strictly
+    /// frozen.
+    ///
+    /// The per-program step state (`Stat1Step`) lives in
+    /// `hp41-core/src/ops/stat1/modal.rs` so the math1/ delta stays to ~8
+    /// lines of pure dispatch wiring (no Stat 1 Pac semantics leak into
+    /// the frozen module).
+    Stat1(crate::ops::stat1::modal::Stat1Step),
 }
 
 impl ModalProgram {
@@ -58,6 +71,8 @@ impl ModalProgram {
             ModalProgram::Difeq(step) => step.current_prompt(),
             ModalProgram::Four(step) => step.current_prompt(),
             ModalProgram::Trans(step) => step.current_prompt(),
+            // D-33.3b: Stat 1 Pac modal prompts delegate to stat1::modal.
+            ModalProgram::Stat1(step) => crate::ops::stat1::modal::current_prompt(step),
         }
     }
 
@@ -74,12 +89,18 @@ impl ModalProgram {
     ///
     /// Phase 29 / CLI-05 additive public surface — D-29.7 / D-29.9 / D-25.6.
     pub fn requires_alpha_label(&self) -> bool {
-        matches!(
-            self,
+        // D-33.3b: ModalProgram::Stat1 delegates to stat1::modal::requires_alpha_label
+        // (currently always false; Plan 33-08 sets it true for the SeedPrompt
+        // alpha-label flow). The explicit `match self { ... }` form replaces
+        // the previous `matches!` macro because that macro does not support
+        // guard clauses that contain full call expressions for the new arm.
+        match self {
             ModalProgram::Integ(IntegInputStep::FunctionNamePrompt)
-                | ModalProgram::Solve(SolveInputStep::FunctionNamePrompt)
-                | ModalProgram::Difeq(DifeqInputStep::FunctionNamePrompt)
-        )
+            | ModalProgram::Solve(SolveInputStep::FunctionNamePrompt)
+            | ModalProgram::Difeq(DifeqInputStep::FunctionNamePrompt) => true,
+            ModalProgram::Stat1(step) => crate::ops::stat1::modal::requires_alpha_label(step),
+            _ => false,
+        }
     }
 }
 

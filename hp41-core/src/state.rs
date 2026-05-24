@@ -23,7 +23,7 @@
 //   - Phase 2 adds `features = ["maths"]` to rust_decimal for ln/exp/pow.
 //   - No f64 arithmetic on HP-41 register values anywhere in hp41-core.
 
-use crate::num::HpNum;
+use crate::num::{HpNum, HpValue};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -53,7 +53,7 @@ pub enum DisplayMode {
 pub struct CalcState {
     pub stack: Stack,
     /// Storage registers R00–R99 (0-indexed). All zero on startup.
-    pub regs: Vec<HpNum>,
+    pub regs: Vec<HpValue>,
     /// ALPHA register — up to 24 characters.
     pub alpha_reg: String,
     /// true = keyboard routes chars to alpha_reg instead of entry_buf.
@@ -156,10 +156,11 @@ pub struct CalcState {
     #[serde(default, skip)]
     pub pending_card_op: Option<crate::cardreader::CardOpRequest>,
 
-    // ── Phase 28 (v3.0): XROM framework + Math Pac I ────────────────────────
-    /// Bitfield of loaded XROM modules. Bit 0 = Math 1 loaded.
-    /// Default: 0b0000_0001 (Math 1 pre-loaded per v3.0 scope).
+    // ── Phase 28 (v3.0) + Phase 33 (v3.1): XROM framework ───────────────────
+    /// Bitfield of loaded XROM modules. Bit 0 = Math 1, bit 1 = Stat 1.
+    /// Default: 0b0000_0011 (Math 1 + Stat 1 pre-loaded per v3.1 scope, D-33.2).
     /// Persistent across save/load. `#[serde(default = "default_xrom_modules")]`.
+    /// v3.0 save files (bit 1 clear) are upgraded by `migrate_after_load()`.
     #[serde(default = "default_xrom_modules")]
     pub xrom_modules: u8,
 
@@ -168,6 +169,37 @@ pub struct CalcState {
     /// explicit `XEQ "REAL"` (D-28.3) deactivates. Safe default: false.
     #[serde(default)]
     pub complex_mode: bool,
+
+    // ── Phase 33 (v3.1): Stat 1 Pac RNG seed ────────────────────────────────
+    /// HP-41 Stat 1 Pac LCG random-number seed (community-confirmed
+    /// emulator extension per D-33.4).
+    ///
+    /// LCG formula: `r_{n+1} = FRC(9821 · r_n + 0.211327)` (NPS p. 21,
+    /// HP-65 User's Library via Don Malm, HP-41C Standard Applications p. 24).
+    /// Default initial value: HpNum::zero(); SEED writes via XROM Op::Seed.
+    ///
+    /// ⚠️ UNIQUE SERDE SHAPE — the SOLE new v3.1 `CalcState` field that
+    /// carries `#[serde(default)]` WITHOUT `#[serde(skip)]`. The seed MUST
+    /// survive save/load so program-driven SEED commands persist across
+    /// sessions and RAND determinism is preserved (STAT-RNG-03).
+    ///
+    /// Adding `#[serde(skip)]` here would silently break determinism: a
+    /// program that calls SEED 0.5 then RAND once would, on the next session
+    /// load, observe `rand_seed = 0` instead of the post-RAND value, producing
+    /// a different RAND output (P20 trap — silent drift, no error).
+    ///
+    /// Mirror pattern: `complex_mode: bool` at line above is the IDENTICAL
+    /// `#[serde(default)]` (no `skip`) shape — the ONLY existing precedent
+    /// in this struct. Every OTHER `#[serde(default)]` field in `CalcState`
+    /// (print_buffer / modal_program / modal_prompt / integ_state /
+    ///  solve_state / difeq_state / cancel_requested) ALSO carries
+    /// `#[serde(skip)]` — DO NOT mimic those for this field.
+    ///
+    /// Code review block-the-PR rule: any future edit adding `skip` to this
+    /// annotation is a STAT-RNG-03 contract violation. The
+    /// `rand_seed_serde_round_trip` test in `mod tests` is the CI guard.
+    #[serde(default)]
+    pub rand_seed: HpNum,
 
     /// Current matrix dimension (rows, cols) for MATRIX workflow (Plan 28-06).
     /// None = no matrix active. Persistent (matrix shape survives save/load).
@@ -220,13 +252,52 @@ pub struct CalcState {
     /// Transient — never persisted (`#[serde(default = "default_cancel_requested", skip)]`).
     #[serde(default = "default_cancel_requested", skip)]
     pub cancel_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+
+    /// Transient ν carrier for the ΣCHISQD two-step modal prompt
+    /// sequence (REVIEW.md WR-03 / WR-04 mitigation).
+    ///
+    /// Plan 33-03 originally stashed ν in `state.stack.t` between the
+    /// ν-prompt submit and the mode-choice submit (D-33.5 — "no new
+    /// transient `CalcState` field"). That design was unsafe: any
+    /// stack-lifting Op invoked between the two submits (most
+    /// arithmetic, push-lifts from backspace edits, XEQ calls)
+    /// silently clobbered T, leaving the mode-choice submit reading
+    /// garbage ν data. The user's original T value was also
+    /// destructively overwritten with no recovery path.
+    ///
+    /// This field is the conservative remedy: a transient
+    /// `Option<u32>` carrier set by `submit_step(ChisqdNuPrompt)` and
+    /// read + cleared by `submit_step(ChisqdModeChoice)`. The stack
+    /// is no longer used as a side-channel — `submit_step(ChisqdNu
+    /// Prompt)` now performs the standard 4-slot HP-41 stack drop
+    /// (`x ← y, y ← z, z ← t, t ← t`) preserving the user's original
+    /// T value.
+    ///
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    /// Cleared on every `op_sigma_chisqd_workflow` interactive open
+    /// AND on every `submit_step(ChisqdModeChoice)` exit (success or
+    /// error) so a stale carrier never leaks into a subsequent
+    /// ΣCHISQD cycle.
+    ///
+    /// The "no new persistent field" constraint from D-33.5 banned
+    /// PERSISTENT additions; transient `#[serde(default, skip)]`
+    /// fields are the existing pattern (see `modal_program`,
+    /// `modal_prompt`, `integ_state`, etc.) and were always permitted.
+    #[serde(default, skip)]
+    pub pending_chisqd_nu: Option<u32>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
 
-/// Default value for `xrom_modules`: bit 0 = Math 1 pre-loaded.
+/// Default value for `xrom_modules`: bit 0 = Math 1, bit 1 = Stat 1,
+/// both pre-loaded per v3.1 scope (D-33.2).
+///
+/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flips bit 1 on
+/// because Stat 1 Pac is part of the same milestone deliverable
+/// (REQUIREMENTS.md STAT-FW-02). Migration of v3.0 save files lacking
+/// bit 1 happens in `CalcState::migrate_after_load()` (D-33.7).
 fn default_xrom_modules() -> u8 {
-    0b0000_0001
+    0b0000_0011
 }
 
 /// Default value for `cancel_requested`: a new Arc<AtomicBool> initialized to false.
@@ -238,7 +309,7 @@ impl CalcState {
     pub fn new() -> Self {
         CalcState {
             stack: Stack::new(),
-            regs: vec![HpNum::zero(); 100],
+            regs: vec![HpValue::default(); 100],
             alpha_reg: String::new(),
             alpha_mode: false,
             angle_mode: AngleMode::Deg,
@@ -265,6 +336,8 @@ impl CalcState {
             // Phase 28 (v3.0) fields
             xrom_modules: default_xrom_modules(),
             complex_mode: false,
+            // Phase 33 (v3.1): Stat 1 Pac RNG seed (D-33.4 emulator extension)
+            rand_seed: HpNum::zero(),
             matrix_dim: None,
             matrix_active_reg: None,
             modal_program: None,
@@ -273,6 +346,9 @@ impl CalcState {
             solve_state: None,
             difeq_state: None,
             cancel_requested: default_cancel_requested(),
+            // Phase 33 (v3.1) review-fix: transient ΣCHISQD ν carrier
+            // (REVIEW.md WR-03/WR-04 — replaces the stack-T side channel).
+            pending_chisqd_nu: None,
         }
     }
 }
@@ -280,6 +356,38 @@ impl CalcState {
 impl Default for CalcState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Phase 33 (v3.1): post-deserialization migration helpers ─────────────────
+
+impl CalcState {
+    /// Apply post-deserialization migrations to a freshly-loaded `CalcState`.
+    ///
+    /// Called once after every `serde_json::from_str::<CalcState>(...)` by the
+    /// two persistence wiring sites (single source of truth per D-33.7):
+    ///
+    /// - `hp41-cli/src/persistence.rs::load_state` — Phase 34 wiring
+    /// - `hp41-gui/src-tauri/src/persistence.rs` — Phase 36 wiring
+    ///
+    /// Idempotent — safe to call multiple times on already-migrated state
+    /// (the bitwise OR is a no-op when bit 1 is already set).
+    ///
+    /// ## v3.0 → v3.1 migration: Stat 1 XROM bit
+    ///
+    /// v3.0 save files persist `"xrom_modules": 1` (bit 0 = Math 1 only).
+    /// Without this migration, v3.0 users opening a v3.1 binary would see
+    /// Stat 1 silently disabled — `XEQ "ΣNORMD"` would return InvalidOp.
+    /// The migration unconditionally sets bit 1 so Stat 1 is loaded for
+    /// every save file (P24 trap mitigation).
+    ///
+    /// Re-save happens on the next 30 s auto-save tick or exit-save; no
+    /// explicit re-save call from this method (D-33.7).
+    pub fn migrate_after_load(&mut self) {
+        // v3.0 → v3.1: ensure STAT_1 bit (bit 1) is set.
+        if self.xrom_modules & 0b0000_0010 == 0 {
+            self.xrom_modules |= 0b0000_0010;
+        }
     }
 }
 
@@ -329,13 +437,15 @@ mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
 
-    // Catches: default initializer regression for Phase 28 fields
+    // Catches: default initializer regression for Phase 28 + Phase 33 fields.
+    // Phase 33 (v3.1) flipped the default from `0b0000_0001` to `0b0000_0011`
+    // (D-33.2 / STAT-FW-02): both Math 1 (bit 0) and Stat 1 (bit 1) pre-loaded.
     #[test]
     fn default_construction_phase28_fields() {
         let state = CalcState::default();
         assert_eq!(
-            state.xrom_modules, 0b0000_0001,
-            "Math 1 must be pre-loaded by default"
+            state.xrom_modules, 0b0000_0011,
+            "Math 1 + Stat 1 must be pre-loaded by default (v3.1 scope)"
         );
         assert!(!state.complex_mode, "complex_mode must default to false");
         assert_eq!(state.matrix_dim, None, "matrix_dim must default to None");
@@ -471,10 +581,12 @@ mod tests {
 
         let state: CalcState = serde_json::from_str(v22_json).unwrap();
 
-        // Phase 28 fields must default cleanly
+        // Phase 28 + Phase 33 fields must default cleanly.
+        // Note: v3.1 flipped default_xrom_modules() to 0b0000_0011 (D-33.2);
+        // a v2.2 save lacking the field therefore loads with both bits set.
         assert_eq!(
-            state.xrom_modules, 0b0000_0001,
-            "v2.2 save must get default xrom_modules"
+            state.xrom_modules, 0b0000_0011,
+            "v2.2 save must get v3.1 default xrom_modules = 0b0000_0011"
         );
         assert!(
             !state.complex_mode,
@@ -500,6 +612,131 @@ mod tests {
         assert!(
             state.cancel_requested.load(Ordering::Relaxed),
             "cancel_requested must be a real Arc<AtomicBool> (not a copy)"
+        );
+    }
+
+    // ── Phase 33 (v3.1): default flip + migration + rand_seed serde ─────────
+
+    // Catches: default_xrom_modules() regression — must be 0b0000_0011 (D-33.2).
+    #[test]
+    fn xrom_modules_default_is_three() {
+        let state = CalcState::new();
+        assert_eq!(
+            state.xrom_modules, 0b0000_0011,
+            "default_xrom_modules() must return 0b0000_0011 in v3.1 (Math 1 + Stat 1 pre-loaded per D-33.2)"
+        );
+    }
+
+    // Catches: P24 trap — v3.0 save files load with bit 1 clear; migrate_after_load
+    // must unconditionally upgrade them so Stat 1 functionality is reachable.
+    #[test]
+    fn v3_0_save_loads_with_stat_1_after_migration() {
+        // Synthetic v3.0 save: contains xrom_modules: 1 (the v3.0 default) plus
+        // all other v3.0 fields. Mirrors the v22 blob shape from
+        // `loads_synthetic_v22_save_without_v3_fields` extended with v3.0 keys.
+        let v30_json = r#"{
+            "stack": {"x": "0", "y": "0", "z": "0", "t": "0", "lastx": "0", "lift_enabled": false},
+            "regs": ["0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0"],
+            "alpha_reg": "",
+            "alpha_mode": false,
+            "angle_mode": "Deg",
+            "display_mode": {"Fix": 4},
+            "entry_buf": "",
+            "program": [],
+            "prgm_mode": false,
+            "pc": 0,
+            "call_stack": [],
+            "is_running": false,
+            "user_mode": false,
+            "key_assignments": {},
+            "assignments": {},
+            "text_regs": {},
+            "last_key_code": 0,
+            "reg_m": "0",
+            "reg_n": "0",
+            "reg_o": "0",
+            "flags": 0,
+            "pending_card_op": null,
+            "xrom_modules": 1,
+            "complex_mode": false,
+            "matrix_dim": null,
+            "matrix_active_reg": null
+        }"#;
+
+        let mut state: CalcState = serde_json::from_str(v30_json).unwrap();
+        // Pre-migration: a v3.0 save preserved its bit-0-only value.
+        assert_eq!(
+            state.xrom_modules, 0b0000_0001,
+            "v3.0 save with explicit xrom_modules:1 must deserialize as 0b0000_0001 BEFORE migration"
+        );
+
+        state.migrate_after_load();
+
+        // Post-migration: bit 1 is now set (Stat 1 reachable).
+        assert_eq!(
+            state.xrom_modules, 0b0000_0011,
+            "migrate_after_load() must set bit 1 on a v3.0 save (P24 trap mitigation)"
+        );
+    }
+
+    // Catches: migrate_after_load not being idempotent — repeated calls must
+    // not corrupt already-migrated state (CLI/GUI both call it on every load,
+    // and a re-saved v3.1 file gets migrated again on the next session).
+    #[test]
+    fn migrate_after_load_idempotent() {
+        let mut state = CalcState::new();
+        assert_eq!(
+            state.xrom_modules, 0b0000_0011,
+            "fresh CalcState::new() already has bit 1 set (v3.1 default)"
+        );
+
+        state.migrate_after_load();
+        assert_eq!(
+            state.xrom_modules, 0b0000_0011,
+            "first migrate_after_load() on already-migrated state must be a no-op"
+        );
+
+        state.migrate_after_load();
+        assert_eq!(
+            state.xrom_modules, 0b0000_0011,
+            "repeated migrate_after_load() must remain idempotent (no bit drift)"
+        );
+    }
+
+    // Catches: P20 trap — `rand_seed` carries the UNIQUE serde shape
+    // (`#[serde(default)]` WITHOUT `skip`). If anyone accidentally adds
+    // `skip`, this round-trip test fails and the PR is blocked. The test
+    // proves the seed survives serialize → deserialize unchanged so
+    // STAT-RNG-03 determinism holds across save/load.
+    #[test]
+    fn rand_seed_serde_round_trip() {
+        use rust_decimal::Decimal;
+        use std::str::FromStr;
+
+        let mut state = CalcState::new();
+        let seed_value = HpNum::from(Decimal::from_str("0.7").unwrap());
+        state.rand_seed = seed_value.clone();
+
+        let json = serde_json::to_string(&state).unwrap();
+        // The field MUST appear in the serialized output (proves NOT skipped).
+        assert!(
+            json.contains("rand_seed"),
+            "rand_seed must be serialized (no #[serde(skip)] — STAT-RNG-03 contract)"
+        );
+
+        let restored: CalcState = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            restored.rand_seed, seed_value,
+            "rand_seed must round-trip through serde unchanged (P20 trap mitigation)"
         );
     }
 }

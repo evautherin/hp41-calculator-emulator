@@ -30,7 +30,21 @@ hp41-calculator-emulator/
 │   │       ├── print.rs           ← op_prx, op_pra, op_prstk (buffer-only, NO println!)
 │   │       ├── stats.rs           ← Σ+/Σ−, Mean, Sdev, L.R., Yhat, Corr, ClSigmaStat
 │   │       ├── hms.rs             ← HmsToH, HToHms, HmsAdd, HmsSub
-│   │       └── cardreader_ops.rs  ← op_wdta / op_rdta / op_wprgm / op_rdprgm (stage requests)
+│   │       ├── cardreader_ops.rs  ← op_wdta / op_rdta / op_wprgm / op_rdprgm (stage requests)
+│   │       ├── math1/             ← Math Pac I (XROM 7), frozen since Plan 25-01
+│   │       └── stat1/             ← Stat 1 Pac (XROM 2), v3.1 addition
+│   │           ├── mod.rs         ← OM register layout constants (~30 named consts)
+│   │           ├── distributions.rs ← 3 hand-coded f64-bridge primitives (~140 LOC)
+│   │           ├── modal.rs       ← Stat1Step enum + dispatch
+│   │           ├── normd.rs       ← ΣNORMD (normal distribution)
+│   │           ├── chisqd.rs      ← ΣCHISQD (chi-squared distribution)
+│   │           ├── basic_stats.rs ← ΣMEAN, ΣSDEV, etc.
+│   │           ├── moments.rs     ← ΣMOMENTS (skewness, kurtosis)
+│   │           ├── anova.rs       ← ΣANOVA (analysis of variance)
+│   │           ├── regression.rs  ← ΣMLRXY, ΣPOLYP (regression)
+│   │           ├── hypothesis.rs  ← ΣTSTAT (hypothesis testing)
+│   │           ├── nonparam.rs    ← ΣCTKKK (contingency table)
+│   │           └── random.rs      ← RAND, SEED (LCG RNG)
 │   └── tests/                     ← stack_tests, ops_tests, print_tests, synthetic_tests,
 │                                    cardreader_tests, entry_buf_tests, numerical_accuracy
 │
@@ -76,7 +90,7 @@ hp41-calculator-emulator/
 
 Rather than duplicating the struct here (and rotting), read the source. The fields fall into five groups:
 
-1. **Stack & data registers** — `stack: Stack`, `regs: Vec<HpNum>` (100 entries, R00–R99), `alpha_reg: String` (24-char ALPHA), `entry_buf: String` (in-progress digit/EEX entry).
+1. **Stack & data registers** — `stack: Stack`, `regs: Vec<HpValue>` (100 entries, R00–R99), `alpha_reg: String` (24-char ALPHA), `entry_buf: String` (in-progress digit/EEX entry). Stack fields remain `HpNum`; registers use `HpValue` (see [HpValue tagged union](#hpvalue-tagged-union) below).
 2. **Mode state** — `angle_mode: AngleMode` (Deg/Rad/Grad), `display_mode: DisplayMode` (Fix/Sci/Eng with `u8` digit count), and three independent booleans `alpha_mode`, `prgm_mode`, `user_mode` (there is no enum-based `Mode`).
 3. **Program memory & execution** — `program: Vec<Op>`, `pc: usize`, `call_stack: Vec<usize>` (max 4 deep), `is_running: bool` (re-entrancy guard).
 4. **USER mode** — `key_assignments: BTreeMap<char, String>` (BTreeMap for deterministic JSON ordering).
@@ -85,6 +99,9 @@ Rather than duplicating the struct here (and rotting), read the source. The fiel
    - `last_key_code: u8` with `#[serde(default)]` (consumed by `Op::GetKey`).
    - `reg_m`, `reg_n`, `reg_o: HpNum` with `#[serde(default)]` (hidden synthetic registers).
 6. **Card Reader staging slot** — `pending_card_op: Option<CardOpRequest>` with `#[serde(default, skip)]` (transient I/O request, drained by the frontend; see [Card Reader I/O](#card-reader-io)).
+7. **v3.1 additions** —
+   - `rand_seed: HpNum` with `#[serde(default)]` WITHOUT `#[serde(skip)]` — the only v3.1 field that persists across save/load. All other v3.1 transient fields follow the standard `skip` pattern. The LCG seed is user-visible state (SEED is a deliberate save-point for reproducible random sequences per STAT-RNG-03). Per [ADR-v3.1-001](adr/v3.1-001-rng-state-placement.md).
+   - `xrom_modules` upgraded from `0b0000_0001` (Math Pac I only) to `0b0000_0011` (Math Pac I + Stat 1 Pac). `migrate_after_load()` auto-upgrades v3.0 save files.
 
 **HP-41 flags (0–55) are not implemented** in v1.0/v1.1/v2.0 — there is no `flags` field on `CalcState` and no `Op::Sf` / `Op::Cf` / `Op::FsTest` variants. This is a documented v2.x+ gap; programs that rely on flags do not run.
 
@@ -170,6 +187,64 @@ Each `Op` variant also declares its `LiftEffect` (Enable / Disable / Neutral) in
 - **Display rounding:** 10 significant decimal digits (matches hardware)
 - **Trig results:** computed via f64 (`sin`, `cos`, etc.), then converted back to `Decimal` and rounded to 10 sig-figs
 - **ISG/DSE counters:** fields extracted by splitting the decimal string representation — never with `floor()` / `fmod()` on f64
+
+---
+
+## HpValue Tagged Union
+
+`hp41-core/src/num.rs` defines a tagged union that separates numeric and ALPHA register values:
+
+```rust
+pub enum HpValue {
+    Numeric(HpNum),
+    Alpha([u8; 6]),
+}
+```
+
+`CalcState.regs` changed from `Vec<HpNum>` to `Vec<HpValue>` in v3.1. Stack fields (`stack.x`, `stack.y`, etc.) remain `HpNum` — the tagged union applies only to data registers R00–R99.
+
+**Backward compatibility:** `HpValue` carries `#[serde(untagged)]` so the on-disk JSON representation is indistinguishable from the old `HpNum` for numeric values. v1.0–v3.0 save files (which contain only numeric register values) load unchanged.
+
+**Delegation methods:**
+
+| Method | Signature | Behavior |
+|--------|-----------|----------|
+| `numeric_or_zero()` | `fn numeric_or_zero(&self) -> HpNum` | Returns the numeric value, or `HpNum::ZERO` for ALPHA registers |
+| `as_numeric()` | `fn as_numeric(&self) -> Option<HpNum>` | Returns `Some(n)` for numeric, `None` for ALPHA |
+| `is_alpha()` | `fn is_alpha(&self) -> bool` | Returns `true` for `HpValue::Alpha(_)` |
+
+The `HpValue` type was introduced to support Stat 1 Pac operations that write ALPHA-tagged results into data registers (e.g. ANOVA group labels). Operations that expect numeric register values use `numeric_or_zero()` — the zero-fallback matches HP-41 hardware behavior when an ALPHA register is read numerically.
+
+---
+
+## Stat 1 Pac Module Tree (`stat1/`)
+
+`hp41-core/src/ops/stat1/` is the Stat 1 Pac (XROM ID 2) implementation tree, a sibling to `math1/` (XROM ID 7). It contains 13 top-level programs with 26 XEQ-by-name entry points across seven families:
+
+| Family | Files | Entry points |
+|--------|-------|-------------|
+| Univariate | `basic_stats.rs`, `moments.rs` | ΣMEAN, ΣSDEV, ΣMOMENTS, etc. |
+| ANOVA | `anova.rs` | ΣANOVA |
+| Regression | `regression.rs` | ΣMLRXY, ΣPOLYP |
+| Hypothesis | `hypothesis.rs` | ΣTSTAT |
+| Nonparametric | `nonparam.rs` | ΣCTKKK |
+| Distributions | `normd.rs`, `chisqd.rs`, `distributions.rs` | ΣNORMD, ΣCHISQD |
+| RNG | `random.rs` | RAND, SEED |
+
+**Key design elements:**
+
+- **Register layout constants** (`mod.rs`): ~30 named consts (`STAT1_AOV_GROUP_COUNT_REG`, `STAT1_MLRXY_OBSERVATION_BASE_REG`, `STAT1_CTKKK_DIM_REG`, etc.) transcribed from HP OM 00041-90030 "Storage Registers". Every register access goes through named consts — P21 (silent wrong-answer trap) mitigated.
+- **Distribution primitives** (`distributions.rs`): three hand-coded f64-bridge functions (~140 LOC total) — `norm_cdf_inv_f64` (Acklam/Wichura AS 241), `gamma_regularized_f64` (Cody AS 239), `beta_regularized_f64` (Lentz AS 63). The `statrs` runtime dep was rejected per [ADR-v3.1-002](adr/v3.1-002-distribution-primitives-policy.md) — zero new runtime deps.
+- **Modal dispatch** (`modal.rs`): `Stat1Step` enum with 5 variants; lives OUTSIDE the `math1/` freeze boundary per [ADR-v3.1-004](adr/v3.1-004-math1-freeze-second-carve-out.md). The `math1/modal.rs` file gains only an ~8-line `ModalProgram::Stat1(_) => ...` dispatch arm.
+- **Free42 disclaim**: every file in `stat1/` carries the verbatim disclaim header per Pitfall 19.
+
+---
+
+## Free42 Contamination Guard
+
+CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` + a dedicated `.github/workflows/ci.yml::license-audit` parallel job. The script greps `hp41-core/src/ops/math1/` and `hp41-core/src/ops/stat1/` for distinctive Free42 / Intel BID / decNumber / GPL/AGPL identifiers.
+
+**Token count:** extended from 12 (v3.0) to 18 (v3.1) to cover stat1-domain identifiers. The additional 6 tokens were added in Phase 33 Plan 33-00 BEFORE any distribution code was written (per Pitfall 27 — the guard must precede the code it protects). Bare `Free42` is excluded from the pattern because legitimate cross-check references exist in ADRs and divergence catalogs.
 
 ---
 
@@ -271,7 +346,7 @@ pub struct StateFile {
 
 Saved as human-readable JSON at `~/.hp41/autosave.json`.
 
-**Forward/backward compatibility:** Every field added since v1.0 carries `#[serde(default)]`. v1.x save files load unchanged in v1.1 / v2.0 — missing fields default to their zero value. Save files written by v2.0 also load in v1.0 because the new fields are simply ignored.
+**Forward/backward compatibility:** Every field added since v1.0 carries `#[serde(default)]`. v1.x save files load unchanged in v1.1 / v2.0 — missing fields default to their zero value. Save files written by v2.0 also load in v1.0 because the new fields are simply ignored. One exception: `rand_seed: HpNum` carries `#[serde(default)]` WITHOUT `#[serde(skip)]` — the seed must survive save/load for reproducible RNG sequences (per ADR-v3.1-001). Additionally, `migrate_after_load()` auto-upgrades v3.0 save files whose `xrom_modules` field is `1` (Math Pac I only) to `0b11` (Math Pac I + Stat 1 Pac).
 
 **Shared between CLI and GUI:** Both binaries resolve to the **same** path via the `dirs` crate. A state saved in the CLI appears in the GUI on next launch and vice versa. Both binaries auto-save every 30 s; the GUI runs its auto-save on a dedicated thread and releases the `AppState` Mutex before disk I/O. Both distinguish "file exists but unreadable" (warn) from "file missing" (silent first-run case).
 

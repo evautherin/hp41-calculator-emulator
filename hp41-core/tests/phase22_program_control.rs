@@ -223,7 +223,7 @@ fn test_pse_display_override_cleared_by_next_dispatch() {
 fn test_gto_ind_happy() {
     // R05 = 42 (integer pointer); program has LBL "42" target.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(42i32);
+    state.regs[5] = HpNum::from(42i32).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::GtoInd(5),
@@ -244,7 +244,7 @@ fn test_gto_ind_happy() {
 #[test]
 fn test_gto_ind_non_integer_rejects() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.345").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.345").unwrap()).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::GtoInd(5),
@@ -277,7 +277,7 @@ fn test_gto_ind_reg_out_of_range_rejects() {
 #[test]
 fn test_xeq_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::from(10i32);
+    state.regs[3] = HpNum::from(10i32).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::XeqInd(3),
@@ -304,7 +304,7 @@ fn test_xeq_ind_4_deep_call_stack_rejects() {
     // Drive via resume_program (NOT run_program) so the pre-set call_stack
     // is NOT cleared at entry — run_program would wipe it (line 162).
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::from(10i32);
+    state.regs[3] = HpNum::from(10i32).into();
     state.program = vec![Op::XeqInd(3), Op::Lbl("10".to_string())];
     state.pc = 0;
     state.call_stack = vec![999usize; 4]; // pre-fill to 4 frames
@@ -339,7 +339,7 @@ fn test_xeq_ind_reg_out_of_range_rejects() {
 #[test]
 fn test_xeq_ind_non_integer_rejects() {
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::rounded(Decimal::from_str("10.5").unwrap());
+    state.regs[3] = HpNum::rounded(Decimal::from_str("10.5").unwrap()).into();
     state.program = vec![Op::Lbl("A".to_string()), Op::XeqInd(3)];
 
     let result = run_program(&mut state, "A");
@@ -364,7 +364,7 @@ fn phase24_gto_ind_uses_shared_helper() {
     // crate::ops::indirect::resolve_indirect_decimal to find_in_program.
     // Identical inputs/outputs to test_gto_ind_happy.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(42i32);
+    state.regs[5] = HpNum::from(42i32).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::GtoInd(5),
@@ -386,7 +386,7 @@ fn phase24_gto_ind_uses_shared_helper() {
 fn phase24_xeq_ind_uses_shared_helper() {
     // Sanity for XeqInd refactor — same flow as test_xeq_ind_happy.
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::from(10i32);
+    state.regs[3] = HpNum::from(10i32).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::XeqInd(3),
@@ -416,7 +416,7 @@ fn phase24_xeq_ind_call_depth_guard_runs_before_pointer_read() {
     // read. If a future planner accidentally moves the call_stack.len() >= 4
     // check below the pointer read, this test catches it.
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::rounded(Decimal::from_str("12.345").unwrap());
+    state.regs[3] = HpNum::rounded(Decimal::from_str("12.345").unwrap()).into();
     state.program = vec![Op::XeqInd(3), Op::Lbl("12".to_string())];
     state.pc = 0;
     state.call_stack = vec![999usize; 4]; // pre-fill to 4 frames
@@ -444,7 +444,7 @@ fn phase24_gto_ind_negative_pointer_stringifies_with_sign() {
     // "non-integer pointer". This confirms Decimal::to_string preserves the
     // sign exactly as Phase 22 did pre-refactor.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(-3i32);
+    state.regs[5] = HpNum::from(-3i32).into();
     state.program = vec![Op::Lbl("A".to_string()), Op::GtoInd(5)]; // no LBL "-3"
 
     let result = run_program(&mut state, "A");

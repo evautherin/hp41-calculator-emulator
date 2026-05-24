@@ -42,7 +42,7 @@ pub(crate) fn resolve_indirect_decimal(state: &CalcState, reg: u8) -> Result<Dec
         .regs
         .get(reg as usize)
         .ok_or(HpError::InvalidOp)?
-        .clone();
+        .numeric_or_zero();
     let int_part = pointer.trunc_int();
     if int_part != pointer {
         return Err(HpError::InvalidOp);
@@ -175,14 +175,14 @@ mod tests {
     #[test]
     fn resolve_indirect_happy_integer_pointer() {
         let mut state = CalcState::new();
-        state.regs[5] = HpNum::from(42i32);
+        state.regs[5] = HpNum::from(42i32).into();
         assert_eq!(resolve_indirect(&state, 5).unwrap(), 42u8);
     }
 
     #[test]
     fn resolve_indirect_non_integer_rejects() {
         let mut state = CalcState::new();
-        state.regs[5] = HpNum::rounded(Decimal::from_str("12.345").unwrap());
+        state.regs[5] = HpNum::rounded(Decimal::from_str("12.345").unwrap()).into();
         assert!(matches!(
             resolve_indirect(&state, 5),
             Err(HpError::InvalidOp)
@@ -203,7 +203,7 @@ mod tests {
     fn resolve_indirect_pointer_exceeds_u8_range_rejects() {
         let mut state = CalcState::new();
         // 300 fits in i64 but not u8 -- must reject via try_from path.
-        state.regs[5] = HpNum::from(300i32);
+        state.regs[5] = HpNum::from(300i32).into();
         assert!(matches!(
             resolve_indirect(&state, 5),
             Err(HpError::InvalidOp)
@@ -215,7 +215,7 @@ mod tests {
         let mut state = CalcState::new();
         // 2^64 is well outside i64::MAX -- must reject via to_i64 path
         // (the OTHER ?-arm in resolve_indirect, branch coverage).
-        state.regs[5] = HpNum::rounded(Decimal::from_str("18446744073709551616").unwrap());
+        state.regs[5] = HpNum::rounded(Decimal::from_str("18446744073709551616").unwrap()).into();
         assert!(matches!(
             resolve_indirect(&state, 5),
             Err(HpError::InvalidOp)
@@ -226,7 +226,7 @@ mod tests {
     fn resolve_indirect_negative_integer_pointer_rejects_via_u8() {
         let mut state = CalcState::new();
         // -3 is an integer (passes the inner helper) but doesn't fit in u8.
-        state.regs[5] = HpNum::from(-3i32);
+        state.regs[5] = HpNum::from(-3i32).into();
         assert!(matches!(
             resolve_indirect(&state, 5),
             Err(HpError::InvalidOp)
@@ -238,7 +238,7 @@ mod tests {
         // Inner helper returns the Decimal as-is; sign preservation is
         // observable to the GtoInd / XeqInd refactor sites.
         let mut state = CalcState::new();
-        state.regs[5] = HpNum::from(-3i32);
+        state.regs[5] = HpNum::from(-3i32).into();
         let d = resolve_indirect_decimal(&state, 5).unwrap();
         assert_eq!(d.to_string(), "-3");
     }

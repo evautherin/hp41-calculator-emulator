@@ -26,17 +26,17 @@ fn mat_setup(state: &mut CalcState, n: u8, elements: &[f64]) {
     assert_eq!(elements.len(), (n as usize) * (n as usize));
     state.matrix_dim = Some((n, n));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(n as i32);
+    state.regs[14] = HpNum::from(n as i32).into();
     let required = 15 + (n as usize) * (n as usize) + n as usize + 1;
     if state.regs.len() < required {
-        state.regs.resize(required, HpNum::zero());
+        state.regs.resize(required, hp41_core::HpValue::default());
     }
     for c in 0..(n as usize) {
         for r in 0..(n as usize) {
             let idx = 15 + c * n as usize + r;
             let v = elements[r * n as usize + c];
             let d = Decimal::from_f64(v).expect("finite f64");
-            state.regs[idx] = HpNum::rounded(d);
+            state.regs[idx] = HpNum::rounded(d).into();
         }
     }
 }
@@ -106,7 +106,7 @@ fn matrix_workflow_does_not_write_print_buffer() {
 #[test]
 fn mat_size_dispatch_succeeds_with_r14_set() {
     let mut state = CalcState::new();
-    state.regs[14] = HpNum::from(3i32);
+    state.regs[14] = HpNum::from(3i32).into();
     assert!(dispatch(&mut state, Op::MatSize).is_ok());
 }
 
@@ -114,7 +114,7 @@ fn mat_size_dispatch_succeeds_with_r14_set() {
 #[test]
 fn mat_size_returns_order_from_r14() {
     let mut state = CalcState::new();
-    state.regs[14] = HpNum::from(5i32);
+    state.regs[14] = HpNum::from(5i32).into();
     dispatch(&mut state, Op::MatSize).unwrap();
     // LINT-EXEMPT: integer-equality via HpNum::from(<i32>) is exact (no f64
     // bridge, no FPU rounding) — cross-platform-safe per Pitfall 14 / 17.
@@ -125,7 +125,7 @@ fn mat_size_returns_order_from_r14() {
 #[test]
 fn mat_size_enables_lift() {
     let mut state = CalcState::new();
-    state.regs[14] = HpNum::from(2i32);
+    state.regs[14] = HpNum::from(2i32).into();
     state.stack.lift_enabled = false;
     dispatch(&mut state, Op::MatSize).unwrap();
     assert!(
@@ -138,7 +138,7 @@ fn mat_size_enables_lift() {
 #[test]
 fn mat_size_updates_lastx() {
     let mut state = CalcState::new();
-    state.regs[14] = HpNum::from(4i32);
+    state.regs[14] = HpNum::from(4i32).into();
     state.stack.x = HpNum::from(99i32);
     dispatch(&mut state, Op::MatSize).unwrap();
     // LINT-EXEMPT: integer-equality via HpNum::from(99i32) is exact (Decimal from
@@ -154,7 +154,7 @@ fn mat_size_updates_lastx() {
 #[test]
 fn mat_size_returns_zero_when_r14_is_zero() {
     let mut state = CalcState::new();
-    state.regs[14] = HpNum::zero();
+    state.regs[14] = HpNum::zero().into();
     dispatch(&mut state, Op::MatSize).unwrap();
     // LINT-EXEMPT: integer-equality via HpNum::zero() is exact (0 is an integer
     // sentinel with no FPU rounding) — cross-platform-safe per Pitfall 17.
@@ -413,8 +413,8 @@ fn mat_inv_well_conditioned_no_error() {
 fn mat_simeq_dispatch_succeeds() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(1i32);
-    state.regs[20] = HpNum::from(2i32);
+    state.regs[19] = HpNum::from(1i32).into();
+    state.regs[20] = HpNum::from(2i32).into();
     assert!(dispatch(&mut state, Op::MatSimeq).is_ok());
 }
 
@@ -424,8 +424,8 @@ fn mat_simeq_solves_identity_system() {
     let mut state = CalcState::new();
     // I·[x,y] = [7,3] → x=7, y=3
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(7i32);
-    state.regs[20] = HpNum::from(3i32);
+    state.regs[19] = HpNum::from(7i32).into();
+    state.regs[20] = HpNum::from(3i32).into();
     dispatch(&mut state, Op::MatSimeq).unwrap();
     let x_sol = state.regs[19].inner().to_f64().unwrap();
     let y_sol = state.regs[20].inner().to_f64().unwrap();
@@ -438,8 +438,8 @@ fn mat_simeq_solves_identity_system() {
 fn mat_simeq_sets_flag_5_on_success() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(1i32);
-    state.regs[20] = HpNum::from(1i32);
+    state.regs[19] = HpNum::from(1i32).into();
+    state.regs[20] = HpNum::from(1i32).into();
     dispatch(&mut state, Op::MatSimeq).unwrap();
     assert!(
         hp41_core::ops::flags::flag_get(state.flags, 5),
@@ -452,8 +452,8 @@ fn mat_simeq_sets_flag_5_on_success() {
 fn mat_simeq_singular_no_solution() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 2.0, 2.0, 4.0]);
-    state.regs[19] = HpNum::from(1i32);
-    state.regs[20] = HpNum::from(2i32);
+    state.regs[19] = HpNum::from(1i32).into();
+    state.regs[20] = HpNum::from(2i32).into();
     dispatch(&mut state, Op::MatSimeq).unwrap();
     assert_eq!(state.modal_prompt, Some("NO SOLUTION".to_string()));
 }
@@ -463,8 +463,8 @@ fn mat_simeq_singular_no_solution() {
 fn mat_simeq_is_neutral_lift() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(1i32);
-    state.regs[20] = HpNum::from(1i32);
+    state.regs[19] = HpNum::from(1i32).into();
+    state.regs[20] = HpNum::from(1i32).into();
     state.stack.lift_enabled = false;
     dispatch(&mut state, Op::MatSimeq).unwrap();
     assert!(
@@ -488,8 +488,8 @@ fn mat_vcol_dispatch_succeeds() {
 fn mat_vcol_writes_to_print_buffer() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(42i32);
-    state.regs[20] = HpNum::from(7i32);
+    state.regs[19] = HpNum::from(42i32).into();
+    state.regs[20] = HpNum::from(7i32).into();
     dispatch(&mut state, Op::MatVcol).unwrap();
     assert_eq!(
         state.print_buffer.len(),
@@ -503,8 +503,8 @@ fn mat_vcol_writes_to_print_buffer() {
 fn mat_vcol_lines_start_with_b_prefix() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(1i32);
-    state.regs[20] = HpNum::from(2i32);
+    state.regs[19] = HpNum::from(1i32).into();
+    state.regs[20] = HpNum::from(2i32).into();
     dispatch(&mut state, Op::MatVcol).unwrap();
     assert!(
         state.print_buffer[0].starts_with("B1="),
@@ -521,8 +521,8 @@ fn mat_vcol_lines_start_with_b_prefix() {
 fn mat_vcol_is_neutral_lift() {
     let mut state = CalcState::new();
     mat_setup(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
-    state.regs[19] = HpNum::from(1i32);
-    state.regs[20] = HpNum::from(2i32);
+    state.regs[19] = HpNum::from(1i32).into();
+    state.regs[20] = HpNum::from(2i32).into();
     state.stack.lift_enabled = false;
     dispatch(&mut state, Op::MatVcol).unwrap();
     assert!(

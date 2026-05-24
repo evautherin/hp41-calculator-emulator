@@ -269,6 +269,25 @@ export function Keyboard({
       <rect width={KEYBOARD_W} height={KEYBOARD_H} fill="url(#body-grad)" rx={10} />
       <rect width={KEYBOARD_W} height={14} fill="url(#bevel-hi)" rx={10} opacity={0.4} />
 
+      {/* HP-41 gold trim — thin frame around the MAIN KEYBOARD GRID only.
+          The ON / USER / PRGM / ALPHA top-row band sits ABOVE the frame
+          (faithful to the physical unit, where the brass surround starts
+          below the top-row keys). Top edge is centered in the gap between
+          the top-row band and the main grid; left / right / bottom are
+          inset by 1.25 so the 1.5-wide stroke sits fully inside the viewBox
+          (SVG strokes are centered on the path; without the inset the outer
+          half would be clipped at the viewBox edges). */}
+      <rect
+        x={1.25}
+        y={PAD + TOP_ROW_H + TOP_GAP / 2}
+        width={KEYBOARD_W - 2.5}
+        height={KEYBOARD_H - PAD - TOP_ROW_H - TOP_GAP / 2 - 1.25}
+        fill="none"
+        stroke="#c8b878"
+        strokeWidth={1.5}
+        rx={8.75}
+      />
+
       {KEY_DEFS.map(key => {
         const { x, y, w, h } = keyPosition(key);
         const isPressed = pressedKey === key.id && Boolean(key.id);

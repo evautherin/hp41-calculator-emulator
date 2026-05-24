@@ -165,18 +165,18 @@ pub fn do_trans2d_forward(state: &mut CalcState) -> Result<(), HpError> {
     let x0 = state
         .regs
         .first()
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let y0 = state
         .regs
         .get(1)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     // θ stored as raw value in current angle_mode
     let theta_raw = state
         .regs
         .get(2)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta = to_radians(theta_raw, state.angle_mode);
 
@@ -213,17 +213,17 @@ pub fn do_trans2d_inverse(state: &mut CalcState) -> Result<(), HpError> {
     let x0 = state
         .regs
         .first()
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let y0 = state
         .regs
         .get(1)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta_raw = state
         .regs
         .get(2)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta = to_radians(theta_raw, state.angle_mode);
 
@@ -267,37 +267,37 @@ pub fn do_trans3d_forward(state: &mut CalcState) -> Result<(), HpError> {
     let x0 = state
         .regs
         .first()
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let y0 = state
         .regs
         .get(1)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let z0 = state
         .regs
         .get(2)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let axis_a = state
         .regs
         .get(3)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let axis_b = state
         .regs
         .get(4)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let axis_c = state
         .regs
         .get(5)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta_raw = state
         .regs
         .get(6)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta = to_radians(theta_raw, state.angle_mode);
 
@@ -326,37 +326,37 @@ pub fn do_trans3d_inverse(state: &mut CalcState) -> Result<(), HpError> {
     let x0 = state
         .regs
         .first()
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let y0 = state
         .regs
         .get(1)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let z0 = state
         .regs
         .get(2)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let axis_a = state
         .regs
         .get(3)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let axis_b = state
         .regs
         .get(4)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let axis_c = state
         .regs
         .get(5)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta_raw = state
         .regs
         .get(6)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let theta = to_radians(theta_raw, state.angle_mode);
 
@@ -405,9 +405,11 @@ pub fn op_trans3d(state: &mut CalcState) -> Result<(), HpError> {
 /// Layout: R00=x₀, R01=y₀, R02=θ_raw (in user angle_mode units).
 pub fn store_trans2d_params(state: &mut CalcState, x0: f64, y0: f64, theta_raw: f64) {
     if state.regs.len() > 2 {
-        state.regs[0] = f64_to_hpnum(x0).unwrap_or_else(|_| HpNum::zero());
-        state.regs[1] = f64_to_hpnum(y0).unwrap_or_else(|_| HpNum::zero());
-        state.regs[2] = f64_to_hpnum(theta_raw).unwrap_or_else(|_| HpNum::zero());
+        state.regs[0] = f64_to_hpnum(x0).unwrap_or_else(|_| HpNum::zero()).into();
+        state.regs[1] = f64_to_hpnum(y0).unwrap_or_else(|_| HpNum::zero()).into();
+        state.regs[2] = f64_to_hpnum(theta_raw)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
     }
 }
 
@@ -421,13 +423,27 @@ pub fn store_trans3d_params(
     theta_raw: f64,
 ) {
     if state.regs.len() > 6 {
-        state.regs[0] = f64_to_hpnum(origin.0).unwrap_or_else(|_| HpNum::zero());
-        state.regs[1] = f64_to_hpnum(origin.1).unwrap_or_else(|_| HpNum::zero());
-        state.regs[2] = f64_to_hpnum(origin.2).unwrap_or_else(|_| HpNum::zero());
-        state.regs[3] = f64_to_hpnum(axis.0).unwrap_or_else(|_| HpNum::zero());
-        state.regs[4] = f64_to_hpnum(axis.1).unwrap_or_else(|_| HpNum::zero());
-        state.regs[5] = f64_to_hpnum(axis.2).unwrap_or_else(|_| HpNum::zero());
-        state.regs[6] = f64_to_hpnum(theta_raw).unwrap_or_else(|_| HpNum::zero());
+        state.regs[0] = f64_to_hpnum(origin.0)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[1] = f64_to_hpnum(origin.1)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[2] = f64_to_hpnum(origin.2)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[3] = f64_to_hpnum(axis.0)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[4] = f64_to_hpnum(axis.1)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[5] = f64_to_hpnum(axis.2)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[6] = f64_to_hpnum(theta_raw)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
     }
 }
 
@@ -487,9 +503,9 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
             let y0 = state.stack.y.inner().to_f64().unwrap_or(0.0);
             let x0 = state.stack.z.inner().to_f64().unwrap_or(0.0);
             if state.regs.len() > 2 {
-                state.regs[0] = f64_to_hpnum(x0).unwrap_or_else(|_| HpNum::zero());
-                state.regs[1] = f64_to_hpnum(y0).unwrap_or_else(|_| HpNum::zero());
-                state.regs[2] = f64_to_hpnum(z0).unwrap_or_else(|_| HpNum::zero());
+                state.regs[0] = f64_to_hpnum(x0).unwrap_or_else(|_| HpNum::zero()).into();
+                state.regs[1] = f64_to_hpnum(y0).unwrap_or_else(|_| HpNum::zero()).into();
+                state.regs[2] = f64_to_hpnum(z0).unwrap_or_else(|_| HpNum::zero()).into();
             }
             state.modal_program = Some(ModalProgram::Trans(TransInputStep::Init3dAxisPrompt));
             state.modal_prompt = Some("AXIS+\u{03B8}?".to_string());
@@ -506,10 +522,12 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
             let c = state.stack.y.inner().to_f64().unwrap_or(0.0);
             let b = state.stack.z.inner().to_f64().unwrap_or(0.0);
             let a = state.stack.t.inner().to_f64().unwrap_or(0.0);
-            state.regs[3] = f64_to_hpnum(a).unwrap_or_else(|_| HpNum::zero());
-            state.regs[4] = f64_to_hpnum(b).unwrap_or_else(|_| HpNum::zero());
-            state.regs[5] = f64_to_hpnum(c).unwrap_or_else(|_| HpNum::zero());
-            state.regs[6] = f64_to_hpnum(theta_raw).unwrap_or_else(|_| HpNum::zero());
+            state.regs[3] = f64_to_hpnum(a).unwrap_or_else(|_| HpNum::zero()).into();
+            state.regs[4] = f64_to_hpnum(b).unwrap_or_else(|_| HpNum::zero()).into();
+            state.regs[5] = f64_to_hpnum(c).unwrap_or_else(|_| HpNum::zero()).into();
+            state.regs[6] = f64_to_hpnum(theta_raw)
+                .unwrap_or_else(|_| HpNum::zero())
+                .into();
             state.modal_program = Some(ModalProgram::Trans(TransInputStep::ForwardPrompt));
             state.modal_prompt = Some("FWD?".to_string());
             Ok(())
@@ -526,11 +544,14 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
                 .regs
                 .get(6)
                 .map(|r| {
-                    r.inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON
+                    r.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON
                         || state
                             .regs
                             .get(3)
-                            .map(|r3| r3.inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON)
+                            .map(|r3| {
+                                r3.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs()
+                                    > f64::EPSILON
+                            })
                             .unwrap_or(false)
                 })
                 .unwrap_or(false);
@@ -550,11 +571,14 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
                 .regs
                 .get(6)
                 .map(|r| {
-                    r.inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON
+                    r.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON
                         || state
                             .regs
                             .get(3)
-                            .map(|r3| r3.inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON)
+                            .map(|r3| {
+                                r3.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs()
+                                    > f64::EPSILON
+                            })
                             .unwrap_or(false)
                 })
                 .unwrap_or(false);
@@ -875,7 +899,7 @@ mod tests {
         let mut state = CalcState::new();
         state.angle_mode = AngleMode::Deg;
         store_trans3d_params(&mut state, (1.0, 2.0, 3.0), (4.0, 5.0, 6.0), 45.0);
-        let r = |i: usize| state.regs[i].inner().to_f64().unwrap();
+        let r = |i: usize| state.regs[i].numeric_or_zero().inner().to_f64().unwrap();
         // Origin in R00/R01/R02
         assert!(approx_eq(r(0), 1.0, 1e-10), "R00=x₀=1");
         assert!(approx_eq(r(1), 2.0, 1e-10), "R01=y₀=2");

@@ -12,13 +12,20 @@
 //   - Math 1 Pac section contains per-category 2nd-level headers (D-31.9)
 //   - Clicking section heading toggles aria-expanded
 //   - helpEntriesMath1() + helpEntriesAll() accessor tests
+//
+// Phase 36 Plan 36-03 additions:
+//   - Third section "Stat 1 Pac (XROM 2)" — STAT-GUI-03 / STAT-GUI-04
+//   - helpEntriesStat1() drift-catch + xrom-field assertions
+//   - helpEntriesAll() updated from 2-pool to 3-pool length assertion
+//   - sectionButtons.length updated from 2 to 3
 
 import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { HelpOverlay } from './HelpOverlay';
-import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll } from './help_data';
+import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1 } from './help_data';
 import sourceJson from '../../docs/hp41cv-functions.json';
 import math1Json from '../../docs/hp41-math1-functions.json';
+import stat1Json from '../../docs/hp41-stat1-functions.json';
 
 describe('help_data', () => {
     it('helpEntries returns all entries from docs/hp41cv-functions.json (drift-catch)', () => {
@@ -44,16 +51,39 @@ describe('help_data', () => {
         }
     });
 
-    it('helpEntriesAll returns concatenation of built-in + Math 1 entries', () => {
+    it('helpEntriesAll returns concatenation of built-in + Math 1 + Stat 1 entries', () => {
         const all = helpEntriesAll();
-        expect(all.length).toBe(helpEntries().length + helpEntriesMath1().length);
-        // Built-in entries appear first, Math 1 entries appear after.
+        expect(all.length).toBe(helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length);
+        // Built-in entries appear first (no xrom), Math 1 entries after (xrom.module === 'Math 1'),
+        // Stat 1 entries last (xrom.module === 'Stat 1').
         const hp41cvCount = helpEntries().length;
+        const math1Count = helpEntriesMath1().length;
         for (let i = 0; i < hp41cvCount; i++) {
-            expect(all[i].xrom).toBeUndefined();
+            expect(all[i].xrom, `built-in entry at index ${i} should have no xrom`).toBeUndefined();
         }
-        for (let i = hp41cvCount; i < all.length; i++) {
-            expect(all[i].xrom).toBeTruthy();
+        for (let i = hp41cvCount; i < hp41cvCount + math1Count; i++) {
+            expect(all[i].xrom, `Math 1 entry at index ${i} should have xrom`).toBeTruthy();
+            expect(all[i].xrom!.module, `Math 1 entry at index ${i} should have module === 'Math 1'`).toBe('Math 1');
+        }
+        for (let i = hp41cvCount + math1Count; i < all.length; i++) {
+            expect(all[i].xrom, `Stat 1 entry at index ${i} should have xrom`).toBeTruthy();
+            expect(all[i].xrom!.module, `Stat 1 entry at index ${i} should have module === 'Stat 1'`).toBe('Stat 1');
+        }
+    });
+
+    // Phase 36 Plan 36-03: Stat 1 Pac data-layer drift-catch tests (STAT-GUI-04)
+    it('helpEntriesStat1 returns all entries from docs/hp41-stat1-functions.json (drift-catch)', () => {
+        const allStat1Source = stat1Json as unknown[];
+        expect(helpEntriesStat1().length).toBe(allStat1Source.length);
+        // Sanity floor: the Stat 1 Pac JSON has 26 entries (Phase 33-34 scope).
+        expect(helpEntriesStat1().length).toBeGreaterThanOrEqual(26);
+    });
+
+    it('helpEntriesStat1 entries all have xrom field with module "Stat 1"', () => {
+        for (const entry of helpEntriesStat1()) {
+            expect(entry.xrom, `entry ${entry.op_variant} should have xrom field`).toBeTruthy();
+            expect(entry.xrom!.module).toBe('Stat 1');
+            expect(entry.xrom!.module_id).toBe(2);
         }
     });
 
@@ -223,8 +253,8 @@ describe('HelpOverlay', () => {
         const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
         // Find the Math 1 Pac section heading button.
         const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
-        // There should be exactly 2 section heading buttons.
-        expect(sectionButtons.length).toBe(2);
+        // There should be exactly 3 section heading buttons (updated from 2 in Phase 36 Plan 36-03).
+        expect(sectionButtons.length).toBe(3);
 
         const math1Button = Array.from(sectionButtons).find(b =>
             b.textContent?.includes('Math 1 Pac')
@@ -241,5 +271,66 @@ describe('HelpOverlay', () => {
         // After second click, expanded again.
         fireEvent.click(math1Button!);
         expect(math1Button!.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    // Phase 36 Plan 36-03: Stat 1 Pac section tests (STAT-GUI-03)
+
+    it('renders three top-level sections including Stat 1 Pac (XROM 2)', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
+        const buttonTexts = Array.from(sectionButtons).map(b => b.textContent ?? '');
+        expect(buttonTexts.some(t => t.includes('HP-41CV (built-in)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Math 1 Pac (XROM 7)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Stat 1 Pac (XROM 2)'))).toBe(true);
+    });
+
+    it('Stat 1 Pac section contains a Stat 1 category heading (D-34.1)', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const headings = container.querySelectorAll('.help-overlay-category-heading');
+        const headingTexts = Array.from(headings).map(h => h.textContent ?? '');
+        // At least one heading should contain a known Stat 1 category substring.
+        const hasStat1Category =
+            headingTexts.some(t => t.toLowerCase().includes('univariate')) ||
+            headingTexts.some(t => t.toLowerCase().includes('distributions')) ||
+            headingTexts.some(t => t.toLowerCase().includes('anova'));
+        expect(
+            hasStat1Category,
+            `Expected a Stat 1 category heading (univariate/distributions/anova); found: ${headingTexts.join(', ')}`
+        ).toBe(true);
+    });
+
+    it('clicking Stat 1 Pac section heading toggles aria-expanded (D-31.8)', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
+
+        const stat1Button = Array.from(sectionButtons).find(b =>
+            b.textContent?.includes('Stat 1 Pac')
+        ) as HTMLButtonElement | undefined;
+        expect(stat1Button, 'Stat 1 Pac section heading button must exist').toBeTruthy();
+
+        // Initially expanded (aria-expanded = "true").
+        expect(stat1Button!.getAttribute('aria-expanded')).toBe('true');
+
+        // After click, collapsed (aria-expanded = "false").
+        fireEvent.click(stat1Button!);
+        expect(stat1Button!.getAttribute('aria-expanded')).toBe('false');
+
+        // After second click, expanded again.
+        fireEvent.click(stat1Button!);
+        expect(stat1Button!.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('search for "NORMD" returns Stat 1 entries', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const searchInput = container.querySelector('.help-overlay-search') as HTMLInputElement;
+        expect(searchInput).not.toBeNull();
+        fireEvent.change(searchInput, { target: { value: 'NORMD' } });
+        const rows = container.querySelectorAll('.help-overlay-row');
+        expect(rows.length).toBeGreaterThan(0);
+        const rowTexts = Array.from(rows).map(r => r.textContent ?? '');
+        expect(
+            rowTexts.some(t => t.includes('NORMD')),
+            `Expected at least one row containing 'NORMD'; found rows: ${rowTexts.slice(0, 5).join(' | ')}`
+        ).toBe(true);
     });
 });

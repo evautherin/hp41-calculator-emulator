@@ -124,7 +124,11 @@ pub fn op_roots(state: &mut CalcState) -> Result<(), HpError> {
     // Build coefficient slice (A=R00 is the leading coefficient x^degree term)
     let mut coeffs: Vec<f64> = Vec::with_capacity(degree + 1);
     for i in 0..=(degree) {
-        let reg_val = state.regs[i].inner().to_f64().unwrap_or(0.0);
+        let reg_val = state.regs[i]
+            .numeric_or_zero()
+            .inner()
+            .to_f64()
+            .unwrap_or(0.0);
         coeffs.push(reg_val);
     }
 
@@ -209,7 +213,11 @@ fn infer_degree(state: &CalcState) -> Result<usize, HpError> {
     // We check from R05 down to find the highest non-zero coefficient.
     // The degree is the index of the highest non-zero register.
     for i in (0..=5usize).rev() {
-        let val = state.regs[i].inner().to_f64().unwrap_or(0.0);
+        let val = state.regs[i]
+            .numeric_or_zero()
+            .inner()
+            .to_f64()
+            .unwrap_or(0.0);
         if val.abs() > 1e-300 {
             return Ok(i);
         }
@@ -474,7 +482,7 @@ pub fn submit_step(state: &mut CalcState, step: PolyInputStep) -> Result<(), HpE
             if state.regs.len() < 7 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[6] = HpNum::from(degree as i32);
+            state.regs[6] = HpNum::from(degree as i32).into();
             // Advance to first coefficient prompt: CoefficientPrompt(degree, 0) = "A=?"
             state.modal_program = Some(ModalProgram::Poly(PolyInputStep::CoefficientPrompt(
                 degree, 0,
@@ -487,7 +495,7 @@ pub fn submit_step(state: &mut CalcState, step: PolyInputStep) -> Result<(), HpE
             if idx as usize >= state.regs.len() {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[idx as usize] = state.stack.x.clone();
+            state.regs[idx as usize] = state.stack.x.clone().into();
             // Advance to next coefficient or Ready
             let next_idx = idx + 1;
             if next_idx <= degree {
@@ -515,7 +523,7 @@ pub fn submit_step(state: &mut CalcState, step: PolyInputStep) -> Result<(), HpE
                 // R00..R{degree}, so R{degree+1}..R5 must be zeroed.
                 for i in (degree as usize + 1)..=5 {
                     if i < state.regs.len() {
-                        state.regs[i] = crate::num::HpNum::zero();
+                        state.regs[i] = crate::num::HpValue::default();
                     }
                 }
                 state.modal_program = Some(ModalProgram::Poly(PolyInputStep::Ready));
@@ -542,7 +550,7 @@ mod tests {
 
     fn set_reg(state: &mut CalcState, idx: usize, val: f64) {
         let d = Decimal::from_f64(val).unwrap_or(Decimal::ZERO);
-        state.regs[idx] = HpNum::rounded(d);
+        state.regs[idx] = HpNum::rounded(d).into();
     }
 
     #[allow(dead_code)]

@@ -189,7 +189,7 @@ pub fn store_dft_to_registers(state: &mut CalcState, pairs: &[(HpNum, HpNum)], n
     // R00 = a₀ (DC)
     if let Some((a0, _)) = pairs.first() {
         if !state.regs.is_empty() {
-            state.regs[0] = a0.clone();
+            state.regs[0] = a0.clone().into();
         }
     }
     // R{2n-1} = aₙ, R{2n} = bₙ for n = 1..L
@@ -197,15 +197,15 @@ pub fn store_dft_to_registers(state: &mut CalcState, pairs: &[(HpNum, HpNum)], n
         let idx_a = 2 * n - 1;
         let idx_b = 2 * n;
         if idx_b < SCRATCH_RANGE.end && idx_b < state.regs.len() {
-            state.regs[idx_a] = an.clone();
-            state.regs[idx_b] = bn.clone();
+            state.regs[idx_a] = an.clone().into();
+            state.regs[idx_b] = bn.clone().into();
         }
     }
     // R23 = N, R24 = L
     let l = pairs.len().saturating_sub(1);
     if state.regs.len() > 24 {
-        state.regs[23] = HpNum::rounded(Decimal::from(n_samples as u64));
-        state.regs[24] = HpNum::rounded(Decimal::from(l as u64));
+        state.regs[23] = HpNum::rounded(Decimal::from(n_samples as u64)).into();
+        state.regs[24] = HpNum::rounded(Decimal::from(l as u64)).into();
     }
 }
 
@@ -267,12 +267,12 @@ pub fn op_four_eval_at_t(state: &CalcState, t: HpNum, period: HpNum) -> Result<H
     let n_from_reg = state
         .regs
         .get(23)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let l_from_reg = state
         .regs
         .get(24)
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
 
     // Determine period T: use provided period if positive, else fall back to N from R23.
@@ -293,7 +293,7 @@ pub fn op_four_eval_at_t(state: &CalcState, t: HpNum, period: HpNum) -> Result<H
     let a0 = state
         .regs
         .first()
-        .map(|v| v.inner().to_f64().unwrap_or(0.0))
+        .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
         .unwrap_or(0.0);
     let mut sum = a0 / 2.0;
 
@@ -304,12 +304,12 @@ pub fn op_four_eval_at_t(state: &CalcState, t: HpNum, period: HpNum) -> Result<H
         let an = state
             .regs
             .get(idx_a)
-            .map(|v| v.inner().to_f64().unwrap_or(0.0))
+            .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
             .unwrap_or(0.0);
         let bn = state
             .regs
             .get(idx_b)
-            .map(|v| v.inner().to_f64().unwrap_or(0.0))
+            .map(|v| v.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
             .unwrap_or(0.0);
         let angle = two_pi_over_t * (n as f64) * t_val;
         sum += an * angle.cos() + bn * angle.sin();
@@ -348,7 +348,7 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
             if state.regs.len() < 25 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[23] = HpNum::from(n as i32);
+            state.regs[23] = HpNum::from(n as i32).into();
             state.modal_program = Some(ModalProgram::Four(FourInputStep::NumFreqPrompt));
             state.modal_prompt = Some("NO. FREQ=?".to_string());
             Ok(())
@@ -364,7 +364,7 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
             if state.regs.len() < 26 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[24] = HpNum::from(l as i32);
+            state.regs[24] = HpNum::from(l as i32).into();
             state.modal_program = Some(ModalProgram::Four(FourInputStep::FirstCoeffPrompt));
             state.modal_prompt = Some("1ST COEFF=?".to_string());
             Ok(())
@@ -374,7 +374,7 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
             if state.regs.len() < 27 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[25] = HpNum::from(start_idx as i32);
+            state.regs[25] = HpNum::from(start_idx as i32).into();
             state.modal_program = Some(ModalProgram::Four(FourInputStep::RectTogglePrompt));
             state.modal_prompt = Some("RECT?".to_string());
             Ok(())
@@ -385,7 +385,7 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
             if state.regs.len() < 27 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[26] = state.stack.x.clone();
+            state.regs[26] = state.stack.x.clone().into();
             // Advance to first sample collection
             state.modal_program = Some(ModalProgram::Four(FourInputStep::SamplePrompt(0)));
             state.modal_prompt = Some("Y1=?".to_string());
@@ -394,7 +394,11 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
         FourInputStep::SamplePrompt(idx) => {
             // Number of samples N is stored in R23.
             let n = if state.regs.len() > 23 {
-                state.regs[23].inner().to_u8().unwrap_or(1)
+                state.regs[23]
+                    .numeric_or_zero()
+                    .inner()
+                    .to_u8()
+                    .unwrap_or(1)
             } else {
                 1
             };
@@ -407,7 +411,7 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
             if target >= state.regs.len() {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[target] = state.stack.x.clone();
+            state.regs[target] = state.stack.x.clone().into();
             let next_idx = idx + 1;
             if next_idx < n {
                 state.modal_program =
@@ -572,16 +576,16 @@ mod tests {
         let pairs = compute_dft(&samples, 2).unwrap();
         store_dft_to_registers(&mut state, &pairs, 4);
         // R00 = a₀ = 4.0 (constant 2 → a₀ = (2/4)·4·2 = 4.0)
-        let r00 = state.regs[0].inner().to_f64().unwrap();
+        let r00 = state.regs[0].numeric_or_zero().inner().to_f64().unwrap();
         assert!((r00 - 4.0).abs() < TOLERANCE, "R00 = a₀ ≈ 4.0, got {r00}");
         // R23 = N = 4
-        let r23 = state.regs[23].inner().to_f64().unwrap();
+        let r23 = state.regs[23].numeric_or_zero().inner().to_f64().unwrap();
         assert!((r23 - 4.0).abs() < TOLERANCE, "R23 = N = 4, got {r23}");
         // R24 = L = 2
-        let r24 = state.regs[24].inner().to_f64().unwrap();
+        let r24 = state.regs[24].numeric_or_zero().inner().to_f64().unwrap();
         assert!((r24 - 2.0).abs() < TOLERANCE, "R24 = L = 2, got {r24}");
         // R01 = a₁ ≈ 0 (constant signal has no harmonics)
-        let r01 = state.regs[1].inner().to_f64().unwrap();
+        let r01 = state.regs[1].numeric_or_zero().inner().to_f64().unwrap();
         assert!(
             r01.abs() < TOLERANCE,
             "R01 = a₁ ≈ 0 for constant signal, got {r01}"
@@ -595,13 +599,13 @@ mod tests {
     fn user_mode_eval_at_t_zero() {
         let mut state = CalcState::new();
         // a₀ = 0
-        state.regs[0] = HpNum::zero();
+        state.regs[0] = HpNum::zero().into();
         // a₁ = 1, b₁ = 0 (pure cosine at frequency 1)
-        state.regs[1] = HpNum::rounded(Decimal::from(1));
-        state.regs[2] = HpNum::zero();
+        state.regs[1] = HpNum::rounded(Decimal::from(1)).into();
+        state.regs[2] = HpNum::zero().into();
         // N = 8, L = 1
-        state.regs[23] = HpNum::rounded(Decimal::from(8));
-        state.regs[24] = HpNum::rounded(Decimal::from(1));
+        state.regs[23] = HpNum::rounded(Decimal::from(8)).into();
+        state.regs[24] = HpNum::rounded(Decimal::from(1)).into();
 
         let t = HpNum::zero(); // t = 0
         let period = HpNum::zero(); // use N from R23
@@ -618,11 +622,11 @@ mod tests {
     #[test]
     fn user_mode_eval_at_t_quarter() {
         let mut state = CalcState::new();
-        state.regs[0] = HpNum::zero();
-        state.regs[1] = HpNum::rounded(Decimal::from(1));
-        state.regs[2] = HpNum::zero();
-        state.regs[23] = HpNum::rounded(Decimal::from(8));
-        state.regs[24] = HpNum::rounded(Decimal::from(1));
+        state.regs[0] = HpNum::zero().into();
+        state.regs[1] = HpNum::rounded(Decimal::from(1)).into();
+        state.regs[2] = HpNum::zero().into();
+        state.regs[23] = HpNum::rounded(Decimal::from(8)).into();
+        state.regs[24] = HpNum::rounded(Decimal::from(1)).into();
 
         let t = HpNum::rounded(Decimal::from(2)); // t = 2 (quarter period)
         let period = HpNum::zero();
@@ -639,11 +643,11 @@ mod tests {
     #[test]
     fn user_mode_eval_at_t_half() {
         let mut state = CalcState::new();
-        state.regs[0] = HpNum::zero();
-        state.regs[1] = HpNum::rounded(Decimal::from(1));
-        state.regs[2] = HpNum::zero();
-        state.regs[23] = HpNum::rounded(Decimal::from(8));
-        state.regs[24] = HpNum::rounded(Decimal::from(1));
+        state.regs[0] = HpNum::zero().into();
+        state.regs[1] = HpNum::rounded(Decimal::from(1)).into();
+        state.regs[2] = HpNum::zero().into();
+        state.regs[23] = HpNum::rounded(Decimal::from(8)).into();
+        state.regs[24] = HpNum::rounded(Decimal::from(1)).into();
 
         let t = HpNum::rounded(Decimal::from(4)); // t = 4 (half period)
         let period = HpNum::zero();
@@ -660,9 +664,9 @@ mod tests {
     #[test]
     fn user_mode_eval_dc_only() {
         let mut state = CalcState::new();
-        state.regs[0] = HpNum::rounded(Decimal::from(4));
-        state.regs[23] = HpNum::rounded(Decimal::from(8));
-        state.regs[24] = HpNum::zero(); // L = 0 (only DC)
+        state.regs[0] = HpNum::rounded(Decimal::from(4)).into();
+        state.regs[23] = HpNum::rounded(Decimal::from(8)).into();
+        state.regs[24] = HpNum::zero().into(); // L = 0 (only DC)
 
         let t = HpNum::rounded(Decimal::from(3));
         let period = HpNum::zero();
@@ -679,10 +683,10 @@ mod tests {
     #[test]
     fn user_mode_eval_explicit_period() {
         let mut state = CalcState::new();
-        state.regs[0] = HpNum::zero();
-        state.regs[1] = HpNum::rounded(Decimal::from(1));
-        state.regs[2] = HpNum::zero();
-        state.regs[24] = HpNum::rounded(Decimal::from(1)); // L = 1
+        state.regs[0] = HpNum::zero().into();
+        state.regs[1] = HpNum::rounded(Decimal::from(1)).into();
+        state.regs[2] = HpNum::zero().into();
+        state.regs[24] = HpNum::rounded(Decimal::from(1)).into(); // L = 1
 
         let t = HpNum::rounded(Decimal::from(1));
         let period = HpNum::rounded(Decimal::from(4)); // explicit period = 4

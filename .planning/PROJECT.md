@@ -1,8 +1,30 @@
 # HP-41 Calculator Emulator
 
-## Current Milestone: v3.0 Math 1 Pac Emulation
+## Current State
 
-**Status:** planning (started 2026-05-16)
+**Last shipped:** v3.1 Stat 1 Pac Emulation — tag `v3.1` cut 2026-05-24.
+
+**Status:** Between milestones. Next: `/gsd-new-milestone` to define v3.2 scope.
+
+## Next Milestone Goals
+
+Run `/gsd-new-milestone` to define v3.2 scope. Candidate areas:
+
+- **Time Pac** (HP-41CX clock functions, XROM TBD)
+- **Advanced Matrix Pac** (M+, MAT*, INV-as-transpose, V+, VDOT, IDN)
+- **Signed binary releases** (cargo-dist CLI + tauri-action GUI — deferred since v3.1)
+
+<details>
+<summary>v3.1 Stat 1 Pac Emulation (shipped 2026-05-24 — see <code>milestones/v3.1-ROADMAP.md</code>)</summary>
+
+**Goal:** Behavioral emulation of the HP-41C Stat 1 Pac (HP 00041-14001, OM 00041-90030) as the second XROM application module — 13 programs / 26 XEQ entry points across univariate / ANOVA / regression / hypothesis / nonparametric / distribution / RNG families.
+
+**Delivered:** 5 phases (33–37), 23 plans, 66 requirements, 26 new Op variants, 3 hand-coded distribution primitives, RAND/SEED bonus utility, full CLI + GUI integration, 791-case numerical accuracy at 98.86%.
+
+</details>
+
+<details>
+<summary>v3.0 milestone scope (shipped — see <code>milestones/v3.0-ROADMAP.md</code>)</summary>
 
 **Goal:** Behavioral Emulation des HP-41C **Math Pac I** (HP-Teilenummer 00041-90034, Owner's Manual 1979) als erstes XROM-Modul — 10 prompt-getriebene Workflow-Programme mit ~55 XEQ-by-Name Entry Points, nutzbar in CLI + GUI über eine neue Modal-Workflow-Schicht hinaus dem v2.x-Built-in-Pattern, ohne HP-copyrighted ROM-Image-Redistribution.
 
@@ -29,6 +51,8 @@
 
 **Build sequence:** core (XROM-Framework + Math-1-Ops) → cli (Tastenbelegung + Modal-Erweiterungen) → docs (Function-Matrix v3.0) → gui (key_map + KEY_DEFS + Modal-Routing) → tests (Coverage + Accuracy-Cases).
 
+</details>
+
 ---
 
 ## Project History
@@ -45,6 +69,10 @@
   - Phase 30 Documentation & ADRs (2026-05-17) — `docs/` + tooling only; 3 plans; matrix-renderer two-input extension; 3 new ADRs; divergence catalog expansion; v3.0 narrative across README/PROJECT.md/CLAUDE.md
   - Phase 31 GUI Integration (2026-05-18) — `hp41-gui` only; 5 plans; CATALOG 2 XROM enumeration + Math Pac I help overlay + LCD-alternation modal prompts + R/S 3-way + Esc cascade + request_cancel channel
   - Phase 32 Test Hardening & Quality Gates (2026-05-18) — `tests/` + `scripts/` + `.github/` + `justfile` only; 10 plans (3 original + 7 gap-closure); meta-gate graduation (`math1_op_test_count` + `xrom_shadowing` actively cross-check 45 Op variants × 14 test files + 52 MATH_1.ops × 18-entry allowlist); `lint_math1_assertions.rs` Pitfall 14 + 17 discipline; `numerical_accuracy.rs` 566 → 763 cases (99.3 % pass); E2E smoke extended (`sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu); `scripts/check-free42-contamination.sh` D-32.7 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job (D-32.8). Gap-closure run (Plans 32-04..32-10) added ~70 error-branch tests across 9 new files, closing the coverage gate from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions; README v3.0 line graduated to the OM-cited hard claim per D-32.5.
+- v3.1 Stat 1 Pac Emulation (2026-05-24) — Phases 33–37, 23 plans; second XROM application module (13 programs, 26 XEQ entry points, RAND/SEED extension, distribution primitives, ANOVA family, multiple + polynomial regression, hypothesis tests); 95.84 % region coverage; 98.86 % numerical accuracy (791 cases); tag `v3.1`
+  - Phase 33 hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops (2026-05-22) — `hp41-core` only; 9 plans; 39 STAT-* requirements; ~26 new Op variants; 3 hand-coded distribution primitives (Acklam/AS 241 + Cody AS 239 + Lentz AS 63); 5 architectural locks captured as ADR-v3.1-001..005; `xrom_modules` default updated 0b01 → 0b11 with `migrate_after_load()` for v3.0 save-file forward-compat; 95.39 % line / 94.26 % region coverage preserved; Free42 contamination guard extended 12 → 18 tokens covering both `math1/` and `stat1/` trees.
+  - Phase 34 hp41-cli — CLI Integration (2026-05-23) — `hp41-cli` only; 2 plans; 5 STAT-CLI requirements; 26 new `op_display_name` arms (4-way invariant item 3 complete); third `OnceLock<Vec<HelpEntry>>` in `help_data.rs` for `docs/hp41-stat1-functions.json` (26 entries, 7-category convention per D-34.1); 3-pool JSON parity test cross-checks Op ↔ JSON across cv + math1 + stat1; `?` overlay "Stat 1 Pac (XROM 2)" section parallel-loads alongside Math 1 Pac; modal-prompt routing reuses v3.0 infrastructure with no new transient CalcState fields beyond `rand_seed`; `xrom_shadowing.rs` extended to `STAT_1.ops` (Pitfall 22 verified across both XROM modules).
+  - Phase 35 Documentation & ADRs (2026-05-23) — `docs/` + `.planning/` + repo-root markdown only; 4 plans; 6 STAT-DOC requirements; `scripts/docs-matrix` three-input extension (4-line basename dispatch; binary signature 1-in/1-out preserved per D-30.1 carry-forward); `docs/hp41-stat1-function-matrix.md` regenerated (26 entries); `docs/hp41-stat1-divergences.md` three-bucket catalog with 12 D-35-NN entries (6 oracle-drift bucket-3 reconciliations cross-referencing `33-SPEC-AMENDMENT.md` + 2 emulator extensions + 4 additional behavioral policies); `33-SPEC-AMENDMENT.md` history-preserving SPEC supplement (6-row drift reconciliation table); 5 new ADRs (v3.1-001..005, long-form per D-30.6); README v3.1 soft-claim per D-35.3; CLAUDE.md FIRST-EVER `### v3.x additions` block (v3.1 only, no v3.0 back-fill per D-35.5) + math1/ freeze carve-out amendment gated by ADR-v3.1-004; `docs/architecture-history.md` v3.1 narrative parallel to v3.0; `.planning/MILESTONES.md` v3.1 stub.
 
 ## What This Is
 
@@ -166,9 +194,34 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ FN-QUAL-05: WebdriverIO + tauri-driver E2E smoke on Ubuntu (`e2e-linux` job in `ci-gui.yml`) — v2.2 Phase 27
 - ✓ D-27.14: Vitest CI-gated in `just gui-ci` (142/142 tests) — v2.2 Phase 27
 
-### Active (v3.0 — Math 1 Pac Emulation)
+### Validated (v3.0 — Math Pac I Emulation, shipped 2026-05-20)
 
-*Stand 2026-05-20: v3.0 fully shipped (Phases 28–32, 33/33 plans + 6 post-graduation polish commits ship-ready on `develop`). Test/CI infrastructure plus README hard-claim graduation closed via post-Phase-32 gap-closure run (Plans 32-04..32-10). Final coverage: 95.39 % lines / 94.26 % regions on `hp41-core`; all `ops/math1/*.rs` files ≥ 90 % per ROADMAP SC-1. README v3.0 line graduated to OM-cited "feature-complete per Owner's Manual 00041-90034" per D-32.5. Post-graduation polish batch (quick-task pattern à la v2.1): MSRV-CI fix (`uninlined_format_args` on 5 sites), E2E SINH+MATRIX assertion path correction, right-panel XROM-exclusion filter (Phase 29 SC-4 superseded), `?` overlay Clear-widget z-order fix, and `?` overlay incremental substring search (mirroring hp41-gui's HelpOverlay.tsx). Scope remains Math 1 Pac only (XROM-Framework + Matrix/Komplex/Polynom/Integration/Solver/Vektor). Stat 1 → v3.1.*
+- ✓ **XROM-01..09**: XROM framework + `XromModule` registry + `MATH_1` const + `xrom_resolve` (fires LAST in resolver chain per Pitfall 1); 6 new `CalcState` fields with `#[serde(default)]` / `#[serde(skip)]`; user-callback strict-reject policy per ADR-002 — v3.0 Phase 28
+- ✓ **HYP-01..06**: Hyperbolics (`Sinh`, `Cosh`, `Tanh`, `Asinh`, `Acosh`, `Atanh`) with domain-error returns — v3.0 Phase 28
+- ✓ **CMPLX-01..17 + CMPLX-18 (derived D-28.3 `XEQ "REAL"`)**: complex stack overlay on X/Y/Z/T, `C+/C-/C×/C÷`, 13 complex functions, branch-cut handling, `complex_atan2(0,0)→0` first arm, zero-divisor branch before division — v3.0 Phase 28
+- ✓ **POLY-01..07**: POLY/ROOTS workflow with `DEGREE=?` modal, complex root-pair output `U=u / V=v / U=u / -V=-v`, multiplicity-as-cluster (documented in divergences), `|imag|>10⁹` non-convergence → `DATA ERROR` — v3.0 Phase 28
+- ✓ **MAT-01..11**: MATRIX workflow with `ORDER=?` modal, Gauss-Jordan inverse, OM-transcribed EPSILON, order in R14, column-major elements from R15, max ORDER=14, `NO SOLUTION` on singular — v3.0 Phase 28
+- ✓ **INTG-01..08 / SOLV-01..08 / DIFEQ-01..05**: user-callback infrastructure via `run_loop` re-entrancy (NOT `run_program`), 4-deep `call_stack` cap, subdivision cap 2¹⁵, convergence threshold = `10^(-decimals - 1)`; strict-reject nested per XROM-08 — v3.0 Phase 28
+- ✓ **FOUR-01..06 / TRI-01..05 / TRANS-01..05**: DFT with rect/polar toggle, 5 triangle solvers (Law of Sines/Cosines + ambiguous SSA), 2D/3D coordinate transformations with Rodrigues rotation — v3.0 Phase 28
+- ✓ **CLI-01..05**: `xeq_by_name_local_resolve` → `xrom_resolve`; second `OnceLock<Vec<HelpEntry>>` from `docs/hp41-math1-functions.json` (DOC-01 absorbed per D-29.1); ~40 new `op_display_name` arms; modal-prompt routing through `print_buffer` — v3.0 Phase 29
+- ✓ **DOC-01..07**: `scripts/docs-matrix` two-input extension, `docs/hp41-math1-function-matrix.md` regenerated, three-bucket divergence catalog, 3 new ADRs (v3.0-001/002/005), README soft-claim, CLAUDE.md `### v3.0 additions` block — v3.0 Phases 29 + 30
+- ✓ **GUI-01..07**: GUI parity through shared `xrom_resolve` (no duplicate resolver), CATALOG 2 XROM enumeration, Math Pac I help overlay parallel-load, LCD-alternation modal prompts, `request_cancel` cancellation channel (`Arc<AtomicBool>` + per-64-samples lock release, Pitfall 11 mitigation), stub-error arm preserved for future XROM modules — v3.0 Phase 31
+- ✓ **QUAL-01..08**: `hp41-core` 95.39 % lines / 94.26 % regions; `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass (v1.x 503-case floor 498 preserved); E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu; `scripts/check-free42-contamination.sh` 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job; per-Op test count ≥ 5 (Pitfall 16); `xrom_shadowing.rs` Pitfall 1 CI gate; `math1_user_callback.rs` 5 re-entrancy regression tests — v3.0 Phase 32
+- ✓ **D-32.5 README v3.0 hard-claim graduation**: README "Math Pac I" line replaced "soft-claim" with the OM-cited "feature-complete per Owner's Manual 00041-90034" wording after the post-Phase-32 gap-closure run (Plans 32-04..32-10) lifted coverage from 91.74 % → 95.39 % lines — v3.0 Phase 32 (Plan 32-10 SHIP commit)
+
+### Validated (v3.1 — Stat 1 Pac Emulation, shipped 2026-05-24)
+
+- ✓ **STAT-FW-01..04**: XROM framework activation (STAT_1 XROM ID 2, 4-way invariant, XEQ-by-name) — v3.1 Phase 33
+- ✓ **STAT-UNI-01..04**: Extended univariate stats (ΣBSTAT/BSTG, ΣMMTUG/MMTGD, correction key) — v3.1 Phase 33
+- ✓ **STAT-AOV-01..04**: ANOVA family (ΣAOVONE/AOVTWO/ANOCOV, OM register layout) — v3.1 Phase 33
+- ✓ **STAT-REG-01..09**: Regression family (ΣLIN/EXP/LOGI/POW, ΣMLRXY/MLRXYZ, ΣPOLYP/POLYC, self-contained Gauss elimination) — v3.1 Phase 33
+- ✓ **STAT-HYP-01..07**: Hypothesis tests (ΣPTST/ΣTSTAT, ΣXSQEV/ΣEFXSQ, ΣCTKKK/CTKK, ΣSPEAR) — v3.1 Phase 33
+- ✓ **STAT-DST-01..07**: Distribution evaluators (ΣNORMD CDF/PDF/inverse, ΣCHISQD CDF/PDF, 3 hand-coded primitives) — v3.1 Phase 33
+- ✓ **STAT-RNG-01..04**: RNG bonus utility (RAND/SEED, persistent `rand_seed` field) — v3.1 Phase 33
+- ✓ **STAT-CLI-01..05**: CLI integration (3-pool JSON help, 26 `op_display_name` arms, `?` overlay) — v3.1 Phase 34
+- ✓ **STAT-DOC-01..06**: Documentation (divergences, function matrix, 5 ADRs, README/CLAUDE.md) — v3.1 Phase 35
+- ✓ **STAT-GUI-01..05**: GUI integration (CATALOG 2, help overlay, modal prompts, bounded-iter waiver) — v3.1 Phases 36–37
+- ✓ **STAT-QUAL-01..11**: Quality gates (coverage, accuracy, meta-gates, backward-compat, E2E smoke) — v3.1 Phase 37
 
 ### Out of Scope
 
@@ -248,3 +301,9 @@ v2.2 HP-41CV Feature Completeness shipped 2026-05-15 (Phases 20–27, 8/8 phases
 *Last updated: 2026-05-18 — v3.0 Phase 31 (GUI Integration) shipped (5/5 plans, 7/7 GUI-01..07 must-haves automated-verified, 3 manual GUI smoke items deferred to UAT); CATALOG 2 XROM enumeration + Math Pac I help overlay + LCD-alternation modal prompts + R/S 3-way + Esc cascade + request_cancel channel all land in this phase. Phase 32 (Test Hardening) next.*
 
 *Last updated: 2026-05-18 — v3.0 Phase 32 (Test Hardening & Quality Gates) fully shipped (10/10 plans: 3 original + 7 gap-closure). Original Phase 32 ship (Plans 32-01..32-03) delivered the test/CI infrastructure: meta-gate graduation, `lint_math1_assertions.rs`, `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass rate, E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu via `ci-gui.yml::e2e-linux`, Free42 GPL-contamination guard (D-32.7 12-symbol policy) in `just ci` + `ci.yml::license-audit` parallel job per D-32.8. Post-ship gap-closure run (Plans 32-04..32-10) added ~70 risk-weighted error-branch tests across 9 new `hp41-core/tests/` files plus the CR-01 + WR-01..07 cleanups, lifting coverage from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions and graduating the README v3.0 line to the OM-cited hard claim "feature-complete per Owner's Manual 00041-90034" per D-32.5.*
+
+*Last updated: 2026-05-21 — v3.0 milestone archived via `/gsd-complete-milestone`. ROADMAP collapsed to one-line summary; full v3.0 detail moved to `milestones/v3.0-ROADMAP.md`; requirements archived to `milestones/v3.0-REQUIREMENTS.md` (all 114 marked shipped); phase directories 28–32 moved to `milestones/v3.0-phases/`. Orphaned phase directories 09–12 and 13–18 retro-archived to `milestones/v1.1-phases/` and `milestones/v2.0-phases/` respectively (never moved during their respective milestone-complete runs). Stale `.planning/v1.0-MILESTONE-AUDIT.md` removed (duplicate of archived copy). `.planning/REQUIREMENTS.md` deleted — next milestone starts fresh via `/gsd-new-milestone`.*
+
+*Last updated: 2026-05-21 — v3.1 Stat 1 Pac Emulation planning started via `/gsd-new-milestone`. `## Current Milestone` section added (target features provisional, refined during research → requirements → roadmap). Active requirements section reset to v3.1 scope marker. Phase numbering continues from v3.0 (Phase 33 onward). Binary-release bundling deferred to v3.1.x or v3.2 per user direction.*
+
+*Last updated: 2026-05-22 — v3.1 Phase 33 (hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops) shipped (9/9 plans, 5/5 must-haves verified, 39/39 STAT-* requirements traced). 26 stat 1 Ops live in `hp41-core/src/ops/stat1/` consuming hand-coded f64-bridge distribution primitives (Acklam/AS 241 + AS 239 + AS 63); `default_xrom_modules → 0b0000_0011`; `rand_seed` field with unique `#[serde(default)]`-without-`skip` shape persists across save/load; `Op::Stat1Stub` fully removed. 1962 hp41-core tests pass; Free42 contamination guard extended to 18 tokens covering both math1/ and stat1/. Code review surfaced + fixed 2 Critical + 7 Warning findings (CR-01 RAND seed normalization, CR-02 ΣXSQEV result register const) before completion. Intentional sanctioned CI break in hp41-cli/hp41-gui (`non-exhaustive patterns: Op::Stat1Stub` … then the new Σ*/RAND/SEED variants) — Phase 34/36 will close items 3+4 of the 4-way invariant. 6 SPEC.md/ROADMAP oracle drifts queued for Phase 35 STAT-DOC amendment.*

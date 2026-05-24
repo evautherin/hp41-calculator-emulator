@@ -49,7 +49,7 @@ fn make_identity_fn_state() -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "F".to_string();
-    state.regs[0] = HpNum::from(10i32); // n=10 subdivisions
+    state.regs[0] = HpNum::from(10i32).into(); // n=10 subdivisions
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;
@@ -70,7 +70,7 @@ fn make_nested_integ_state() -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "G".to_string();
-    state.regs[0] = HpNum::from(4i32); // n=4 subdivisions
+    state.regs[0] = HpNum::from(4i32).into(); // n=4 subdivisions
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;
@@ -149,8 +149,8 @@ fn make_solve_with_nested_integ() -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "NI".to_string();
-    state.regs[0] = HpNum::from(-1i32); // x1 = -1
-    state.regs[1] = HpNum::from(1i32); // x2 = 1
+    state.regs[0] = HpNum::from(-1i32).into(); // x1 = -1
+    state.regs[1] = HpNum::from(1i32).into(); // x2 = 1
     state.stack.lift_enabled = false;
     (state, program)
 }
@@ -166,8 +166,8 @@ fn make_solve_with_nested_solve() -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "NS".to_string();
-    state.regs[0] = HpNum::from(-1i32); // x1 = -1
-    state.regs[1] = HpNum::from(1i32); // x2 = 1
+    state.regs[0] = HpNum::from(-1i32).into(); // x1 = -1
+    state.regs[1] = HpNum::from(1i32).into(); // x2 = 1
     state.stack.lift_enabled = false;
     (state, program)
 }
@@ -245,7 +245,7 @@ fn nested_difeq_inside_integ_rejected() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "DI".to_string();
-    state.regs[0] = HpNum::from(4i32); // n=4 subdivisions for INTG
+    state.regs[0] = HpNum::from(4i32).into(); // n=4 subdivisions for INTG
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;
@@ -280,8 +280,8 @@ fn nested_difeq_inside_solve_rejected() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "DS".to_string();
-    state.regs[0] = HpNum::from(-1i32); // x1 = -1 (SOLVE guess 1 from R00)
-    state.regs[1] = HpNum::from(1i32); // x2 = 1 (SOLVE guess 2 from R01)
+    state.regs[0] = HpNum::from(-1i32).into(); // x1 = -1 (SOLVE guess 1 from R00)
+    state.regs[1] = HpNum::from(1i32).into(); // x2 = 1 (SOLVE guess 2 from R01)
     state.stack.lift_enabled = false;
 
     let result = op_solve_run_loop(&mut state, &program);
@@ -316,12 +316,13 @@ fn nested_difeq_inside_difeq_rejected() {
     state.program = program.clone();
     state.alpha_reg = "DD".to_string();
     // Set up for ORDER=1 DIFEQ: R00=order, R01=h, R02=x0, R03=y0, R05=max_steps
-    state.regs[0] = HpNum::from(1i32); // order = 1
+    state.regs[0] = HpNum::from(1i32).into(); // order = 1
     state.regs[1] =
-        HpNum::from(rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO));
-    state.regs[2] = HpNum::from(0i32); // x0
-    state.regs[3] = HpNum::from(1i32); // y0
-    state.regs[5] = HpNum::from(5i32); // max_steps = 5
+        HpNum::from(rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO))
+            .into();
+    state.regs[2] = HpNum::from(0i32).into(); // x0
+    state.regs[3] = HpNum::from(1i32).into(); // y0
+    state.regs[5] = HpNum::from(5i32).into(); // max_steps = 5
 
     let result = op_difeq_run_loop(&mut state, &program);
     assert_eq!(
@@ -361,7 +362,7 @@ fn user_fn_stops_aborts_integ() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "H".to_string();
-    state.regs[0] = HpNum::from(4i32); // n=4 subdivisions
+    state.regs[0] = HpNum::from(4i32).into(); // n=4 subdivisions
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;
@@ -427,7 +428,7 @@ fn user_fn_stores_to_scratch_corrupts_integ() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "K".to_string();
-    state.regs[0] = HpNum::from(10i32); // n=10 subdivisions
+    state.regs[0] = HpNum::from(10i32).into(); // n=10 subdivisions
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;
@@ -490,7 +491,7 @@ fn user_fn_gto_out_of_callback_handled() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "H".to_string();
-    state.regs[0] = HpNum::from(4i32); // n=4 subdivisions
+    state.regs[0] = HpNum::from(4i32).into(); // n=4 subdivisions
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;
@@ -538,7 +539,7 @@ fn user_fn_recursion_cap_via_user_callback_max_steps() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "H".to_string();
-    state.regs[0] = HpNum::from(4i32); // n=4 subdivisions
+    state.regs[0] = HpNum::from(4i32).into(); // n=4 subdivisions
     state.stack.x = HpNum::from(0i32); // a=0
     state.stack.y = HpNum::from(1i32); // b=1
     state.stack.lift_enabled = false;

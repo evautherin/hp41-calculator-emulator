@@ -120,7 +120,9 @@ fn render_display(app: &App, frame: &mut Frame, area: Rect) {
     //   4. format_hpnum(X, display_mode) — normal calculator display
     let display_str = get_display_string(app);
 
-    let block = Block::bordered().title_top(" Display ");
+    let version = env!("CARGO_PKG_VERSION");
+    let title = format!(" HP-41CV — v{version} ");
+    let block = Block::bordered().title_top(title);
     frame.render_widget(Paragraph::new(display_str).block(block), area);
 }
 

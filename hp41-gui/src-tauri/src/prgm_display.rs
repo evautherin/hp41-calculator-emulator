@@ -43,7 +43,7 @@ pub fn format_all_steps(state: &CalcState) -> Vec<String> {
 /// Map an Op variant to its HP-41 display name.
 /// Uses String return type (not &'static str) because variants like Lbl(String),
 /// PushNum(HpNum), FmtFix(u8) require dynamic content.
-/// Covers all 35 Op variants exhaustively — no non-exhaustive patterns warning.
+/// Covers all Op variants exhaustively (v2.2 built-ins + Math Pac I + Stat 1 Pac).
 fn op_display_name(op: &Op) -> String {
     match op {
         // Phase 1: arithmetic
@@ -310,6 +310,39 @@ fn op_display_name(op: &Op) -> String {
         Op::TriSsa => "SSA".to_string(),
         Op::Trans2d => "TRANS".to_string(),
         Op::Trans3d => "T3D".to_string(),
+        // ── Stat 1 Pac Univariate / Bivariate ──────────────────────────────────
+        Op::SigmaBstat => "\u{03A3}BSTAT".to_string(),
+        Op::SigmaBstg => "\u{03A3}BSTG".to_string(),
+        Op::SigmaMmtug => "\u{03A3}MMTUG".to_string(),
+        Op::SigmaMmtgd => "\u{03A3}MMTGD".to_string(),
+        // ── Stat 1 Pac ANOVA Family ─────────────────────────────────────────────
+        Op::SigmaAovone => "\u{03A3}AOVONE".to_string(),
+        Op::SigmaAovtwo => "\u{03A3}AOVTWO".to_string(),
+        Op::SigmaAnocov => "\u{03A3}ANOCOV".to_string(),
+        // ── Stat 1 Pac Curve Fitting + Regression ───────────────────────────────
+        Op::SigmaLin => "\u{03A3}LIN".to_string(),
+        Op::SigmaExp => "\u{03A3}EXP".to_string(),
+        Op::SigmaLogi => "\u{03A3}LOGI".to_string(),
+        Op::SigmaPow => "\u{03A3}POW".to_string(),
+        Op::SigmaMlrxy => "\u{03A3}MLRXY".to_string(),
+        Op::SigmaMlrxyz => "\u{03A3}MLRXYZ".to_string(),
+        Op::SigmaPolypWorkflow => "\u{03A3}POLYP".to_string(),
+        Op::SigmaPolyc => "\u{03A3}POLYC".to_string(),
+        // ── Stat 1 Pac Hypothesis Tests ─────────────────────────────────────────
+        Op::SigmaPtst => "\u{03A3}PTST".to_string(),
+        Op::SigmaTstat => "\u{03A3}TSTAT".to_string(),
+        // ── Stat 1 Pac Nonparam / Chi-Sq Eval / Contingency ─────────────────────
+        Op::SigmaXsqev => "\u{03A3}XSQEV".to_string(),
+        Op::SigmaEfxsq => "\u{03A3}EFXSQ".to_string(),
+        Op::SigmaCtkkk => "\u{03A3}CTKKK".to_string(),
+        Op::SigmaCtkk => "\u{03A3}CTKK".to_string(),
+        Op::SigmaSpear => "\u{03A3}SPEAR".to_string(),
+        // ── Stat 1 Pac Distributions ────────────────────────────────────────────
+        Op::SigmaNormdWorkflow => "\u{03A3}NORMD".to_string(),
+        Op::SigmaChisqdWorkflow => "\u{03A3}CHISQD".to_string(),
+        // ── Stat 1 Pac RNG ──────────────────────────────────────────────────────
+        Op::Rand => "RAND".to_string(),
+        Op::Seed => "SEED".to_string(),
     }
 }
 

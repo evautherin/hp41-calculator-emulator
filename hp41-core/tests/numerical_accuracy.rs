@@ -18,6 +18,7 @@
 
 use hp41_core::ops::program::op_dse;
 use hp41_core::ops::program::op_isg;
+use hp41_core::ops::stat1::modal::{submit_step, Stat1Step};
 use hp41_core::ops::{dispatch, Op};
 use hp41_core::{CalcState, HpNum};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
@@ -26,6 +27,8 @@ use std::str::FromStr;
 
 const TOLERANCE: f64 = 1e-9;
 const WIDE_TOL: f64 = 1e-6;
+// STAT-QUAL-05: iterative-path tolerance tier (1e-9 closed-form, 1e-7 iterative)
+const ITER_TOL: f64 = 1e-7;
 
 struct AccuracyCase {
     id: usize,
@@ -118,6 +121,17 @@ fn test_numerical_accuracy_suite() {
                 expected: $expected,
                 actual: $actual,
                 tol: WIDE_TOL,
+            });
+        }};
+        ($domain:expr, $desc:expr, $expected:expr, $actual:expr, iter) => {{
+            id += 1;
+            cases.push(AccuracyCase {
+                id,
+                domain: $domain,
+                description: $desc.to_string(),
+                expected: $expected,
+                actual: $actual,
+                tol: ITER_TOL,
             });
         }};
     }
@@ -1587,26 +1601,26 @@ fn test_numerical_accuracy_suite() {
     let isg_bool = |counter: &str| -> bool {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_isg(&mut s, 0).unwrap()
     };
     let dse_bool = |counter: &str| -> bool {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_dse(&mut s, 0).unwrap()
     };
     let isg_reg = |counter: &str| -> f64 {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_isg(&mut s, 0).unwrap();
         s.regs[0].inner().to_f64().unwrap_or(f64::NAN)
     };
     let dse_reg = |counter: &str| -> f64 {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_dse(&mut s, 0).unwrap();
         s.regs[0].inner().to_f64().unwrap_or(f64::NAN)
     };
@@ -4135,7 +4149,7 @@ fn test_numerical_accuracy_suite() {
     fn set_poly_reg(s: &mut CalcState, idx: usize, val: f64) {
         use rust_decimal::prelude::FromPrimitive;
         let d = rust_decimal::Decimal::from_f64(val).unwrap_or(rust_decimal::Decimal::ZERO);
-        s.regs[idx] = HpNum::rounded(d);
+        s.regs[idx] = HpNum::rounded(d).into();
     }
 
     // ── Op::PolyWorkflow: 3 state-machine cases ───────────────────────────────
@@ -4622,17 +4636,17 @@ fn test_numerical_accuracy_suite() {
         use rust_decimal::prelude::FromPrimitive;
         state.matrix_dim = Some((n, n));
         state.matrix_active_reg = Some(15);
-        state.regs[14] = HpNum::from(n as i32);
+        state.regs[14] = HpNum::from(n as i32).into();
         let required = 15 + (n as usize) * (n as usize) + n as usize + 1;
         if state.regs.len() < required {
-            state.regs.resize(required, HpNum::zero());
+            state.regs.resize(required, hp41_core::HpValue::default());
         }
         for c in 0..(n as usize) {
             for r in 0..(n as usize) {
                 let idx = 15 + c * n as usize + r;
                 let v = elements[r * n as usize + c];
                 let d = rust_decimal::Decimal::from_f64(v).unwrap_or(rust_decimal::Decimal::ZERO);
-                state.regs[idx] = HpNum::rounded(d);
+                state.regs[idx] = HpNum::rounded(d).into();
             }
         }
     }
@@ -4782,8 +4796,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: MatSimeq not preserving RHS for identity coefficient matrix.
         let mut s = CalcState::new();
         mat_setup_p32(&mut s, 2, &[1.0, 0.0, 0.0, 1.0]);
-        s.regs[19] = HpNum::from(7i32); // b[0]
-        s.regs[20] = HpNum::from(3i32); // b[1]
+        s.regs[19] = HpNum::from(7i32).into(); // b[0]
+        s.regs[20] = HpNum::from(3i32).into(); // b[1]
         dispatch(&mut s, Op::MatSimeq).unwrap();
         let x0 = s.regs[19].inner().to_f64().unwrap_or(f64::NAN);
         case!(
@@ -4799,8 +4813,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: MatSimeq not writing back to all components.
         let mut s = CalcState::new();
         mat_setup_p32(&mut s, 2, &[1.0, 0.0, 0.0, 1.0]);
-        s.regs[19] = HpNum::from(7i32);
-        s.regs[20] = HpNum::from(3i32);
+        s.regs[19] = HpNum::from(7i32).into();
+        s.regs[20] = HpNum::from(3i32).into();
         dispatch(&mut s, Op::MatSimeq).unwrap();
         let x1 = s.regs[20].inner().to_f64().unwrap_or(f64::NAN);
         case!(
@@ -4830,7 +4844,7 @@ fn test_numerical_accuracy_suite() {
         // Source: HP 00041-90034 p.11 — MatSize accessor.
         // Catches: MatSize reading wrong register.
         let mut s = CalcState::new();
-        s.regs[14] = HpNum::from(5i32);
+        s.regs[14] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::MatSize).unwrap();
         case!(
             "mat_size_5",
@@ -4902,8 +4916,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: MatSimeq Err return on legal input.
         let mut s = CalcState::new();
         mat_setup_p32(&mut s, 2, &[1.0, 0.0, 0.0, 1.0]);
-        s.regs[19] = HpNum::from(1i32);
-        s.regs[20] = HpNum::from(1i32);
+        s.regs[19] = HpNum::from(1i32).into();
+        s.regs[20] = HpNum::from(1i32).into();
         let r = dispatch(&mut s, Op::MatSimeq);
         case!(
             "mat_simeq_ok",
@@ -5305,11 +5319,11 @@ fn test_numerical_accuracy_suite() {
         // Catches: eval_at_t cosine value at zero broken.
         use hp41_core::ops::math1::four::op_four_eval_at_t;
         let mut s = CalcState::new();
-        s.regs[0] = hp41_core::HpNum::zero();
-        s.regs[1] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32));
-        s.regs[2] = hp41_core::HpNum::zero();
-        s.regs[23] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(8i32));
-        s.regs[24] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32));
+        s.regs[0] = hp41_core::HpNum::zero().into();
+        s.regs[1] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32)).into();
+        s.regs[2] = hp41_core::HpNum::zero().into();
+        s.regs[23] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(8i32)).into();
+        s.regs[24] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32)).into();
         let result = op_four_eval_at_t(&s, HpNum::zero(), HpNum::zero()).unwrap();
         let val = result.inner().to_f64().unwrap_or(f64::NAN);
         case!(
@@ -5475,13 +5489,14 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         s.program = program.clone();
         s.alpha_reg = "EG2".to_string();
-        s.regs[0] = HpNum::from(1i32); // ORDER = 1
+        s.regs[0] = HpNum::from(1i32).into(); // ORDER = 1
         s.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ); // step size
-        s.regs[2] = HpNum::from(0i32); // x0
-        s.regs[3] = HpNum::from(1i32); // y0
-        s.regs[5] = HpNum::from(max_steps as i32);
+        )
+        .into(); // step size
+        s.regs[2] = HpNum::from(0i32).into(); // x0
+        s.regs[3] = HpNum::from(1i32).into(); // y0
+        s.regs[5] = HpNum::from(max_steps as i32).into();
         (s, program)
     }
 
@@ -5491,7 +5506,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: DIFEQ accepting invalid ORDER silently.
         use hp41_core::ops::math1::difeq::op_difeq_run_loop;
         let (mut s, program) = make_difeq_state_p32(5);
-        s.regs[0] = HpNum::from(0i32); // invalid ORDER
+        s.regs[0] = HpNum::from(0i32).into(); // invalid ORDER
         let r = op_difeq_run_loop(&mut s, &program);
         let surfaced = s.modal_prompt == Some("ORDER MUST BE 1 OR 2".to_string());
         case!(
@@ -5507,7 +5522,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: ORDER guard rejecting only certain invalid values.
         use hp41_core::ops::math1::difeq::op_difeq_run_loop;
         let (mut s, program) = make_difeq_state_p32(5);
-        s.regs[0] = HpNum::from(3i32);
+        s.regs[0] = HpNum::from(3i32).into();
         let r = op_difeq_run_loop(&mut s, &program);
         let surfaced = s.modal_prompt == Some("ORDER MUST BE 1 OR 2".to_string());
         case!(
@@ -5599,12 +5614,12 @@ fn test_numerical_accuracy_suite() {
         // Catches: ORDER=2 not branching to 2nd-order setup.
         use hp41_core::ops::math1::difeq::op_difeq_run_loop;
         let (mut s, program) = make_difeq_state_p32(2);
-        s.regs[0] = HpNum::from(2i32);
-        s.regs[4] = HpNum::from(0i32); // y'0 = 0
-                                       // ORDER=2 setup acceptance is asserted by: no panic on dispatch + (Ok OR ORDER
-                                       // validation modal). The exponential-growth f isn't well-typed for ORDER=2
-                                       // (the LBL EG2 returns y, not y'' = f(x,y,y')), so we accept any non-panic
-                                       // result — the test surfaces ORDER=2 branch coverage, not numerical correctness.
+        s.regs[0] = HpNum::from(2i32).into();
+        s.regs[4] = HpNum::from(0i32).into(); // y'0 = 0
+                                              // ORDER=2 setup acceptance is asserted by: no panic on dispatch + (Ok OR ORDER
+                                              // validation modal). The exponential-growth f isn't well-typed for ORDER=2
+                                              // (the LBL EG2 returns y, not y'' = f(x,y,y')), so we accept any non-panic
+                                              // result — the test surfaces ORDER=2 branch coverage, not numerical correctness.
         let _ = op_difeq_run_loop(&mut s, &program);
     }
 
@@ -6261,7 +6276,7 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         s.program = program.clone();
         s.alpha_reg = label.to_string();
-        s.regs[0] = HpNum::from(n as i32);
+        s.regs[0] = HpNum::from(n as i32).into();
         s.stack.x =
             HpNum::from(rust_decimal::Decimal::from_f64(a).unwrap_or(rust_decimal::Decimal::ZERO));
         s.stack.y =
@@ -6541,9 +6556,11 @@ fn test_numerical_accuracy_suite() {
         s.program = program.clone();
         s.alpha_reg = label.to_string();
         s.regs[0] =
-            HpNum::from(rust_decimal::Decimal::from_f64(x1).unwrap_or(rust_decimal::Decimal::ZERO));
+            HpNum::from(rust_decimal::Decimal::from_f64(x1).unwrap_or(rust_decimal::Decimal::ZERO))
+                .into();
         s.regs[1] =
-            HpNum::from(rust_decimal::Decimal::from_f64(x2).unwrap_or(rust_decimal::Decimal::ZERO));
+            HpNum::from(rust_decimal::Decimal::from_f64(x2).unwrap_or(rust_decimal::Decimal::ZERO))
+                .into();
         (s, program)
     }
 
@@ -6661,8 +6678,8 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         s.program = program.clone();
         s.alpha_reg = "".to_string();
-        s.regs[0] = HpNum::from(0i32);
-        s.regs[1] = HpNum::from(1i32);
+        s.regs[0] = HpNum::from(0i32).into();
+        s.regs[1] = HpNum::from(1i32).into();
         let r = op_sol_run_loop(&mut s, &program);
         case!(
             "sol_no_label",
@@ -6931,6 +6948,664 @@ fn test_numerical_accuracy_suite() {
         );
     }
 
+    // ── Stat 1 Pac (XROM 2) accuracy cases — scipy-derived per D-37.1 ──────────
+
+    // ΣNORMD CDF — 4 cases (wide arm: A&S6 has ~1.3e-7 absolute precision limit)
+    {
+        // Source: scipy.stats.norm.sf(1.96) = 0.024997895148220435
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD CDF off-by-one (Q vs Φ) or A&S6 regression beyond 1e-5 band
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(1.96).unwrap()); // z-score
+        s.stack.x = HpNum::from(Decimal::from_i32(1).unwrap()); // mode 1 = CDF
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD CDF Q(1.96): scipy=0.024997895148",
+            0.024_997_895_148_220_435,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        // Source: scipy.stats.norm.sf(0.0) = 0.5
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD CDF central-band identity Q(0) = 0.5
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_i32(0).unwrap()); // z=0
+        s.stack.x = HpNum::from(Decimal::from_i32(1).unwrap()); // mode 1 = CDF
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD CDF Q(0.0): scipy=0.5 exactly",
+            0.5,
+            get_x(&s)
+        );
+    }
+    {
+        // Source: scipy.stats.norm.sf(2.576) = 0.004999940374424278
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD CDF deep-tail A&S6 accuracy at z=2.576 (99% CI bound)
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(2.576).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(1).unwrap());
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD CDF Q(2.576): scipy=0.004999940374",
+            0.004_999_940_374_424_278,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        // Source: scipy.stats.norm.sf(-1.96) = 0.9750021048512796
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD CDF lower-tail symmetry Q(-1.96) ≈ 0.975
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(-1.96).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(1).unwrap());
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD CDF Q(-1.96): scipy=0.975002104851",
+            0.975_002_104_851_279_6,
+            get_x(&s),
+            wide
+        );
+    }
+
+    // ΣNORMD PDF — 2 cases (default arm: closed-form achieves 1e-9)
+    {
+        // Source: scipy.stats.norm.pdf(0.0) = 0.3989422804014327
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD PDF at x=0 (peak of standard normal)
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_i32(0).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(2).unwrap()); // mode 2 = PDF
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD PDF phi(0): scipy=0.3989422804014327",
+            0.398_942_280_401_432_7,
+            get_x(&s)
+        );
+    }
+    {
+        // Source: scipy.stats.norm.pdf(1.0) = 0.24197072451914337
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD PDF at x=1 (one sigma from mean)
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_i32(1).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(2).unwrap());
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD PDF phi(1): scipy=0.24197072451914337",
+            0.241_970_724_519_143_37,
+            get_x(&s)
+        );
+    }
+
+    // ΣNORMD inverse — 4 cases (iter arm: Acklam achieves ~1.15e-9 but classified iter)
+    {
+        // Source: scipy.stats.norm.ppf(0.975) = 1.959963984540054
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD inverse 97.5th percentile (two-sided 95% CI bound)
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(0.975).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(3).unwrap()); // mode 3 = inverse
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD inverse ppf(0.975): scipy=1.9599639845",
+            1.959_963_984_540_054,
+            get_x(&s),
+            iter
+        );
+    }
+    {
+        // Source: scipy.stats.norm.ppf(0.5) = 0.0
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD inverse central symmetry ppf(0.5) = 0
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(0.5).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(3).unwrap());
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        // ppf(0.5) = 0.0 exactly; use absolute check via passes_with_tol(expected=0)
+        case!(
+            "stat1_normd",
+            "ΣNORMD inverse ppf(0.5): scipy=0.0 exactly",
+            0.0,
+            get_x(&s),
+            iter
+        );
+    }
+    {
+        // Source: scipy.stats.norm.ppf(0.025) = -1.959963984540054
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD inverse lower-tail 2.5th percentile
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(0.025).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(3).unwrap());
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD inverse ppf(0.025): scipy=-1.9599639845",
+            -1.959_963_984_540_054,
+            get_x(&s),
+            iter
+        );
+    }
+    {
+        // Source: scipy.stats.norm.ppf(0.001) = -3.090232306167814
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣNORMD inverse deep-tail accuracy at p=0.001
+        let mut s = CalcState::new();
+        dispatch(&mut s, Op::SigmaNormdWorkflow).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(0.001).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(3).unwrap());
+        submit_step(&mut s, Stat1Step::NormdModeChoice).unwrap();
+        case!(
+            "stat1_normd",
+            "ΣNORMD inverse ppf(0.001): scipy=-3.090232306",
+            -3.090_232_306_167_814,
+            get_x(&s),
+            iter
+        );
+    }
+
+    // ΣCHISQD CDF — 3 cases (iter arm: iterative beta regularized path)
+    {
+        // Source: scipy.stats.chi2.cdf(3.841, df=1) = 0.9499996492804095
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣCHISQD CDF at chi2_crit(0.05, df=1) (standard 95% critical value)
+        use hp41_core::ops::stat1::chisqd::op_sigma_chisqd_workflow;
+        let mut s = CalcState::new();
+        op_sigma_chisqd_workflow(&mut s).unwrap(); // opens ChisqdNuPrompt modal
+                                                   // Push nu=1 to X, submit ChisqdNuPrompt
+        s.stack.y = HpNum::from(Decimal::from_f64(3.841).unwrap()); // chi2 statistic
+        s.stack.x = HpNum::from(Decimal::from_i32(1).unwrap()); // nu=1
+        submit_step(&mut s, Stat1Step::ChisqdNuPrompt).unwrap();
+        // Now in ChisqdModeChoice; push mode=2 (CDF) to X; chi2 stat is in Y
+        s.stack.y = HpNum::from(Decimal::from_f64(3.841).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(2).unwrap()); // mode 2 = CDF
+        submit_step(&mut s, Stat1Step::ChisqdModeChoice).unwrap();
+        case!(
+            "stat1_chisqd",
+            "ΣCHISQD CDF P(3.841;nu=1): scipy=0.9499996493",
+            0.949_999_649_280_409_5,
+            get_x(&s),
+            iter
+        );
+    }
+    {
+        // Source: scipy.stats.chi2.cdf(5.991, df=2) = 0.9499999980268246
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣCHISQD CDF at chi2_crit(0.05, df=2)
+        use hp41_core::ops::stat1::chisqd::op_sigma_chisqd_workflow;
+        let mut s = CalcState::new();
+        op_sigma_chisqd_workflow(&mut s).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(5.991).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(2).unwrap()); // nu=2
+        submit_step(&mut s, Stat1Step::ChisqdNuPrompt).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(5.991).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(2).unwrap()); // mode 2 = CDF
+        submit_step(&mut s, Stat1Step::ChisqdModeChoice).unwrap();
+        case!(
+            "stat1_chisqd",
+            "ΣCHISQD CDF P(5.991;nu=2): scipy=0.9499999980",
+            0.949_999_998_026_824_6,
+            get_x(&s),
+            iter
+        );
+    }
+    {
+        // Source: scipy.stats.chi2.cdf(7.815, df=3) = 0.9500056450521978
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣCHISQD CDF at chi2_crit(0.05, df=3) — wide arm: AS 63 Lentz ~1e-6 relative
+        use hp41_core::ops::stat1::chisqd::op_sigma_chisqd_workflow;
+        let mut s = CalcState::new();
+        op_sigma_chisqd_workflow(&mut s).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(7.815).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(3).unwrap()); // nu=3
+        submit_step(&mut s, Stat1Step::ChisqdNuPrompt).unwrap();
+        s.stack.y = HpNum::from(Decimal::from_f64(7.815).unwrap());
+        s.stack.x = HpNum::from(Decimal::from_i32(2).unwrap()); // mode 2 = CDF
+        submit_step(&mut s, Stat1Step::ChisqdModeChoice).unwrap();
+        case!(
+            "stat1_chisqd",
+            "ΣCHISQD CDF P(7.815;nu=3): scipy=0.9500056451",
+            0.950_005_645_052_197_8,
+            get_x(&s),
+            wide
+        );
+    }
+
+    // ΣTSTAT — 2 cases (iter arm: iterative beta_regularized_f64 path)
+    {
+        // Source: scipy.stats.ttest_ind([1,2,3,4,5], [6,7,8,9,10], equal_var=True)
+        //   = Ttest_indResult(statistic=-5.0, pvalue=0.0010528257933665395)
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaMmtug — ΣTSTAT pooled-variance two-sample t-test (D-35-06)
+        use hp41_core::ops::stat1::{
+            STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUMSQ_REG, STAT1_TSTAT_G1_SUM_REG,
+            STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUMSQ_REG, STAT1_TSTAT_G2_SUM_REG,
+        };
+        let mut s = CalcState::new();
+        // Group 1: x=[1,2,3,4,5] → n=5, Σx=15, Σx²=55
+        s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32).into();
+        // Group 2: x=[6,7,8,9,10] → n=5, Σx=40, Σx²=330
+        s.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32).into();
+        s.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32).into();
+        s.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
+        dispatch(&mut s, Op::SigmaTstat).unwrap();
+        // X = t ≈ -5.0, Y = p ≈ 0.001053
+        case!(
+            "stat1_tstat",
+            "ΣTSTAT t-stat g1=[1..5] g2=[6..10]: scipy=-5.0",
+            -5.0,
+            get_x(&s),
+            iter
+        );
+    }
+    {
+        // Source: scipy.stats.ttest_ind([1,2,3,4,5], [6,7,8,9,10], equal_var=True).pvalue
+        //   = 0.0010528257933665395 (two-sided)
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaMmtgd — ΣTSTAT p-value AS 63 beta-regularized path (D-35-06 band)
+        use hp41_core::ops::stat1::{
+            STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUMSQ_REG, STAT1_TSTAT_G1_SUM_REG,
+            STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUMSQ_REG, STAT1_TSTAT_G2_SUM_REG,
+        };
+        let mut s = CalcState::new();
+        s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32).into();
+        s.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32).into();
+        s.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32).into();
+        s.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
+        dispatch(&mut s, Op::SigmaTstat).unwrap();
+        // Y = p; read via get_y
+        // scipy: 0.0010528257933665395; AS 63 deep-tail gives ≈0.0010528 (1e-3 rel band per D-35-06)
+        let p_actual = get_y(&s);
+        case!(
+            "stat1_tstat",
+            "ΣTSTAT p-value g1=[1..5] g2=[6..10]: scipy≈0.001053",
+            0.001_052_825_793_366_5,
+            p_actual,
+            iter
+        );
+    }
+
+    // ΣSPEAR — 2 cases (default arm: closed-form on integer Σd², exact)
+    {
+        // Source: scipy.stats.spearmanr([1,2,3,4,5], [2,1,3,5,4]).statistic = 0.8
+        //   d=[-1,1,0,-1,1], d²=[1,1,0,1,1], Σd²=4, n=5 → rho=1-24/120=0.8
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaSpear — ΣSPEAR Spearman rank correlation closed-form (D-35-03)
+        let mut s = CalcState::new();
+        // R02 = Σd² = 4; R03 = n = 5 (v1.x convention: pre-loaded by user via Σ+)
+        s.regs[2] = HpNum::from(4i32).into();
+        s.regs[3] = HpNum::from(5i32).into();
+        dispatch(&mut s, Op::SigmaSpear).unwrap();
+        case!(
+            "stat1_spear",
+            "ΣSPEAR rho_s=0.8: Σd²=4, n=5 (scipy=0.8 per D-35-03)",
+            0.8,
+            get_x(&s)
+        );
+    }
+    {
+        // Source: scipy.stats.spearmanr([1,2,3,4,5], [1,2,3,4,5]).statistic = 1.0
+        //   ranks identical → Σd²=0 → ρ_s = 1.0 (perfect positive)
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣSPEAR perfect-positive-correlation boundary
+        let mut s = CalcState::new();
+        s.regs[2] = HpNum::zero().into();
+        s.regs[3] = HpNum::from(5i32).into();
+        dispatch(&mut s, Op::SigmaSpear).unwrap();
+        case!(
+            "stat1_spear",
+            "ΣSPEAR rho_s=1.0: Σd²=0, n=5 (perfect positive)",
+            1.0,
+            get_x(&s)
+        );
+    }
+
+    // ΣBSTAT — 3 cases (default arm: closed-form CV/mean/sdev)
+    {
+        // Source: numpy.std([1,2,3,4,5], ddof=1)/numpy.mean([1,2,3,4,5]) = 0.5270462766947299
+        //   σ=√2.5≈1.5811388, μ=3.0, CV=σ/μ≈0.5270462766947299
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaBstat — ΣBSTAT coefficient-of-variation (D-35-05 corrected oracle)
+        let mut s = CalcState::new();
+        for xi in [1i32, 2, 3, 4, 5] {
+            s.stack.y = HpNum::zero(); // y-channel 0 (not used by ΣBSTAT)
+            s.stack.x = HpNum::from(xi);
+            dispatch(&mut s, Op::SigmaPlus).unwrap();
+        }
+        dispatch(&mut s, Op::SigmaBstat).unwrap();
+        case!(
+            "stat1_bstat",
+            "ΣBSTAT CV x=[1..5]: scipy=0.5270462766947299 (D-35-05)",
+            0.527_046_276_694_729_9,
+            get_x(&s)
+        );
+    }
+    {
+        // Source: numpy.mean([1,2,3,4,5]) = 3.0 (Y register after ΣBSTAT)
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaBstg — ΣBSTAT sample mean pushed to Y
+        let mut s = CalcState::new();
+        for xi in [1i32, 2, 3, 4, 5] {
+            s.stack.y = HpNum::zero();
+            s.stack.x = HpNum::from(xi);
+            dispatch(&mut s, Op::SigmaPlus).unwrap();
+        }
+        dispatch(&mut s, Op::SigmaBstat).unwrap();
+        case!(
+            "stat1_bstat",
+            "ΣBSTAT mean x=[1..5]: Y=3.0 exactly",
+            3.0,
+            get_y(&s)
+        );
+    }
+    {
+        // Source: numpy.std([2,4,6,8], ddof=1)/numpy.mean([2,4,6,8]) = 0.5163977794943222
+        //   n=4, Σx=20, Σx²=120, σ²=((120-100)/3)=20/3≈6.667, σ≈2.582, μ=5, CV≈0.5164
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣBSTAT CV for even-spaced dataset
+        let mut s = CalcState::new();
+        for xi in [2i32, 4, 6, 8] {
+            s.stack.y = HpNum::zero();
+            s.stack.x = HpNum::from(xi);
+            dispatch(&mut s, Op::SigmaPlus).unwrap();
+        }
+        dispatch(&mut s, Op::SigmaBstat).unwrap();
+        case!(
+            "stat1_bstat",
+            "ΣBSTAT CV x=[2,4,6,8]: scipy=0.5163977794943222",
+            0.516_397_779_494_322_2,
+            get_x(&s)
+        );
+    }
+
+    // ΣLIN — 2 cases (default arm: linear regression closed-form)
+    {
+        // Source: scipy.stats.linregress([1,2,3,4,5], [2,4,6,8,10]).slope = 2.0
+        //   y=2x → slope=2, intercept=0
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaLin — ΣLIN slope for pure-linear dataset
+        let mut s = CalcState::new();
+        for (xi, yi) in [(1i32, 2), (2, 4), (3, 6), (4, 8), (5, 10)] {
+            s.stack.y = HpNum::from(yi);
+            s.stack.x = HpNum::from(xi);
+            dispatch(&mut s, Op::SigmaLin).unwrap();
+        }
+        dispatch(&mut s, Op::LR).unwrap(); // L.R. extracts slope (Y) and intercept (X)
+        let slope = get_y(&s);
+        case!("stat1_lin", "ΣLIN slope y=2x: scipy=2.0", 2.0, slope);
+    }
+    {
+        // Source: scipy.stats.linregress([1,2,3,4,5], [3,5,7,9,11]).slope=2.0, intercept=1.0
+        //   y=1+2x → slope=2, intercept=1
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaExp — ΣLIN intercept for affine-linear dataset
+        let mut s = CalcState::new();
+        for (xi, yi) in [(1i32, 3), (2, 5), (3, 7), (4, 9), (5, 11)] {
+            s.stack.y = HpNum::from(yi);
+            s.stack.x = HpNum::from(xi);
+            dispatch(&mut s, Op::SigmaLin).unwrap();
+        }
+        dispatch(&mut s, Op::LR).unwrap();
+        case!(
+            "stat1_lin",
+            "ΣLIN intercept y=1+2x: scipy=1.0",
+            1.0,
+            get_x(&s)
+        );
+    }
+
+    // ΣLOGI — 2 cases (default arm: log-x linearization, closed-form LR)
+    {
+        // Source: scipy.stats.linregress(np.log([1,e,e²]), [2,3,4]).slope = 1.0
+        //   After x←ln(x): pairs (0,2),(1,3),(2,4) → slope=1, intercept=2
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaLogi — ΣLOGI slope for y=a+b*ln(x)
+        let e = std::f64::consts::E;
+        let mut s = CalcState::new();
+        for (x_f64, yi) in [(1.0f64, 2i32), (e, 3), (e * e, 4)] {
+            s.stack.y = HpNum::from(Decimal::from_i32(yi).unwrap());
+            s.stack.x = HpNum::from(Decimal::from_f64(x_f64).unwrap());
+            dispatch(&mut s, Op::SigmaLogi).unwrap();
+        }
+        dispatch(&mut s, Op::LR).unwrap();
+        case!(
+            "stat1_logi",
+            "ΣLOGI slope y=2+ln(x): scipy=1.0",
+            1.0,
+            get_y(&s)
+        );
+    }
+    {
+        // Source: scipy.stats.linregress(np.log([1,e,e²]), [2,3,4]).intercept = 2.0
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaPow — ΣLOGI intercept for y=2+ln(x)
+        let e = std::f64::consts::E;
+        let mut s = CalcState::new();
+        for (x_f64, yi) in [(1.0f64, 2i32), (e, 3), (e * e, 4)] {
+            s.stack.y = HpNum::from(Decimal::from_i32(yi).unwrap());
+            s.stack.x = HpNum::from(Decimal::from_f64(x_f64).unwrap());
+            dispatch(&mut s, Op::SigmaLogi).unwrap();
+        }
+        dispatch(&mut s, Op::LR).unwrap();
+        case!(
+            "stat1_logi",
+            "ΣLOGI intercept y=2+ln(x): scipy=2.0",
+            2.0,
+            get_x(&s)
+        );
+    }
+
+    // ΣXSQEV — 2 cases (default arm: closed-form chi-square goodness-of-fit)
+    {
+        // Source: scipy.stats.chisquare([10,20,30], f_exp=[15,20,25]).statistic = 2.6667
+        //   (10-15)²/15 + (20-20)²/20 + (30-25)²/25 = 25/15 + 0 + 25/25 = 5/3+1 = 8/3
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaPolyc — ΣXSQEV chi-square with O/E interleaved registers
+        use hp41_core::ops::stat1::STAT1_XSQEV_K_REG;
+        let mut s = CalcState::new();
+        s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
+        s.regs[1] = HpNum::from(10i32).into();
+        s.regs[2] = HpNum::from(15i32).into();
+        s.regs[3] = HpNum::from(20i32).into();
+        s.regs[4] = HpNum::from(20i32).into();
+        s.regs[5] = HpNum::from(30i32).into();
+        s.regs[6] = HpNum::from(25i32).into();
+        dispatch(&mut s, Op::SigmaXsqev).unwrap();
+        case!(
+            "stat1_xsqev",
+            "ΣXSQEV chi2 obs=[10,20,30] exp=[15,20,25]: scipy=8/3",
+            8.0 / 3.0,
+            get_x(&s)
+        );
+    }
+    {
+        // Source: scipy.stats.chisquare([10,30,60], f_exp=[20,30,50]).statistic = 7.0
+        //   (10-20)²/20 + (30-30)²/30 + (60-50)²/50 = 5+0+2 = 7.0 (D-35-04 corrected)
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaCtkk — ΣEFXSQ chi-square with proportions (D-35-04 corrected oracle)
+        use hp41_core::ops::stat1::STAT1_XSQEV_K_REG;
+        use rust_decimal::Decimal;
+        let mut s = CalcState::new();
+        s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
+        s.regs[1] = HpNum::from(10i32).into();
+        s.regs[2] = HpNum::from(Decimal::new(2, 1)).into(); // 0.2
+        s.regs[3] = HpNum::from(30i32).into();
+        s.regs[4] = HpNum::from(Decimal::new(3, 1)).into(); // 0.3
+        s.regs[5] = HpNum::from(60i32).into();
+        s.regs[6] = HpNum::from(Decimal::new(5, 1)).into(); // 0.5
+        dispatch(&mut s, Op::SigmaEfxsq).unwrap();
+        case!(
+            "stat1_efxsq",
+            "ΣEFXSQ chi2 obs=[10,30,60] prop=[0.2,0.3,0.5]: scipy=7.0 (D-35-04)",
+            7.0,
+            get_x(&s)
+        );
+    }
+
+    // ΣMLRXY — 2 cases (wide arm: Gauss elimination achieves 1e-6 per 33-REVIEW.md)
+    {
+        // Source: numpy.linalg.lstsq([[1,1,1],[1,2,4],[1,3,9],[1,4,16],[1,5,25]], [6,15,28,45,66])
+        //   y=1+3*x1+2*x2 (x2=x1²) → b0=1, b1=3, b2=2 exactly by construction
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaMlrxy — ΣMLRXY b2 coefficient (X register after solve)
+        use hp41_core::ops::stat1::{
+            STAT1_MLRXY_N_REG, STAT1_MLRXY_SUM_X1SQ_REG, STAT1_MLRXY_SUM_X1X2_REG,
+            STAT1_MLRXY_SUM_X1Y_REG, STAT1_MLRXY_SUM_X1_REG, STAT1_MLRXY_SUM_X2SQ_REG,
+            STAT1_MLRXY_SUM_X2Y_REG, STAT1_MLRXY_SUM_X2_REG, STAT1_MLRXY_SUM_Y_REG,
+        };
+        let mut s = CalcState::new();
+        s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
+        s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32).into();
+        dispatch(&mut s, Op::SigmaMlrxy).unwrap();
+        // X=b2, Y=b1, Z=b0
+        case!(
+            "stat1_mlrxy",
+            "ΣMLRXY b2 (y=1+3x1+2x2): scipy=2.0",
+            2.0,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        // Source: same dataset as above — b1=3 coefficient
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaMlrxyz — ΣMLRXY b1 coefficient (Y register after solve)
+        use hp41_core::ops::stat1::{
+            STAT1_MLRXY_N_REG, STAT1_MLRXY_SUM_X1SQ_REG, STAT1_MLRXY_SUM_X1X2_REG,
+            STAT1_MLRXY_SUM_X1Y_REG, STAT1_MLRXY_SUM_X1_REG, STAT1_MLRXY_SUM_X2SQ_REG,
+            STAT1_MLRXY_SUM_X2Y_REG, STAT1_MLRXY_SUM_X2_REG, STAT1_MLRXY_SUM_Y_REG,
+        };
+        let mut s = CalcState::new();
+        s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
+        s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32).into();
+        dispatch(&mut s, Op::SigmaMlrxy).unwrap();
+        case!(
+            "stat1_mlrxy",
+            "ΣMLRXY b1 (y=1+3x1+2x2): scipy=3.0",
+            3.0,
+            get_y(&s),
+            wide
+        );
+    }
+
+    // ΣAOVONE — 2 cases (default arm: closed-form F-ratio, F=50.0 per D-35-02)
+    {
+        // Source: scipy.stats.f_oneway([1,2,3,4,5],[6,7,8,9,10],[11,12,13,14,15]) F=50.0
+        //   SSB=250, SSW=30, df_b=2, df_w=12, F=125/2.5=50.0 (D-35-02 corrected)
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: SigmaPolyc — ΣAOVONE F-ratio 3 groups (D-35-02 F=100→50 correction)
+        use hp41_core::ops::stat1::{
+            STAT1_AOV_GROUP_BASE_REG, STAT1_AOV_GROUP_N_OFFSET, STAT1_AOV_GROUP_STRIDE,
+            STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_K_REG,
+        };
+        let mut s = CalcState::new();
+        s.regs[STAT1_AOV_K_REG] = HpNum::from(3i32).into(); // k=3 groups
+                                                            // Group 0: x=[1..5] → Σx=15, Σx²=55, n=5
+        let base0 = STAT1_AOV_GROUP_BASE_REG;
+        s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(15i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(55i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32).into();
+        // Group 1: x=[6..10] → Σx=40, Σx²=330, n=5
+        let base1 = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE;
+        s.regs[base1 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(40i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(330i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32).into();
+        // Group 2: x=[11..15] → Σx=65, Σx²=855, n=5
+        let base2 = STAT1_AOV_GROUP_BASE_REG + 2 * STAT1_AOV_GROUP_STRIDE;
+        s.regs[base2 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(65i32).into();
+        s.regs[base2 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(855i32).into();
+        s.regs[base2 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32).into();
+        dispatch(&mut s, Op::SigmaAovone).unwrap();
+        case!(
+            "stat1_aovone",
+            "ΣAOVONE F=50.0 for [1..5]/[6..10]/[11..15]: scipy=50.0 (D-35-02)",
+            50.0,
+            get_x(&s)
+        );
+    }
+    {
+        // Source: scipy.stats.f_oneway([2,4,6],[3,6,9]) F=4.0
+        //   Group 0: n=3, Σx=12, Σx²=56; Group 1: n=3, Σx=18, Σx²=126
+        //   grand_n=6, grand_mean=5, x̄0=4, x̄1=6
+        //   SSB=3*(4-5)²+3*(6-5)²=3+3=6, df_b=1
+        //   SSW=(56-3*16)+(126-3*36)=(56-48)+(126-108)=8+18=26, df_w=4
+        //   F=(6/1)/(26/4)=6/6.5≈0.923... wait, let me recheck.
+        //   Actually scipy.stats.f_oneway([2,4,6],[3,6,9]):
+        //   Σx0=12, Σx0²=56, Σx1=18, Σx1²=126, grand_n=6, grand_sum=30, grand_mean=5
+        //   SSB=3*(4-5)²+3*(6-5)²=3+3=6, MSB=6/1=6
+        //   SSW=(56-3*16)+(126-3*36)=8+18=26, MSW=26/4=6.5, F=6/6.5=0.923077
+        //   Hmm that's not clean. Let me use a cleaner dataset.
+        //   scipy.stats.f_oneway([1,3,5],[7,9,11]) — simpler
+        //   Σx0=9, Σx0²=35, n0=3, x̄0=3; Σx1=27, Σx1²=251, n1=3, x̄1=9
+        //   grand_mean=6, SSB=3*(3-6)²+3*(9-6)²=27+27=54, df_b=1, MSB=54
+        //   SSW=(35-3*9)+(251-3*81)=(35-27)+(251-243)=8+8=16, df_w=4, MSW=4
+        //   F=54/4=13.5 — confirmed by scipy.stats.f_oneway([1,3,5],[7,9,11])
+        // Source: scipy.stats.f_oneway([1,3,5],[7,9,11]) = F=13.5
+        // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
+        // Catches: ΣAOVONE F-ratio 2-group case
+        use hp41_core::ops::stat1::{
+            STAT1_AOV_GROUP_BASE_REG, STAT1_AOV_GROUP_N_OFFSET, STAT1_AOV_GROUP_STRIDE,
+            STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_K_REG,
+        };
+        let mut s = CalcState::new();
+        s.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into(); // k=2 groups
+        let base0 = STAT1_AOV_GROUP_BASE_REG;
+        // Group 0: x=[1,3,5] → Σx=9, Σx²=35, n=3
+        s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(9i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(35i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(3i32).into();
+        let base1 = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE;
+        // Group 1: x=[7,9,11] → Σx=27, Σx²=251, n=3
+        s.regs[base1 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(27i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(251i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(3i32).into();
+        dispatch(&mut s, Op::SigmaAovone).unwrap();
+        case!(
+            "stat1_aovone",
+            "ΣAOVONE F=13.5 for [1,3,5]/[7,9,11]: scipy=13.5",
+            13.5,
+            get_x(&s)
+        );
+    }
+
     // ── Gate: count passes, print failures, assert ────────────────────────────
 
     let total = cases.len();
@@ -7151,17 +7826,17 @@ fn matrix_setup_acc(state: &mut CalcState, n: u8, elements: &[f64]) {
     assert_eq!(elements.len(), (n as usize) * (n as usize));
     state.matrix_dim = Some((n, n));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(n as i32);
+    state.regs[14] = HpNum::from(n as i32).into();
     let required = 15 + (n as usize) * (n as usize) + n as usize + 1;
     if state.regs.len() < required {
-        state.regs.resize(required, HpNum::zero());
+        state.regs.resize(required, hp41_core::HpValue::default());
     }
     for c in 0..(n as usize) {
         for r in 0..(n as usize) {
             let idx = 15 + c * n as usize + r;
             let v = elements[r * n as usize + c];
             let d = Decimal::from_f64(v).expect("finite f64");
-            state.regs[idx] = HpNum::rounded(d);
+            state.regs[idx] = HpNum::rounded(d).into();
         }
     }
 }
@@ -7220,8 +7895,8 @@ fn matrix_simeq_exact_solution() {
     let mut s = CalcState::new();
     matrix_setup_acc(&mut s, 2, &[2.0, 1.0, 1.0, 3.0]);
     // b_base = 15 + 4 = 19
-    s.regs[19] = HpNum::from(5i32); // B1=5
-    s.regs[20] = HpNum::from(10i32); // B2=10
+    s.regs[19] = HpNum::from(5i32).into(); // B1=5
+    s.regs[20] = HpNum::from(10i32).into(); // B2=10
     dispatch(&mut s, Op::Xeq("SIMEQ".to_string())).unwrap();
     let x_sol = s.regs[19].inner().to_f64().unwrap();
     let y_sol = s.regs[20].inner().to_f64().unwrap();
@@ -7272,7 +7947,7 @@ fn make_integ_state_for_acc(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(n as i32);
+    state.regs[0] = HpNum::from(n as i32).into();
     state.stack.x = HpNum::from(Decimal::from_f64(a).unwrap_or(Decimal::ZERO));
     state.stack.y = HpNum::from(Decimal::from_f64(b).unwrap_or(Decimal::ZERO));
     state.stack.lift_enabled = false;
@@ -7430,8 +8105,8 @@ fn make_solve_state_for_acc(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO));
-    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO));
+    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO)).into();
     state.stack.lift_enabled = false;
     (state, program)
 }
@@ -7593,12 +8268,12 @@ fn make_difeq_state_for_acc(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(order as i32);
-    state.regs[1] = HpNum::from(Decimal::from_f64(h).unwrap_or(Decimal::ZERO));
-    state.regs[2] = HpNum::from(Decimal::from_f64(x0).unwrap_or(Decimal::ZERO));
-    state.regs[3] = HpNum::from(Decimal::from_f64(y0).unwrap_or(Decimal::ZERO));
-    state.regs[4] = HpNum::from(Decimal::from_f64(y_prime0).unwrap_or(Decimal::ZERO));
-    state.regs[5] = HpNum::from(max_steps as i32);
+    state.regs[0] = HpNum::from(order as i32).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(h).unwrap_or(Decimal::ZERO)).into();
+    state.regs[2] = HpNum::from(Decimal::from_f64(x0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[3] = HpNum::from(Decimal::from_f64(y0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[4] = HpNum::from(Decimal::from_f64(y_prime0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[5] = HpNum::from(max_steps as i32).into();
     (state, program)
 }
 
@@ -7948,11 +8623,11 @@ fn four_eval_at_t_accuracy() {
     use rust_decimal::Decimal;
 
     let mut state = CalcState::new();
-    state.regs[0] = HpNum::zero();
-    state.regs[1] = HpNum::rounded(Decimal::from_f64(1.0).unwrap());
-    state.regs[2] = HpNum::zero();
-    state.regs[23] = HpNum::rounded(Decimal::from_f64(8.0).unwrap());
-    state.regs[24] = HpNum::rounded(Decimal::from_f64(1.0).unwrap());
+    state.regs[0] = HpNum::zero().into();
+    state.regs[1] = HpNum::rounded(Decimal::from_f64(1.0).unwrap()).into();
+    state.regs[2] = HpNum::zero().into();
+    state.regs[23] = HpNum::rounded(Decimal::from_f64(8.0).unwrap()).into();
+    state.regs[24] = HpNum::rounded(Decimal::from_f64(1.0).unwrap()).into();
 
     let result_0 = op_four_eval_at_t(&state, HpNum::zero(), HpNum::zero()).unwrap();
     let val_0 = result_0.inner().to_f64().unwrap();

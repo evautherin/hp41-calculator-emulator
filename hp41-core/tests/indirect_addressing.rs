@@ -87,7 +87,7 @@ macro_rules! ind_happy_and_reject {
             // Catches: resolve_indirect Ok-integer branch missing or
             // computing the wrong target register / flag / display.
             let mut state = CalcState::new();
-            state.regs[5] = HpNum::from(12i32);
+            state.regs[5] = HpNum::from(12i32).into();
             $setup(&mut state);
             dispatch(&mut state, $op).unwrap();
             $assert_happy(&state);
@@ -99,7 +99,7 @@ macro_rules! ind_happy_and_reject {
             // the fail-closed guard at frac != 0 must reject 12.5 with
             // HpError::InvalidOp.
             let mut state = CalcState::new();
-            state.regs[5] = non_integer_register();
+            state.regs[5] = non_integer_register().into();
             $setup(&mut state);
             let result = dispatch(&mut state, $op);
             assert!(
@@ -123,7 +123,7 @@ ind_happy_and_reject!(
     |s: &mut CalcState| {
         s.stack.x = HpNum::from(7i32);
     },
-    |s: &CalcState| assert_eq!(s.regs[12], HpNum::from(7i32))
+    |s: &CalcState| assert_eq!(s.regs[12], hp41_core::HpValue::from(7i32))
 );
 
 // ── A.2 — RCL_IND ─────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ ind_happy_and_reject!(
     rcl_ind_fn_qual_04_reject,
     Op::RclInd(5),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(99i32);
+        s.regs[12] = HpNum::from(99i32).into();
     },
     |s: &CalcState| assert_eq!(s.stack.x, HpNum::from(99i32))
 );
@@ -189,10 +189,10 @@ ind_happy_and_reject!(
     sto_add_ind_fn_qual_04_reject,
     Op::StoArithInd(5, StoArithKind::Add),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(3i32);
+        s.regs[12] = HpNum::from(3i32).into();
         s.stack.x = HpNum::from(7i32);
     },
-    |s: &CalcState| assert_eq!(s.regs[12], HpNum::from(10i32))
+    |s: &CalcState| assert_eq!(s.regs[12], hp41_core::HpValue::from(10i32))
 );
 
 // Catches (STO-): STO_ARITH_IND_SUB orientation reversed — must compute
@@ -202,11 +202,11 @@ ind_happy_and_reject!(
     sto_sub_ind_fn_qual_04_reject,
     Op::StoArithInd(5, StoArithKind::Sub),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(10i32);
+        s.regs[12] = HpNum::from(10i32).into();
         s.stack.x = HpNum::from(3i32);
     },
     // STO- semantics: regs[12] = regs[12] - X = 10 - 3 = 7.
-    |s: &CalcState| assert_eq!(s.regs[12], HpNum::from(7i32))
+    |s: &CalcState| assert_eq!(s.regs[12], hp41_core::HpValue::from(7i32))
 );
 
 // Catches (STO×): STO_ARITH_IND_MUL routing the multiplication through the
@@ -216,10 +216,10 @@ ind_happy_and_reject!(
     sto_mul_ind_fn_qual_04_reject,
     Op::StoArithInd(5, StoArithKind::Mul),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(4i32);
+        s.regs[12] = HpNum::from(4i32).into();
         s.stack.x = HpNum::from(3i32);
     },
-    |s: &CalcState| assert_eq!(s.regs[12], HpNum::from(12i32))
+    |s: &CalcState| assert_eq!(s.regs[12], hp41_core::HpValue::from(12i32))
 );
 
 // Catches (STO÷): STO_ARITH_IND_DIV orientation reversed — must compute
@@ -231,11 +231,11 @@ ind_happy_and_reject!(
     sto_div_ind_fn_qual_04_reject,
     Op::StoArithInd(5, StoArithKind::Div),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(12i32);
+        s.regs[12] = HpNum::from(12i32).into();
         s.stack.x = HpNum::from(3i32);
     },
     // STO/ semantics: regs[12] = regs[12] / X = 12 / 3 = 4.
-    |s: &CalcState| assert_eq!(s.regs[12], HpNum::from(4i32))
+    |s: &CalcState| assert_eq!(s.regs[12], hp41_core::HpValue::from(4i32))
 );
 
 // ── A.6 — ARCL_IND ────────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ ind_happy_and_reject!(
     arcl_ind_fn_qual_04_reject,
     Op::ArclInd(5),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(42i32);
+        s.regs[12] = HpNum::from(42i32).into();
         s.alpha_reg = String::new();
         s.display_mode = DisplayMode::Fix(4);
     },
@@ -283,7 +283,7 @@ ind_happy_and_reject!(
         );
         assert_eq!(
             s.regs[12],
-            HpNum::zero(),
+            hp41_core::HpValue::default(),
             "ASTO IND must zero the numeric slot (no-drift invariant)"
         );
     }
@@ -299,7 +299,7 @@ ind_happy_and_reject!(
     view_ind_fn_qual_04_reject,
     Op::ViewInd(5),
     |s: &mut CalcState| {
-        s.regs[12] = HpNum::from(42i32);
+        s.regs[12] = HpNum::from(42i32).into();
         s.display_mode = DisplayMode::Fix(4);
     },
     |s: &CalcState| {
@@ -347,8 +347,8 @@ fn isg_ind_fn_qual_04_executes_next_step_when_counter_under_final() {
     // Catches: ISG_IND skip signal mis-routed in run_loop — if the arm
     // skips when current < final, Y would be 0 instead of 1.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::rounded(Decimal::from_str("0.005").unwrap());
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::rounded(Decimal::from_str("0.005").unwrap()).into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::IsgInd(5),
@@ -369,9 +369,9 @@ fn isg_ind_fn_qual_04_executes_next_step_when_counter_under_final() {
 fn isg_ind_fn_qual_04_skips_next_step_when_counter_at_final() {
     // Catches: ISG_IND not skipping when post-increment counter > final.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     // current=5 / final=5 / inc=1 → after ISG current=6 > 5 ⇒ exit, skip.
-    state.regs[12] = HpNum::rounded(Decimal::from_str("5.005").unwrap());
+    state.regs[12] = HpNum::rounded(Decimal::from_str("5.005").unwrap()).into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::IsgInd(5),
@@ -394,7 +394,7 @@ fn isg_ind_fn_qual_04_rejects_non_integer_pointer() {
     // a decimal (.fffii suffix is fractional by construction), but the
     // POINTER register must still be an integer.
     let mut state = CalcState::new();
-    state.regs[5] = non_integer_register();
+    state.regs[5] = non_integer_register().into();
     state.program = vec![Op::Lbl("T".to_string()), Op::IsgInd(5), Op::Rtn];
     let result = run_program(&mut state, "T");
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -411,8 +411,8 @@ fn dse_ind_fn_qual_04_executes_next_step_when_counter_above_final() {
     // Catches: DSE_IND skip mis-routed — must NOT skip when post-decrement
     // counter > final.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::rounded(Decimal::from_str("5.001").unwrap());
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::rounded(Decimal::from_str("5.001").unwrap()).into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::DseInd(5),
@@ -433,9 +433,9 @@ fn dse_ind_fn_qual_04_executes_next_step_when_counter_above_final() {
 fn dse_ind_fn_qual_04_skips_next_step_when_counter_at_or_below_final() {
     // Catches: DSE_IND not skipping when counter reaches final.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     // cur=1,final=5,inc=1 → after DSE cur=0; 0 <= 5 ⇒ exit, skip.
-    state.regs[12] = HpNum::rounded(Decimal::from_str("1.005").unwrap());
+    state.regs[12] = HpNum::rounded(Decimal::from_str("1.005").unwrap()).into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::DseInd(5),
@@ -456,7 +456,7 @@ fn dse_ind_fn_qual_04_skips_next_step_when_counter_at_or_below_final() {
 fn dse_ind_fn_qual_04_rejects_non_integer_pointer() {
     // Catches: DSE_IND's pre-resolve guard missing (symmetric with ISG_IND).
     let mut state = CalcState::new();
-    state.regs[5] = non_integer_register();
+    state.regs[5] = non_integer_register().into();
     state.program = vec![Op::Lbl("T".to_string()), Op::DseInd(5), Op::Rtn];
     let result = run_program(&mut state, "T");
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -475,7 +475,7 @@ fn fs_q_ind_fn_qual_04_executes_next_step_when_flag_set() {
     // Catches: FS?_IND inverted truth table — when flag is SET, test is
     // TRUE, no skip should fire.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -501,7 +501,7 @@ fn fs_q_ind_fn_qual_04_skips_next_step_when_flag_clear() {
     // Catches: FS?_IND not skipping when flag is clear — the test is FALSE,
     // and HP-41 "skip if false" means PushNum(1) is skipped.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     // flag 12 is clear (default)
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -527,7 +527,7 @@ fn fs_q_ind_fn_qual_04_rejects_non_integer_pointer() {
     // Catches: FS?_IND missing pre-resolve guard — pointer in regs[5] must
     // be an integer even though flag IND is "indirect via integer part".
     let mut state = CalcState::new();
-    state.regs[5] = non_integer_register();
+    state.regs[5] = non_integer_register().into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::FlagTestInd {
@@ -548,7 +548,7 @@ fn fc_q_ind_fn_qual_04_executes_next_step_when_flag_clear() {
     // Catches: FC?_IND inverted truth table — when flag is CLEAR, test is
     // TRUE, no skip should fire.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     // flag 12 is clear (default)
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -573,7 +573,7 @@ fn fc_q_ind_fn_qual_04_executes_next_step_when_flag_clear() {
 fn fc_q_ind_fn_qual_04_skips_next_step_when_flag_set() {
     // Catches: FC?_IND not skipping when flag SET — test false ⇒ skip.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -598,7 +598,7 @@ fn fc_q_ind_fn_qual_04_skips_next_step_when_flag_set() {
 fn fc_q_ind_fn_qual_04_rejects_non_integer_pointer() {
     // Catches: FC?_IND missing pre-resolve guard.
     let mut state = CalcState::new();
-    state.regs[5] = non_integer_register();
+    state.regs[5] = non_integer_register().into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::FlagTestInd {
@@ -620,7 +620,7 @@ fn fs_q_c_ind_fn_qual_04_executes_and_clears_when_flag_set() {
     // Catches: FS?C_IND not clearing flag after a "set" test. Per RESEARCH
     // A4: flag is ALWAYS cleared, whether or not skip fires.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -650,7 +650,7 @@ fn fs_q_c_ind_fn_qual_04_skips_and_keeps_clear_when_flag_clear() {
     // Catches: FS?C_IND skip path mis-routed; flag-clear case must still
     // result in flag CLEARED (no-op on already-clear) AND skip fires.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     // flag 12 starts CLEAR
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -679,7 +679,7 @@ fn fs_q_c_ind_fn_qual_04_skips_and_keeps_clear_when_flag_clear() {
 fn fs_q_c_ind_fn_qual_04_rejects_non_integer_pointer() {
     // Catches: FS?C_IND missing pre-resolve guard.
     let mut state = CalcState::new();
-    state.regs[5] = non_integer_register();
+    state.regs[5] = non_integer_register().into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::FlagTestInd {
@@ -700,7 +700,7 @@ fn fc_q_c_ind_fn_qual_04_executes_and_clears_when_flag_clear() {
     // Catches: FC?C_IND not clearing flag after a "clear" test (the no-op
     // path — flag was already clear, still must end clear).
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     // flag 12 starts CLEAR
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -730,7 +730,7 @@ fn fc_q_c_ind_fn_qual_04_skips_and_clears_when_flag_set() {
     // Catches: FC?C_IND not clearing flag after a SET test (skip path).
     // The "ALWAYS clear" rule applies even when skip fires.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     state.program = vec![
         Op::Lbl("T".to_string()),
@@ -759,7 +759,7 @@ fn fc_q_c_ind_fn_qual_04_skips_and_clears_when_flag_set() {
 fn fc_q_c_ind_fn_qual_04_rejects_non_integer_pointer() {
     // Catches: FC?C_IND missing pre-resolve guard.
     let mut state = CalcState::new();
-    state.regs[5] = non_integer_register();
+    state.regs[5] = non_integer_register().into();
     state.program = vec![
         Op::Lbl("T".to_string()),
         Op::FlagTestInd {
@@ -786,7 +786,7 @@ fn sf_ind_fn_qual_04_equiv_to_sf_when_resolved_n_12() {
     // PROPERTY `SF_IND(r) ≡ SF(n) when regs[r]=n` in proptest_flags.rs.
     let mut state_direct = CalcState::new();
     let mut state_indirect = CalcState::new();
-    state_indirect.regs[5] = HpNum::from(12i32);
+    state_indirect.regs[5] = HpNum::from(12i32).into();
 
     dispatch(&mut state_direct, Op::SfFlag(12)).unwrap();
     dispatch(&mut state_indirect, Op::SfFlagInd(5)).unwrap();
@@ -804,9 +804,9 @@ fn rcl_ind_fn_qual_04_equiv_to_rcl_when_resolved_n_12() {
     // direct-op delegation produces identical state mutations.
     let mut state_direct = CalcState::new();
     let mut state_indirect = CalcState::new();
-    state_indirect.regs[5] = HpNum::from(12i32);
-    state_direct.regs[12] = HpNum::from(77i32);
-    state_indirect.regs[12] = HpNum::from(77i32);
+    state_indirect.regs[5] = HpNum::from(12i32).into();
+    state_direct.regs[12] = HpNum::from(77i32).into();
+    state_indirect.regs[12] = HpNum::from(77i32).into();
 
     dispatch(&mut state_direct, Op::RclReg(12)).unwrap();
     dispatch(&mut state_indirect, Op::RclInd(5)).unwrap();

@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/screenshots/hp41-gui-v2.2.png" alt="HP-41CV GUI on macOS — v2.2" width="320">
+  <img src="docs/screenshots/hp41-gui-v3.x.png" alt="HP-41CV GUI on macOS — v3.1" width="320">
   <br>
-  <em>HP-41CV desktop GUI on macOS — v2.2 with feature-complete ROM built-ins</em>
+  <em>HP-41CV desktop GUI on macOS — v3.1 with Stat 1 Pac emulation</em>
 </p>
 
 A faithful, open-source behavioral emulation of the **HP-41C/CV/CX** programmable RPN calculator, written in Rust. Ships both a terminal UI (`hp41-cli`) and a pixel-perfect desktop app (`hp41-gui`, Tauri v2 + React).
@@ -28,6 +28,8 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| [v3.1](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.1) | 2026-05-24 | **Stat 1 Pac behavioral emulation** (HP 00041-90030): 13 programs, 26 XEQ entry points covering univariate statistics, one/two-way ANOVA, ANOCOV, linear/exponential/logistic/power/polynomial/multiple regression, hypothesis tests (pooled t-test), nonparametric tests (chi-square, Spearman), normal/chi-square distribution CDF/PDF/inverse, RAND/SEED LCG extension; 3 hand-coded distribution primitives (zero new runtime deps); modal prompts for DEGREE/SEED/ν; `?` overlay gains "Stat 1 Pac (XROM 2)" section; v1.0–v3.0 save files load without migration |
+| [v3.0](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.0) | 2026-05-20 | **Math Pac I behavioral emulation** (HP 00041-90034, 1979): 10 top-level programs, ~55 XEQ-by-Name entry points across hyperbolics, complex stack, polynomial roots (Bairstow), matrix DET/INV/SIMEQ, INTG (Simpson), SOLVE (secant), DIFEQ (RK4), triangle solvers, Fourier transform, 2D/3D coordinate transforms; modal-workflow state machine + user-callback re-entrancy; CLI ↔ GUI parity via shared `xrom_resolve`; coverage 95.39 % lines / 94.26 % regions; `?` overlay gains incremental substring search; v1.0–v2.2 save files load without migration |
 | [v2.2](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v2.2) | 2026-05-16 | **Feature-complete HP-41CV ROM built-ins**: ~90 new ops across math/flags/program-control/ALPHA/indirect (Phases 20–24); f-prefix one-shot CLI + GUI parity; 14-segment SVG LCD; JSON-canonical function pipeline; `?` help overlay; USER-mode key relabel; test hardening to 95.25 % coverage + 99.1 % numerical accuracy; WebdriverIO E2E smoke on Linux CI |
 | [v2.1](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v2.1) | 2026-05-13 | Authentic HP-41C 5×8 keyboard layout, one-shot SHIFT, three-label keys (primary + orange shifted + blue ALPHA), R/S command wiring, stub-error toast pattern |
 | [v2.0](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v2.0) | 2026-05-10 | Tauri desktop GUI: pixel-perfect SVG skin, IPC layer, shared autosave, PRGM-mode program listing, 3-OS GUI CI |
@@ -49,6 +51,8 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
 - Persistent state via JSON at `~/.hp41/autosave.json` — human-readable, version-stable, shared between CLI and GUI
 - v3.0 ships Math Pac I behavioral emulation, feature-complete per Owner's Manual 00041-90034
   ([documented divergences](docs/hp41-math1-divergences.md)) — see [Math Pac I Function Matrix](docs/hp41-math1-function-matrix.md)
+- v3.1 ships Stat 1 Pac behavioral emulation, feature-complete per Owner's Manual HP 00041-90030 (13 programs, 26 XEQ entry points,
+  RAND/SEED extension, [documented divergences](docs/hp41-stat1-divergences.md)) — see [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md)
 
 **Terminal UI (`hp41-cli`)**
 
@@ -80,7 +84,23 @@ This is a **behavioural** emulation — variant-specific memory limits are not e
 | HP-41CV | 1980 | 319 registers     | "Continuously Variable" memory     |
 | HP-41CX | 1983 | Extended + Time   | Built-in X-Functions & Time Module |
 
-## Quick Start
+## Installation
+
+### Pre-built binaries (recommended for end users)
+
+Download platform-native binaries from the [latest release page](https://github.com/talent-factory/hp41-calculator-emulator/releases/latest):
+
+| Platform | CLI (`hp41-cli`) | GUI (`hp41-gui`) |
+|----------|------------------|------------------|
+| **macOS** (Apple Silicon + Intel) | `hp41-cli-vX.Y-aarch64-apple-darwin.tar.gz` | `hp41-gui_X.Y.Z_universal.dmg` |
+| **Windows 10/11** | `hp41-cli-vX.Y-x86_64-pc-windows-msvc.zip` | `hp41-gui_X.Y.Z_x64-setup.exe` (installer) or `_x64-portable.exe` |
+| **Linux** (x86_64) | `hp41-cli-vX.Y-x86_64-unknown-linux-gnu.tar.gz` | `hp41-gui_X.Y.Z_amd64.deb` or `.AppImage` |
+
+macOS binaries are signed with our Apple Developer certificate and Apple-notarized. Windows binaries are unsigned — on first launch you may see a SmartScreen warning ("Windows protected your PC" → click "More info" → "Run anyway").
+
+Binaries first ship with **v3.0.1+** (the v3.0 release is source-only); for v3.0 use the build-from-source path below.
+
+### Build from source (development + v3.0)
 
 ```bash
 # Prerequisites: Rust stable (MSRV 1.88), just
@@ -117,9 +137,11 @@ The GUI and CLI share state via `~/.hp41/autosave.json` — they auto-save every
 | [Operations Reference](docs/operations-reference.md) | All ~130 operations by category |
 | [Function Matrix](docs/hp41cv-function-matrix.md) | Per-op status, keyboard path, divergences |
 | [Math Pac I Function Matrix](docs/hp41-math1-function-matrix.md) | Math Pac I XROM entries with module/function IDs |
+| [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md) | Stat 1 Pac XROM entries (module 2) with function IDs and divergences |
 | [Keyboard Layout](docs/keyboard-layout.md) | Key layout and shifted functions |
 | [Programming Guide](docs/programming-guide.md) | Stack model, programs, flags, loops |
 | [Architecture](docs/architecture.md) | Emulator internals for contributors |
+| [Release Setup](docs/release-setup.md) | Maintainer guide: binary-release workflows + Apple Developer secrets |
 
 ## Documented Divergences from HP-41 Hardware
 

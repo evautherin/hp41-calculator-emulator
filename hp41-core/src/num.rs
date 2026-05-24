@@ -6,6 +6,119 @@ use rust_decimal::MathematicalOps;
 use rust_decimal::RoundingStrategy;
 use serde::{Deserialize, Serialize};
 
+/// Tagged union for HP-41 register values.
+///
+/// `HpValue` wraps `HpNum` (numeric) and adds an `Alpha` variant for
+/// packed-text data stored by ASTO, replacing the `text_regs` shadow
+/// mechanism with first-class type tagging.
+///
+/// Serde uses `#[serde(untagged)]`: old save files with bare Decimal
+/// strings deserialize as `Numeric`; new `[u8; 6]` arrays as `Alpha`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum HpValue {
+    /// A numeric value (the common case).
+    Numeric(HpNum),
+    /// Packed-text data -- up to 6 bytes of ALPHA data (ASTO).
+    Alpha([u8; 6]),
+}
+
+impl HpValue {
+    /// Extract the numeric `HpNum`, returning `AlphaData` if Alpha.
+    pub fn as_numeric(&self) -> Result<HpNum, HpError> {
+        match self {
+            HpValue::Numeric(n) => Ok(n.clone()),
+            HpValue::Alpha(_) => Err(HpError::AlphaData),
+        }
+    }
+
+    /// Unwrap to `HpNum` or return `HpNum::zero()` (used in production
+    /// code where Alpha registers should be treated as zero).
+    pub fn numeric_or_zero(&self) -> HpNum {
+        match self {
+            HpValue::Numeric(n) => n.clone(),
+            HpValue::Alpha(_) => HpNum::zero(),
+        }
+    }
+
+    /// Returns `true` if Alpha.
+    pub fn is_alpha(&self) -> bool {
+        matches!(self, HpValue::Alpha(_))
+    }
+
+    /// Returns `true` if Numeric.
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, HpValue::Numeric(_))
+    }
+
+    // ── Delegation methods (treat Alpha as zero) ──────────────────────────────
+    // These allow production code that formerly called HpNum methods on
+    // register values to work without explicit numeric_or_zero() calls.
+
+    /// Inner Decimal value (Alpha -> ZERO).
+    pub fn inner(&self) -> Decimal {
+        self.numeric_or_zero().inner()
+    }
+
+    /// Checked add (Alpha treated as zero).
+    pub fn checked_add(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
+        self.numeric_or_zero().checked_add(rhs)
+    }
+
+    /// Checked sub (Alpha treated as zero).
+    pub fn checked_sub(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
+        self.numeric_or_zero().checked_sub(rhs)
+    }
+
+    /// Checked mul (Alpha treated as zero).
+    pub fn checked_mul(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
+        self.numeric_or_zero().checked_mul(rhs)
+    }
+
+    /// Checked div (Alpha treated as zero).
+    pub fn checked_div(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
+        self.numeric_or_zero().checked_div(rhs)
+    }
+
+    /// Is this value numerically zero? (Alpha -> true)
+    pub fn is_zero(&self) -> bool {
+        self.numeric_or_zero().is_zero()
+    }
+
+    /// Negate (Alpha -> zero).
+    pub fn negate(&self) -> HpNum {
+        self.numeric_or_zero().negate()
+    }
+
+    /// Truncate to integer part (Alpha -> zero).
+    pub fn trunc_int(&self) -> HpNum {
+        self.numeric_or_zero().trunc_int()
+    }
+
+    /// Checked square (Alpha treated as zero).
+    pub fn checked_sq(&self) -> Result<HpNum, HpError> {
+        self.numeric_or_zero().checked_sq()
+    }
+}
+
+impl Default for HpValue {
+    fn default() -> Self {
+        HpValue::Numeric(HpNum::zero())
+    }
+}
+
+impl From<HpNum> for HpValue {
+    fn from(n: HpNum) -> Self {
+        HpValue::Numeric(n)
+    }
+}
+
+impl From<i32> for HpValue {
+    fn from(n: i32) -> Self {
+        HpValue::Numeric(HpNum::from(n))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HpNum(#[serde(with = "rust_decimal::serde::str")] pub(crate) Decimal);
 
