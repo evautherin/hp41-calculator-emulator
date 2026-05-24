@@ -791,27 +791,27 @@ done
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Are CLOCK and SW non-programmable?**
    - What we know: PITFALLS.md P38 notes this needs Owner's Manual verification. The QRC confirms their interactive nature. Some HP-41 functions are keyboard-only (like PRGM and ON).
    - What's unclear: Whether `Op::TimeClock` and `Op::TimeSw` in a program should execute or return an error.
-   - Recommendation: Implement as functional in programs for now (they just set flags); document as a potential divergence. The safe default is to execute rather than error — a program that sets clock mode is plausibly useful.
+   - RESOLVED: Implement as functional in programs (they just set flags); document as a potential divergence in `docs/hp41-time-divergences.md`. The safe default is to execute rather than error — a program that sets clock mode is plausibly useful.
 
 2. **Exact DOW formula for day-of-week numbering**
    - What we know: OM documents 0=Sunday, 1=Monday, ..., 6=Saturday. JDN 0 was a Monday.
    - What's unclear: The exact modulo formula (`(JDN + 1) % 7` gives Sunday=0 for modern dates, but needs verification against a known date).
-   - Recommendation: Test against known dates in the test suite (e.g., 2026-05-24 is a Sunday, should return 0).
+   - RESOLVED: Use `(JDN + 1) % 7` which yields 0=Sunday for modern dates. Verify in test suite against 2026-05-24 (Saturday=6) and 2026-05-25 (Sunday=0).
 
 3. **SETIME negative values (PM shorthand)**
    - What we know: FEATURES.md confirms SETIME accepts `-1` through `-11` as PM shorthand (1 PM through 11 PM).
    - What's unclear: Whether the clock display shows negative values or converts them to 24h format.
-   - Recommendation: Normalize on input: if X is negative and in range [-1, -11], convert to 24h equivalent (`abs(X) + 12`). Document in divergence file.
+   - RESOLVED: Normalize on input in the modal submit logic: if X is negative and in range [-1, -11], convert to 24h equivalent (`abs(X) + 12`). Display always shows 24h-normalized values. Document in divergence file.
 
 4. **ALMCAT keyboard mode in hp41-core scope**
    - What we know: ALMCAT enters an interactive catalog mode with keyboard redefinition. The keyboard redefinition is frontend scope (Phases 39/41).
    - What's unclear: Whether `op_almcat()` in hp41-core should just set the `alarm_catalog_mode: bool` flag (and return), or also produce some output.
-   - Recommendation: `op_almcat()` sets `alarm_catalog_mode = true` and writes the first alarm's display string to `print_buffer`. Frontend handles the keyboard mode. This is the minimal hp41-core scope.
+   - RESOLVED: `op_almcat()` sets `alarm_catalog_mode = true` and writes the first alarm's display string to `print_buffer`. Frontend handles the keyboard mode in Phase 39/41. This is the minimal hp41-core scope.
 
 ---
 
