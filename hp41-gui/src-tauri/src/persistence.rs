@@ -60,6 +60,8 @@ pub fn load_state(path: &Path) -> Result<CalcState, Box<dyn std::error::Error>> 
     // Pitfall 4: never resume mid-execution after a reload.
     // A state file written during program execution could have is_running=true.
     state.is_running = false;
+    // D-33.7: upgrade v3.0 save files (xrom_modules=1) to enable Stat 1 (bit 1).
+    state.migrate_after_load();
     Ok(state)
 }
 
