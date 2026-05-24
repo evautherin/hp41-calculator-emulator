@@ -9,73 +9,73 @@ Requirements for Time Pac Emulation milestone. Each maps to roadmap phases.
 
 ### Framework (XROM Registration & CalcState)
 
-- [ ] **TIME-FW-01**: TIME_MODULE `XromModule` registered with XROM ID 26 and ~33 ops; `xrom_resolve` bit-2 arm fires LAST (after bit-0 Math 1 and bit-1 Stat 1)
-- [ ] **TIME-FW-02**: `default_xrom_modules()` returns `0b0000_0111`; `migrate_after_load()` upgrades v3.1 save files (`xrom_modules: 3`) to set bit 2
-- [ ] **TIME-FW-03**: New CalcState fields for clock/stopwatch/alarm state follow serde invariants — `#[serde(default)]` for persistent fields, `#[serde(skip)]` for transient fields
-- [ ] **TIME-FW-04**: System clock access via `std::time::SystemTime` in hp41-core; time offset (from SETIME/SETDATE) stored as persistent CalcState field
-- [ ] **TIME-FW-05**: Stopwatch elapsed time tracked via `std::time::Instant` (monotonic); start marker is transient, accumulated time is persistent
-- [ ] **TIME-FW-06**: Alarm catalog stored as persistent CalcState field (Vec of alarm entries, up to 253); each entry carries time, date, message/type, repeat interval
+- [x] **TIME-FW-01**: TIME_MODULE `XromModule` registered with XROM ID 26 and ~33 ops; `xrom_resolve` bit-2 arm fires LAST (after bit-0 Math 1 and bit-1 Stat 1)
+- [x] **TIME-FW-02**: `default_xrom_modules()` returns `0b0000_0111`; `migrate_after_load()` upgrades v3.1 save files (`xrom_modules: 3`) to set bit 2
+- [x] **TIME-FW-03**: New CalcState fields for clock/stopwatch/alarm state follow serde invariants — `#[serde(default)]` for persistent fields, `#[serde(skip)]` for transient fields
+- [x] **TIME-FW-04**: System clock access via `std::time::SystemTime` in hp41-core; time offset (from SETIME/SETDATE) stored as persistent CalcState field
+- [x] **TIME-FW-05**: Stopwatch elapsed time tracked via `std::time::Instant` (monotonic); start marker is transient, accumulated time is persistent
+- [x] **TIME-FW-06**: Alarm catalog stored as persistent CalcState field (Vec of alarm entries, up to 253); each entry carries time, date, message/type, repeat interval
 
 ### Clock & Time Recall
 
-- [ ] **TIME-CLK-01**: `TIME` returns current time as HH.MMSSss in X register (system clock + user offset)
-- [ ] **TIME-CLK-02**: `DATE` returns current date as MM.DDYYYY or DD.MMYYYY in X register (controlled by Flag 31)
-- [ ] **TIME-CLK-03**: `ATIME` appends current time to ALPHA register in HH:MM:SS format (12h if CLK12, 24h if CLK24)
-- [ ] **TIME-CLK-04**: `ATIME24` appends current time to ALPHA register in 24-hour HH:MM:SS format regardless of CLK12/CLK24 setting
-- [ ] **TIME-CLK-05**: `ADATE` appends current date to ALPHA register in locale-appropriate format (controlled by Flag 31)
-- [ ] **TIME-CLK-06**: `T+X` adds X register value (seconds) to the time accumulator in the alarm register
+- [x] **TIME-CLK-01**: `TIME` returns current time as HH.MMSSss in X register (system clock + user offset)
+- [x] **TIME-CLK-02**: `DATE` returns current date as MM.DDYYYY or DD.MMYYYY in X register (controlled by Flag 31)
+- [x] **TIME-CLK-03**: `ATIME` appends current time to ALPHA register in HH:MM:SS format (12h if CLK12, 24h if CLK24)
+- [x] **TIME-CLK-04**: `ATIME24` appends current time to ALPHA register in 24-hour HH:MM:SS format regardless of CLK12/CLK24 setting
+- [x] **TIME-CLK-05**: `ADATE` appends current date to ALPHA register in locale-appropriate format (controlled by Flag 31)
+- [x] **TIME-CLK-06**: `T+X` adds X register value (seconds) to the time accumulator in the alarm register
 
 ### Date Arithmetic
 
-- [ ] **TIME-DAT-01**: `DATE+` adds X days to date in Y (respecting DMY/MDY format via Flag 31); returns result date in X
-- [ ] **TIME-DAT-02**: `DDAYS` computes days between dates in X and Y (respecting DMY/MDY format); returns signed count in X
-- [ ] **TIME-DAT-03**: `DOW` returns day-of-week (0=Sunday..6=Saturday) for date in X
-- [ ] **TIME-DAT-04**: `DMY` sets Flag 31 (date format DD.MMYYYY); aliased to `SF 31`
-- [ ] **TIME-DAT-05**: `MDY` clears Flag 31 (date format MM.DDYYYY); aliased to `CF 31`
-- [ ] **TIME-DAT-06**: Date decimal format uses string-split-at-decimal parsing (ISG/DSE precedent), NOT float arithmetic
+- [x] **TIME-DAT-01**: `DATE+` adds X days to date in Y (respecting DMY/MDY format via Flag 31); returns result date in X
+- [x] **TIME-DAT-02**: `DDAYS` computes days between dates in X and Y (respecting DMY/MDY format); returns signed count in X
+- [x] **TIME-DAT-03**: `DOW` returns day-of-week (0=Sunday..6=Saturday) for date in X
+- [x] **TIME-DAT-04**: `DMY` sets Flag 31 (date format DD.MMYYYY); aliased to `SF 31`
+- [x] **TIME-DAT-05**: `MDY` clears Flag 31 (date format MM.DDYYYY); aliased to `CF 31`
+- [x] **TIME-DAT-06**: Date decimal format uses string-split-at-decimal parsing (ISG/DSE precedent), NOT float arithmetic
 
 ### Clock Display
 
-- [ ] **TIME-DSP-01**: `CLKT` toggles clock display mode — when active, LCD shows current time (live-updating); normal display resumes on any keypress
-- [ ] **TIME-DSP-02**: `CLKTD` toggles date display within clock mode — when active, LCD alternates between time and date
-- [ ] **TIME-DSP-03**: `SETIME` prompts user for time via modal (HH.MMSSss format); stores as offset from system clock
-- [ ] **TIME-DSP-04**: `SETDATE` prompts user for date via modal (MM.DDYYYY or DD.MMYYYY per Flag 31); stores as offset from system clock
-- [ ] **TIME-DSP-05**: Clock display updates at ≥1 Hz in both CLI and GUI when active
+- [x] **TIME-DSP-01**: `CLKT` toggles clock display mode — when active, LCD shows current time (live-updating); normal display resumes on any keypress
+- [x] **TIME-DSP-02**: `CLKTD` toggles date display within clock mode — when active, LCD alternates between time and date
+- [x] **TIME-DSP-03**: `SETIME` prompts user for time via modal (HH.MMSSss format); stores as offset from system clock
+- [x] **TIME-DSP-04**: `SETDATE` prompts user for date via modal (MM.DDYYYY or DD.MMYYYY per Flag 31); stores as offset from system clock
+- [x] **TIME-DSP-05**: Clock display updates at ≥1 Hz in both CLI and GUI when active
 
 ### Format & Adjustment
 
-- [ ] **TIME-FMT-01**: `CLK12` sets 12-hour display format (AM/PM suffix in ATIME)
-- [ ] **TIME-FMT-02**: `CLK24` sets 24-hour display format
-- [ ] **TIME-FMT-03**: `SETAF` stores accuracy factor from X register (value stored but has no effect in emulation — documented divergence)
-- [ ] **TIME-FMT-04**: `RCLAF` recalls accuracy factor to X register
-- [ ] **TIME-FMT-05**: `CORRECT` adjusts time by accuracy factor (in emulation: stores factor, documented as no-op divergence since system clock is authoritative)
+- [x] **TIME-FMT-01**: `CLK12` sets 12-hour display format (AM/PM suffix in ATIME)
+- [x] **TIME-FMT-02**: `CLK24` sets 24-hour display format
+- [x] **TIME-FMT-03**: `SETAF` stores accuracy factor from X register (value stored but has no effect in emulation — documented divergence)
+- [x] **TIME-FMT-04**: `RCLAF` recalls accuracy factor to X register
+- [x] **TIME-FMT-05**: `CORRECT` adjusts time by accuracy factor (in emulation: stores factor, documented as no-op divergence since system clock is authoritative)
 
 ### Stopwatch
 
-- [ ] **TIME-SW-01**: `SETSW` initializes stopwatch display mode with split-point tracking; LCD shows running time in HH:MM:SS.hh format
-- [ ] **TIME-SW-02**: `SW` starts the interactive stopwatch mode — dedicated keyboard layout for stopwatch control (start/stop/split/reset)
-- [ ] **TIME-SW-03**: `STPW` records a split point (current elapsed time) while stopwatch continues running
-- [ ] **TIME-SW-04**: `RUNSW` starts/resumes the stopwatch timer (programmable — no interactive mode)
-- [ ] **TIME-SW-05**: `STOPSW` stops the stopwatch timer (programmable)
-- [ ] **TIME-SW-06**: `RCLSW` recalls current stopwatch elapsed time to X register as HH.MMSSss
-- [ ] **TIME-SW-07**: `SWPT` recalls the last split-point time to X register
-- [ ] **TIME-SW-08**: Stopwatch display updates at ≥10 Hz when running in both CLI and GUI (centisecond resolution visible)
-- [ ] **TIME-SW-09**: Stopwatch uses monotonic clock (`Instant`) for elapsed time — immune to system clock changes
+- [x] **TIME-SW-01**: `SETSW` initializes stopwatch display mode with split-point tracking; LCD shows running time in HH:MM:SS.hh format
+- [x] **TIME-SW-02**: `SW` starts the interactive stopwatch mode — dedicated keyboard layout for stopwatch control (start/stop/split/reset)
+- [x] **TIME-SW-03**: `STPW` records a split point (current elapsed time) while stopwatch continues running
+- [x] **TIME-SW-04**: `RUNSW` starts/resumes the stopwatch timer (programmable — no interactive mode)
+- [x] **TIME-SW-05**: `STOPSW` stops the stopwatch timer (programmable)
+- [x] **TIME-SW-06**: `RCLSW` recalls current stopwatch elapsed time to X register as HH.MMSSss
+- [x] **TIME-SW-07**: `SWPT` recalls the last split-point time to X register
+- [x] **TIME-SW-08**: Stopwatch display updates at ≥10 Hz when running in both CLI and GUI (centisecond resolution visible)
+- [x] **TIME-SW-09**: Stopwatch uses monotonic clock (`Instant`) for elapsed time — immune to system clock changes
 
 ### Alarm System
 
-- [ ] **TIME-ALM-01**: `XYZALM` sets an alarm — time from X, date from Y, type/message from Z/ALPHA; supports message alarms and control alarms
-- [ ] **TIME-ALM-02**: `RCLALM` recalls alarm fields — alarm number from X; returns time, date, type/message to stack and ALPHA
-- [ ] **TIME-ALM-03**: `ALMCAT` enters interactive Alarm Catalog mode — displays alarms chronologically with dedicated keyboard for navigation/acknowledge/delete
-- [ ] **TIME-ALM-04**: `CLALMA` clears (acknowledges) a specific alarm by number
-- [ ] **TIME-ALM-05**: `CLALMX` clears a specific alarm by number (extended clear)
-- [ ] **TIME-ALM-06**: `CLRALMS` clears all alarms
-- [ ] **TIME-ALM-07**: `ALMNOW` triggers an immediate alarm (for testing)
-- [ ] **TIME-ALM-08**: Past-due alarm detection — on each keypress/dispatch, check for overdue alarms and surface notification
-- [ ] **TIME-ALM-09**: Message alarms display message in ALPHA register and beep
-- [ ] **TIME-ALM-10**: Control alarms trigger program execution (XEQ label stored in alarm); interrupting control alarms suspend current operation
-- [ ] **TIME-ALM-11**: Repeating alarms (repeat interval > 0) reschedule after acknowledgment
-- [ ] **TIME-ALM-12**: Alarm catalog persists across save/load cycles
+- [x] **TIME-ALM-01**: `XYZALM` sets an alarm — time from X, date from Y, type/message from Z/ALPHA; supports message alarms and control alarms
+- [x] **TIME-ALM-02**: `RCLALM` recalls alarm fields — alarm number from X; returns time, date, type/message to stack and ALPHA
+- [x] **TIME-ALM-03**: `ALMCAT` enters interactive Alarm Catalog mode — displays alarms chronologically with dedicated keyboard for navigation/acknowledge/delete
+- [x] **TIME-ALM-04**: `CLALMA` clears (acknowledges) a specific alarm by number
+- [x] **TIME-ALM-05**: `CLALMX` clears a specific alarm by number (extended clear)
+- [x] **TIME-ALM-06**: `CLRALMS` clears all alarms
+- [x] **TIME-ALM-07**: `ALMNOW` triggers an immediate alarm (for testing)
+- [x] **TIME-ALM-08**: Past-due alarm detection — on each keypress/dispatch, check for overdue alarms and surface notification
+- [x] **TIME-ALM-09**: Message alarms display message in ALPHA register and beep
+- [x] **TIME-ALM-10**: Control alarms trigger program execution (XEQ label stored in alarm); interrupting control alarms suspend current operation
+- [x] **TIME-ALM-11**: Repeating alarms (repeat interval > 0) reschedule after acknowledgment
+- [x] **TIME-ALM-12**: Alarm catalog persists across save/load cycles
 
 ### CLI Integration
 
@@ -152,55 +152,55 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TIME-FW-01 | Phase 38 | Pending |
-| TIME-FW-02 | Phase 38 | Pending |
-| TIME-FW-03 | Phase 38 | Pending |
-| TIME-FW-04 | Phase 38 | Pending |
-| TIME-FW-05 | Phase 38 | Pending |
-| TIME-FW-06 | Phase 38 | Pending |
-| TIME-CLK-01 | Phase 38 | Pending |
-| TIME-CLK-02 | Phase 38 | Pending |
-| TIME-CLK-03 | Phase 38 | Pending |
-| TIME-CLK-04 | Phase 38 | Pending |
-| TIME-CLK-05 | Phase 38 | Pending |
-| TIME-CLK-06 | Phase 38 | Pending |
-| TIME-DAT-01 | Phase 38 | Pending |
-| TIME-DAT-02 | Phase 38 | Pending |
-| TIME-DAT-03 | Phase 38 | Pending |
-| TIME-DAT-04 | Phase 38 | Pending |
-| TIME-DAT-05 | Phase 38 | Pending |
-| TIME-DAT-06 | Phase 38 | Pending |
-| TIME-DSP-01 | Phase 38 | Pending |
-| TIME-DSP-02 | Phase 38 | Pending |
-| TIME-DSP-03 | Phase 38 | Pending |
-| TIME-DSP-04 | Phase 38 | Pending |
-| TIME-DSP-05 | Phase 38 | Pending |
-| TIME-FMT-01 | Phase 38 | Pending |
-| TIME-FMT-02 | Phase 38 | Pending |
-| TIME-FMT-03 | Phase 38 | Pending |
-| TIME-FMT-04 | Phase 38 | Pending |
-| TIME-FMT-05 | Phase 38 | Pending |
-| TIME-SW-01 | Phase 38 | Pending |
-| TIME-SW-02 | Phase 38 | Pending |
-| TIME-SW-03 | Phase 38 | Pending |
-| TIME-SW-04 | Phase 38 | Pending |
-| TIME-SW-05 | Phase 38 | Pending |
-| TIME-SW-06 | Phase 38 | Pending |
-| TIME-SW-07 | Phase 38 | Pending |
-| TIME-SW-08 | Phase 38 | Pending |
-| TIME-SW-09 | Phase 38 | Pending |
-| TIME-ALM-01 | Phase 38 | Pending |
-| TIME-ALM-02 | Phase 38 | Pending |
-| TIME-ALM-03 | Phase 38 | Pending |
-| TIME-ALM-04 | Phase 38 | Pending |
-| TIME-ALM-05 | Phase 38 | Pending |
-| TIME-ALM-06 | Phase 38 | Pending |
-| TIME-ALM-07 | Phase 38 | Pending |
-| TIME-ALM-08 | Phase 38 | Pending |
-| TIME-ALM-09 | Phase 38 | Pending |
-| TIME-ALM-10 | Phase 38 | Pending |
-| TIME-ALM-11 | Phase 38 | Pending |
-| TIME-ALM-12 | Phase 38 | Pending |
+| TIME-FW-01 | Phase 38 | Complete |
+| TIME-FW-02 | Phase 38 | Complete |
+| TIME-FW-03 | Phase 38 | Complete |
+| TIME-FW-04 | Phase 38 | Complete |
+| TIME-FW-05 | Phase 38 | Complete |
+| TIME-FW-06 | Phase 38 | Complete |
+| TIME-CLK-01 | Phase 38 | Complete |
+| TIME-CLK-02 | Phase 38 | Complete |
+| TIME-CLK-03 | Phase 38 | Complete |
+| TIME-CLK-04 | Phase 38 | Complete |
+| TIME-CLK-05 | Phase 38 | Complete |
+| TIME-CLK-06 | Phase 38 | Complete |
+| TIME-DAT-01 | Phase 38 | Complete |
+| TIME-DAT-02 | Phase 38 | Complete |
+| TIME-DAT-03 | Phase 38 | Complete |
+| TIME-DAT-04 | Phase 38 | Complete |
+| TIME-DAT-05 | Phase 38 | Complete |
+| TIME-DAT-06 | Phase 38 | Complete |
+| TIME-DSP-01 | Phase 38 | Complete |
+| TIME-DSP-02 | Phase 38 | Complete |
+| TIME-DSP-03 | Phase 38 | Complete |
+| TIME-DSP-04 | Phase 38 | Complete |
+| TIME-DSP-05 | Phase 38 | Complete |
+| TIME-FMT-01 | Phase 38 | Complete |
+| TIME-FMT-02 | Phase 38 | Complete |
+| TIME-FMT-03 | Phase 38 | Complete |
+| TIME-FMT-04 | Phase 38 | Complete |
+| TIME-FMT-05 | Phase 38 | Complete |
+| TIME-SW-01 | Phase 38 | Complete |
+| TIME-SW-02 | Phase 38 | Complete |
+| TIME-SW-03 | Phase 38 | Complete |
+| TIME-SW-04 | Phase 38 | Complete |
+| TIME-SW-05 | Phase 38 | Complete |
+| TIME-SW-06 | Phase 38 | Complete |
+| TIME-SW-07 | Phase 38 | Complete |
+| TIME-SW-08 | Phase 38 | Complete |
+| TIME-SW-09 | Phase 38 | Complete |
+| TIME-ALM-01 | Phase 38 | Complete |
+| TIME-ALM-02 | Phase 38 | Complete |
+| TIME-ALM-03 | Phase 38 | Complete |
+| TIME-ALM-04 | Phase 38 | Complete |
+| TIME-ALM-05 | Phase 38 | Complete |
+| TIME-ALM-06 | Phase 38 | Complete |
+| TIME-ALM-07 | Phase 38 | Complete |
+| TIME-ALM-08 | Phase 38 | Complete |
+| TIME-ALM-09 | Phase 38 | Complete |
+| TIME-ALM-10 | Phase 38 | Complete |
+| TIME-ALM-11 | Phase 38 | Complete |
+| TIME-ALM-12 | Phase 38 | Complete |
 | TIME-CLI-01 | Phase 39 | Pending |
 | TIME-CLI-02 | Phase 39 | Pending |
 | TIME-CLI-03 | Phase 39 | Pending |

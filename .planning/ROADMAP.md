@@ -186,7 +186,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete   | 2026-05-24 |
+| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
 | 39. hp41-cli -- CLI Integration + Live Display | 0/TBD | Not started | - |
 | 40. Documentation & ADRs | 0/TBD | Not started | - |
 | 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
