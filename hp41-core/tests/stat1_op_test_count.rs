@@ -61,8 +61,7 @@ fn collect_stat1_variant_names() -> Vec<String> {
         if !in_stat1_resolve {
             if trimmed.contains("fn stat1_resolve") {
                 in_stat1_resolve = true;
-                brace_depth =
-                    line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                brace_depth = line.matches('{').count() as i32 - line.matches('}').count() as i32;
             }
             continue;
         }

@@ -96,7 +96,10 @@ fn normd_mode_choice_mode2_pdf_succeeds() {
     set_x_decimal(&mut state, 2, 0);
     let r = submit_step(&mut state, Stat1Step::NormdModeChoice);
     assert!(r.is_ok(), "Mode 2 (PDF) must succeed; got {r:?}");
-    assert!(state.modal_program.is_none(), "modal must clear after PDF submit");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after PDF submit"
+    );
     assert!(state.modal_prompt.is_none());
 }
 
@@ -113,7 +116,10 @@ fn normd_mode_choice_mode3_inverse_succeeds() {
     set_x_decimal(&mut state, 3, 0);
     let r = submit_step(&mut state, Stat1Step::NormdModeChoice);
     assert!(r.is_ok(), "Mode 3 (inverse) must succeed; got {r:?}");
-    assert!(state.modal_program.is_none(), "modal must clear after inverse submit");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after inverse submit"
+    );
 }
 
 /// Catches: NormdModeChoice invalid mode index 0 not returning Domain.
@@ -125,7 +131,10 @@ fn normd_mode_choice_mode0_is_domain_err() {
     set_x_decimal(&mut state, 0, 0); // mode = 0 (invalid)
     let r = submit_step(&mut state, Stat1Step::NormdModeChoice);
     assert_eq!(r, Err(HpError::Domain), "mode 0 must be a Domain error");
-    assert!(state.modal_program.is_none(), "modal must clear after mode-error submit");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after mode-error submit"
+    );
 }
 
 /// Catches: NormdModeChoice invalid mode index 4 not returning Domain.
@@ -149,7 +158,11 @@ fn normd_mode_choice_negative_mode_is_domain_err() {
     dispatch(&mut state, Op::SigmaNormdWorkflow).expect("ΣNORMD workflow open must succeed");
     set_x_decimal(&mut state, -1, 0); // mode = -1 (invalid)
     let r = submit_step(&mut state, Stat1Step::NormdModeChoice);
-    assert_eq!(r, Err(HpError::Domain), "negative mode must be a Domain error");
+    assert_eq!(
+        r,
+        Err(HpError::Domain),
+        "negative mode must be a Domain error"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -183,9 +196,17 @@ fn chisqd_nu_prompt_fractional_nu_truncates_to_int() {
     set_x_decimal(&mut state, 27, 1); // 2.7
     let r = submit_step(&mut state, Stat1Step::ChisqdNuPrompt);
     // LINT-EXEMPT: Result<(),HpError> equality — not a numerical HpNum comparison; Ok(()) is unit; no f64 bridge
-    assert_eq!(r, Ok(()), "fractional ν should be truncated and accepted; got {r:?}");
+    assert_eq!(
+        r,
+        Ok(()),
+        "fractional ν should be truncated and accepted; got {r:?}"
+    );
     // LINT-EXEMPT: integer Option<u32> comparison; no HpNum f64 bridge
-    assert_eq!(state.pending_chisqd_nu, Some(2), "ν must be truncated to 2, not rounded");
+    assert_eq!(
+        state.pending_chisqd_nu,
+        Some(2),
+        "ν must be truncated to 2, not rounded"
+    );
 }
 
 /// Catches: Full ΣCHISQD two-step chain — NuPrompt → ModeChoice for mode 1
@@ -211,12 +232,18 @@ fn chisqd_two_step_chain_mode1_pdf() {
     // push X down to Y, put mode=1 in X.
     state.stack.y = state.stack.x.clone(); // Y ← χ² stat (4.0)
     state.stack.x = HpNum::from(Decimal::new(1, 0)); // X ← mode=1
-    // Stack: X=1, Y=4.0 (χ²stat).
-    // ModeChoice reads mode from X=1, drops X←Y=4.0, then calls PDF with x=4.0 > 0.
+                                                     // Stack: X=1, Y=4.0 (χ²stat).
+                                                     // ModeChoice reads mode from X=1, drops X←Y=4.0, then calls PDF with x=4.0 > 0.
     let r = submit_step(&mut state, Stat1Step::ChisqdModeChoice);
     assert!(r.is_ok(), "ΣCHISQD PDF (mode 1) must succeed; got {r:?}");
-    assert!(state.modal_program.is_none(), "modal must clear after ChisqdModeChoice");
-    assert!(state.pending_chisqd_nu.is_none(), "carrier must be cleared after take()");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after ChisqdModeChoice"
+    );
+    assert!(
+        state.pending_chisqd_nu.is_none(),
+        "carrier must be cleared after take()"
+    );
 }
 
 /// Catches: Full ΣCHISQD two-step chain — NuPrompt → ModeChoice for mode 2
@@ -235,7 +262,7 @@ fn chisqd_two_step_chain_mode2_cdf() {
     // Step 2: simulate "user pushes mode=2" — push χ² stat to Y, put mode in X.
     state.stack.y = state.stack.x.clone(); // Y ← χ² stat (5.0)
     state.stack.x = HpNum::from(Decimal::new(2, 0)); // X ← mode=2 (CDF)
-    // Stack: X=2, Y=5.0. ModeChoice reads mode from X, drops X←Y=5.0.
+                                                     // Stack: X=2, Y=5.0. ModeChoice reads mode from X, drops X←Y=5.0.
     let r = submit_step(&mut state, Stat1Step::ChisqdModeChoice);
     assert!(r.is_ok(), "ΣCHISQD CDF (mode 2) must succeed; got {r:?}");
     assert!(state.modal_program.is_none());
@@ -259,9 +286,19 @@ fn chisqd_mode_choice_invalid_mode_0_is_domain_err() {
     // Submit invalid mode = 0.
     set_x_decimal(&mut state, 0, 0);
     let r = submit_step(&mut state, Stat1Step::ChisqdModeChoice);
-    assert_eq!(r, Err(HpError::Domain), "mode 0 after valid ν must be Domain");
-    assert!(state.modal_program.is_none(), "modal must clear on ModeChoice Domain");
-    assert!(state.pending_chisqd_nu.is_none(), "carrier must be cleared on Domain");
+    assert_eq!(
+        r,
+        Err(HpError::Domain),
+        "mode 0 after valid ν must be Domain"
+    );
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear on ModeChoice Domain"
+    );
+    assert!(
+        state.pending_chisqd_nu.is_none(),
+        "carrier must be cleared on Domain"
+    );
 }
 
 /// Catches: ChisqdModeChoice invalid mode index 3 after valid ν.
@@ -275,7 +312,11 @@ fn chisqd_mode_choice_invalid_mode_3_is_domain_err() {
 
     set_x_decimal(&mut state, 3, 0); // mode = 3 (invalid)
     let r = submit_step(&mut state, Stat1Step::ChisqdModeChoice);
-    assert_eq!(r, Err(HpError::Domain), "mode 3 after valid ν must be Domain");
+    assert_eq!(
+        r,
+        Err(HpError::Domain),
+        "mode 3 after valid ν must be Domain"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -291,7 +332,10 @@ fn polyp_degree_prompt_rejects_zero_degree() {
     set_x_decimal(&mut state, 0, 0); // degree = 0 (invalid: must be >= 1)
     let r = submit_step(&mut state, Stat1Step::PolypDegreePrompt(0));
     assert_eq!(r, Err(HpError::Domain), "degree 0 must be a Domain error");
-    assert!(state.modal_program.is_none(), "modal must clear after degree Domain error");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after degree Domain error"
+    );
     assert!(state.modal_prompt.is_none());
 }
 
@@ -303,7 +347,11 @@ fn polyp_degree_prompt_rejects_above_max_degree() {
     dispatch(&mut state, Op::SigmaPolypWorkflow).expect("ΣPOLYP workflow open must succeed");
     set_x_decimal(&mut state, 6, 0); // degree = 6 (> DEGREE_MAX=5, invalid)
     let r = submit_step(&mut state, Stat1Step::PolypDegreePrompt(0));
-    assert_eq!(r, Err(HpError::Domain), "degree 6 must be a Domain error (max is 5)");
+    assert_eq!(
+        r,
+        Err(HpError::Domain),
+        "degree 6 must be a Domain error (max is 5)"
+    );
     assert!(state.modal_program.is_none());
 }
 
@@ -315,7 +363,11 @@ fn polyp_degree_prompt_rejects_negative_degree() {
     dispatch(&mut state, Op::SigmaPolypWorkflow).expect("ΣPOLYP workflow open must succeed");
     set_x_decimal(&mut state, -1, 0); // degree = -1 (invalid)
     let r = submit_step(&mut state, Stat1Step::PolypDegreePrompt(0));
-    assert_eq!(r, Err(HpError::Domain), "negative degree must be a Domain error");
+    assert_eq!(
+        r,
+        Err(HpError::Domain),
+        "negative degree must be a Domain error"
+    );
 }
 
 /// Catches: PolypDegreePrompt happy path with degree=1 (linear fit) not
@@ -335,7 +387,10 @@ fn polyp_degree_prompt_happy_path_degree1() {
     set_x_decimal(&mut state, 1, 0);
     // Result may be Ok or Domain (singular n=0 Σ matrix); we only assert modal clears.
     let _r = submit_step(&mut state, Stat1Step::PolypDegreePrompt(0));
-    assert!(state.modal_program.is_none(), "modal must clear after degree=1 submit");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after degree=1 submit"
+    );
     assert!(state.modal_prompt.is_none());
     // LINT-EXEMPT: exact HpNum from(1i32) comparison; verifying register write, no f64 bridge
     assert_eq!(
@@ -359,7 +414,10 @@ fn polyp_degree_prompt_fractional_truncates_to_valid() {
     let _r = submit_step(&mut state, Stat1Step::PolypDegreePrompt(0));
     // Modal must have cleared (degree 2.9 truncates to 2, which is valid;
     // compute may succeed or Domain on zero Σ — both are acceptable per design).
-    assert!(state.modal_program.is_none(), "modal must clear after fractional degree=2.9");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after fractional degree=2.9"
+    );
     // The register stores the original X value (2.9) — implementation detail per
     // the `state.regs[STAT1_POLYP_DEGREE_REG] = state.stack.x.clone()` line.
     // LINT-EXEMPT: exact HpNum from Decimal::new(29,1) comparison; verifying register stores original X
@@ -385,7 +443,10 @@ fn seed_prompt_negative_seed_normalizes_to_unit_interval() {
     set_x_decimal(&mut state, -5, 1);
     let r = submit_step(&mut state, Stat1Step::SeedPrompt);
     assert_eq!(r, Ok(()), "negative seed must succeed after normalization");
-    assert!(state.modal_program.is_none(), "modal must clear after SEED submit");
+    assert!(
+        state.modal_program.is_none(),
+        "modal must clear after SEED submit"
+    );
     assert!(state.modal_prompt.is_none());
     // rand_seed must be in [0, 1).
     let seed_inner = state.rand_seed.inner();
@@ -405,7 +466,11 @@ fn seed_prompt_large_integer_seed_normalizes() {
     set_x_decimal(&mut state, 12345, 0);
     let r = submit_step(&mut state, Stat1Step::SeedPrompt);
     // LINT-EXEMPT: Result<(),HpError> equality — not a numerical HpNum comparison; no f64 bridge; lookahead includes rand_seed.inner() call
-    assert_eq!(r, Ok(()), "large integer seed must succeed after normalization");
+    assert_eq!(
+        r,
+        Ok(()),
+        "large integer seed must succeed after normalization"
+    );
     let seed_inner = state.rand_seed.inner();
     assert!(
         seed_inner >= Decimal::ZERO && seed_inner < Decimal::ONE,
@@ -444,14 +509,20 @@ fn seed_prompt_clears_modal_and_drops_x() {
 fn normd_modal_cancel_leaves_clean_state() {
     let mut state = CalcState::new();
     dispatch(&mut state, Op::SigmaNormdWorkflow).expect("ΣNORMD workflow open must succeed");
-    assert!(state.modal_program.is_some(), "modal must be open after ΣNORMD workflow");
+    assert!(
+        state.modal_program.is_some(),
+        "modal must be open after ΣNORMD workflow"
+    );
     // Simulate Esc cancel: clear modal_program and modal_prompt.
     state.modal_program = None;
     state.modal_prompt = None;
     // No further side effects: stack, registers, flags unchanged.
     assert!(state.modal_program.is_none());
     assert!(state.modal_prompt.is_none());
-    assert!(state.pending_chisqd_nu.is_none(), "NormdModeChoice cancel must leave ν carrier clean");
+    assert!(
+        state.pending_chisqd_nu.is_none(),
+        "NormdModeChoice cancel must leave ν carrier clean"
+    );
 }
 
 /// Catches: ChisqdNuPrompt cancel path — after opening ΣCHISQD modal and
@@ -464,7 +535,10 @@ fn chisqd_nu_prompt_cancel_before_submit_leaves_no_carrier() {
     // Cancel before submitting ν.
     state.modal_program = None;
     state.modal_prompt = None;
-    assert!(state.pending_chisqd_nu.is_none(), "carrier must be None if NuPrompt is cancelled before submit");
+    assert!(
+        state.pending_chisqd_nu.is_none(),
+        "carrier must be None if NuPrompt is cancelled before submit"
+    );
 }
 
 /// Catches: ChisqdModeChoice cancel path — after successfully submitting ν
@@ -488,7 +562,10 @@ fn chisqd_mode_choice_cancel_mid_chain_carrier_cleared_on_reopen() {
 
     // Re-opening ΣCHISQD MUST clear the stale carrier (WR-03 fix in op_sigma_chisqd_workflow).
     dispatch(&mut state, Op::SigmaChisqdWorkflow).expect("ΣCHISQD workflow open must succeed");
-    assert!(state.pending_chisqd_nu.is_none(), "re-opening ΣCHISQD must clear stale ν carrier (WR-03)");
+    assert!(
+        state.pending_chisqd_nu.is_none(),
+        "re-opening ΣCHISQD must clear stale ν carrier (WR-03)"
+    );
 }
 
 /// Catches: SeedPrompt cancel path — after opening SEED modal and cancelling

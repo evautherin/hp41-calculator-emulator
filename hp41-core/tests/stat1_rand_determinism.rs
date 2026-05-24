@@ -35,7 +35,7 @@ fn rand_lcg_formula_first_iter() {
     state.rand_seed = hp(5, 1); // 0.5
     dispatch(&mut state, Op::Rand).expect("RAND must succeed");
     let expected = hp(711_327, 6); // 0.711327
-    // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; rand_seed is a Decimal-exact LCG accumulator
+                                   // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; rand_seed is a Decimal-exact LCG accumulator
     assert_eq!(
         state.rand_seed, expected,
         "rand_seed mismatch: SPEC Req. 35 decimal-exact LCG"

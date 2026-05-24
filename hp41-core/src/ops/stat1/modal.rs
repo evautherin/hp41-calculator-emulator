@@ -457,8 +457,8 @@ mod tests {
             ))
         ));
         assert_eq!(state.modal_prompt, Some("\u{03A3}CHISQD MODE?".to_string())); // LINT-EXEMPT: string comparison, no HpNum; lookahead false positive from comment text containing 'HpNum'
-        // ν stashed in the transient carrier (post-WR-03 design).
-        // LINT-EXEMPT: integer-equality — Option<u32> comparison, no HpNum value; flagged by lookahead false positive due to adjacent HpNum on next line
+                                                                                  // ν stashed in the transient carrier (post-WR-03 design).
+                                                                                  // LINT-EXEMPT: integer-equality — Option<u32> comparison, no HpNum value; flagged by lookahead false positive due to adjacent HpNum on next line
         assert_eq!(state.pending_chisqd_nu, Some(3));
         // User's original T is preserved (no more side-channel clobber).
         // LINT-EXEMPT: integer-equality via HpNum::from(42i32) — no f64 bridge; verifying exact stack.t preservation across modal submit

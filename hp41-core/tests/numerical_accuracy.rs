@@ -7129,7 +7129,7 @@ fn test_numerical_accuracy_suite() {
         use hp41_core::ops::stat1::chisqd::op_sigma_chisqd_workflow;
         let mut s = CalcState::new();
         op_sigma_chisqd_workflow(&mut s).unwrap(); // opens ChisqdNuPrompt modal
-        // Push nu=1 to X, submit ChisqdNuPrompt
+                                                   // Push nu=1 to X, submit ChisqdNuPrompt
         s.stack.y = HpNum::from(Decimal::from_f64(3.841).unwrap()); // chi2 statistic
         s.stack.x = HpNum::from(Decimal::from_i32(1).unwrap()); // nu=1
         submit_step(&mut s, Stat1Step::ChisqdNuPrompt).unwrap();
@@ -7195,8 +7195,8 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaMmtug — ΣTSTAT pooled-variance two-sample t-test (D-35-06)
         use hp41_core::ops::stat1::{
-            STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUM_REG, STAT1_TSTAT_G1_SUMSQ_REG,
-            STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUM_REG, STAT1_TSTAT_G2_SUMSQ_REG,
+            STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUMSQ_REG, STAT1_TSTAT_G1_SUM_REG,
+            STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUMSQ_REG, STAT1_TSTAT_G2_SUM_REG,
         };
         let mut s = CalcState::new();
         // Group 1: x=[1,2,3,4,5] → n=5, Σx=15, Σx²=55
@@ -7223,8 +7223,8 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaMmtgd — ΣTSTAT p-value AS 63 beta-regularized path (D-35-06 band)
         use hp41_core::ops::stat1::{
-            STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUM_REG, STAT1_TSTAT_G1_SUMSQ_REG,
-            STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUM_REG, STAT1_TSTAT_G2_SUMSQ_REG,
+            STAT1_TSTAT_G1_N_REG, STAT1_TSTAT_G1_SUMSQ_REG, STAT1_TSTAT_G1_SUM_REG,
+            STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUMSQ_REG, STAT1_TSTAT_G2_SUM_REG,
         };
         let mut s = CalcState::new();
         s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32);
@@ -7346,19 +7346,14 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaLin — ΣLIN slope for pure-linear dataset
         let mut s = CalcState::new();
-        for (xi, yi) in [(1i32,2),(2,4),(3,6),(4,8),(5,10)] {
+        for (xi, yi) in [(1i32, 2), (2, 4), (3, 6), (4, 8), (5, 10)] {
             s.stack.y = HpNum::from(yi);
             s.stack.x = HpNum::from(xi);
             dispatch(&mut s, Op::SigmaLin).unwrap();
         }
         dispatch(&mut s, Op::LR).unwrap(); // L.R. extracts slope (Y) and intercept (X)
         let slope = get_y(&s);
-        case!(
-            "stat1_lin",
-            "ΣLIN slope y=2x: scipy=2.0",
-            2.0,
-            slope
-        );
+        case!("stat1_lin", "ΣLIN slope y=2x: scipy=2.0", 2.0, slope);
     }
     {
         // Source: scipy.stats.linregress([1,2,3,4,5], [3,5,7,9,11]).slope=2.0, intercept=1.0
@@ -7366,7 +7361,7 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaExp — ΣLIN intercept for affine-linear dataset
         let mut s = CalcState::new();
-        for (xi, yi) in [(1i32,3),(2,5),(3,7),(4,9),(5,11)] {
+        for (xi, yi) in [(1i32, 3), (2, 5), (3, 7), (4, 9), (5, 11)] {
             s.stack.y = HpNum::from(yi);
             s.stack.x = HpNum::from(xi);
             dispatch(&mut s, Op::SigmaLin).unwrap();
@@ -7388,7 +7383,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: SigmaLogi — ΣLOGI slope for y=a+b*ln(x)
         let e = std::f64::consts::E;
         let mut s = CalcState::new();
-        for (x_f64, yi) in [(1.0f64, 2i32), (e, 3), (e*e, 4)] {
+        for (x_f64, yi) in [(1.0f64, 2i32), (e, 3), (e * e, 4)] {
             s.stack.y = HpNum::from(Decimal::from_i32(yi).unwrap());
             s.stack.x = HpNum::from(Decimal::from_f64(x_f64).unwrap());
             dispatch(&mut s, Op::SigmaLogi).unwrap();
@@ -7407,7 +7402,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: SigmaPow — ΣLOGI intercept for y=2+ln(x)
         let e = std::f64::consts::E;
         let mut s = CalcState::new();
-        for (x_f64, yi) in [(1.0f64, 2i32), (e, 3), (e*e, 4)] {
+        for (x_f64, yi) in [(1.0f64, 2i32), (e, 3), (e * e, 4)] {
             s.stack.y = HpNum::from(Decimal::from_i32(yi).unwrap());
             s.stack.x = HpNum::from(Decimal::from_f64(x_f64).unwrap());
             dispatch(&mut s, Op::SigmaLogi).unwrap();
@@ -7427,7 +7422,7 @@ fn test_numerical_accuracy_suite() {
         //   (10-15)²/15 + (20-20)²/20 + (30-25)²/25 = 25/15 + 0 + 25/25 = 5/3+1 = 8/3
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaPolyc — ΣXSQEV chi-square with O/E interleaved registers
-        use hp41_core::ops::stat1::{STAT1_XSQEV_K_REG};
+        use hp41_core::ops::stat1::STAT1_XSQEV_K_REG;
         let mut s = CalcState::new();
         s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
         s.regs[1] = HpNum::from(10i32);
@@ -7536,11 +7531,11 @@ fn test_numerical_accuracy_suite() {
         // Catches: SigmaPolyc — ΣAOVONE F-ratio 3 groups (D-35-02 F=100→50 correction)
         use hp41_core::ops::stat1::{
             STAT1_AOV_GROUP_BASE_REG, STAT1_AOV_GROUP_N_OFFSET, STAT1_AOV_GROUP_STRIDE,
-            STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_K_REG,
+            STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_K_REG,
         };
         let mut s = CalcState::new();
         s.regs[STAT1_AOV_K_REG] = HpNum::from(3i32); // k=3 groups
-        // Group 0: x=[1..5] → Σx=15, Σx²=55, n=5
+                                                     // Group 0: x=[1..5] → Σx=15, Σx²=55, n=5
         let base0 = STAT1_AOV_GROUP_BASE_REG;
         s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(15i32);
         s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(55i32);
@@ -7585,7 +7580,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: ΣAOVONE F-ratio 2-group case
         use hp41_core::ops::stat1::{
             STAT1_AOV_GROUP_BASE_REG, STAT1_AOV_GROUP_N_OFFSET, STAT1_AOV_GROUP_STRIDE,
-            STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_K_REG,
+            STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_K_REG,
         };
         let mut s = CalcState::new();
         s.regs[STAT1_AOV_K_REG] = HpNum::from(2i32); // k=2 groups

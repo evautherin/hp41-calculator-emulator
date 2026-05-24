@@ -254,9 +254,7 @@ fn polyc_after_linear_fit() {
 
 #[test]
 fn ctkk_two_by_two_table() {
-    use hp41_core::ops::stat1::{
-        STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_R_REG,
-    };
+    use hp41_core::ops::stat1::{STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_R_REG};
     let mut s = CalcState::new();
     s.regs[STAT1_CTKKK_R_REG] = HpNum::from(2);
     s.regs[STAT1_CTKKK_C_REG] = HpNum::from(2);
@@ -270,9 +268,7 @@ fn ctkk_two_by_two_table() {
 
 #[test]
 fn ctkk_symmetric_table() {
-    use hp41_core::ops::stat1::{
-        STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_R_REG,
-    };
+    use hp41_core::ops::stat1::{STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_R_REG};
     let mut s = CalcState::new();
     s.regs[STAT1_CTKKK_R_REG] = HpNum::from(2);
     s.regs[STAT1_CTKKK_C_REG] = HpNum::from(2);
