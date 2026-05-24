@@ -27,7 +27,11 @@
 //! Stat1 precedent (D-33.3b).
 
 use crate::error::HpError;
+use crate::num::HpNum;
 use crate::state::CalcState;
+use rust_decimal::Decimal;
+use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Per-step modal state for the Time Module prompt-driven workflows.
 ///
@@ -46,32 +50,121 @@ pub enum TimeStep {
     XyzalmTimePrompt,
 }
 
+/// Normalize a negative PM shorthand value into the corresponding 24h time.
+///
+/// Per D-38.2 / T-38-16: -1 through -11 are PM shorthand where -N means (12+N):00:00.
+/// For example: -1 → 13:00, -2 → 14:00, ..., -11 → 23:00.
+/// -12 or other negatives are not valid PM shorthand — return None.
+fn normalize_pm_shorthand(x: &HpNum) -> Option<HpNum> {
+    use rust_decimal::prelude::ToPrimitive;
+    let inner = x.inner();
+    if inner >= Decimal::ZERO {
+        // Not negative; return as-is.
+        return Some(x.clone());
+    }
+    // Try to interpret as PM shorthand.
+    let trunc = inner.trunc();
+    // Must be in range -1 through -11 with no fractional part.
+    if inner != trunc {
+        return None; // Fractional negative — not PM shorthand.
+    }
+    let n = trunc.to_i32()?;
+    if !(-11..=-1).contains(&n) {
+        return None; // -12 or worse: not PM shorthand.
+    }
+    // Convert: -N → (12 + N) hours, 0 minutes, 0 seconds.
+    let hour = (12 + n.abs()) as u32; // n is negative, so n.abs() is 1..11 → hour = 13..23
+    // Format as HH.000000 (HH.MMSScc).
+    let s = format!("{}.000000", hour);
+    let d = Decimal::from_str(&s).ok()?;
+    Some(HpNum::from(d))
+}
+
+/// Get the current adjusted epoch seconds from SystemTime.
+fn current_adjusted_epoch(offset_secs: i64) -> i64 {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    now.as_secs() as i64 + offset_secs
+}
+
 /// Per-step submit dispatch — called by `ModalProgram::Time` dispatch arm.
 ///
-/// Phase 38 stubs clear modal state and return Ok(()). Full implementations
-/// (SETIME offset computation, SETDATE, XYZALM alarm-entry construction)
-/// land in Wave 2.
+/// Implements the D-38.2 offset computation pattern:
+/// - Clear modal state FIRST (modal-clear pattern from Stat1 precedent).
+/// - Compute delta = entered_seconds - current_local_seconds.
+/// - Update state.time_offset_secs += delta.
 pub fn submit_step(state: &mut CalcState, step: TimeStep) -> Result<(), HpError> {
     match step {
         TimeStep::SetTimePrompt => {
-            // Phase 38 stub: clear modal state.
-            // Wave 2: parse X as HH.MMSSss, compute time_offset_secs.
+            // 1. Clear modal state BEFORE computing (modal-clear pattern).
             state.modal_program = None;
             state.modal_prompt = None;
+
+            // 2. Read X register. Handle PM shorthand (T-38-16).
+            let x_raw = state.stack.x.clone();
+            let x_normalized = normalize_pm_shorthand(&x_raw)
+                .ok_or(HpError::Domain)?;
+
+            // 3. Parse X as HH.MMSScc via parse_time_hpnum.
+            let (hours, minutes, seconds, _cs) =
+                super::date_arith::parse_time_hpnum(&x_normalized)?;
+
+            // 4. Compute entered_seconds from midnight.
+            let entered_seconds: i64 =
+                i64::from(hours) * 3600 + i64::from(minutes) * 60 + i64::from(seconds);
+
+            // 5. Get current local time seconds from midnight.
+            //    Apply the CURRENT state.time_offset_secs so we compute the delta
+            //    relative to the already-adjusted clock.
+            let current_epoch = current_adjusted_epoch(state.time_offset_secs);
+            // Decompose to hours/minutes/seconds using the existing decompose function.
+            let (_year, _month, _day, cur_h, cur_m, cur_s) =
+                super::clock::decompose_epoch_secs(current_epoch);
+            let current_seconds: i64 =
+                i64::from(cur_h) * 3600 + i64::from(cur_m) * 60 + i64::from(cur_s);
+
+            // 6. Compute delta and update offset.
+            //    delta = entered_seconds - current_seconds (may be negative — OK).
+            let delta = entered_seconds - current_seconds;
+            state.time_offset_secs = state.time_offset_secs.saturating_add(delta);
+
             Ok(())
         }
         TimeStep::SetDatePrompt => {
-            // Phase 38 stub: clear modal state.
-            // Wave 2: parse X per Flag 31, adjust time_offset_secs date component.
+            // 1. Clear modal state BEFORE computing (modal-clear pattern).
             state.modal_program = None;
             state.modal_prompt = None;
+
+            // 2. Parse X as date per Flag 31.
+            let dmy = (state.flags & (1u64 << 31)) != 0;
+            let (year, month, day) =
+                super::date_arith::parse_date_hpnum(&state.stack.x, dmy)?;
+
+            // 3. Compute entered JDN.
+            let entered_jdn = super::date_arith::date_to_jdn(year, month, day);
+
+            // 4. Get current local date JDN.
+            let current_epoch = current_adjusted_epoch(state.time_offset_secs);
+            let (cur_year, cur_month, cur_day, _h, _m, _s) =
+                super::clock::decompose_epoch_secs(current_epoch);
+            let current_jdn =
+                super::date_arith::date_to_jdn(cur_year, cur_month as i32, cur_day as i32);
+
+            // 5. Compute day delta and update offset.
+            let day_delta = entered_jdn - current_jdn;
+            state.time_offset_secs = state.time_offset_secs.saturating_add(day_delta * 86400);
+
             Ok(())
         }
         TimeStep::XyzalmTimePrompt => {
-            // Phase 38 stub: clear modal state.
-            // Wave 2: parse X as alarm time, read ALPHA for alarm type, push AlarmEntry.
+            // Clear modal state.
             state.modal_program = None;
             state.modal_prompt = None;
+            // Multi-step XYZALM modal is handled directly in op_xyzalm for v3.2
+            // (the XYZALM op reads all stack registers at once without a multi-step
+            // modal per QRC stack layout; the prompt variant exists as
+            // forward-compatibility for a future interactive mode).
             Ok(())
         }
     }
@@ -163,11 +256,17 @@ mod tests {
 
     #[test]
     fn submit_set_date_clears_modal_state() {
+        use crate::num::HpNum;
+        use rust_decimal::Decimal;
+        use std::str::FromStr;
         let mut state = CalcState::new();
         state.modal_program = Some(crate::ops::math1::modal::ModalProgram::Time(
             TimeStep::SetDatePrompt,
         ));
         state.modal_prompt = Some("DATE?".to_string());
+        // Provide a valid MDY date: 5.242026 = May 24, 2026.
+        state.flags = 0; // MDY mode
+        state.stack.x = HpNum::from(Decimal::from_str("5.242026").unwrap());
         submit_step(&mut state, TimeStep::SetDatePrompt).unwrap();
         assert!(state.modal_program.is_none());
         assert!(state.modal_prompt.is_none());
