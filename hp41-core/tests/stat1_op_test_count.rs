@@ -24,7 +24,7 @@
 //! distributed across the 12 source files in `src/ops/stat1/`, which do NOT
 //! appear in external `tests/` files and do NOT use `Op::` enum references.
 //!
-//! **Scan scope (Pass 1):** `hp41-core/tests/stat1_*.rs`
+//! **Scan scope (Pass 1):** `hp41-core/tests/stat1_*.rs` + `hp41-core/tests/numerical_accuracy.rs`
 //! **Scan scope (Pass 2):** inline `#[cfg(test)]` blocks from `hp41-core/src/ops/stat1/*.rs`
 //! **Variant source:** `fn stat1_resolve` scope in `hp41-core/src/ops/math1/xrom.rs`
 //!
@@ -194,7 +194,7 @@ fn count_stat1_test_mentions(
 ) -> usize {
     let mut total_fn_count = 0;
 
-    // ── Pass 1: external tests/stat1_*.rs ────────────────────────────────────
+    // ── Pass 1: external tests/stat1_*.rs + numerical_accuracy.rs ──────────
     let entries = match std::fs::read_dir(tests_dir) {
         Ok(e) => e,
         Err(_) => return 0,
@@ -205,7 +205,7 @@ fn count_stat1_test_mentions(
             continue;
         }
         let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if !filename.starts_with("stat1_") {
+        if !filename.starts_with("stat1_") && filename != "numerical_accuracy.rs" {
             continue;
         }
         let content = match std::fs::read_to_string(&path) {
