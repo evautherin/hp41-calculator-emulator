@@ -231,10 +231,26 @@ pub fn op_difeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), Hp
         .first()
         .map(|r| r.numeric_or_zero().inner().to_u8().unwrap_or(0))
         .unwrap_or(0);
-    let step_size_val = state.regs.get(1).map(|v| v.numeric_or_zero()).unwrap_or_default();
-    let x0 = state.regs.get(2).map(|v| v.numeric_or_zero()).unwrap_or_default();
-    let y0 = state.regs.get(3).map(|v| v.numeric_or_zero()).unwrap_or_default();
-    let y_prime0 = state.regs.get(4).map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let step_size_val = state
+        .regs
+        .get(1)
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
+    let x0 = state
+        .regs
+        .get(2)
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
+    let y0 = state
+        .regs
+        .get(3)
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
+    let y_prime0 = state
+        .regs
+        .get(4)
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
     // R05 = max_steps (integer part; 0 or unset → default 1000)
     // Phase 29 / CLI-08 wires this to the "N STEPS=?" modal parameter.
     let max_steps_raw = state
@@ -892,10 +908,11 @@ mod tests {
         state.regs[0] = HpNum::from(1i32).into(); // order = 1
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ).into(); // h = 0.1
+        )
+        .into(); // h = 0.1
         state.regs[2] = HpNum::from(0i32).into(); // x0 = 0
         state.regs[3] = HpNum::from(1i32).into(); // y0 = 1
-                                           // R05 = max_steps: controls how many RK4 steps to take before stopping
+                                                  // R05 = max_steps: controls how many RK4 steps to take before stopping
         state.regs[5] = HpNum::from(n_steps as i32).into(); // number of steps
         (state, program)
     }
@@ -916,7 +933,8 @@ mod tests {
         state.regs[0] = HpNum::from(1i32).into();
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ).into();
+        )
+        .into();
         state.regs[2] = HpNum::from(0i32).into();
         state.regs[3] = HpNum::from(1i32).into();
         state.regs[5] = HpNum::from(20i32).into(); // max_steps = 20 (more than 5 needed for test)
@@ -941,7 +959,8 @@ mod tests {
         state.regs[0] = HpNum::from(2i32).into(); // order = 2
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ).into();
+        )
+        .into();
         state.regs[2] = HpNum::from(0i32).into(); // x0 = 0
         state.regs[3] = HpNum::from(1i32).into(); // y0 = 1
         state.regs[4] = HpNum::from(0i32).into(); // y'0 = 0
@@ -1234,7 +1253,8 @@ mod tests {
         state.regs[0] = HpNum::from(1i32).into();
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ).into();
+        )
+        .into();
         state.regs[2] = HpNum::from(0i32).into();
         state.regs[3] = HpNum::from(1i32).into();
         state.regs[5] = HpNum::from(5i32).into(); // max_steps = 5 (enough to see R04 clobber)

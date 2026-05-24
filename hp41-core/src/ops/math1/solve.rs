@@ -206,8 +206,16 @@ pub fn op_solve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), Hp
     // Phase 29 / CLI-07 wires the full FunctionNamePrompt/Guess1Prompt/Guess2Prompt
     // modal flow that stages these into the same registers before calling run_loop.
     let user_label = state.alpha_reg.clone();
-    let x1 = state.regs.first().map(|v| v.numeric_or_zero()).unwrap_or_default();
-    let x2 = state.regs.get(1).map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let x1 = state
+        .regs
+        .first()
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
+    let x2 = state
+        .regs
+        .get(1)
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
 
     // ── Commit: set solve_state after all pre-mutation guards pass ────────────
     state.solve_state = Some(SolveState {
@@ -272,8 +280,16 @@ pub fn op_sol_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpEr
     }
 
     // Read x1 from R00, x2 from R01 (scratch registers per SOLV-05)
-    let x1 = state.regs.first().map(|v| v.numeric_or_zero()).unwrap_or_default();
-    let x2 = state.regs.get(1).map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let x1 = state
+        .regs
+        .first()
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
+    let x2 = state
+        .regs
+        .get(1)
+        .map(|v| v.numeric_or_zero())
+        .unwrap_or_default();
 
     // ── Commit: set solve_state after all pre-mutation guards pass ────────────
     state.solve_state = Some(SolveState {

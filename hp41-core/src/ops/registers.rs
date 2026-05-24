@@ -59,10 +59,18 @@ pub fn op_sto_arith(state: &mut CalcState, reg: u8, kind: StoArithKind) -> Resul
     }
     // Compute first — do NOT write to state.regs[idx] until we know the op succeeds.
     let new_val = match kind {
-        StoArithKind::Add => state.regs[idx].numeric_or_zero().checked_add(&state.stack.x)?,
-        StoArithKind::Sub => state.regs[idx].numeric_or_zero().checked_sub(&state.stack.x)?,
-        StoArithKind::Mul => state.regs[idx].numeric_or_zero().checked_mul(&state.stack.x)?,
-        StoArithKind::Div => state.regs[idx].numeric_or_zero().checked_div(&state.stack.x)?,
+        StoArithKind::Add => state.regs[idx]
+            .numeric_or_zero()
+            .checked_add(&state.stack.x)?,
+        StoArithKind::Sub => state.regs[idx]
+            .numeric_or_zero()
+            .checked_sub(&state.stack.x)?,
+        StoArithKind::Mul => state.regs[idx]
+            .numeric_or_zero()
+            .checked_mul(&state.stack.x)?,
+        StoArithKind::Div => state.regs[idx]
+            .numeric_or_zero()
+            .checked_div(&state.stack.x)?,
     };
     // Phase 23 D-23.4: clear the packed-text shadow before overwriting the
     // numeric slot. Performed AFTER the checked_* computation so a failing
@@ -350,7 +358,11 @@ mod phase23_sidecar_audit_tests {
             "op_clreg must clear the entire text_regs sidecar map (D-23.4)"
         );
         for r in &state.regs {
-            assert_eq!(r, &crate::num::HpValue::default(), "all numeric regs must be zero");
+            assert_eq!(
+                r,
+                &crate::num::HpValue::default(),
+                "all numeric regs must be zero"
+            );
         }
     }
 

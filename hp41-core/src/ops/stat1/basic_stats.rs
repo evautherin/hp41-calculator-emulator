@@ -430,7 +430,7 @@ mod tests {
     fn bstg_zero_n_returns_invalid() {
         let mut state = CalcState::new();
         state.regs[5] = HpNum::from(1i32).into(); // Σw nonzero to avoid that branch
-                                           // Σx and n both zero (default).
+                                                  // Σx and n both zero (default).
         assert_eq!(op_sigma_bstg(&mut state).unwrap_err(), HpError::InvalidOp);
     }
 

@@ -187,7 +187,8 @@ fn op_isg_ind_interactive_discards_skip_signal() {
     s.regs[5] = hp41_core::HpNum::from(7i32).into();
     // Set regs[7] to a counter at the boundary so op_isg_ind would
     // return true (skip) — but interactively that signal must be ignored.
-    s.regs[7] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("5.005").unwrap()).into();
+    s.regs[7] =
+        hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("5.005").unwrap()).into();
     let pc_before = s.pc;
     dispatch(&mut s, Op::IsgInd(5)).unwrap();
     assert_eq!(s.pc, pc_before, "interactive IsgInd must not advance pc");
@@ -199,7 +200,8 @@ fn op_dse_ind_interactive_discards_skip_signal() {
     // mod.rs.
     let mut s = CalcState::new();
     s.regs[5] = hp41_core::HpNum::from(7i32).into();
-    s.regs[7] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("1.000").unwrap()).into();
+    s.regs[7] =
+        hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("1.000").unwrap()).into();
     let pc_before = s.pc;
     dispatch(&mut s, Op::DseInd(5)).unwrap();
     assert_eq!(s.pc, pc_before, "interactive DseInd must not advance pc");

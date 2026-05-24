@@ -124,7 +124,11 @@ pub fn op_roots(state: &mut CalcState) -> Result<(), HpError> {
     // Build coefficient slice (A=R00 is the leading coefficient x^degree term)
     let mut coeffs: Vec<f64> = Vec::with_capacity(degree + 1);
     for i in 0..=(degree) {
-        let reg_val = state.regs[i].numeric_or_zero().inner().to_f64().unwrap_or(0.0);
+        let reg_val = state.regs[i]
+            .numeric_or_zero()
+            .inner()
+            .to_f64()
+            .unwrap_or(0.0);
         coeffs.push(reg_val);
     }
 
@@ -209,7 +213,11 @@ fn infer_degree(state: &CalcState) -> Result<usize, HpError> {
     // We check from R05 down to find the highest non-zero coefficient.
     // The degree is the index of the highest non-zero register.
     for i in (0..=5usize).rev() {
-        let val = state.regs[i].numeric_or_zero().inner().to_f64().unwrap_or(0.0);
+        let val = state.regs[i]
+            .numeric_or_zero()
+            .inner()
+            .to_f64()
+            .unwrap_or(0.0);
         if val.abs() > 1e-300 {
             return Ok(i);
         }

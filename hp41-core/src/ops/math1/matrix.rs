@@ -565,7 +565,11 @@ pub fn op_mat_simeq(state: &mut CalcState) -> Result<(), HpError> {
         if idx >= state.regs.len() {
             return Err(HpError::InvalidOp);
         }
-        let v = state.regs[idx].numeric_or_zero().inner().to_f64().ok_or(HpError::Overflow)?;
+        let v = state.regs[idx]
+            .numeric_or_zero()
+            .inner()
+            .to_f64()
+            .ok_or(HpError::Overflow)?;
         b_vec.push(v);
     }
 
@@ -644,7 +648,9 @@ pub fn setup_matrix(state: &mut CalcState, n: u8, elements: &[f64]) {
     let required_size =
         DEFAULT_MATRIX_BASE_REG as usize + (n as usize) * (n as usize) + n as usize + 1;
     if state.regs.len() < required_size {
-        state.regs.resize(required_size, crate::num::HpValue::default());
+        state
+            .regs
+            .resize(required_size, crate::num::HpValue::default());
     }
     // Store elements column-major (input elements are row-major)
     for c in 0..(n as usize) {

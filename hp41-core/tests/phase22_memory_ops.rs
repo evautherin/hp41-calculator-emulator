@@ -94,7 +94,11 @@ fn test_size_grow_zero_fills() {
     }
     // Cells 5..20 are zero-filled
     for r in &s.regs[5..20] {
-        assert_eq!(*r, hp41_core::HpValue::default(), "grown cells must be zero");
+        assert_eq!(
+            *r,
+            hp41_core::HpValue::default(),
+            "grown cells must be zero"
+        );
     }
 }
 
@@ -167,7 +171,11 @@ fn test_clreg_after_size_honors_current_size() {
     dispatch(&mut s, Op::Clreg).unwrap();
     assert_eq!(s.regs.len(), 20, "CLREG must honor current SIZE (was 20)");
     for r in &s.regs {
-        assert_eq!(*r, hp41_core::HpValue::default(), "CLREG must zero each surviving cell");
+        assert_eq!(
+            *r,
+            hp41_core::HpValue::default(),
+            "CLREG must zero each surviving cell"
+        );
     }
 }
 

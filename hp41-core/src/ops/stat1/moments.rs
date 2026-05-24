@@ -70,8 +70,12 @@ pub fn op_sigma_mmtug(state: &mut CalcState) -> Result<(), HpError> {
     let x_sq = x.checked_sq()?;
     let x_cube = x.checked_mul(&x_sq)?;
     let x_quad = x_sq.checked_sq()?;
-    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero().checked_add(&x_cube)?;
-    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero().checked_add(&x_quad)?;
+    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG]
+        .numeric_or_zero()
+        .checked_add(&x_cube)?;
+    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG]
+        .numeric_or_zero()
+        .checked_add(&x_quad)?;
 
     // Atomic write of the extended slots BEFORE delegating to op_sigma_plus.
     // (Order is independent — both writes succeed once both values were
@@ -115,8 +119,12 @@ pub fn op_sigma_mmtgd(state: &mut CalcState) -> Result<(), HpError> {
     let new_r1 = state.regs[1].numeric_or_zero().checked_add(&fx_sq)?; // Σ(f·x²)
     let new_r2 = state.regs[2].numeric_or_zero().checked_add(&fx)?; // Σ(f·x)
     let new_r3 = state.regs[3].numeric_or_zero().checked_add(&f)?; // N = Σf
-    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero().checked_add(&fx_cube)?;
-    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero().checked_add(&fx_quad)?;
+    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG]
+        .numeric_or_zero()
+        .checked_add(&fx_cube)?;
+    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG]
+        .numeric_or_zero()
+        .checked_add(&fx_quad)?;
 
     // Atomic write of all five slots.
     state.regs[1] = new_r1.into();
@@ -239,9 +247,21 @@ mod tests {
             state.stack.x = HpNum::from(v);
             op_sigma_mmtug(&mut state).unwrap();
         }
-        assert_relative_eq!(to_f64(&state.regs[1].numeric_or_zero()), 385.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[2].numeric_or_zero()), 55.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[3].numeric_or_zero()), 10.0, max_relative = 1e-9);
+        assert_relative_eq!(
+            to_f64(&state.regs[1].numeric_or_zero()),
+            385.0,
+            max_relative = 1e-9
+        );
+        assert_relative_eq!(
+            to_f64(&state.regs[2].numeric_or_zero()),
+            55.0,
+            max_relative = 1e-9
+        );
+        assert_relative_eq!(
+            to_f64(&state.regs[3].numeric_or_zero()),
+            10.0,
+            max_relative = 1e-9
+        );
         assert_relative_eq!(
             to_f64(&state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero()),
             3025.0,
@@ -313,9 +333,21 @@ mod tests {
             state.stack.x = HpNum::from(x_i);
             op_sigma_mmtgd(&mut state).unwrap();
         }
-        assert_relative_eq!(to_f64(&state.regs[1].numeric_or_zero()), 23.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[2].numeric_or_zero()), 11.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[3].numeric_or_zero()), 6.0, max_relative = 1e-9);
+        assert_relative_eq!(
+            to_f64(&state.regs[1].numeric_or_zero()),
+            23.0,
+            max_relative = 1e-9
+        );
+        assert_relative_eq!(
+            to_f64(&state.regs[2].numeric_or_zero()),
+            11.0,
+            max_relative = 1e-9
+        );
+        assert_relative_eq!(
+            to_f64(&state.regs[3].numeric_or_zero()),
+            6.0,
+            max_relative = 1e-9
+        );
         assert_relative_eq!(
             to_f64(&state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero()),
             53.0,
@@ -343,8 +375,14 @@ mod tests {
         op_sigma_mmtug(&mut state).unwrap();
         // Now we have: R01=25, R02=5, R03=1, R07=125, R08=625.
         assert_eq!(state.regs[1], crate::num::HpValue::from(h(25.0)));
-        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], crate::num::HpValue::from(h(125.0)));
-        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], crate::num::HpValue::from(h(625.0)));
+        assert_eq!(
+            state.regs[STAT1_MMTUG_CUBE_REG],
+            crate::num::HpValue::from(h(125.0))
+        );
+        assert_eq!(
+            state.regs[STAT1_MMTUG_QUAD_REG],
+            crate::num::HpValue::from(h(625.0))
+        );
 
         // Reset the stack to the original (x=5, y=0) AND call op_sigma_minus.
         // op_sigma_plus pushed n=1 into X, so we need to reload x for
@@ -358,8 +396,14 @@ mod tests {
         assert_eq!(state.regs[1], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
         assert_eq!(state.regs[2], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
         assert_eq!(state.regs[3], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
-        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
-        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
+        assert_eq!(
+            state.regs[STAT1_MMTUG_CUBE_REG],
+            crate::num::HpValue::default()
+        ); // LINT-EXEMPT: integer-equality
+        assert_eq!(
+            state.regs[STAT1_MMTUG_QUAD_REG],
+            crate::num::HpValue::default()
+        ); // LINT-EXEMPT: integer-equality
     }
 
     /// SIZE-floor guard fires when state.regs cannot address STAT1_MAX_REG.

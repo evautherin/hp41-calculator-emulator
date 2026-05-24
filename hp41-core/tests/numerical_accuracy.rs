@@ -5492,7 +5492,8 @@ fn test_numerical_accuracy_suite() {
         s.regs[0] = HpNum::from(1i32).into(); // ORDER = 1
         s.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ).into(); // step size
+        )
+        .into(); // step size
         s.regs[2] = HpNum::from(0i32).into(); // x0
         s.regs[3] = HpNum::from(1i32).into(); // y0
         s.regs[5] = HpNum::from(max_steps as i32).into();
@@ -5615,10 +5616,10 @@ fn test_numerical_accuracy_suite() {
         let (mut s, program) = make_difeq_state_p32(2);
         s.regs[0] = HpNum::from(2i32).into();
         s.regs[4] = HpNum::from(0i32).into(); // y'0 = 0
-                                       // ORDER=2 setup acceptance is asserted by: no panic on dispatch + (Ok OR ORDER
-                                       // validation modal). The exponential-growth f isn't well-typed for ORDER=2
-                                       // (the LBL EG2 returns y, not y'' = f(x,y,y')), so we accept any non-panic
-                                       // result — the test surfaces ORDER=2 branch coverage, not numerical correctness.
+                                              // ORDER=2 setup acceptance is asserted by: no panic on dispatch + (Ok OR ORDER
+                                              // validation modal). The exponential-growth f isn't well-typed for ORDER=2
+                                              // (the LBL EG2 returns y, not y'' = f(x,y,y')), so we accept any non-panic
+                                              // result — the test surfaces ORDER=2 branch coverage, not numerical correctness.
         let _ = op_difeq_run_loop(&mut s, &program);
     }
 
@@ -6555,9 +6556,11 @@ fn test_numerical_accuracy_suite() {
         s.program = program.clone();
         s.alpha_reg = label.to_string();
         s.regs[0] =
-            HpNum::from(rust_decimal::Decimal::from_f64(x1).unwrap_or(rust_decimal::Decimal::ZERO)).into();
+            HpNum::from(rust_decimal::Decimal::from_f64(x1).unwrap_or(rust_decimal::Decimal::ZERO))
+                .into();
         s.regs[1] =
-            HpNum::from(rust_decimal::Decimal::from_f64(x2).unwrap_or(rust_decimal::Decimal::ZERO)).into();
+            HpNum::from(rust_decimal::Decimal::from_f64(x2).unwrap_or(rust_decimal::Decimal::ZERO))
+                .into();
         (s, program)
     }
 
@@ -7535,7 +7538,7 @@ fn test_numerical_accuracy_suite() {
         };
         let mut s = CalcState::new();
         s.regs[STAT1_AOV_K_REG] = HpNum::from(3i32).into(); // k=3 groups
-                                                     // Group 0: x=[1..5] → Σx=15, Σx²=55, n=5
+                                                            // Group 0: x=[1..5] → Σx=15, Σx²=55, n=5
         let base0 = STAT1_AOV_GROUP_BASE_REG;
         s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(15i32).into();
         s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(55i32).into();

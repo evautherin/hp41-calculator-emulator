@@ -68,7 +68,10 @@ fn decode_group_count(k_num: &HpNum, cap: usize) -> Result<usize, HpError> {
 /// Source: OM 00041-90030 §ΣAOVONE (p. 20). Oracle: scipy.stats.f_oneway.
 pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
-    let k = decode_group_count(&state.regs[STAT1_AOV_K_REG].numeric_or_zero(), STAT1_AOV_KMAX)?;
+    let k = decode_group_count(
+        &state.regs[STAT1_AOV_K_REG].numeric_or_zero(),
+        STAT1_AOV_KMAX,
+    )?;
 
     // First pass: grand totals (N, Σx, Σx²) — recomputed for atomic
     // correctness (do NOT trust R01..R03 contents).
@@ -82,8 +85,10 @@ pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
             return Err(HpError::InvalidOp);
         }
         grand_n = grand_n.checked_add(&n_i)?;
-        grand_sum = grand_sum.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET].numeric_or_zero())?;
-        grand_sumsq = grand_sumsq.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET].numeric_or_zero())?;
+        grand_sum = grand_sum
+            .checked_add(&state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET].numeric_or_zero())?;
+        grand_sumsq = grand_sumsq
+            .checked_add(&state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET].numeric_or_zero())?;
     }
 
     let k_hp = HpNum::from(rust_decimal::Decimal::from(k));
@@ -177,13 +182,17 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     // SS_row = c · Σᵢ(Rᵢ/c − x̄)²;  SS_col = r · Σⱼ(Cⱼ/r − x̄)²
     let mut ss_row = HpNum::zero();
     for i in 0..r {
-        let row_mean = state.regs[row_base + i].numeric_or_zero().checked_div(&c_hp)?;
+        let row_mean = state.regs[row_base + i]
+            .numeric_or_zero()
+            .checked_div(&c_hp)?;
         ss_row = ss_row.checked_add(&row_mean.checked_sub(&grand_mean)?.checked_sq()?)?;
     }
     ss_row = c_hp.checked_mul(&ss_row)?;
     let mut ss_col = HpNum::zero();
     for j in 0..c {
-        let col_mean = state.regs[col_base + j].numeric_or_zero().checked_div(&r_hp)?;
+        let col_mean = state.regs[col_base + j]
+            .numeric_or_zero()
+            .checked_div(&r_hp)?;
         ss_col = ss_col.checked_add(&col_mean.checked_sub(&grand_mean)?.checked_sq()?)?;
     }
     ss_col = r_hp.checked_mul(&ss_col)?;
@@ -427,7 +436,7 @@ mod tests {
         state.regs[0] = HpNum::from(3i32).into(); // r
         state.regs[1] = HpNum::from(4i32).into(); // c
         state.regs[2] = HpNum::from(12i32).into(); // N
-                                            // grand Σx² and Σx
+                                                   // grand Σx² and Σx
         state.regs[3] = HpNum::from(rust_decimal::Decimal::from(233i32)).into();
         state.regs[4] = HpNum::from(rust_decimal::Decimal::from(51i32)).into();
         // row sums R05, R06, R07 = 19, 14, 18

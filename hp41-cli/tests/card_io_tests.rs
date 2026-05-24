@@ -110,9 +110,21 @@ fn roundtrip_data_via_tempdir() {
     state.alpha_reg = "BACKUP".to_string();
     run_program(&mut state, "RDTA").unwrap();
     drain_pending_card_op(&mut state, tmp.path()).unwrap();
-    assert_eq!(state.regs[0], hp41_core::HpValue::from(42i32), "R00 must round-trip");
-    assert_eq!(state.regs[50], hp41_core::HpValue::from(314i32), "R50 must round-trip");
-    assert_eq!(state.regs[99], hp41_core::HpValue::from(-1i32), "R99 must round-trip");
+    assert_eq!(
+        state.regs[0],
+        hp41_core::HpValue::from(42i32),
+        "R00 must round-trip"
+    );
+    assert_eq!(
+        state.regs[50],
+        hp41_core::HpValue::from(314i32),
+        "R50 must round-trip"
+    );
+    assert_eq!(
+        state.regs[99],
+        hp41_core::HpValue::from(-1i32),
+        "R99 must round-trip"
+    );
     assert!(
         state.regs.len() >= 100,
         "load_data_card must keep register count >= 100"

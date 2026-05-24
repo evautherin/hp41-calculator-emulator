@@ -420,7 +420,11 @@ mod tests {
         state.regs[7] = HpNum::from(Decimal::from_str("42.0").unwrap()).into();
         state.alpha_reg = "HELLO".to_string();
         op_asto(&mut state, 7).unwrap();
-        assert_eq!(state.regs[7], crate::num::HpValue::default(), "numeric slot must be zeroed");
+        assert_eq!(
+            state.regs[7],
+            crate::num::HpValue::default(),
+            "numeric slot must be zeroed"
+        );
         assert_eq!(state.text_regs.get(&7), Some(&"HELLO".to_string()));
     }
 

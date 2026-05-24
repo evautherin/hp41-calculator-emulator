@@ -413,7 +413,11 @@ mod tests {
         assert_relative_eq!(x_as_f64(&state), 8.0 / 3.0, max_relative = 1e-9);
         // Result also lands in R07 scratch slot.
         assert_relative_eq!(
-            state.regs[STAT1_XSQEV_RESULT_REG].numeric_or_zero().inner().to_f64().unwrap(),
+            state.regs[STAT1_XSQEV_RESULT_REG]
+                .numeric_or_zero()
+                .inner()
+                .to_f64()
+                .unwrap(),
             8.0 / 3.0,
             max_relative = 1e-9
         );
@@ -511,7 +515,11 @@ mod tests {
         assert_relative_eq!(x_as_f64(&state), 7.0, max_relative = 1e-9);
         // Result also lands in R07 scratch slot.
         assert_relative_eq!(
-            state.regs[STAT1_XSQEV_RESULT_REG].numeric_or_zero().inner().to_f64().unwrap(),
+            state.regs[STAT1_XSQEV_RESULT_REG]
+                .numeric_or_zero()
+                .inner()
+                .to_f64()
+                .unwrap(),
             7.0,
             max_relative = 1e-9
         );

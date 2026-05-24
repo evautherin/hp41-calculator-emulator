@@ -659,7 +659,7 @@ mod tests {
         state.regs[STAT1_POLYP_SUM_X_BASE_REG + 1] = HpNum::from(55i32).into(); // Σx²
         state.regs[STAT1_POLYP_SUM_X_BASE_REG + 2] = HpNum::from(225i32).into(); // Σx³
         state.regs[STAT1_POLYP_SUM_X_BASE_REG + 3] = HpNum::from(979i32).into(); // Σx⁴
-                                                                          // Σ(x^k·y) at offsets k for k=0..2.
+                                                                                 // Σ(x^k·y) at offsets k for k=0..2.
         state.regs[STAT1_POLYP_SUM_XY_BASE_REG] = HpNum::from(55i32).into(); // Σy
         state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 1] = HpNum::from(225i32).into(); // Σxy
         state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 2] = HpNum::from(979i32).into(); // Σx²y

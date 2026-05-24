@@ -29,12 +29,20 @@ pub fn op_sigma_plus(state: &mut CalcState) -> Result<(), HpError> {
     let y = state.stack.y.clone();
 
     // Accumulate — compute each term atomically before writing (Pitfall guard)
-    let new_r1 = state.regs[1].numeric_or_zero().checked_add(&x.checked_sq()?)?; // Σx² += x²
+    let new_r1 = state.regs[1]
+        .numeric_or_zero()
+        .checked_add(&x.checked_sq()?)?; // Σx² += x²
     let new_r2 = state.regs[2].numeric_or_zero().checked_add(&x)?; // Σx  += x
-    let new_r3 = state.regs[3].numeric_or_zero().checked_add(&HpNum::from(1i32))?; // n   += 1
-    let new_r4 = state.regs[4].numeric_or_zero().checked_add(&y.checked_sq()?)?; // Σy² += y²
+    let new_r3 = state.regs[3]
+        .numeric_or_zero()
+        .checked_add(&HpNum::from(1i32))?; // n   += 1
+    let new_r4 = state.regs[4]
+        .numeric_or_zero()
+        .checked_add(&y.checked_sq()?)?; // Σy² += y²
     let new_r5 = state.regs[5].numeric_or_zero().checked_add(&y)?; // Σy  += y
-    let new_r6 = state.regs[6].numeric_or_zero().checked_add(&x.checked_mul(&y)?)?; // Σxy += x·y
+    let new_r6 = state.regs[6]
+        .numeric_or_zero()
+        .checked_add(&x.checked_mul(&y)?)?; // Σxy += x·y
 
     // Write all atomically after all computations succeed
     state.regs[1] = new_r1.into();
@@ -72,12 +80,20 @@ pub fn op_sigma_minus(state: &mut CalcState) -> Result<(), HpError> {
     let x = state.stack.x.clone();
     let y = state.stack.y.clone();
 
-    let new_r1 = state.regs[1].numeric_or_zero().checked_sub(&x.checked_sq()?)?;
+    let new_r1 = state.regs[1]
+        .numeric_or_zero()
+        .checked_sub(&x.checked_sq()?)?;
     let new_r2 = state.regs[2].numeric_or_zero().checked_sub(&x)?;
-    let new_r3 = state.regs[3].numeric_or_zero().checked_sub(&HpNum::from(1i32))?;
-    let new_r4 = state.regs[4].numeric_or_zero().checked_sub(&y.checked_sq()?)?;
+    let new_r3 = state.regs[3]
+        .numeric_or_zero()
+        .checked_sub(&HpNum::from(1i32))?;
+    let new_r4 = state.regs[4]
+        .numeric_or_zero()
+        .checked_sub(&y.checked_sq()?)?;
     let new_r5 = state.regs[5].numeric_or_zero().checked_sub(&y)?;
-    let new_r6 = state.regs[6].numeric_or_zero().checked_sub(&x.checked_mul(&y)?)?;
+    let new_r6 = state.regs[6]
+        .numeric_or_zero()
+        .checked_sub(&x.checked_mul(&y)?)?;
 
     // Plan 33-06 STAT-UNI-04: extended-slot reversal IFF the SIZE allows.
     // When SIZE has been shrunk below STAT1_MAX_REG + 1 this Op behaves
@@ -88,8 +104,12 @@ pub fn op_sigma_minus(state: &mut CalcState) -> Result<(), HpError> {
         let x_sq = x.checked_sq()?;
         let x_cube = x.checked_mul(&x_sq)?;
         let x_quad = x_sq.checked_sq()?;
-        let new_cube = state.regs[crate::ops::stat1::STAT1_MMTUG_CUBE_REG].numeric_or_zero().checked_sub(&x_cube)?;
-        let new_quad = state.regs[crate::ops::stat1::STAT1_MMTUG_QUAD_REG].numeric_or_zero().checked_sub(&x_quad)?;
+        let new_cube = state.regs[crate::ops::stat1::STAT1_MMTUG_CUBE_REG]
+            .numeric_or_zero()
+            .checked_sub(&x_cube)?;
+        let new_quad = state.regs[crate::ops::stat1::STAT1_MMTUG_QUAD_REG]
+            .numeric_or_zero()
+            .checked_sub(&x_quad)?;
         Some((new_cube, new_quad))
     } else {
         None

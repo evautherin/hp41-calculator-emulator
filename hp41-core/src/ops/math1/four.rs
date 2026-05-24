@@ -394,7 +394,11 @@ pub fn submit_step(state: &mut CalcState, step: FourInputStep) -> Result<(), HpE
         FourInputStep::SamplePrompt(idx) => {
             // Number of samples N is stored in R23.
             let n = if state.regs.len() > 23 {
-                state.regs[23].numeric_or_zero().inner().to_u8().unwrap_or(1)
+                state.regs[23]
+                    .numeric_or_zero()
+                    .inner()
+                    .to_u8()
+                    .unwrap_or(1)
             } else {
                 1
             };

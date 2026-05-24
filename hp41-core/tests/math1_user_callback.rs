@@ -318,7 +318,8 @@ fn nested_difeq_inside_difeq_rejected() {
     // Set up for ORDER=1 DIFEQ: R00=order, R01=h, R02=x0, R03=y0, R05=max_steps
     state.regs[0] = HpNum::from(1i32).into(); // order = 1
     state.regs[1] =
-        HpNum::from(rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO)).into();
+        HpNum::from(rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO))
+            .into();
     state.regs[2] = HpNum::from(0i32).into(); // x0
     state.regs[3] = HpNum::from(1i32).into(); // y0
     state.regs[5] = HpNum::from(5i32).into(); // max_steps = 5

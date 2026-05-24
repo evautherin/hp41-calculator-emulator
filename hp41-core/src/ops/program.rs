@@ -114,7 +114,8 @@ pub fn op_isg(state: &mut CalcState, reg: u8) -> Result<bool, HpError> {
     if reg as usize >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    let (current, final_val, step, frac_padded) = parse_counter(&state.regs[reg as usize].numeric_or_zero())?;
+    let (current, final_val, step, frac_padded) =
+        parse_counter(&state.regs[reg as usize].numeric_or_zero())?;
     let new_current = current + step;
     state.regs[reg as usize] = build_counter(new_current, &frac_padded)?.into();
     apply_lift_effect(state, LiftEffect::Neutral);
@@ -127,7 +128,8 @@ pub fn op_dse(state: &mut CalcState, reg: u8) -> Result<bool, HpError> {
     if reg as usize >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    let (current, final_val, step, frac_padded) = parse_counter(&state.regs[reg as usize].numeric_or_zero())?;
+    let (current, final_val, step, frac_padded) =
+        parse_counter(&state.regs[reg as usize].numeric_or_zero())?;
     let new_current = current - step;
     state.regs[reg as usize] = build_counter(new_current, &frac_padded)?.into();
     apply_lift_effect(state, LiftEffect::Neutral);

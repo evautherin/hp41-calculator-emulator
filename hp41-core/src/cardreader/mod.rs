@@ -78,7 +78,9 @@ const MIN_REGS_AFTER_LOAD: usize = 100;
 pub fn load_data_card(state: &mut CalcState, card: DataCard) {
     state.regs = card.registers;
     if state.regs.len() < MIN_REGS_AFTER_LOAD {
-        state.regs.resize(MIN_REGS_AFTER_LOAD, crate::num::HpValue::default());
+        state
+            .regs
+            .resize(MIN_REGS_AFTER_LOAD, crate::num::HpValue::default());
     }
 }
 

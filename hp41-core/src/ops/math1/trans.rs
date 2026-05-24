@@ -407,7 +407,9 @@ pub fn store_trans2d_params(state: &mut CalcState, x0: f64, y0: f64, theta_raw: 
     if state.regs.len() > 2 {
         state.regs[0] = f64_to_hpnum(x0).unwrap_or_else(|_| HpNum::zero()).into();
         state.regs[1] = f64_to_hpnum(y0).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[2] = f64_to_hpnum(theta_raw).unwrap_or_else(|_| HpNum::zero()).into();
+        state.regs[2] = f64_to_hpnum(theta_raw)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
     }
 }
 
@@ -421,13 +423,27 @@ pub fn store_trans3d_params(
     theta_raw: f64,
 ) {
     if state.regs.len() > 6 {
-        state.regs[0] = f64_to_hpnum(origin.0).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[1] = f64_to_hpnum(origin.1).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[2] = f64_to_hpnum(origin.2).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[3] = f64_to_hpnum(axis.0).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[4] = f64_to_hpnum(axis.1).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[5] = f64_to_hpnum(axis.2).unwrap_or_else(|_| HpNum::zero()).into();
-        state.regs[6] = f64_to_hpnum(theta_raw).unwrap_or_else(|_| HpNum::zero()).into();
+        state.regs[0] = f64_to_hpnum(origin.0)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[1] = f64_to_hpnum(origin.1)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[2] = f64_to_hpnum(origin.2)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[3] = f64_to_hpnum(axis.0)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[4] = f64_to_hpnum(axis.1)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[5] = f64_to_hpnum(axis.2)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
+        state.regs[6] = f64_to_hpnum(theta_raw)
+            .unwrap_or_else(|_| HpNum::zero())
+            .into();
     }
 }
 
@@ -509,7 +525,9 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
             state.regs[3] = f64_to_hpnum(a).unwrap_or_else(|_| HpNum::zero()).into();
             state.regs[4] = f64_to_hpnum(b).unwrap_or_else(|_| HpNum::zero()).into();
             state.regs[5] = f64_to_hpnum(c).unwrap_or_else(|_| HpNum::zero()).into();
-            state.regs[6] = f64_to_hpnum(theta_raw).unwrap_or_else(|_| HpNum::zero()).into();
+            state.regs[6] = f64_to_hpnum(theta_raw)
+                .unwrap_or_else(|_| HpNum::zero())
+                .into();
             state.modal_program = Some(ModalProgram::Trans(TransInputStep::ForwardPrompt));
             state.modal_prompt = Some("FWD?".to_string());
             Ok(())
@@ -530,7 +548,10 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
                         || state
                             .regs
                             .get(3)
-                            .map(|r3| r3.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON)
+                            .map(|r3| {
+                                r3.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs()
+                                    > f64::EPSILON
+                            })
                             .unwrap_or(false)
                 })
                 .unwrap_or(false);
@@ -554,7 +575,10 @@ pub fn submit_step(state: &mut CalcState, step: TransInputStep) -> Result<(), Hp
                         || state
                             .regs
                             .get(3)
-                            .map(|r3| r3.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs() > f64::EPSILON)
+                            .map(|r3| {
+                                r3.numeric_or_zero().inner().to_f64().unwrap_or(0.0).abs()
+                                    > f64::EPSILON
+                            })
                             .unwrap_or(false)
                 })
                 .unwrap_or(false);

@@ -63,7 +63,11 @@ mod tests {
         DataCard {
             format: FORMAT_TAG.to_string(),
             version: FORMAT_VERSION,
-            registers: vec![HpNum::from(0i32).into(), HpNum::from(42i32).into(), HpNum::from(-17i32).into()],
+            registers: vec![
+                HpNum::from(0i32).into(),
+                HpNum::from(42i32).into(),
+                HpNum::from(-17i32).into(),
+            ],
         }
     }
 
