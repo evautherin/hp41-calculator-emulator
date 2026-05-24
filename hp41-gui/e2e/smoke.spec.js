@@ -339,4 +339,44 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
             );
         }
     });
+
+    // Plan 37-05 / D-37.2 / STAT-QUAL-11 — Stat 1 Pac E2E smoke.
+    //
+    // Click-strategy: BROWSER.EXECUTE FALLBACK for the XEQ-by-name invocation
+    // (xeq_ΣNORMD dispatches through xrom_resolve → Op::SigmaNormdWorkflow),
+    // REAL CLICKS for digit entry (z-score 1.96) and R/S submit (mode
+    // selection). The test exercises the Stat1Step::NormdModeChoice modal
+    // pipeline: dispatch → modal_prompt "ΣNORMD MODE?" → enter mode 1 (CDF)
+    // → R/S → submit_step → Q(1.96) ≈ 0.0250 in FIX 4.
+    //
+    // Q(1.96) = 1 - Φ(1.96) = 0.024998... → display "0.0250" in FIX 4.
+    // This is the HP-41 Stat 1 Pac upper-tail convention (OM p. 29).
+    //
+    // Catches: SigmaNormdWorkflow modal lifecycle + xrom_resolve Stat 1 routing
+    it('XEQ "ΣNORMD" Q(1.96) displays 0.0250 (Stat 1 Pac modal pipeline)', async () => {
+        const display = await $('[data-testid="lcd-display"]');
+        await display.waitForExist({ timeout: 10000 });
+
+        // Push z-score 1.96 via real clicks, then ENTER to lift to Y.
+        await clickKey('1');
+        await clickKey('decimal');
+        await clickKey('9');
+        await clickKey('6');
+        await clickKey('enter');
+
+        // Dispatch ΣNORMD via xrom_resolve. Opens NormdModeChoice modal.
+        // The z-score 1.96 is now in stack Y.
+        await invokeBackend('dispatch_op', { keyId: 'xeq_ΣNORMD' });
+
+        // Enter mode 1 (CDF = upper-tail Q) and submit via R/S.
+        // R/S triggers the modal submit (App.tsx invokeForKey R/S 3-way routing).
+        await clickKey('1');
+        const view = await invokeBackend('dispatch_op', { keyId: 'r_s' });
+
+        if (!view.display_str.startsWith('0.0250')) {
+            throw new Error(
+                `expected dispatch_op Q(1.96) display_str to start with '0.0250', got '${view.display_str}'`,
+            );
+        }
+    });
 });
