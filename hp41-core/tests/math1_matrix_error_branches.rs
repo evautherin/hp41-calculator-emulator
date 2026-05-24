@@ -49,16 +49,16 @@ fn setup_matrix_inline(state: &mut CalcState, n: u8, elements: &[f64]) {
     assert_eq!(elements.len(), (n as usize) * (n as usize));
     state.matrix_dim = Some((n, n));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(n as i32);
+    state.regs[14] = HpNum::from(n as i32).into();
     let required = 15 + n as usize * n as usize + n as usize + 1;
     if state.regs.len() < required {
-        state.regs.resize(required, HpNum::zero());
+        state.regs.resize(required, hp41_core::HpValue::default());
     }
     for c in 0..(n as usize) {
         for r in 0..(n as usize) {
             let idx = 15 + c * n as usize + r;
             let d = Decimal::from_f64(elements[r * n as usize + c]).expect("finite f64");
-            state.regs[idx] = HpNum::from(d);
+            state.regs[idx] = HpNum::from(d).into();
         }
     }
 }
@@ -145,7 +145,7 @@ fn mat_det_with_oob_active_reg_returns_error() {
     state.matrix_dim = Some((1, 1));
     let oob_reg = state.regs.len() as u8 + 10; // definitely out of bounds
     state.matrix_active_reg = Some(oob_reg);
-    state.regs[14] = HpNum::from(1i32); // ORDER_REG
+    state.regs[14] = HpNum::from(1i32).into(); // ORDER_REG
 
     let result = dispatch(&mut state, Op::MatDet);
     assert!(
@@ -162,7 +162,7 @@ fn mat_vmat_with_oob_active_reg_returns_error() {
     state.matrix_dim = Some((1, 1));
     let oob_reg = state.regs.len() as u8 + 5;
     state.matrix_active_reg = Some(oob_reg);
-    state.regs[14] = HpNum::from(1i32);
+    state.regs[14] = HpNum::from(1i32).into();
 
     let result = dispatch(&mut state, Op::MatVmat);
     assert!(
@@ -181,7 +181,7 @@ fn mat_det_non_square_returns_invalid_op() {
     // Manually set a 2x3 non-square matrix
     state.matrix_dim = Some((2, 3));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(2i32);
+    state.regs[14] = HpNum::from(2i32).into();
 
     let result = dispatch(&mut state, Op::MatDet);
     assert_eq!(
@@ -200,7 +200,7 @@ fn mat_inv_non_square_returns_invalid_op() {
     let mut state = CalcState::new();
     state.matrix_dim = Some((2, 3));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(2i32);
+    state.regs[14] = HpNum::from(2i32).into();
 
     let result = dispatch(&mut state, Op::MatInv);
     assert_eq!(
@@ -219,7 +219,7 @@ fn mat_simeq_non_square_returns_invalid_op() {
     let mut state = CalcState::new();
     state.matrix_dim = Some((2, 3));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(2i32);
+    state.regs[14] = HpNum::from(2i32).into();
 
     let result = dispatch(&mut state, Op::MatSimeq);
     assert_eq!(

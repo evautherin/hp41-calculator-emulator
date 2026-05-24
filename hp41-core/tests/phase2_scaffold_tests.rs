@@ -117,8 +117,8 @@ fn test_calcstate_entry_buf_field() {
 #[test]
 fn test_calcstate_regs_are_writable() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(42);
-    assert_eq!(state.regs[5], HpNum::from(42));
+    state.regs[5] = HpNum::from(42).into();
+    assert_eq!(state.regs[5], hp41_core::HpValue::from(42));
     assert!(state.regs[0].is_zero());
     assert!(state.regs[99].is_zero());
 }

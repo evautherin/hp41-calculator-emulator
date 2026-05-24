@@ -63,7 +63,7 @@ fn four_eval_at_t_no_valid_period_returns_domain() {
     // returns Err(HpError::Domain) — no valid period available.
     let state = make_state();
     // R23 = 0 (no sample count stored — default zero from CalcState::new())
-    // period = 0 (HpNum::zero())
+    // period = 0 (hp41_core::HpValue::default())
     let t = f64_hpnum(1.0);
     let period = HpNum::zero();
     let result = op_four_eval_at_t(&state, t, period);
@@ -156,7 +156,7 @@ fn submit_step_arm_408_sample_out_of_bounds_returns_invalid_op() {
     // targets R27 which is out of bounds.
     let mut state = make_state();
     // R23 must be set to N=1 so the step reads a valid sample count
-    state.regs[23] = f64_hpnum(1.0);
+    state.regs[23] = f64_hpnum(1.0).into();
     state.regs.truncate(27); // force regs.len() == 27; target = 27 + 0 = 27 >= 27
     set_x(&mut state, 5.0);
     let result = four_submit_step(&mut state, FourInputStep::SamplePrompt(0));
@@ -248,7 +248,7 @@ fn submit_step_last_sample_advances_to_ready() {
     // Source: HP Math Pac I OM FOUR program — after all N samples are entered, state = Ready.
     // Setup: N=2 (R23), submit SamplePrompt(0) then SamplePrompt(1); second should advance to Ready.
     let mut state = make_state();
-    state.regs[23] = f64_hpnum(2.0); // N=2
+    state.regs[23] = f64_hpnum(2.0).into(); // N=2
 
     // First sample (idx=0): should advance to SamplePrompt(1)
     set_x(&mut state, 3.0);
@@ -286,11 +286,11 @@ fn four_eval_at_t_uses_n_from_r23_when_period_zero() {
     // Setup: a₀=0, a₁=1, b₁=0, N=8 from R23, L=1. Explicit period=0 → uses N=8.
     // f(0) = a₀/2 + a₁·cos(0) = 1.0.
     let mut state = make_state();
-    state.regs[0] = HpNum::zero();
-    state.regs[1] = f64_hpnum(1.0);
-    state.regs[2] = HpNum::zero();
-    state.regs[23] = f64_hpnum(8.0); // N=8 fallback period
-    state.regs[24] = f64_hpnum(1.0); // L=1
+    state.regs[0] = HpNum::zero().into();
+    state.regs[1] = f64_hpnum(1.0).into();
+    state.regs[2] = HpNum::zero().into();
+    state.regs[23] = f64_hpnum(8.0).into(); // N=8 fallback period
+    state.regs[24] = f64_hpnum(1.0).into(); // L=1
     let t = HpNum::zero();
     let period = HpNum::zero(); // triggers N fallback
     let result = op_four_eval_at_t(&state, t, period).unwrap();

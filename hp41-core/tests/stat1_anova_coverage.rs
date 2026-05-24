@@ -49,9 +49,9 @@ fn to_f64(v: &HpNum) -> f64 {
 /// layout for ΣAOVONE.
 fn load_aovone_group(state: &mut CalcState, i: usize, sum: i32, sumsq: i32, n: i32) {
     let base = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i;
-    state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(sum);
-    state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(sumsq);
-    state.regs[base + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(n);
+    state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(sum).into();
+    state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(sumsq).into();
+    state.regs[base + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(n).into();
 }
 
 /// Load a per-group block for ΣANOCOV (stride 5: Σy, Σy², n, Σx, Σxy).
@@ -65,11 +65,11 @@ fn load_anocov_group(
     sum_xy: i32,
 ) {
     let base = STAT1_ANOCOV_GROUP_BASE_REG + STAT1_ANOCOV_GROUP_STRIDE * i;
-    state.regs[base + STAT1_ANOCOV_GROUP_SUM_Y_OFFSET] = HpNum::from(sum_y);
-    state.regs[base + STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET] = HpNum::from(sumsq_y);
-    state.regs[base + STAT1_ANOCOV_GROUP_N_OFFSET] = HpNum::from(n);
-    state.regs[base + STAT1_ANOCOV_GROUP_SUM_X_OFFSET] = HpNum::from(sum_x);
-    state.regs[base + STAT1_ANOCOV_GROUP_SUM_XY_OFFSET] = HpNum::from(sum_xy);
+    state.regs[base + STAT1_ANOCOV_GROUP_SUM_Y_OFFSET] = HpNum::from(sum_y).into();
+    state.regs[base + STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET] = HpNum::from(sumsq_y).into();
+    state.regs[base + STAT1_ANOCOV_GROUP_N_OFFSET] = HpNum::from(n).into();
+    state.regs[base + STAT1_ANOCOV_GROUP_SUM_X_OFFSET] = HpNum::from(sum_x).into();
+    state.regs[base + STAT1_ANOCOV_GROUP_SUM_XY_OFFSET] = HpNum::from(sum_xy).into();
 }
 
 // ── ΣAOVONE branch coverage ───────────────────────────────────────────────────
@@ -82,7 +82,7 @@ fn load_anocov_group(
 #[test]
 fn aovone_empty_group_returns_invalid_op() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // group 0: populated
     load_aovone_group(&mut state, 0, 10, 30, 3);
     // group 1: n = 0 (empty group — triggers the n_i.is_zero() guard)
@@ -100,7 +100,7 @@ fn aovone_empty_group_returns_invalid_op() {
 #[test]
 fn aovone_nk_equal_returns_invalid_op() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // Two groups of n=1 each: N=2, k=2, df_within = N-k = 0
     load_aovone_group(&mut state, 0, 5, 25, 1);
     load_aovone_group(&mut state, 1, 10, 100, 1);
@@ -120,7 +120,7 @@ fn aovone_nk_equal_returns_invalid_op() {
 #[test]
 fn aovone_ssw_zero_returns_divide_by_zero() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // Group 0: three 5s → Σx=15, Σx²=75, n=3
     load_aovone_group(&mut state, 0, 15, 75, 3);
     // Group 1: three 10s → Σx=30, Σx²=300, n=3
@@ -144,7 +144,7 @@ fn aovone_ssw_zero_returns_divide_by_zero() {
 #[test]
 fn aovone_four_groups_kmax() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(4i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(4i32).into();
     load_aovone_group(&mut state, 0, 3, 5, 2);
     load_aovone_group(&mut state, 1, 7, 25, 2);
     load_aovone_group(&mut state, 2, 11, 61, 2);
@@ -199,8 +199,8 @@ fn aovtwo_size_floor_guard_external() {
 #[test]
 fn aovtwo_r_out_of_range_domain() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOVTWO_R_REG] = HpNum::from(1i32); // r < 2
-    state.regs[STAT1_AOVTWO_C_REG] = HpNum::from(3i32);
+    state.regs[STAT1_AOVTWO_R_REG] = HpNum::from(1i32).into(); // r < 2
+    state.regs[STAT1_AOVTWO_C_REG] = HpNum::from(3i32).into();
     let err = dispatch(&mut state, Op::SigmaAovtwo).unwrap_err();
     // LINT-EXEMPT: error-type comparison
     assert_eq!(err, HpError::Domain);
@@ -213,8 +213,8 @@ fn aovtwo_r_out_of_range_domain() {
 #[test]
 fn aovtwo_c_out_of_range_domain() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOVTWO_R_REG] = HpNum::from(2i32);
-    state.regs[STAT1_AOVTWO_C_REG] = HpNum::from(5i32); // c > DIM_MAX = 4
+    state.regs[STAT1_AOVTWO_R_REG] = HpNum::from(2i32).into();
+    state.regs[STAT1_AOVTWO_C_REG] = HpNum::from(5i32).into(); // c > DIM_MAX = 4
     let err = dispatch(&mut state, Op::SigmaAovtwo).unwrap_err();
     // LINT-EXEMPT: error-type comparison
     assert_eq!(err, HpError::Domain);
@@ -235,17 +235,17 @@ fn aovtwo_c_out_of_range_domain() {
 #[test]
 fn aovtwo_2x2_additive_yields_divide_by_zero() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOVTWO_R_REG] = HpNum::from(2i32);
-    state.regs[STAT1_AOVTWO_C_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOVTWO_R_REG] = HpNum::from(2i32).into();
+    state.regs[STAT1_AOVTWO_C_REG] = HpNum::from(2i32).into();
     // grand Σx² = 1+4+4+9 = 18; grand Σx = 1+2+2+3 = 8
-    state.regs[STAT1_AOVTWO_GRAND_SUMSQ_REG] = HpNum::from(18i32);
-    state.regs[STAT1_AOVTWO_GRAND_SUM_REG] = HpNum::from(8i32);
+    state.regs[STAT1_AOVTWO_GRAND_SUMSQ_REG] = HpNum::from(18i32).into();
+    state.regs[STAT1_AOVTWO_GRAND_SUM_REG] = HpNum::from(8i32).into();
     // row sums: R05=3, R06=5
-    state.regs[STAT1_AOVTWO_ROW_BASE_REG] = HpNum::from(3i32);
-    state.regs[STAT1_AOVTWO_ROW_BASE_REG + 1] = HpNum::from(5i32);
+    state.regs[STAT1_AOVTWO_ROW_BASE_REG] = HpNum::from(3i32).into();
+    state.regs[STAT1_AOVTWO_ROW_BASE_REG + 1] = HpNum::from(5i32).into();
     // col sums: R07=3, R08=5 (base + r = 5+2 = 7)
-    state.regs[STAT1_AOVTWO_ROW_BASE_REG + 2] = HpNum::from(3i32);
-    state.regs[STAT1_AOVTWO_ROW_BASE_REG + 3] = HpNum::from(5i32);
+    state.regs[STAT1_AOVTWO_ROW_BASE_REG + 2] = HpNum::from(3i32).into();
+    state.regs[STAT1_AOVTWO_ROW_BASE_REG + 3] = HpNum::from(5i32).into();
     let err = dispatch(&mut state, Op::SigmaAovtwo).unwrap_err();
     // LINT-EXEMPT: error-type comparison
     assert_eq!(err, HpError::DivideByZero);
@@ -273,7 +273,7 @@ fn anocov_size_floor_guard_external() {
 #[test]
 fn anocov_k_out_of_range_domain() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(1i32); // k < 2
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(1i32).into(); // k < 2
     let err = dispatch(&mut state, Op::SigmaAnocov).unwrap_err();
     // LINT-EXEMPT: error-type comparison
     assert_eq!(err, HpError::Domain);
@@ -287,9 +287,9 @@ fn anocov_k_out_of_range_domain() {
 #[test]
 fn anocov_df_within_adj_exhausted_returns_invalid_op() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // grand Σx² for covariate
-    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(5i32);
+    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(5i32).into();
     // Group 0: Σy=2, Σy²=4, n=1, Σx=1, Σxy=2
     load_anocov_group(&mut state, 0, 2, 4, 1, 1, 2);
     // Group 1: Σy=4, Σy²=16, n=1, Σx=2, Σxy=8
@@ -314,9 +314,9 @@ fn anocov_df_within_adj_exhausted_returns_invalid_op() {
 #[test]
 fn anocov_sswx_zero_returns_divide_by_zero() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // grand Σx² = 16 (computed to make SSWx = 0)
-    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(16i32);
+    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(16i32).into();
     // Group 0: Σy=10, Σy²=52, n=2, Σx=4, Σxy=20
     load_anocov_group(&mut state, 0, 10, 52, 2, 4, 20);
     // Group 1: Σy=14, Σy²=100, n=2, Σx=4, Σxy=28
@@ -372,9 +372,9 @@ fn anocov_sswx_zero_returns_divide_by_zero() {
 #[test]
 fn anocov_sstx_zero_returns_divide_by_zero() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // grand_Σx² = 4 (feeds SSWx and SST_x)
-    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(4i32);
+    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(4i32).into();
     // Group 0: Σy=10, Σy²=52, n=2, Σx=2, Σxy=20
     // SSWx_0 = grand_Σx²contribution: Σx²/n = 4/2 = 2; SSWx = 4 - (2+2) = 0 ...
     // Need to avoid SSWx=0: use Σx=2, n=2 → (Σx)²/n = 4/2 = 2; sum over groups = 4 = grand_Σx²
@@ -408,7 +408,7 @@ fn anocov_sstx_zero_returns_divide_by_zero() {
     // ssbx_terms = 100+100/3 = 133.3; SSWx = 100-133.3 < 0 (not zero, but
     // is_zero=false → proceeds). grand_Σx=20, grand_n=4;
     // SST_x = 100 - 400/4 = 0. → DivideByZero on SST_x!
-    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(100i32);
+    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(100i32).into();
     // Group 0: Σy=5, Σy²=25, n=1, Σx=10, Σxy=50
     load_anocov_group(&mut state, 0, 5, 25, 1, 10, 50);
     // Group 1: Σy=15, Σy²=83, n=3, Σx=10, Σxy=75
@@ -427,8 +427,8 @@ fn anocov_sstx_zero_returns_divide_by_zero() {
 #[test]
 fn anocov_empty_group_returns_invalid_op() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
-    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(10i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
+    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(10i32).into();
     // Group 0: valid
     load_anocov_group(&mut state, 0, 6, 14, 3, 6, 14);
     // Group 1: n = 0 (empty — triggers n_i.is_zero() guard)
@@ -460,9 +460,9 @@ fn anocov_empty_group_returns_invalid_op() {
 #[test]
 fn anocov_ms_within_adj_zero_returns_divide_by_zero() {
     let mut state = CalcState::new();
-    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+    state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
     // grand Σx² = 14 + 77 = 91
-    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(91i32);
+    state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG] = HpNum::from(91i32).into();
     // Group 0: x=[1,2,3] y=2x; Σy=12, Σy²=56, n=3, Σx=6, Σxy=28
     load_anocov_group(&mut state, 0, 12, 56, 3, 6, 28);
     // Group 1: x=[4,5,6] y=2x; Σy=30, Σy²=308, n=3, Σx=15, Σxy=154

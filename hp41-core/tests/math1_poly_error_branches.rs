@@ -37,7 +37,7 @@ fn make_state() -> CalcState {
 
 fn set_reg(state: &mut CalcState, idx: usize, val: f64) {
     let d = Decimal::from_f64(val).unwrap_or(Decimal::ZERO);
-    state.regs[idx] = HpNum::rounded(d);
+    state.regs[idx] = HpNum::rounded(d).into();
 }
 
 /// Zero out R00..R05 (infer_degree returns Domain for all-zero).
@@ -276,7 +276,7 @@ fn submit_step_ready_returns_invalid_op() {
 fn submit_step_coefficient_idx_out_of_range_returns_invalid_op() {
     let mut s = make_state();
     // idx=200 far exceeds state.regs.len() (100 registers)
-    let regs_before: Vec<HpNum> = s.regs.clone();
+    let regs_before: Vec<hp41_core::HpValue> = s.regs.clone();
     let r = submit_step(&mut s, PolyInputStep::CoefficientPrompt(5, 200));
     assert_eq!(
         r,

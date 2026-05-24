@@ -31,7 +31,7 @@ use std::str::FromStr;
 #[test]
 fn arcl_appends_numeric_register_using_current_display_mode() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(Decimal::from_str("3.14").unwrap());
+    state.regs[5] = HpNum::from(Decimal::from_str("3.14").unwrap()).into();
 
     // FIX(2) — append format_hpnum(3.14, Fix(2)).
     state.alpha_reg = "HELLO".to_string();
@@ -39,10 +39,10 @@ fn arcl_appends_numeric_register_using_current_display_mode() {
     dispatch(&mut state, Op::Arcl(5)).unwrap();
     let expected_fix = format!(
         "HELLO{}",
-        format_hpnum(&state.regs[5], &DisplayMode::Fix(2))
+        format_hpnum(&state.regs[5].numeric_or_zero(), &DisplayMode::Fix(2))
     );
     assert_eq!(state.alpha_reg, expected_fix);
-    let fix_suffix = format_hpnum(&state.regs[5], &DisplayMode::Fix(2));
+    let fix_suffix = format_hpnum(&state.regs[5].numeric_or_zero(), &DisplayMode::Fix(2));
 
     // SCI(3) — same register, different appended suffix.
     state.alpha_reg = "HELLO".to_string();
@@ -50,10 +50,10 @@ fn arcl_appends_numeric_register_using_current_display_mode() {
     dispatch(&mut state, Op::Arcl(5)).unwrap();
     let expected_sci = format!(
         "HELLO{}",
-        format_hpnum(&state.regs[5], &DisplayMode::Sci(3))
+        format_hpnum(&state.regs[5].numeric_or_zero(), &DisplayMode::Sci(3))
     );
     assert_eq!(state.alpha_reg, expected_sci);
-    let sci_suffix = format_hpnum(&state.regs[5], &DisplayMode::Sci(3));
+    let sci_suffix = format_hpnum(&state.regs[5].numeric_or_zero(), &DisplayMode::Sci(3));
 
     assert_ne!(
         fix_suffix, sci_suffix,
@@ -77,7 +77,7 @@ fn asto_arcl_round_trip_reproduces_first_6_chars() {
     assert_eq!(state.text_regs.get(&12), Some(&"GOODBY".to_string()));
     assert_eq!(
         state.regs[12],
-        HpNum::zero(),
+        hp41_core::HpValue::default(),
         "no-drift invariant: ASTO zeroes the numeric slot"
     );
 
@@ -101,7 +101,7 @@ fn numeric_sto_clears_text_regs_sidecar_no_drift() {
     state.alpha_reg = "HELLO".to_string();
     dispatch(&mut state, Op::Asto(7)).unwrap();
     assert_eq!(state.text_regs.get(&7), Some(&"HELLO".to_string()));
-    assert_eq!(state.regs[7], HpNum::zero());
+    assert_eq!(state.regs[7], hp41_core::HpValue::default());
 
     // 2) Put 3.14 in X and STO 7 → text_regs[7] must be CLEARED (D-23.4)
     //    AND regs[7] must hold the new numeric value.
@@ -114,7 +114,7 @@ fn numeric_sto_clears_text_regs_sidecar_no_drift() {
     );
     assert_ne!(
         state.regs[7],
-        HpNum::zero(),
+        hp41_core::HpValue::default(),
         "numeric STO must have written 3.14 into regs[7]"
     );
 
@@ -122,7 +122,7 @@ fn numeric_sto_clears_text_regs_sidecar_no_drift() {
     //    "HELLO".
     state.alpha_reg.clear();
     dispatch(&mut state, Op::Arcl(7)).unwrap();
-    let expected = format_hpnum(&state.regs[7], &DisplayMode::Fix(4));
+    let expected = format_hpnum(&state.regs[7].numeric_or_zero(), &DisplayMode::Fix(4));
     assert_eq!(state.alpha_reg, expected);
     assert_ne!(
         state.alpha_reg, "HELLO",
@@ -137,8 +137,8 @@ fn clreg_clears_both_regs_and_text_regs() {
     let mut state = CalcState::new();
     state.text_regs.insert(3, "FOO".to_string());
     state.text_regs.insert(8, "BAR".to_string());
-    state.regs[3] = HpNum::from(Decimal::from_str("99.99").unwrap());
-    state.regs[8] = HpNum::from(Decimal::from_str("12.5").unwrap());
+    state.regs[3] = HpNum::from(Decimal::from_str("99.99").unwrap()).into();
+    state.regs[8] = HpNum::from(Decimal::from_str("12.5").unwrap()).into();
 
     dispatch(&mut state, Op::Clreg).unwrap();
     assert!(
@@ -148,7 +148,7 @@ fn clreg_clears_both_regs_and_text_regs() {
     for r in &state.regs {
         assert_eq!(
             r,
-            &HpNum::zero(),
+            &hp41_core::HpValue::default(),
             "all numeric regs must be zero after CLREG"
         );
     }
@@ -274,7 +274,7 @@ fn size_shrink_then_grow_drops_text_regs_no_ghost_resurrection() {
     state.alpha_reg = "GHOST".to_string();
     dispatch(&mut state, Op::Asto(60)).unwrap();
     assert_eq!(state.text_regs.get(&60), Some(&"GHOST".to_string()));
-    assert_eq!(state.regs[60], HpNum::zero());
+    assert_eq!(state.regs[60], hp41_core::HpValue::default());
 
     // Step 2: SIZE 50 must prune text_regs[60] (WR-01 fix).
     dispatch(&mut state, Op::Size(50)).unwrap();
@@ -288,12 +288,12 @@ fn size_shrink_then_grow_drops_text_regs_no_ghost_resurrection() {
     // Step 3: regrow to 100 — regs[60] is fresh HpNum::zero().
     dispatch(&mut state, Op::Size(100)).unwrap();
     assert_eq!(state.regs.len(), 100);
-    assert_eq!(state.regs[60], HpNum::zero());
+    assert_eq!(state.regs[60], hp41_core::HpValue::default());
 
     // Step 4: ARCL 60 must format the numeric fallback, NOT "GHOST".
     state.alpha_reg.clear();
     dispatch(&mut state, Op::Arcl(60)).unwrap();
-    let expected = format_hpnum(&state.regs[60], &state.display_mode);
+    let expected = format_hpnum(&state.regs[60].numeric_or_zero(), &state.display_mode);
     assert_eq!(state.alpha_reg, expected);
     assert!(
         !state.alpha_reg.contains("GHOST"),

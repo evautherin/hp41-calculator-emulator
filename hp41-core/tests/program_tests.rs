@@ -467,7 +467,7 @@ fn test_isg_increments_4_times_before_skip() {
     // Loop body executes 4 times (current 1→2→3→4→5), then 5+1=6>5 → skip.
     let mut s = CalcState::new();
     let counter = Decimal::from_str("1.00500").unwrap();
-    s.regs[0] = HpNum::rounded(counter);
+    s.regs[0] = HpNum::rounded(counter).into();
 
     // Program: Lbl("LOOP"), StoArith+R01 [count iterations], Isg(0), Gto("LOOP"), Rtn
     // X = 1 (used as addend in StoArith) to accumulate cleanly.
@@ -499,7 +499,7 @@ fn test_isg_step_zero_treated_as_one() {
     let mut s = CalcState::new();
     // Counter with step=00 — step must be treated as 1 (D-10)
     let counter = Decimal::from_str("3.00500").unwrap(); // current=3, final=5, step=00→1
-    s.regs[0] = HpNum::rounded(counter);
+    s.regs[0] = HpNum::rounded(counter).into();
     push(&mut s, 1);
     s.program = vec![
         Op::Lbl("L".to_string()),
@@ -527,7 +527,7 @@ fn test_isg_counter_string_round_trip() {
     // parse_counter must still return (current=1, final=5, step=1).
     let mut s = CalcState::new();
     let counter = Decimal::from_str("1.00500").unwrap();
-    s.regs[0] = HpNum::rounded(counter);
+    s.regs[0] = HpNum::rounded(counter).into();
     // Run one ISG — if parsing is wrong, the loop count will be off
     s.program = vec![
         Op::Lbl("A".to_string()),
@@ -550,7 +550,7 @@ fn test_dse_decrements_until_skip() {
     let mut s = CalcState::new();
     // R00 = 3.00100 (current=3, final=1, step=1)
     let counter = Decimal::from_str("3.00100").unwrap();
-    s.regs[0] = HpNum::rounded(counter);
+    s.regs[0] = HpNum::rounded(counter).into();
     push(&mut s, 1);
     s.program = vec![
         Op::Lbl("L".to_string()),

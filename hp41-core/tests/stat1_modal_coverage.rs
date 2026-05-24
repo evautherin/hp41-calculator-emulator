@@ -395,7 +395,7 @@ fn polyp_degree_prompt_happy_path_degree1() {
     // LINT-EXEMPT: exact HpNum from(1i32) comparison; verifying register write, no f64 bridge
     assert_eq!(
         state.regs[hp41_core::ops::stat1::STAT1_POLYP_DEGREE_REG],
-        HpNum::from(1i32),
+        hp41_core::HpValue::from(1i32),
         "POLYP degree register must store the submitted degree (1)"
     );
 }
@@ -423,7 +423,7 @@ fn polyp_degree_prompt_fractional_truncates_to_valid() {
     // LINT-EXEMPT: exact HpNum from Decimal::new(29,1) comparison; verifying register stores original X
     assert_eq!(
         state.regs[hp41_core::ops::stat1::STAT1_POLYP_DEGREE_REG],
-        HpNum::from(Decimal::new(29, 1)),
+        hp41_core::HpValue::Numeric(HpNum::from(Decimal::new(29, 1))),
         "POLYP degree register must store the original X value (2.9)"
     );
 }

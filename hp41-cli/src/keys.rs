@@ -705,7 +705,7 @@ mod tests {
     fn test_g_dispatches_clreg() {
         // 'g' maps to Op::Clreg — verify all storage registers are zeroed
         let mut state = CalcState::new();
-        state.regs[5] = hp41_core::HpNum::from(42);
+        state.regs[5] = hp41_core::HpNum::from(42).into();
         let result = hp41_core::ops::dispatch(&mut state, Op::Clreg);
         assert!(result.is_ok(), "Op::Clreg must not error");
         assert!(

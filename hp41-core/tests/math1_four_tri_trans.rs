@@ -112,11 +112,11 @@ fn four_scratch_register_r23_r24_layout() {
 fn four_user_mode_eval_at_zero() {
     let mut state = CalcState::new();
     // Pre-stage: a₀=0, a₁=1, b₁=0, N=8, L=1 (unit cosine)
-    state.regs[0] = HpNum::zero();
-    state.regs[1] = f64_hpnum(1.0);
-    state.regs[2] = HpNum::zero();
-    state.regs[23] = f64_hpnum(8.0);
-    state.regs[24] = f64_hpnum(1.0);
+    state.regs[0] = HpNum::zero().into();
+    state.regs[1] = f64_hpnum(1.0).into();
+    state.regs[2] = HpNum::zero().into();
+    state.regs[23] = f64_hpnum(8.0).into();
+    state.regs[24] = f64_hpnum(1.0).into();
     // Op::Four eval at t=0: f(0) = a₀/2 + a₁·cos(0) = 1.0
     let result = op_four_eval_at_t(&state, HpNum::zero(), HpNum::zero()).unwrap();
     let val = result.inner().to_f64().unwrap();

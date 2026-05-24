@@ -269,7 +269,7 @@ pub fn submit_step(state: &mut CalcState, step: Stat1Step) -> Result<(), HpError
                 return Err(HpError::InvalidOp);
             }
             // Persist d to the OM-cited degree slot.
-            state.regs[crate::ops::stat1::STAT1_POLYP_DEGREE_REG] = state.stack.x.clone();
+            state.regs[crate::ops::stat1::STAT1_POLYP_DEGREE_REG] = state.stack.x.clone().into();
             // Drop X (the degree the user just submitted).
             state.stack.x = state.stack.y.clone();
             state.stack.y = state.stack.z.clone();

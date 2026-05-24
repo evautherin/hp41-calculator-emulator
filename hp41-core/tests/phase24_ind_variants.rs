@@ -36,16 +36,16 @@ fn flag_set_test(flags: u64, n: u8) -> bool {
 #[test]
 fn sto_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.stack.x = HpNum::from(7i32);
     dispatch(&mut state, Op::StoInd(5)).unwrap();
-    assert_eq!(state.regs[12], HpNum::from(7i32));
+    assert_eq!(state.regs[12], hp41_core::HpValue::from(7i32));
 }
 
 #[test]
 fn sto_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::StoInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -54,7 +54,7 @@ fn sto_ind_non_integer() {
 fn sto_ind_out_of_regs_len() {
     let mut state = CalcState::new();
     // default regs.len() == 100; resolved address 200 > regs.len()
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     // Note: 200 fits in u8 (< 256), so resolve_indirect returns Ok(200);
     // op_sto's bounds check then rejects (idx >= regs.len()).
     let result = dispatch(&mut state, Op::StoInd(5));
@@ -66,12 +66,12 @@ fn sto_ind_clears_text_regs_sidecar() {
     // BONUS: D-23.4 inheritance via delegation. STO IND must clear the
     // text_regs sidecar for the RESOLVED register (not the pointer reg).
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.text_regs.insert(12, "ABC".to_string());
     state.stack.x = HpNum::from(7i32);
     dispatch(&mut state, Op::StoInd(5)).unwrap();
     assert_eq!(state.text_regs.get(&12), None);
-    assert_eq!(state.regs[12], HpNum::from(7i32));
+    assert_eq!(state.regs[12], hp41_core::HpValue::from(7i32));
 }
 
 // ── Op::RclInd ────────────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ fn sto_ind_clears_text_regs_sidecar() {
 #[test]
 fn rcl_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(99i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(99i32).into();
     dispatch(&mut state, Op::RclInd(5)).unwrap();
     assert_eq!(state.stack.x, HpNum::from(99i32));
 }
@@ -88,7 +88,7 @@ fn rcl_ind_happy() {
 #[test]
 fn rcl_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::RclInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -96,7 +96,7 @@ fn rcl_ind_non_integer() {
 #[test]
 fn rcl_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     let result = dispatch(&mut state, Op::RclInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -105,8 +105,8 @@ fn rcl_ind_out_of_regs_len() {
 fn rcl_ind_lift_enable_inheritance() {
     // BONUS: op_rcl_ind delegates to op_rcl which sets lift_enabled = true.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(99i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(99i32).into();
     state.stack.lift_enabled = false;
     dispatch(&mut state, Op::RclInd(5)).unwrap();
     assert!(state.stack.lift_enabled, "RCL IND must enable lift");
@@ -117,47 +117,47 @@ fn rcl_ind_lift_enable_inheritance() {
 #[test]
 fn sto_arith_ind_add_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(10i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(10i32).into();
     state.stack.x = HpNum::from(3i32);
     dispatch(&mut state, Op::StoArithInd(5, StoArithKind::Add)).unwrap();
-    assert_eq!(state.regs[12], HpNum::from(13i32));
+    assert_eq!(state.regs[12], hp41_core::HpValue::from(13i32));
 }
 
 #[test]
 fn sto_arith_ind_sub_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(10i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(10i32).into();
     state.stack.x = HpNum::from(3i32);
     dispatch(&mut state, Op::StoArithInd(5, StoArithKind::Sub)).unwrap();
-    assert_eq!(state.regs[12], HpNum::from(7i32));
+    assert_eq!(state.regs[12], hp41_core::HpValue::from(7i32));
 }
 
 #[test]
 fn sto_arith_ind_mul_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(10i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(10i32).into();
     state.stack.x = HpNum::from(3i32);
     dispatch(&mut state, Op::StoArithInd(5, StoArithKind::Mul)).unwrap();
-    assert_eq!(state.regs[12], HpNum::from(30i32));
+    assert_eq!(state.regs[12], hp41_core::HpValue::from(30i32));
 }
 
 #[test]
 fn sto_arith_ind_div_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(12i32).into();
     state.stack.x = HpNum::from(3i32);
     dispatch(&mut state, Op::StoArithInd(5, StoArithKind::Div)).unwrap();
-    assert_eq!(state.regs[12], HpNum::from(4i32));
+    assert_eq!(state.regs[12], hp41_core::HpValue::from(4i32));
 }
 
 #[test]
 fn sto_arith_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     state.stack.x = HpNum::from(3i32);
     let result = dispatch(&mut state, Op::StoArithInd(5, StoArithKind::Add));
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -166,7 +166,7 @@ fn sto_arith_ind_non_integer() {
 #[test]
 fn sto_arith_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     state.stack.x = HpNum::from(3i32);
     let result = dispatch(&mut state, Op::StoArithInd(5, StoArithKind::Add));
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -181,8 +181,8 @@ fn isg_ind_inside_run_loop() {
     // Program: LBL A, ISG IND 5, GTO A, LBL END
     //   When ISG returns true (counter exit), pc skips Gto and runs Lbl END.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::rounded(Decimal::from_str("0.005").unwrap());
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::rounded(Decimal::from_str("0.005").unwrap()).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::IsgInd(5),
@@ -204,7 +204,7 @@ fn isg_ind_inside_run_loop() {
 #[test]
 fn isg_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     state.program = vec![Op::Lbl("A".to_string()), Op::IsgInd(5)];
     let result = run_program(&mut state, "A");
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -213,7 +213,7 @@ fn isg_ind_non_integer() {
 #[test]
 fn isg_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     state.program = vec![Op::Lbl("A".to_string()), Op::IsgInd(5)];
     let result = run_program(&mut state, "A");
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -226,8 +226,8 @@ fn dse_ind_inside_run_loop() {
     // DSE counter: 5.001 means current=5, target=1, step=1 (decrement)
     // Each iteration: current -= 1, check current <= target.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::rounded(Decimal::from_str("5.001").unwrap());
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::rounded(Decimal::from_str("5.001").unwrap()).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::DseInd(5),
@@ -245,7 +245,7 @@ fn dse_ind_inside_run_loop() {
 #[test]
 fn dse_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     state.program = vec![Op::Lbl("A".to_string()), Op::DseInd(5)];
     let result = run_program(&mut state, "A");
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -254,7 +254,7 @@ fn dse_ind_non_integer() {
 #[test]
 fn dse_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     state.program = vec![Op::Lbl("A".to_string()), Op::DseInd(5)];
     let result = run_program(&mut state, "A");
     assert!(matches!(result, Err(HpError::InvalidOp)));
@@ -265,7 +265,7 @@ fn dse_ind_out_of_regs_len() {
 #[test]
 fn sf_flag_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     dispatch(&mut state, Op::SfFlagInd(5)).unwrap();
     assert!(flag_set_test(state.flags, 12), "flag 12 must be set");
 }
@@ -273,7 +273,7 @@ fn sf_flag_ind_happy() {
 #[test]
 fn sf_flag_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::SfFlagInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -281,7 +281,7 @@ fn sf_flag_ind_non_integer() {
 #[test]
 fn sf_flag_ind_out_of_flag_range() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(60i32); // > 55 (op_sf rejects)
+    state.regs[5] = HpNum::from(60i32).into(); // > 55 (op_sf rejects)
     let result = dispatch(&mut state, Op::SfFlagInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -291,7 +291,7 @@ fn sf_flag_ind_out_of_flag_range() {
 #[test]
 fn cf_flag_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     dispatch(&mut state, Op::CfFlagInd(5)).unwrap();
     assert!(!flag_set_test(state.flags, 12), "flag 12 must be clear");
@@ -300,7 +300,7 @@ fn cf_flag_ind_happy() {
 #[test]
 fn cf_flag_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::CfFlagInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -308,7 +308,7 @@ fn cf_flag_ind_non_integer() {
 #[test]
 fn cf_flag_ind_out_of_flag_range() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(60i32);
+    state.regs[5] = HpNum::from(60i32).into();
     let result = dispatch(&mut state, Op::CfFlagInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -319,7 +319,7 @@ fn cf_flag_ind_out_of_flag_range() {
 fn flag_test_ind_is_set_happy_inside_run_loop() {
     // Flag 12 IS set; IsSet => no skip => both PushNums execute, X=2.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     state.program = vec![
         Op::Lbl("A".to_string()),
@@ -338,7 +338,7 @@ fn flag_test_ind_is_set_happy_inside_run_loop() {
 fn flag_test_ind_is_clear_happy_inside_run_loop() {
     // Flag 12 is CLEAR; IsClear => no skip => both PushNums execute, X=2.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 0;
     state.program = vec![
         Op::Lbl("A".to_string()),
@@ -359,7 +359,7 @@ fn flag_test_ind_is_set_then_clear_happy_inside_run_loop() {
     // (was set), so both PushNums execute and X=2. Post-condition: flag 12
     // is now cleared.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     state.program = vec![
         Op::Lbl("A".to_string()),
@@ -383,7 +383,7 @@ fn flag_test_ind_is_clear_then_clear_happy_inside_run_loop() {
     // Flag 12 is CLEAR; IsClearThenClear => always clear (no-op when
     // already clear), no skip (was clear), both PushNums execute, X=2.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 0;
     state.program = vec![
         Op::Lbl("A".to_string()),
@@ -402,7 +402,7 @@ fn flag_test_ind_is_clear_then_clear_happy_inside_run_loop() {
 #[test]
 fn flag_test_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::FlagTestInd {
@@ -421,7 +421,7 @@ fn flag_test_ind_high_flag_no_panic() {
     // test verifies no panic and the program completes; flag-test fires
     // as "not set" -> for IsSet kind, that means SKIP.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(100i32);
+    state.regs[5] = HpNum::from(100i32).into();
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::FlagTestInd {
@@ -446,7 +446,7 @@ fn flag_test_ind_interactive_is_neutral_no_op() {
     // BONUS: defends against accidentally adding skip semantics to dispatch.
     // Interactive FlagTestInd is a Neutral no-op (mirrors Op::FlagTest).
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.flags = 1u64 << 12;
     let pc_before = state.pc;
     let flags_before = state.flags;
@@ -470,19 +470,19 @@ fn flag_test_ind_interactive_is_neutral_no_op() {
 #[test]
 fn arcl_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(42i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(42i32).into();
     state.alpha_reg = String::new();
     state.display_mode = DisplayMode::Fix(4);
     dispatch(&mut state, Op::ArclInd(5)).unwrap();
-    let expected = format_hpnum(&state.regs[12], &state.display_mode);
+    let expected = format_hpnum(&state.regs[12].numeric_or_zero(), &state.display_mode);
     assert_eq!(state.alpha_reg, expected);
 }
 
 #[test]
 fn arcl_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::ArclInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -490,7 +490,7 @@ fn arcl_ind_non_integer() {
 #[test]
 fn arcl_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     let result = dispatch(&mut state, Op::ArclInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -500,18 +500,18 @@ fn arcl_ind_out_of_regs_len() {
 #[test]
 fn asto_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
+    state.regs[5] = HpNum::from(12i32).into();
     state.alpha_reg = "HELLO".to_string();
     dispatch(&mut state, Op::AstoInd(5)).unwrap();
     assert_eq!(state.text_regs.get(&12), Some(&"HELLO".to_string()));
     // ASTO zeroes the numeric slot (no-drift invariant per phase23 D-23.5).
-    assert_eq!(state.regs[12], HpNum::zero());
+    assert_eq!(state.regs[12], hp41_core::HpValue::default());
 }
 
 #[test]
 fn asto_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::AstoInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -519,7 +519,7 @@ fn asto_ind_non_integer() {
 #[test]
 fn asto_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     let result = dispatch(&mut state, Op::AstoInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -529,8 +529,8 @@ fn asto_ind_out_of_regs_len() {
 #[test]
 fn view_ind_happy() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(42i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(42i32).into();
     state.display_mode = DisplayMode::Fix(4);
     dispatch(&mut state, Op::ViewInd(5)).unwrap();
     let expected = format_hpnum(&HpNum::from(42i32), &state.display_mode);
@@ -544,8 +544,8 @@ fn view_ind_shows_resolved_register_value() {
     // Fix(4) mode, the expected display is "42.0000", which is NOT
     // "12.0000" (R05's formatted value).
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::from(42i32);
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::from(42i32).into();
     state.display_mode = DisplayMode::Fix(4);
     dispatch(&mut state, Op::ViewInd(5)).unwrap();
 
@@ -565,7 +565,7 @@ fn view_ind_shows_resolved_register_value() {
 #[test]
 fn view_ind_non_integer() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap());
+    state.regs[5] = HpNum::rounded(Decimal::from_str("12.5").unwrap()).into();
     let result = dispatch(&mut state, Op::ViewInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }
@@ -573,7 +573,7 @@ fn view_ind_non_integer() {
 #[test]
 fn view_ind_out_of_regs_len() {
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(200i32);
+    state.regs[5] = HpNum::from(200i32).into();
     let result = dispatch(&mut state, Op::ViewInd(5));
     assert!(matches!(result, Err(HpError::InvalidOp)));
 }

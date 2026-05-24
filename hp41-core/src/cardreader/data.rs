@@ -14,7 +14,6 @@
 //! ```
 
 use crate::error::HpError;
-use crate::num::HpNum;
 use serde::{Deserialize, Serialize};
 
 /// Magic header string identifying the format. Future formats bump this tag.
@@ -27,7 +26,7 @@ pub const FORMAT_VERSION: u32 = 1;
 pub struct DataCard {
     pub format: String,
     pub version: u32,
-    pub registers: Vec<HpNum>,
+    pub registers: Vec<crate::num::HpValue>,
 }
 
 /// Serialize a `DataCard` to pretty JSON bytes (UTF-8) ready for disk write.
@@ -58,12 +57,13 @@ pub fn decode_data(bytes: &[u8]) -> Result<DataCard, HpError> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::num::HpNum;
 
     fn sample_card() -> DataCard {
         DataCard {
             format: FORMAT_TAG.to_string(),
             version: FORMAT_VERSION,
-            registers: vec![HpNum::from(0i32), HpNum::from(42i32), HpNum::from(-17i32)],
+            registers: vec![HpNum::from(0i32).into(), HpNum::from(42i32).into(), HpNum::from(-17i32).into()],
         }
     }
 

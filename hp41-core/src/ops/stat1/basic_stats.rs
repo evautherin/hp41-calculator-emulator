@@ -109,9 +109,9 @@ pub fn op_sigma_bstat(state: &mut CalcState) -> Result<(), HpError> {
     // `ops/stats.rs`. Stat-1-specific slots ≥ R07 are accessed via
     // named consts (P21); the foundational v1.x block uses literal
     // indices for symmetry with `op_sigma_plus`.
-    let sum_x_sq = state.regs[1].clone();
-    let sum_x = state.regs[2].clone();
-    let n = state.regs[3].clone();
+    let sum_x_sq = state.regs[1].numeric_or_zero();
+    let sum_x = state.regs[2].numeric_or_zero();
+    let n = state.regs[3].numeric_or_zero();
 
     // n < 2 → variance undefined (n − 1 == 0 would divide by zero).
     let one = HpNum::from(1i32);
@@ -181,10 +181,10 @@ pub fn op_sigma_bstg(state: &mut CalcState) -> Result<(), HpError> {
     // canonical source; literal indices preserve symmetry with
     // `op_sigma_plus`. Stat-1-specific slots ≥ R07 still route through
     // named consts (P21).
-    let sum_x = state.regs[2].clone();
-    let n = state.regs[3].clone();
-    let sum_w = state.regs[5].clone(); // Σy in v1.x layout — interpreted as weight sum
-    let sum_xw = state.regs[6].clone(); // Σxy in v1.x layout — interpreted as Σx·w
+    let sum_x = state.regs[2].numeric_or_zero();
+    let n = state.regs[3].numeric_or_zero();
+    let sum_w = state.regs[5].numeric_or_zero(); // Σy in v1.x layout — interpreted as weight sum
+    let sum_xw = state.regs[6].numeric_or_zero(); // Σxy in v1.x layout — interpreted as Σx·w
 
     if n.is_zero() {
         return Err(HpError::InvalidOp);
@@ -230,12 +230,12 @@ mod tests {
     ///        but for Σy² (R04) we need Σ(y_i²) = 100+400+900+1600+2500 = 5500
     ///   Σxy = 1·10 + 2·20 + 3·30 + 4·40 + 5·50 = 10+40+90+160+250 = 550
     fn load_spec_req7_dataset(state: &mut CalcState) {
-        state.regs[1] = HpNum::from(55i32); // Σx²
-        state.regs[2] = HpNum::from(15i32); // Σx
-        state.regs[3] = HpNum::from(5i32); // n
-        state.regs[4] = HpNum::from(5500i32); // Σy²
-        state.regs[5] = HpNum::from(150i32); // Σy
-        state.regs[6] = HpNum::from(550i32); // Σxy
+        state.regs[1] = HpNum::from(55i32).into(); // Σx²
+        state.regs[2] = HpNum::from(15i32).into(); // Σx
+        state.regs[3] = HpNum::from(5i32).into(); // n
+        state.regs[4] = HpNum::from(5500i32).into(); // Σy²
+        state.regs[5] = HpNum::from(150i32).into(); // Σy
+        state.regs[6] = HpNum::from(550i32).into(); // Σxy
     }
 
     // ── ΣBSTAT tests ────────────────────────────────────────────────────────
@@ -271,9 +271,9 @@ mod tests {
     #[test]
     fn bstat_arithmetic_sequence() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(55i32); // Σx² = 1+4+9+16+25
-        state.regs[2] = HpNum::from(15i32); // Σx
-        state.regs[3] = HpNum::from(5i32); // n
+        state.regs[1] = HpNum::from(55i32).into(); // Σx² = 1+4+9+16+25
+        state.regs[2] = HpNum::from(15i32).into(); // Σx
+        state.regs[3] = HpNum::from(5i32).into(); // n
         op_sigma_bstat(&mut state).unwrap();
         assert_relative_eq!(
             as_f64(&state.stack.x),
@@ -289,9 +289,9 @@ mod tests {
     #[test]
     fn bstat_constant_data_zero_cv() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(48i32);
-        state.regs[2] = HpNum::from(12i32);
-        state.regs[3] = HpNum::from(3i32);
+        state.regs[1] = HpNum::from(48i32).into();
+        state.regs[2] = HpNum::from(12i32).into();
+        state.regs[3] = HpNum::from(3i32).into();
         op_sigma_bstat(&mut state).unwrap();
         assert_relative_eq!(as_f64(&state.stack.x), 0.0, epsilon = 1e-12);
         assert_relative_eq!(as_f64(&state.stack.y), 4.0, max_relative = 1e-9);
@@ -303,9 +303,9 @@ mod tests {
     #[test]
     fn bstat_two_point_dataset() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(20i32); // 4 + 16
-        state.regs[2] = HpNum::from(6i32); // 2 + 4
-        state.regs[3] = HpNum::from(2i32);
+        state.regs[1] = HpNum::from(20i32).into(); // 4 + 16
+        state.regs[2] = HpNum::from(6i32).into(); // 2 + 4
+        state.regs[3] = HpNum::from(2i32).into();
         op_sigma_bstat(&mut state).unwrap();
         assert_relative_eq!(
             as_f64(&state.stack.x),
@@ -327,9 +327,9 @@ mod tests {
     #[test]
     fn bstat_n_too_small() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(1i32);
-        state.regs[2] = HpNum::from(1i32);
-        state.regs[3] = HpNum::from(1i32);
+        state.regs[1] = HpNum::from(1i32).into();
+        state.regs[2] = HpNum::from(1i32).into();
+        state.regs[3] = HpNum::from(1i32).into();
         assert_eq!(op_sigma_bstat(&mut state).unwrap_err(), HpError::InvalidOp);
     }
 
@@ -338,9 +338,9 @@ mod tests {
     #[test]
     fn bstat_zero_mean_returns_invalid() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(2i32); // 1 + 1
-        state.regs[2] = HpNum::zero(); // -1 + 1 = 0
-        state.regs[3] = HpNum::from(2i32);
+        state.regs[1] = HpNum::from(2i32).into(); // 1 + 1
+        state.regs[2] = HpNum::zero().into(); // -1 + 1 = 0
+        state.regs[3] = HpNum::from(2i32).into();
         assert_eq!(op_sigma_bstat(&mut state).unwrap_err(), HpError::InvalidOp);
     }
 
@@ -375,10 +375,10 @@ mod tests {
     #[test]
     fn bstg_equal_weights() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::from(6i32); // Σx
-        state.regs[3] = HpNum::from(3i32); // n
-        state.regs[5] = HpNum::from(3i32); // Σw
-        state.regs[6] = HpNum::from(6i32); // Σxw
+        state.regs[2] = HpNum::from(6i32).into(); // Σx
+        state.regs[3] = HpNum::from(3i32).into(); // n
+        state.regs[5] = HpNum::from(3i32).into(); // Σw
+        state.regs[6] = HpNum::from(6i32).into(); // Σxw
         op_sigma_bstg(&mut state).unwrap();
         assert_relative_eq!(as_f64(&state.stack.x), 2.0, max_relative = 1e-9);
         assert_relative_eq!(as_f64(&state.stack.y), 2.0, max_relative = 1e-9);
@@ -393,10 +393,10 @@ mod tests {
     #[test]
     fn bstg_skewed_weights() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::from(101i32);
-        state.regs[3] = HpNum::from(2i32);
-        state.regs[5] = HpNum::from(100i32);
-        state.regs[6] = HpNum::from(199i32);
+        state.regs[2] = HpNum::from(101i32).into();
+        state.regs[3] = HpNum::from(2i32).into();
+        state.regs[5] = HpNum::from(100i32).into();
+        state.regs[6] = HpNum::from(199i32).into();
         op_sigma_bstg(&mut state).unwrap();
         assert_relative_eq!(as_f64(&state.stack.x), 1.99, max_relative = 1e-9);
         assert_relative_eq!(as_f64(&state.stack.y), 50.5, max_relative = 1e-9);
@@ -408,10 +408,10 @@ mod tests {
     #[test]
     fn bstg_single_pair() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::from(7i32);
-        state.regs[3] = HpNum::from(1i32);
-        state.regs[5] = HpNum::from(3i32);
-        state.regs[6] = HpNum::from(21i32);
+        state.regs[2] = HpNum::from(7i32).into();
+        state.regs[3] = HpNum::from(1i32).into();
+        state.regs[5] = HpNum::from(3i32).into();
+        state.regs[6] = HpNum::from(21i32).into();
         op_sigma_bstg(&mut state).unwrap();
         assert_relative_eq!(as_f64(&state.stack.x), 7.0, max_relative = 1e-9);
         assert_relative_eq!(as_f64(&state.stack.y), 7.0, max_relative = 1e-9);
@@ -429,7 +429,7 @@ mod tests {
     #[test]
     fn bstg_zero_n_returns_invalid() {
         let mut state = CalcState::new();
-        state.regs[5] = HpNum::from(1i32); // Σw nonzero to avoid that branch
+        state.regs[5] = HpNum::from(1i32).into(); // Σw nonzero to avoid that branch
                                            // Σx and n both zero (default).
         assert_eq!(op_sigma_bstg(&mut state).unwrap_err(), HpError::InvalidOp);
     }
@@ -438,8 +438,8 @@ mod tests {
     #[test]
     fn bstg_zero_weight_sum_returns_invalid() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::from(3i32);
-        state.regs[3] = HpNum::from(2i32);
+        state.regs[2] = HpNum::from(3i32).into();
+        state.regs[3] = HpNum::from(2i32).into();
         // Σw and Σxw both zero (default).
         assert_eq!(op_sigma_bstg(&mut state).unwrap_err(), HpError::InvalidOp);
     }

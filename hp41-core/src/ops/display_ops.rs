@@ -20,7 +20,7 @@ pub fn op_view(state: &mut CalcState, reg: u8) -> Result<(), HpError> {
         .get(reg as usize)
         .ok_or(HpError::InvalidOp)?
         .clone();
-    state.display_override = Some(format_hpnum(&val, &state.display_mode));
+    state.display_override = Some(format_hpnum(&val.numeric_or_zero(), &state.display_mode));
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }

@@ -59,7 +59,7 @@ fn test_rcl_pushes_to_stack() {
 #[test]
 fn test_sto_add_updates_register() {
     let mut s = CalcState::new();
-    s.regs[5] = HpNum::from(10);
+    s.regs[5] = HpNum::from(10).into();
     push(&mut s, 3);
     dispatch(
         &mut s,
@@ -80,7 +80,7 @@ fn test_sto_add_updates_register() {
 #[test]
 fn test_sto_sub_updates_register() {
     let mut s = CalcState::new();
-    s.regs[2] = HpNum::from(20);
+    s.regs[2] = HpNum::from(20).into();
     push(&mut s, 5);
     dispatch(
         &mut s,
@@ -96,7 +96,7 @@ fn test_sto_sub_updates_register() {
 #[test]
 fn test_sto_mul_updates_register() {
     let mut s = CalcState::new();
-    s.regs[0] = HpNum::from(4);
+    s.regs[0] = HpNum::from(4).into();
     push(&mut s, 3);
     dispatch(
         &mut s,
@@ -112,7 +112,7 @@ fn test_sto_mul_updates_register() {
 #[test]
 fn test_sto_div_updates_register() {
     let mut s = CalcState::new();
-    s.regs[1] = HpNum::from(10);
+    s.regs[1] = HpNum::from(10).into();
     push(&mut s, 2);
     dispatch(
         &mut s,
@@ -130,9 +130,9 @@ fn test_sto_div_updates_register() {
 #[test]
 fn test_clreg_zeros_all_registers() {
     let mut s = CalcState::new();
-    s.regs[0] = HpNum::from(1);
-    s.regs[50] = HpNum::from(2);
-    s.regs[99] = HpNum::from(3);
+    s.regs[0] = HpNum::from(1).into();
+    s.regs[50] = HpNum::from(2).into();
+    s.regs[99] = HpNum::from(3).into();
     dispatch(&mut s, Op::Clreg).unwrap();
     assert!(s.regs[0].is_zero(), "R00 must be zero after CLREG");
     assert!(s.regs[50].is_zero(), "R50 must be zero after CLREG");

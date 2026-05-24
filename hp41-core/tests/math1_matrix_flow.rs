@@ -30,11 +30,11 @@ fn setup_matrix(state: &mut CalcState, n: u8, elements: &[f64]) {
     assert_eq!(elements.len(), (n as usize) * (n as usize));
     state.matrix_dim = Some((n, n));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(n as i32);
+    state.regs[14] = HpNum::from(n as i32).into();
     // Ensure regs is large enough
     let required = 15 + (n as usize) * (n as usize) + n as usize + 1;
     if state.regs.len() < required {
-        state.regs.resize(required, HpNum::zero());
+        state.regs.resize(required, hp41_core::HpValue::default());
     }
     // Store column-major (input is row-major)
     for c in 0..(n as usize) {
@@ -42,7 +42,7 @@ fn setup_matrix(state: &mut CalcState, n: u8, elements: &[f64]) {
             let idx = 15 + c * n as usize + r;
             let v = elements[r * n as usize + c];
             let d = Decimal::from_f64(v).expect("finite f64");
-            state.regs[idx] = HpNum::rounded(d);
+            state.regs[idx] = HpNum::rounded(d).into();
         }
     }
 }
@@ -98,7 +98,7 @@ fn matrix_inv_dispatches_via_xeq() {
 fn matrix_size_dispatches_via_xeq() {
     let mut state = CalcState::new();
     // Set R14 = 3 (order register)
-    state.regs[14] = hp41_core::num::HpNum::from(3i32);
+    state.regs[14] = hp41_core::num::HpNum::from(3i32).into();
     dispatch(&mut state, Op::Xeq("SIZE".to_string())).unwrap();
     // LINT-EXEMPT: integer-equality via HpNum::from(3i32) is exact (Decimal from
     // integer literal has no f64 bridge, no FPU rounding) — cross-platform-safe.
@@ -116,8 +116,8 @@ fn matrix_simeq_flag5() {
     // System: [[1,0],[0,1]] · [x,y] = [5,7] → x=5, y=7 (trivial identity case)
     setup_matrix(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
     // B vector: base=15, n=2, n*n=4, b_base=19
-    state.regs[19] = hp41_core::num::HpNum::from(5i32);
-    state.regs[20] = hp41_core::num::HpNum::from(7i32);
+    state.regs[19] = hp41_core::num::HpNum::from(5i32).into();
+    state.regs[20] = hp41_core::num::HpNum::from(7i32).into();
     dispatch(&mut state, Op::Xeq("SIMEQ".to_string())).unwrap();
     // Flag 5 must be set after successful SIMEQ
     assert!(
@@ -196,8 +196,8 @@ fn matrix_vcol_displays_b_vector() {
     let mut state = CalcState::new();
     setup_matrix(&mut state, 2, &[1.0, 0.0, 0.0, 1.0]);
     // Set B values at b_base = 15 + 4 = 19
-    state.regs[19] = hp41_core::num::HpNum::from(42i32);
-    state.regs[20] = hp41_core::num::HpNum::from(7i32);
+    state.regs[19] = hp41_core::num::HpNum::from(42i32).into();
+    state.regs[20] = hp41_core::num::HpNum::from(7i32).into();
     dispatch(&mut state, Op::Xeq("VCOL".to_string())).unwrap();
     assert_eq!(
         state.print_buffer.len(),

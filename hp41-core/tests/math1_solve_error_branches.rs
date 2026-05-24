@@ -37,8 +37,8 @@ fn make_solve_state(label: &str, x1: f64, x2: f64) -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO));
-    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO));
+    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO)).into();
     (state, program)
 }
 
@@ -114,8 +114,8 @@ fn solve_run_loop_label_not_found_returns_invalid_op() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "MISSING_LABEL".to_string(); // label not in program
-    state.regs[0] = HpNum::from(-1i32);
-    state.regs[1] = HpNum::from(1i32);
+    state.regs[0] = HpNum::from(-1i32).into();
+    state.regs[1] = HpNum::from(1i32).into();
 
     let result = op_solve_run_loop(&mut state, &program);
     assert_eq!(
@@ -178,8 +178,8 @@ fn solve_run_loop_propagates_user_fn_error() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "SQRT_FN".to_string();
-    state.regs[0] = HpNum::from(-2i32); // x1 = -2 (domain error)
-    state.regs[1] = HpNum::from(-1i32); // x2 = -1 (domain error)
+    state.regs[0] = HpNum::from(-2i32).into(); // x1 = -2 (domain error)
+    state.regs[1] = HpNum::from(-1i32).into(); // x2 = -1 (domain error)
 
     let result = op_solve_run_loop(&mut state, &program);
     // The error from sqrt(-ve) should propagate out of the secant loop

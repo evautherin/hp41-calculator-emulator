@@ -28,8 +28,8 @@ fn make_solve_identity() -> (CalcState, Vec<Op>) {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "ID".to_string();
-    state.regs[0] = HpNum::from(-1i32);
-    state.regs[1] = HpNum::from(1i32);
+    state.regs[0] = HpNum::from(-1i32).into();
+    state.regs[1] = HpNum::from(1i32).into();
     (state, program)
 }
 
@@ -211,8 +211,8 @@ fn sol_rejects_without_user_label() {
     state.program = program.clone();
     // alpha_reg intentionally empty — Op::Sol requires a user label
     state.alpha_reg = "".to_string();
-    state.regs[0] = HpNum::from(0i32);
-    state.regs[1] = HpNum::from(1i32);
+    state.regs[0] = HpNum::from(0i32).into();
+    state.regs[1] = HpNum::from(1i32).into();
 
     let result = op_sol_run_loop(&mut state, &program);
     assert_eq!(
@@ -300,8 +300,8 @@ fn solve_100_iteration_cap() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "ITCAP".to_string();
-    state.regs[0] = HpNum::from(1i32);
-    state.regs[1] = HpNum::from(2i32);
+    state.regs[0] = HpNum::from(1i32).into();
+    state.regs[1] = HpNum::from(2i32).into();
 
     op_solve_run_loop(&mut state, &program).unwrap();
     assert_eq!(
@@ -325,8 +325,8 @@ fn sol_100_iteration_cap() {
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = "SITCAP".to_string();
-    state.regs[0] = HpNum::from(1i32);
-    state.regs[1] = HpNum::from(2i32);
+    state.regs[0] = HpNum::from(1i32).into();
+    state.regs[1] = HpNum::from(2i32).into();
 
     op_sol_run_loop(&mut state, &program).unwrap();
     assert_eq!(

@@ -55,8 +55,8 @@ pub fn op_sigma_spear(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
     // R02 = Σx = Σd² (v1.x convention from ops/stats.rs); R03 = n.
-    let sum_d_sq = state.regs[2].clone();
-    let n = state.regs[3].clone();
+    let sum_d_sq = state.regs[2].numeric_or_zero();
+    let n = state.regs[3].numeric_or_zero();
 
     // n < 2 → undefined (n² − 1 would be 0 or negative).
     let one = HpNum::from(1i32);
@@ -103,7 +103,7 @@ pub fn op_sigma_xsqev(state: &mut CalcState) -> Result<(), HpError> {
     // today). Decoupling guards against silent result-address drift
     // if STAT1_XSQEV_MAX_REG is ever bumped (e.g., to support more
     // categories).
-    state.regs[STAT1_XSQEV_RESULT_REG] = chi_sq.clone();
+    state.regs[STAT1_XSQEV_RESULT_REG] = chi_sq.clone().into();
     state.stack.lift_enabled = true;
     enter_number(state, chi_sq);
     apply_lift_effect(state, LiftEffect::Enable);
@@ -113,15 +113,15 @@ pub fn op_sigma_xsqev(state: &mut CalcState) -> Result<(), HpError> {
 /// Shared reducer: χ² from interleaved O/E pairs in the SIZE 008 block.
 fn compute_chi_square_from_counts(state: &CalcState) -> Result<HpNum, HpError> {
     // Read k (number of categories) from R00 and validate domain.
-    let k_num = state.regs[STAT1_XSQEV_K_REG].clone();
+    let k_num = state.regs[STAT1_XSQEV_K_REG].numeric_or_zero();
     let k = decode_category_count(&k_num)?;
 
     let mut chi_sq = HpNum::zero();
     for i in 0..k {
         let obs_reg = STAT1_XSQEV_OBS_BASE_REG + STAT1_XSQEV_STRIDE * i;
         let exp_reg = STAT1_XSQEV_EXP_BASE_REG + STAT1_XSQEV_STRIDE * i;
-        let obs = state.regs[obs_reg].clone();
-        let exp = state.regs[exp_reg].clone();
+        let obs = state.regs[obs_reg].numeric_or_zero();
+        let exp = state.regs[exp_reg].numeric_or_zero();
         if exp.is_zero() {
             return Err(HpError::Domain);
         }
@@ -177,7 +177,7 @@ pub fn op_sigma_efxsq(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
     // Read k and validate.
-    let k_num = state.regs[STAT1_XSQEV_K_REG].clone();
+    let k_num = state.regs[STAT1_XSQEV_K_REG].numeric_or_zero();
     let k = decode_category_count(&k_num)?;
 
     // Compute Σf = Σ O_i AND validate Σ p_i = 1.0 within tolerance.
@@ -188,8 +188,8 @@ pub fn op_sigma_efxsq(state: &mut CalcState) -> Result<(), HpError> {
     for i in 0..k {
         let obs_reg = STAT1_XSQEV_OBS_BASE_REG + STAT1_XSQEV_STRIDE * i;
         let prop_reg = STAT1_XSQEV_EXP_BASE_REG + STAT1_XSQEV_STRIDE * i;
-        sum_f = sum_f.checked_add(&state.regs[obs_reg])?;
-        let p = state.regs[prop_reg].clone();
+        sum_f = sum_f.checked_add(&state.regs[obs_reg].numeric_or_zero())?;
+        let p = state.regs[prop_reg].numeric_or_zero();
         if p.inner() <= rust_decimal::Decimal::ZERO {
             return Err(HpError::Domain);
         }
@@ -208,16 +208,16 @@ pub fn op_sigma_efxsq(state: &mut CalcState) -> Result<(), HpError> {
     // Convert proportions in-place to expected counts: E_i = Σf · p_i.
     for i in 0..k {
         let prop_reg = STAT1_XSQEV_EXP_BASE_REG + STAT1_XSQEV_STRIDE * i;
-        let p = state.regs[prop_reg].clone();
+        let p = state.regs[prop_reg].numeric_or_zero();
         let exp = sum_f.checked_mul(&p)?;
-        state.regs[prop_reg] = exp;
+        state.regs[prop_reg] = exp.into();
     }
 
     // Delegate to the shared O/E reducer (Task 2 helper). The χ²
     // value lands in the OM-cited result register R07 (see CR-02
     // mitigation note on `op_sigma_xsqev` above).
     let chi_sq = compute_chi_square_from_counts(state)?;
-    state.regs[STAT1_XSQEV_RESULT_REG] = chi_sq.clone();
+    state.regs[STAT1_XSQEV_RESULT_REG] = chi_sq.clone().into();
     state.stack.lift_enabled = true;
     enter_number(state, chi_sq);
     apply_lift_effect(state, LiftEffect::Enable);
@@ -240,8 +240,8 @@ fn decode_dim(d_num: &HpNum, cap: usize) -> Result<usize, HpError> {
 /// Shared r×c contingency χ² reducer. Reads r/c from R00/R01, cells
 /// row-major from R02. `E_ij = (Rᵢ·Cⱼ)/T`; `χ² = ΣΣ(O−E)²/E`.
 fn compute_contingency_chi_sq(state: &CalcState, dim_cap: usize) -> Result<HpNum, HpError> {
-    let r = decode_dim(&state.regs[STAT1_CTKKK_R_REG], dim_cap)?;
-    let c = decode_dim(&state.regs[STAT1_CTKKK_C_REG], dim_cap)?;
+    let r = decode_dim(&state.regs[STAT1_CTKKK_R_REG].numeric_or_zero(), dim_cap)?;
+    let c = decode_dim(&state.regs[STAT1_CTKKK_C_REG].numeric_or_zero(), dim_cap)?;
     // Bounds: cells occupy R<CELL_BASE>..R<CELL_BASE + r*c − 1>; must
     // fit within STAT1_CTKKK_MAX_REG.
     if STAT1_CTKKK_CELL_BASE_REG + r * c > crate::ops::stat1::STAT1_CTKKK_MAX_REG + 1 {
@@ -252,7 +252,7 @@ fn compute_contingency_chi_sq(state: &CalcState, dim_cap: usize) -> Result<HpNum
     let mut grand = HpNum::zero();
     for (i, row_acc) in row_sums.iter_mut().enumerate().take(r) {
         for (j, col_acc) in col_sums.iter_mut().enumerate().take(c) {
-            let cell = state.regs[STAT1_CTKKK_CELL_BASE_REG + i * c + j].clone();
+            let cell = state.regs[STAT1_CTKKK_CELL_BASE_REG + i * c + j].numeric_or_zero();
             if cell.inner() < rust_decimal::Decimal::ZERO {
                 return Err(HpError::Domain);
             }
@@ -267,7 +267,7 @@ fn compute_contingency_chi_sq(state: &CalcState, dim_cap: usize) -> Result<HpNum
     let mut chi_sq = HpNum::zero();
     for (i, row_total) in row_sums.iter().enumerate() {
         for (j, col_total) in col_sums.iter().enumerate() {
-            let o = state.regs[STAT1_CTKKK_CELL_BASE_REG + i * c + j].clone();
+            let o = state.regs[STAT1_CTKKK_CELL_BASE_REG + i * c + j].numeric_or_zero();
             let e = row_total.checked_mul(col_total)?.checked_div(&grand)?;
             if e.is_zero() {
                 return Err(HpError::Domain);
@@ -342,8 +342,8 @@ mod tests {
         let mut state = CalcState::new();
         // R02 = Σd² = 4; R03 = n = 5 (v1.x stats convention; pre-loaded
         // by the user via Σ+ on each d² value).
-        state.regs[2] = HpNum::from(4i32);
-        state.regs[3] = HpNum::from(5i32);
+        state.regs[2] = HpNum::from(4i32).into();
+        state.regs[3] = HpNum::from(5i32).into();
         op_sigma_spear(&mut state).expect("ΣSPEAR with valid Σd²=4, n=5 must succeed");
         // ρ_s = 0.8 exactly (closed-form on integer inputs).
         assert_relative_eq!(x_as_f64(&state), 0.8, max_relative = 1e-9);
@@ -353,8 +353,8 @@ mod tests {
     #[test]
     fn spear_perfect_positive_correlation() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::zero();
-        state.regs[3] = HpNum::from(5i32);
+        state.regs[2] = HpNum::zero().into();
+        state.regs[3] = HpNum::from(5i32).into();
         op_sigma_spear(&mut state).unwrap();
         assert_relative_eq!(x_as_f64(&state), 1.0, max_relative = 1e-9);
     }
@@ -365,8 +365,8 @@ mod tests {
     #[test]
     fn spear_perfect_negative_correlation() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::from(40i32);
-        state.regs[3] = HpNum::from(5i32);
+        state.regs[2] = HpNum::from(40i32).into();
+        state.regs[3] = HpNum::from(5i32).into();
         op_sigma_spear(&mut state).unwrap();
         assert_relative_eq!(x_as_f64(&state), -1.0, max_relative = 1e-9);
     }
@@ -383,8 +383,8 @@ mod tests {
     #[test]
     fn spear_n_too_small() {
         let mut state = CalcState::new();
-        state.regs[2] = HpNum::zero();
-        state.regs[3] = HpNum::from(1i32);
+        state.regs[2] = HpNum::zero().into();
+        state.regs[3] = HpNum::from(1i32).into();
         assert_eq!(op_sigma_spear(&mut state).unwrap_err(), HpError::InvalidOp);
     }
 
@@ -401,19 +401,19 @@ mod tests {
     fn xsqev_basic() {
         let mut state = CalcState::new();
         // R00 = k = 3
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
         // Interleaved O/E: (R01,R02), (R03,R04), (R05,R06)
-        state.regs[1] = HpNum::from(10i32);
-        state.regs[2] = HpNum::from(15i32);
-        state.regs[3] = HpNum::from(20i32);
-        state.regs[4] = HpNum::from(20i32);
-        state.regs[5] = HpNum::from(30i32);
-        state.regs[6] = HpNum::from(25i32);
+        state.regs[1] = HpNum::from(10i32).into();
+        state.regs[2] = HpNum::from(15i32).into();
+        state.regs[3] = HpNum::from(20i32).into();
+        state.regs[4] = HpNum::from(20i32).into();
+        state.regs[5] = HpNum::from(30i32).into();
+        state.regs[6] = HpNum::from(25i32).into();
         op_sigma_xsqev(&mut state).unwrap();
         assert_relative_eq!(x_as_f64(&state), 8.0 / 3.0, max_relative = 1e-9);
         // Result also lands in R07 scratch slot.
         assert_relative_eq!(
-            state.regs[STAT1_XSQEV_RESULT_REG].inner().to_f64().unwrap(),
+            state.regs[STAT1_XSQEV_RESULT_REG].numeric_or_zero().inner().to_f64().unwrap(),
             8.0 / 3.0,
             max_relative = 1e-9
         );
@@ -423,13 +423,13 @@ mod tests {
     #[test]
     fn xsqev_perfect_fit() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
-        state.regs[1] = HpNum::from(20i32);
-        state.regs[2] = HpNum::from(20i32);
-        state.regs[3] = HpNum::from(30i32);
-        state.regs[4] = HpNum::from(30i32);
-        state.regs[5] = HpNum::from(50i32);
-        state.regs[6] = HpNum::from(50i32);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
+        state.regs[1] = HpNum::from(20i32).into();
+        state.regs[2] = HpNum::from(20i32).into();
+        state.regs[3] = HpNum::from(30i32).into();
+        state.regs[4] = HpNum::from(30i32).into();
+        state.regs[5] = HpNum::from(50i32).into();
+        state.regs[6] = HpNum::from(50i32).into();
         op_sigma_xsqev(&mut state).unwrap();
         // LINT-EXEMPT: integer-equality — perfect fit O==E gives chi-sq=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
@@ -439,11 +439,11 @@ mod tests {
     #[test]
     fn xsqev_zero_expected_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32);
-        state.regs[1] = HpNum::from(10i32);
-        state.regs[2] = HpNum::zero(); // expected = 0 → undefined
-        state.regs[3] = HpNum::from(20i32);
-        state.regs[4] = HpNum::from(15i32);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32).into();
+        state.regs[1] = HpNum::from(10i32).into();
+        state.regs[2] = HpNum::zero().into(); // expected = 0 → undefined
+        state.regs[3] = HpNum::from(20i32).into();
+        state.regs[4] = HpNum::from(15i32).into();
         assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum setup lines
     }
 
@@ -459,9 +459,9 @@ mod tests {
     #[test]
     fn xsqev_k_out_of_range_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::zero();
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::zero().into();
         assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum setup line
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1).into();
         assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -469,9 +469,9 @@ mod tests {
     #[test]
     fn xsqev_single_category() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(1i32);
-        state.regs[1] = HpNum::from(10i32);
-        state.regs[2] = HpNum::from(10i32);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(1i32).into();
+        state.regs[1] = HpNum::from(10i32).into();
+        state.regs[2] = HpNum::from(10i32).into();
         op_sigma_xsqev(&mut state).unwrap();
         // LINT-EXEMPT: integer-equality — single-category with O==E gives chi-sq=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
@@ -499,36 +499,36 @@ mod tests {
     #[test]
     fn efxsq_basic() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
         // Interleaved O/p: (R01, R02), (R03, R04), (R05, R06)
-        state.regs[1] = HpNum::from(10i32);
-        state.regs[2] = p_one_tenth(2); // 0.2
-        state.regs[3] = HpNum::from(30i32);
-        state.regs[4] = p_one_tenth(3); // 0.3
-        state.regs[5] = HpNum::from(60i32);
-        state.regs[6] = p_one_tenth(5); // 0.5
+        state.regs[1] = HpNum::from(10i32).into();
+        state.regs[2] = p_one_tenth(2).into(); // 0.2
+        state.regs[3] = HpNum::from(30i32).into();
+        state.regs[4] = p_one_tenth(3).into(); // 0.3
+        state.regs[5] = HpNum::from(60i32).into();
+        state.regs[6] = p_one_tenth(5).into(); // 0.5
         op_sigma_efxsq(&mut state).unwrap();
         assert_relative_eq!(x_as_f64(&state), 7.0, max_relative = 1e-9);
         // Result also lands in R07 scratch slot.
         assert_relative_eq!(
-            state.regs[STAT1_XSQEV_RESULT_REG].inner().to_f64().unwrap(),
+            state.regs[STAT1_XSQEV_RESULT_REG].numeric_or_zero().inner().to_f64().unwrap(),
             7.0,
             max_relative = 1e-9
         );
         // In-place conversion: R02/R04/R06 now hold expected COUNTS, not
         // proportions (per OM "in-place conversion" convention p. 55).
         assert_relative_eq!(
-            state.regs[2].inner().to_f64().unwrap(),
+            state.regs[2].numeric_or_zero().inner().to_f64().unwrap(),
             20.0,
             max_relative = 1e-9
         );
         assert_relative_eq!(
-            state.regs[4].inner().to_f64().unwrap(),
+            state.regs[4].numeric_or_zero().inner().to_f64().unwrap(),
             30.0,
             max_relative = 1e-9
         );
         assert_relative_eq!(
-            state.regs[6].inner().to_f64().unwrap(),
+            state.regs[6].numeric_or_zero().inner().to_f64().unwrap(),
             50.0,
             max_relative = 1e-9
         );
@@ -539,13 +539,13 @@ mod tests {
     #[test]
     fn efxsq_proportions_not_sum_to_one_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
-        state.regs[1] = HpNum::from(10i32);
-        state.regs[2] = p_one_tenth(2); // 0.2
-        state.regs[3] = HpNum::from(30i32);
-        state.regs[4] = p_one_tenth(3); // 0.3
-        state.regs[5] = HpNum::from(60i32);
-        state.regs[6] = p_one_tenth(6); // 0.6 → sum = 1.1
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
+        state.regs[1] = HpNum::from(10i32).into();
+        state.regs[2] = p_one_tenth(2).into(); // 0.2
+        state.regs[3] = HpNum::from(30i32).into();
+        state.regs[4] = p_one_tenth(3).into(); // 0.3
+        state.regs[5] = HpNum::from(60i32).into();
+        state.regs[6] = p_one_tenth(6).into(); // 0.6 → sum = 1.1
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -553,11 +553,11 @@ mod tests {
     #[test]
     fn efxsq_zero_proportion_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32);
-        state.regs[1] = HpNum::from(10i32);
-        state.regs[2] = HpNum::zero(); // p₀ = 0 → undefined (would yield E=0)
-        state.regs[3] = HpNum::from(20i32);
-        state.regs[4] = p_one_tenth(10); // 1.0
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32).into();
+        state.regs[1] = HpNum::from(10i32).into();
+        state.regs[2] = HpNum::zero().into(); // p₀ = 0 → undefined (would yield E=0)
+        state.regs[3] = HpNum::from(20i32).into();
+        state.regs[4] = p_one_tenth(10).into(); // 1.0
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -573,11 +573,11 @@ mod tests {
     #[test]
     fn efxsq_perfect_fit() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32);
-        state.regs[1] = HpNum::from(50i32);
-        state.regs[2] = p_one_tenth(5); // 0.5
-        state.regs[3] = HpNum::from(50i32);
-        state.regs[4] = p_one_tenth(5); // 0.5
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(2i32).into();
+        state.regs[1] = HpNum::from(50i32).into();
+        state.regs[2] = p_one_tenth(5).into(); // 0.5
+        state.regs[3] = HpNum::from(50i32).into();
+        state.regs[4] = p_one_tenth(5).into(); // 0.5
         op_sigma_efxsq(&mut state).unwrap();
         // LINT-EXEMPT: integer-equality — perfect fit O==E·N gives chi-sq=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
@@ -587,9 +587,9 @@ mod tests {
     #[test]
     fn efxsq_k_out_of_range_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::zero();
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::zero().into();
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum setup line
-        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1);
+        state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1).into();
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -615,15 +615,15 @@ mod tests {
     #[test]
     fn ctkkk_2x3_oracle() {
         let mut state = CalcState::new();
-        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(3i32);
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(3i32).into();
         // Cells row-major: R02=10, R03=20, R04=30, R05=40, R06=50, R07=60
-        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(20i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 4] = HpNum::from(50i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 5] = HpNum::from(60i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(20i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 4] = HpNum::from(50i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 5] = HpNum::from(60i32).into();
         op_sigma_ctkkk(&mut state).unwrap();
         let expected = 2.8_f64;
         // Tolerance 1e-7: the chained Decimal divisions for non-integer
@@ -653,12 +653,12 @@ mod tests {
     #[test]
     fn ctkk_2x2_oracle() {
         let mut state = CalcState::new();
-        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(20i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(20i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32).into();
         op_sigma_ctkk(&mut state).unwrap();
         // 4/12 + 4/18 + 4/28 + 4/42
         let expected = 4.0_f64 / 12.0 + 4.0 / 18.0 + 4.0 / 28.0 + 4.0 / 42.0;
@@ -669,14 +669,14 @@ mod tests {
     #[test]
     fn ctkkk_perfect_independence_yields_zero() {
         let mut state = CalcState::new();
-        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32).into();
         // Construct a table where each cell equals (RᵢCⱼ)/T:
         // R0=20, R1=80, C0=50, C1=50, T=100 → cells: 10, 10, 40, 40.
-        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(10i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(40i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::from(10i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::from(10i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(40i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32).into();
         op_sigma_ctkkk(&mut state).unwrap();
         // LINT-EXEMPT: integer-equality — perfect independence (observed == expected) gives chi-sq=0 exactly; rust_decimal on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
@@ -686,12 +686,12 @@ mod tests {
     #[test]
     fn ctkkk_zero_grand_total_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::zero();
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::zero();
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::zero();
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::zero();
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::zero().into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::zero().into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::zero().into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::zero().into();
         assert_eq!(op_sigma_ctkkk(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -699,13 +699,13 @@ mod tests {
     #[test]
     fn ctkkk_zero_expected_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32);
-        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32);
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(2i32).into();
         // Row 0 all zero → R0=0 → E(0,*)=0.
-        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::zero();
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::zero();
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32);
-        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
+        state.regs[STAT1_CTKKK_CELL_BASE_REG] = HpNum::zero().into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 1] = HpNum::zero().into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(30i32).into();
+        state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32).into();
         assert_eq!(op_sigma_ctkkk(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -713,8 +713,8 @@ mod tests {
     #[test]
     fn ctkk_3x3_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(3i32);
-        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(3i32);
+        state.regs[STAT1_CTKKK_R_REG] = HpNum::from(3i32).into();
+        state.regs[STAT1_CTKKK_C_REG] = HpNum::from(3i32).into();
         assert_eq!(op_sigma_ctkk(&mut state).unwrap_err(), HpError::Domain);
     }
 

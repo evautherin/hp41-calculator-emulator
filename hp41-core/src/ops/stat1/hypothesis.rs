@@ -118,9 +118,9 @@ pub fn op_sigma_ptst(state: &mut CalcState) -> Result<(), HpError> {
     // foundational layout from `ops/stats.rs`. Stat-1-specific
     // ΣTSTAT slots at R07–R09 (group-2 block) use the named-const
     // route STAT1_TSTAT_G2_* per P21.
-    let sum_x_sq = state.regs[1].clone();
-    let sum_x = state.regs[2].clone();
-    let n_hp = state.regs[3].clone();
+    let sum_x_sq = state.regs[1].numeric_or_zero();
+    let sum_x = state.regs[2].numeric_or_zero();
+    let n_hp = state.regs[3].numeric_or_zero();
 
     // df = n − 1; require n ≥ 2 for a valid Bessel-corrected variance.
     let n_u32 = decode_positive_u32(&n_hp)?;
@@ -199,12 +199,12 @@ pub fn op_sigma_tstat(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
     // Per-group accumulators via named consts (P21 mitigation).
-    let sum_sq_1 = state.regs[STAT1_TSTAT_G1_SUMSQ_REG].clone();
-    let sum_1 = state.regs[STAT1_TSTAT_G1_SUM_REG].clone();
-    let n1_hp = state.regs[STAT1_TSTAT_G1_N_REG].clone();
-    let sum_sq_2 = state.regs[STAT1_TSTAT_G2_SUMSQ_REG].clone();
-    let sum_2 = state.regs[STAT1_TSTAT_G2_SUM_REG].clone();
-    let n2_hp = state.regs[STAT1_TSTAT_G2_N_REG].clone();
+    let sum_sq_1 = state.regs[STAT1_TSTAT_G1_SUMSQ_REG].numeric_or_zero();
+    let sum_1 = state.regs[STAT1_TSTAT_G1_SUM_REG].numeric_or_zero();
+    let n1_hp = state.regs[STAT1_TSTAT_G1_N_REG].numeric_or_zero();
+    let sum_sq_2 = state.regs[STAT1_TSTAT_G2_SUMSQ_REG].numeric_or_zero();
+    let sum_2 = state.regs[STAT1_TSTAT_G2_SUM_REG].numeric_or_zero();
+    let n2_hp = state.regs[STAT1_TSTAT_G2_N_REG].numeric_or_zero();
 
     let n1_u32 = decode_positive_u32(&n1_hp)?;
     let n2_u32 = decode_positive_u32(&n2_hp)?;
@@ -289,9 +289,9 @@ mod tests {
     /// Load the v1.x Σ-block (R01–R03) for ΣPTST with the `[1,2,3,4,5]`
     /// dataset (n=5, Σx=15, Σx²=55).
     fn load_ptst_one_to_five(state: &mut CalcState) {
-        state.regs[1] = HpNum::from(55i32); // Σx²
-        state.regs[2] = HpNum::from(15i32); // Σx
-        state.regs[3] = HpNum::from(5i32); // n
+        state.regs[1] = HpNum::from(55i32).into(); // Σx²
+        state.regs[2] = HpNum::from(15i32).into(); // Σx
+        state.regs[3] = HpNum::from(5i32).into(); // n
     }
 
     /// SPEC.md Req. 24 oracle:
@@ -406,9 +406,9 @@ mod tests {
     #[test]
     fn ptst_zero_variance_is_domain_err() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(27i32);
-        state.regs[2] = HpNum::from(9i32);
-        state.regs[3] = HpNum::from(3i32);
+        state.regs[1] = HpNum::from(27i32).into();
+        state.regs[2] = HpNum::from(9i32).into();
+        state.regs[3] = HpNum::from(3i32).into();
         state.stack.x = HpNum::from(3i32);
         assert_eq!(op_sigma_ptst(&mut state), Err(HpError::Domain));
     }
@@ -417,9 +417,9 @@ mod tests {
     #[test]
     fn ptst_n_less_than_two_is_invalid_op() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(9i32);
-        state.regs[2] = HpNum::from(3i32);
-        state.regs[3] = HpNum::from(1i32);
+        state.regs[1] = HpNum::from(9i32).into();
+        state.regs[2] = HpNum::from(3i32).into();
+        state.regs[3] = HpNum::from(1i32).into();
         state.stack.x = HpNum::from(3i32);
         assert_eq!(op_sigma_ptst(&mut state), Err(HpError::InvalidOp));
     }
@@ -429,9 +429,9 @@ mod tests {
     #[test]
     fn ptst_non_integer_n_is_domain_err() {
         let mut state = CalcState::new();
-        state.regs[1] = HpNum::from(55i32);
-        state.regs[2] = HpNum::from(15i32);
-        state.regs[3] = HpNum::from(Decimal::from_f64(5.5).unwrap());
+        state.regs[1] = HpNum::from(55i32).into();
+        state.regs[2] = HpNum::from(15i32).into();
+        state.regs[3] = HpNum::from(Decimal::from_f64(5.5).unwrap()).into();
         state.stack.x = HpNum::from(3i32);
         assert_eq!(op_sigma_ptst(&mut state), Err(HpError::Domain));
     }
@@ -442,12 +442,12 @@ mod tests {
     /// g1 = [1,2,3,4,5] → n=5, Σx=15, Σx²=55
     /// g2 = [6,7,8,9,10] → n=5, Σx=40, Σx²=330
     fn load_tstat_canonical_oracle(state: &mut CalcState) {
-        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32);
-        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32);
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32);
-        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32);
-        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32);
-        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32).into();
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32).into();
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32).into();
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32).into();
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32).into();
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
     }
 
     /// SPEC.md Req. 25 oracle:
@@ -486,12 +486,12 @@ mod tests {
     #[test]
     fn tstat_identical_groups_yields_t_zero() {
         let mut state = CalcState::new();
-        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(20i32);
-        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(6i32);
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(2i32);
-        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(20i32);
-        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(6i32);
-        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32);
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(20i32).into();
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(6i32).into();
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(20i32).into();
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(6i32).into();
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32).into();
         op_sigma_tstat(&mut state).unwrap();
         assert!(
             as_f64(&state.stack.x).abs() < 1e-7,
@@ -514,12 +514,12 @@ mod tests {
     #[test]
     fn tstat_zero_variance_is_domain_err() {
         let mut state = CalcState::new();
-        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(32i32);
-        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(8i32);
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(2i32);
-        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(32i32);
-        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(8i32);
-        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32);
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(32i32).into();
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(8i32).into();
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(2i32).into();
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(32i32).into();
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(8i32).into();
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32).into();
         assert_eq!(op_sigma_tstat(&mut state), Err(HpError::Domain));
     }
 
@@ -527,12 +527,12 @@ mod tests {
     #[test]
     fn tstat_n_less_than_two_is_invalid_op() {
         let mut state = CalcState::new();
-        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(9i32);
-        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(3i32);
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(1i32);
-        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(20i32);
-        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(6i32);
-        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32);
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(9i32).into();
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(3i32).into();
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(1i32).into();
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(20i32).into();
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(6i32).into();
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(2i32).into();
         assert_eq!(op_sigma_tstat(&mut state), Err(HpError::InvalidOp));
     }
 
@@ -544,7 +544,7 @@ mod tests {
         let mut state = CalcState::new();
         load_tstat_canonical_oracle(&mut state);
         // Corrupt n₁ to a non-integer; should be rejected.
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(Decimal::from_f64(5.5).unwrap());
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(Decimal::from_f64(5.5).unwrap()).into();
         assert_eq!(op_sigma_tstat(&mut state), Err(HpError::Domain));
     }
 
@@ -558,12 +558,12 @@ mod tests {
     fn tstat_sign_convention_g1_minus_g2() {
         let mut state = CalcState::new();
         // Load with groups SWAPPED — g1 = [6..10], g2 = [1..5].
-        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(330i32);
-        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(40i32);
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32);
-        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(55i32);
-        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(15i32);
-        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(330i32).into();
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(40i32).into();
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32).into();
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(55i32).into();
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(15i32).into();
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
         op_sigma_tstat(&mut state).unwrap();
         // t should now be +5.0 (was −5.0 in canonical order).
         assert_relative_eq!(as_f64(&state.stack.x), 5.0, max_relative = 1e-7);
@@ -588,12 +588,12 @@ mod tests {
     #[test]
     fn tstat_pooled_variance_unequal_n_oracle() {
         let mut state = CalcState::new();
-        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(14i32);
-        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(6i32);
-        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(3i32);
-        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(190i32);
-        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(30i32);
-        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(14i32).into();
+        state.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(6i32).into();
+        state.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(3i32).into();
+        state.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(190i32).into();
+        state.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(30i32).into();
+        state.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
         op_sigma_tstat(&mut state).unwrap();
         // t ≈ -3.873; tolerance 1e-7 (closed-form HpNum arithmetic).
         assert_relative_eq!(

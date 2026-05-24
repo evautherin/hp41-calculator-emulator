@@ -229,18 +229,18 @@ pub fn op_difeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), Hp
     let order_raw = state
         .regs
         .first()
-        .map(|r| r.inner().to_u8().unwrap_or(0))
+        .map(|r| r.numeric_or_zero().inner().to_u8().unwrap_or(0))
         .unwrap_or(0);
-    let step_size_val = state.regs.get(1).cloned().unwrap_or_default();
-    let x0 = state.regs.get(2).cloned().unwrap_or_default();
-    let y0 = state.regs.get(3).cloned().unwrap_or_default();
-    let y_prime0 = state.regs.get(4).cloned().unwrap_or_default();
+    let step_size_val = state.regs.get(1).map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let x0 = state.regs.get(2).map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let y0 = state.regs.get(3).map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let y_prime0 = state.regs.get(4).map(|v| v.numeric_or_zero()).unwrap_or_default();
     // R05 = max_steps (integer part; 0 or unset → default 1000)
     // Phase 29 / CLI-08 wires this to the "N STEPS=?" modal parameter.
     let max_steps_raw = state
         .regs
         .get(5)
-        .map(|r| r.inner().to_u32().unwrap_or(0))
+        .map(|r| r.numeric_or_zero().inner().to_u32().unwrap_or(0))
         .unwrap_or(0);
     let max_steps = if max_steps_raw == 0 {
         1000u32
@@ -788,7 +788,7 @@ pub fn submit_step(
             if state.regs.is_empty() {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[0] = crate::num::HpNum::from(order as i32);
+            state.regs[0] = crate::num::HpNum::from(order as i32).into();
             state.modal_program = Some(ModalProgram::Difeq(DifeqInputStep::StepSizePrompt));
             state.modal_prompt = Some("STEP SIZE=?".to_string());
             Ok(())
@@ -797,7 +797,7 @@ pub fn submit_step(
             if state.regs.len() < 2 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[1] = state.stack.x.clone();
+            state.regs[1] = state.stack.x.clone().into();
             state.modal_program = Some(ModalProgram::Difeq(DifeqInputStep::X0Prompt));
             state.modal_prompt = Some("X0=?".to_string());
             Ok(())
@@ -806,7 +806,7 @@ pub fn submit_step(
             if state.regs.len() < 3 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[2] = state.stack.x.clone();
+            state.regs[2] = state.stack.x.clone().into();
             state.modal_program = Some(ModalProgram::Difeq(DifeqInputStep::Y0Prompt));
             state.modal_prompt = Some("Y0=?".to_string());
             Ok(())
@@ -815,9 +815,9 @@ pub fn submit_step(
             if state.regs.len() < 4 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[3] = state.stack.x.clone();
+            state.regs[3] = state.stack.x.clone().into();
             // Check order from R00 to decide if Y'0 is needed
-            let order = state.regs[0].inner().to_u8().unwrap_or(1);
+            let order = state.regs[0].numeric_or_zero().inner().to_u8().unwrap_or(1);
             if order == 2 {
                 state.modal_program = Some(ModalProgram::Difeq(DifeqInputStep::Y1PrimePrompt));
                 state.modal_prompt = Some("Y'0=?".to_string());
@@ -831,7 +831,7 @@ pub fn submit_step(
             if state.regs.len() < 5 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[4] = state.stack.x.clone();
+            state.regs[4] = state.stack.x.clone().into();
             state.modal_program = Some(ModalProgram::Difeq(DifeqInputStep::Ready));
             state.modal_prompt = None;
             Ok(())
@@ -889,14 +889,14 @@ mod tests {
         state.program = program.clone();
         state.alpha_reg = "EG".to_string();
         // R00 = order (1), R01 = h, R02 = x0, R03 = y0, R05 = max_steps
-        state.regs[0] = HpNum::from(1i32); // order = 1
+        state.regs[0] = HpNum::from(1i32).into(); // order = 1
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ); // h = 0.1
-        state.regs[2] = HpNum::from(0i32); // x0 = 0
-        state.regs[3] = HpNum::from(1i32); // y0 = 1
+        ).into(); // h = 0.1
+        state.regs[2] = HpNum::from(0i32).into(); // x0 = 0
+        state.regs[3] = HpNum::from(1i32).into(); // y0 = 1
                                            // R05 = max_steps: controls how many RK4 steps to take before stopping
-        state.regs[5] = HpNum::from(n_steps as i32); // number of steps
+        state.regs[5] = HpNum::from(n_steps as i32).into(); // number of steps
         (state, program)
     }
 
@@ -913,13 +913,13 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "ED".to_string();
-        state.regs[0] = HpNum::from(1i32);
+        state.regs[0] = HpNum::from(1i32).into();
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        );
-        state.regs[2] = HpNum::from(0i32);
-        state.regs[3] = HpNum::from(1i32);
-        state.regs[5] = HpNum::from(20i32); // max_steps = 20 (more than 5 needed for test)
+        ).into();
+        state.regs[2] = HpNum::from(0i32).into();
+        state.regs[3] = HpNum::from(1i32).into();
+        state.regs[5] = HpNum::from(20i32).into(); // max_steps = 20 (more than 5 needed for test)
         (state, program)
     }
 
@@ -938,14 +938,14 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "HO".to_string();
-        state.regs[0] = HpNum::from(2i32); // order = 2
+        state.regs[0] = HpNum::from(2i32).into(); // order = 2
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        );
-        state.regs[2] = HpNum::from(0i32); // x0 = 0
-        state.regs[3] = HpNum::from(1i32); // y0 = 1
-        state.regs[4] = HpNum::from(0i32); // y'0 = 0
-        state.regs[5] = HpNum::from(20i32); // max_steps = 20 (at least 10 for the correctness test)
+        ).into();
+        state.regs[2] = HpNum::from(0i32).into(); // x0 = 0
+        state.regs[3] = HpNum::from(1i32).into(); // y0 = 1
+        state.regs[4] = HpNum::from(0i32).into(); // y'0 = 0
+        state.regs[5] = HpNum::from(20i32).into(); // max_steps = 20 (at least 10 for the correctness test)
         (state, program)
     }
 
@@ -1064,7 +1064,7 @@ mod tests {
     fn order_validation() {
         let (mut state, program) = make_exp_growth_state(1);
         // Set invalid order
-        state.regs[0] = HpNum::from(3i32); // ORDER=3 (invalid)
+        state.regs[0] = HpNum::from(3i32).into(); // ORDER=3 (invalid)
 
         let result = op_difeq_run_loop(&mut state, &program);
         assert_eq!(
@@ -1231,13 +1231,13 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "SR".to_string();
-        state.regs[0] = HpNum::from(1i32);
+        state.regs[0] = HpNum::from(1i32).into();
         state.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        );
-        state.regs[2] = HpNum::from(0i32);
-        state.regs[3] = HpNum::from(1i32);
-        state.regs[5] = HpNum::from(5i32); // max_steps = 5 (enough to see R04 clobber)
+        ).into();
+        state.regs[2] = HpNum::from(0i32).into();
+        state.regs[3] = HpNum::from(1i32).into();
+        state.regs[5] = HpNum::from(5i32).into(); // max_steps = 5 (enough to see R04 clobber)
 
         // Must complete without error (user-responsibility, hardware-faithful)
         let result = op_difeq_run_loop(&mut state, &program);
@@ -1246,7 +1246,7 @@ mod tests {
             "Scratch register clobber in user fn must not raise error (user-responsibility), got: {result:?}"
         );
         // R04 has been clobbered — non-zero from function writes
-        let r04_val = state.regs[4].inner().to_f64().unwrap();
+        let r04_val = state.regs[4].numeric_or_zero().inner().to_f64().unwrap();
         assert!(
             r04_val != 0.0,
             "R04 must have been clobbered by user function STO 04, got: {r04_val}"

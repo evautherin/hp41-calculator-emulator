@@ -70,14 +70,14 @@ pub fn op_sigma_mmtug(state: &mut CalcState) -> Result<(), HpError> {
     let x_sq = x.checked_sq()?;
     let x_cube = x.checked_mul(&x_sq)?;
     let x_quad = x_sq.checked_sq()?;
-    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG].checked_add(&x_cube)?;
-    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG].checked_add(&x_quad)?;
+    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero().checked_add(&x_cube)?;
+    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero().checked_add(&x_quad)?;
 
     // Atomic write of the extended slots BEFORE delegating to op_sigma_plus.
     // (Order is independent — both writes succeed once both values were
     // computed above without overflow.)
-    state.regs[STAT1_MMTUG_CUBE_REG] = new_cube;
-    state.regs[STAT1_MMTUG_QUAD_REG] = new_quad;
+    state.regs[STAT1_MMTUG_CUBE_REG] = new_cube.into();
+    state.regs[STAT1_MMTUG_QUAD_REG] = new_quad.into();
 
     // Delegate Σx², Σx, n updates to v1.x op_sigma_plus.
     crate::ops::stats::op_sigma_plus(state)
@@ -112,18 +112,18 @@ pub fn op_sigma_mmtgd(state: &mut CalcState) -> Result<(), HpError> {
     // Σ-block layout in `ops/stats.rs`. Stat-1-specific slots
     // (STAT1_MMTUG_CUBE_REG=R07, STAT1_MMTUG_QUAD_REG=R08) route
     // through named consts per P21.
-    let new_r1 = state.regs[1].checked_add(&fx_sq)?; // Σ(f·x²)
-    let new_r2 = state.regs[2].checked_add(&fx)?; // Σ(f·x)
-    let new_r3 = state.regs[3].checked_add(&f)?; // N = Σf
-    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG].checked_add(&fx_cube)?;
-    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG].checked_add(&fx_quad)?;
+    let new_r1 = state.regs[1].numeric_or_zero().checked_add(&fx_sq)?; // Σ(f·x²)
+    let new_r2 = state.regs[2].numeric_or_zero().checked_add(&fx)?; // Σ(f·x)
+    let new_r3 = state.regs[3].numeric_or_zero().checked_add(&f)?; // N = Σf
+    let new_cube = state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero().checked_add(&fx_cube)?;
+    let new_quad = state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero().checked_add(&fx_quad)?;
 
     // Atomic write of all five slots.
-    state.regs[1] = new_r1;
-    state.regs[2] = new_r2;
-    state.regs[3] = new_r3.clone();
-    state.regs[STAT1_MMTUG_CUBE_REG] = new_cube;
-    state.regs[STAT1_MMTUG_QUAD_REG] = new_quad;
+    state.regs[1] = new_r1.into();
+    state.regs[2] = new_r2.into();
+    state.regs[3] = new_r3.clone().into();
+    state.regs[STAT1_MMTUG_CUBE_REG] = new_cube.into();
+    state.regs[STAT1_MMTUG_QUAD_REG] = new_quad.into();
 
     // Push count Σf into X (matches op_sigma_plus convention).
     state.stack.lift_enabled = true;
@@ -148,11 +148,11 @@ pub fn compute_moments(state: &CalcState) -> Result<(HpNum, HpNum, HpNum, HpNum)
     // per the canonical v1.x Σ-block layout. ΣMMTUG/ΣMMTGD extend
     // the block with Σx³ at R07 and Σx⁴ at R08 — those slots route
     // through named consts per the P21 named-const policy.
-    let n = state.regs[3].clone();
-    let sum_x = state.regs[2].clone();
-    let sum_x_sq = state.regs[1].clone();
-    let sum_x_cube = state.regs[STAT1_MMTUG_CUBE_REG].clone();
-    let sum_x_quad = state.regs[STAT1_MMTUG_QUAD_REG].clone();
+    let n = state.regs[3].numeric_or_zero();
+    let sum_x = state.regs[2].numeric_or_zero();
+    let sum_x_sq = state.regs[1].numeric_or_zero();
+    let sum_x_cube = state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero();
+    let sum_x_quad = state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero();
 
     let two = HpNum::from(2i32);
     if n.checked_sub(&two)?.inner() < rust_decimal::Decimal::ZERO {
@@ -239,16 +239,16 @@ mod tests {
             state.stack.x = HpNum::from(v);
             op_sigma_mmtug(&mut state).unwrap();
         }
-        assert_relative_eq!(to_f64(&state.regs[1]), 385.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[2]), 55.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[3]), 10.0, max_relative = 1e-9);
+        assert_relative_eq!(to_f64(&state.regs[1].numeric_or_zero()), 385.0, max_relative = 1e-9);
+        assert_relative_eq!(to_f64(&state.regs[2].numeric_or_zero()), 55.0, max_relative = 1e-9);
+        assert_relative_eq!(to_f64(&state.regs[3].numeric_or_zero()), 10.0, max_relative = 1e-9);
         assert_relative_eq!(
-            to_f64(&state.regs[STAT1_MMTUG_CUBE_REG]),
+            to_f64(&state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero()),
             3025.0,
             max_relative = 1e-9
         );
         assert_relative_eq!(
-            to_f64(&state.regs[STAT1_MMTUG_QUAD_REG]),
+            to_f64(&state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero()),
             25333.0,
             max_relative = 1e-9
         );
@@ -313,16 +313,16 @@ mod tests {
             state.stack.x = HpNum::from(x_i);
             op_sigma_mmtgd(&mut state).unwrap();
         }
-        assert_relative_eq!(to_f64(&state.regs[1]), 23.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[2]), 11.0, max_relative = 1e-9);
-        assert_relative_eq!(to_f64(&state.regs[3]), 6.0, max_relative = 1e-9);
+        assert_relative_eq!(to_f64(&state.regs[1].numeric_or_zero()), 23.0, max_relative = 1e-9);
+        assert_relative_eq!(to_f64(&state.regs[2].numeric_or_zero()), 11.0, max_relative = 1e-9);
+        assert_relative_eq!(to_f64(&state.regs[3].numeric_or_zero()), 6.0, max_relative = 1e-9);
         assert_relative_eq!(
-            to_f64(&state.regs[STAT1_MMTUG_CUBE_REG]),
+            to_f64(&state.regs[STAT1_MMTUG_CUBE_REG].numeric_or_zero()),
             53.0,
             max_relative = 1e-9
         );
         assert_relative_eq!(
-            to_f64(&state.regs[STAT1_MMTUG_QUAD_REG]),
+            to_f64(&state.regs[STAT1_MMTUG_QUAD_REG].numeric_or_zero()),
             131.0,
             max_relative = 1e-9
         );
@@ -342,9 +342,9 @@ mod tests {
         state.stack.x = HpNum::from(5);
         op_sigma_mmtug(&mut state).unwrap();
         // Now we have: R01=25, R02=5, R03=1, R07=125, R08=625.
-        assert_eq!(state.regs[1], h(25.0));
-        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], h(125.0));
-        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], h(625.0));
+        assert_eq!(state.regs[1], crate::num::HpValue::from(h(25.0)));
+        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], crate::num::HpValue::from(h(125.0)));
+        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], crate::num::HpValue::from(h(625.0)));
 
         // Reset the stack to the original (x=5, y=0) AND call op_sigma_minus.
         // op_sigma_plus pushed n=1 into X, so we need to reload x for
@@ -355,11 +355,11 @@ mod tests {
 
         // Every register that was incremented must return to zero.
         // LINT-EXEMPT: integer-equality — Σ+/Σ- roundtrip on integer inputs produces exactly zero via rust_decimal; no f64 bridge
-        assert_eq!(state.regs[1], HpNum::zero()); // LINT-EXEMPT: integer-equality
-        assert_eq!(state.regs[2], HpNum::zero()); // LINT-EXEMPT: integer-equality
-        assert_eq!(state.regs[3], HpNum::zero()); // LINT-EXEMPT: integer-equality
-        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], HpNum::zero()); // LINT-EXEMPT: integer-equality
-        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], HpNum::zero()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[1], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[2], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[3], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], crate::num::HpValue::default()); // LINT-EXEMPT: integer-equality
     }
 
     /// SIZE-floor guard fires when state.regs cannot address STAT1_MAX_REG.
@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn compute_moments_n_too_small() {
         let mut state = CalcState::new();
-        state.regs[3] = HpNum::from(1);
+        state.regs[3] = HpNum::from(1).into();
         assert_eq!(compute_moments(&state).unwrap_err(), HpError::InvalidOp);
     }
 
@@ -396,11 +396,11 @@ mod tests {
     fn compute_moments_zero_variance_returns_domain_error() {
         let mut state = CalcState::new();
         // n=5; Σx=10; Σx²=20 → μ=2, μ₂ = 20/5 − 4 = 0
-        state.regs[1] = HpNum::from(20);
-        state.regs[2] = HpNum::from(10);
-        state.regs[3] = HpNum::from(5);
-        state.regs[STAT1_MMTUG_CUBE_REG] = HpNum::from(40);
-        state.regs[STAT1_MMTUG_QUAD_REG] = HpNum::from(80);
+        state.regs[1] = HpNum::from(20).into();
+        state.regs[2] = HpNum::from(10).into();
+        state.regs[3] = HpNum::from(5).into();
+        state.regs[STAT1_MMTUG_CUBE_REG] = HpNum::from(40).into();
+        state.regs[STAT1_MMTUG_QUAD_REG] = HpNum::from(80).into();
         assert_eq!(compute_moments(&state).unwrap_err(), HpError::Domain);
     }
 }

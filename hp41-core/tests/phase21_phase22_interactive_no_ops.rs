@@ -184,10 +184,10 @@ fn op_isg_ind_interactive_discards_skip_signal() {
     // mod.rs. The `.map(|_| ())` arm discards the skip-bool; pc must
     // not advance even if op_isg_ind returned true (counter exit).
     let mut s = CalcState::new();
-    s.regs[5] = hp41_core::HpNum::from(7i32);
+    s.regs[5] = hp41_core::HpNum::from(7i32).into();
     // Set regs[7] to a counter at the boundary so op_isg_ind would
     // return true (skip) — but interactively that signal must be ignored.
-    s.regs[7] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("5.005").unwrap());
+    s.regs[7] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("5.005").unwrap()).into();
     let pc_before = s.pc;
     dispatch(&mut s, Op::IsgInd(5)).unwrap();
     assert_eq!(s.pc, pc_before, "interactive IsgInd must not advance pc");
@@ -198,8 +198,8 @@ fn op_dse_ind_interactive_discards_skip_signal() {
     // Catches: accidental pc advance on interactive DseInd — covers
     // mod.rs.
     let mut s = CalcState::new();
-    s.regs[5] = hp41_core::HpNum::from(7i32);
-    s.regs[7] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("1.000").unwrap());
+    s.regs[5] = hp41_core::HpNum::from(7i32).into();
+    s.regs[7] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from_str_exact("1.000").unwrap()).into();
     let pc_before = s.pc;
     dispatch(&mut s, Op::DseInd(5)).unwrap();
     assert_eq!(s.pc, pc_before, "interactive DseInd must not advance pc");
@@ -214,7 +214,7 @@ fn op_flag_test_ind_interactive_neutral() {
     // arm; ind_reg pointer is irrelevant because the arm is a pure no-op.
     let mut s = CalcState::new();
     s.flags = 1u64 << 5;
-    s.regs[7] = hp41_core::HpNum::from(5i32);
+    s.regs[7] = hp41_core::HpNum::from(5i32).into();
     let pc_before = s.pc;
     let flags_before = s.flags;
     dispatch(
