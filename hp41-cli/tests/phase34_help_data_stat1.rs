@@ -226,9 +226,8 @@ fn stat1_help_entries_divergences_are_surgical() {
     assert_eq!(
         with_div, expected,
         "D-34.3: divergences must be populated ONLY for Rand, Seed, SigmaTstat, \
-         SigmaPolypWorkflow. Found: {:?}, expected: {:?}. \
+         SigmaPolypWorkflow. Found: {with_div:?}, expected: {expected:?}. \
          Adding/removing divergences without updating D-34.3 surfaces here.",
-        with_div, expected
     );
 }
 
@@ -243,9 +242,8 @@ fn help_entries_all_returns_three_pools() {
     let all_count = help_entries_all().count();
     assert!(
         all_count >= 201,
-        "help_entries_all() returned {} entries but should include >= 130 v2.2 entries \
+        "help_entries_all() returned {all_count} entries but should include >= 130 v2.2 entries \
          + >= 45 Math 1 entries + 26 Stat 1 entries = >= 201 total (D-34.6 three-pool chain)",
-        all_count
     );
 }
 
