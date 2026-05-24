@@ -73,7 +73,7 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 - [x] **Phase 34: hp41-cli — CLI Integration** — `docs/hp41-stat1-functions.json` canonical source; third `OnceLock<Vec<HelpEntry>>`; ~24 new `op_display_name` arms; "Stat 1 Pac (XROM 2)" help-overlay section; `xrom_shadowing.rs` extended to STAT_1.ops; modal-prompt routing for multi-step Stat 1 workflows. Estimate 2–3 plans. (completed 2026-05-23)
 - [x] **Phase 35: Documentation & ADRs** — `docs/hp41-stat1-divergences.md` three-bucket catalog; `scripts/docs-matrix` three-input extension; `docs/hp41-stat1-function-matrix.md` generated; new ADRs for v3.1 architectural decisions (RNG-state serde, register layout, distribution-primitive policy); README v3.1 section + CLAUDE.md `### v3.1 additions` block; `docs/architecture-history.md` v3.1 narrative. Estimate 3–4 plans. (completed 2026-05-23)
 - [x] **Phase 36: hp41-gui — GUI Integration** — 26 new `op_display_name` arms in GUI `prgm_display.rs` (4-way invariant item 4 sealed); CATALOG 2 gains "STAT 1B" XROM entry via surgical `op_catalog` bit-1 block; help overlay "Stat 1 Pac (XROM 2)" third section via Vite JSON import; LCD-alternation modal-prompt routing verified for all 5 Stat1Step variants; STAT-GUI-05 reassigned to Phase 37 per D-36.2 (bounded 50-iter primitives). 3 plans. (completed 2026-05-24)
-- [ ] **Phase 37: Test Hardening & Quality Gates** — `hp41-core` coverage hold ≥ 95.39 % lines / ≥ 94.26 % regions; per-file `stat1/*.rs` floor ≥ 90 %; two-level tolerance discipline (1e-9 closed-form, 1e-7 iterative); `stat1_op_test_count.rs` meta-gate; `xrom_shadowing.rs` STAT_1 extension; backward-compat test for v3.0 save migration; `numerical_accuracy.rs` extended with ~30 Stat 1 oracle cases; `lint_stat1_assertions.rs`; `stat1_rand_determinism.rs`; E2E smoke extended with one Stat 1 Pac workflow on Ubuntu. 5 plans.
+- [x] **Phase 37: Test Hardening & Quality Gates** — `hp41-core` coverage hold ≥ 95.39 % lines / ≥ 94.26 % regions; per-file `stat1/*.rs` floor ≥ 90 %; two-level tolerance discipline (1e-9 closed-form, 1e-7 iterative); `stat1_op_test_count.rs` meta-gate; `xrom_shadowing.rs` STAT_1 extension; backward-compat test for v3.0 save migration; `numerical_accuracy.rs` extended with ~30 Stat 1 oracle cases; `lint_stat1_assertions.rs`; `stat1_rand_determinism.rs`; E2E smoke extended with one Stat 1 Pac workflow on Ubuntu. 5 plans. (completed 2026-05-24)
 
 ---
 
@@ -212,7 +212,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 37-05-PLAN.md — E2E smoke.spec.js ΣNORMD Q(1.96) workflow extension (Ubuntu-only) + quality-gate graduation verification (just ci + coverage measurement) + README hard-claim graduation (D-35.3/D-37.11) + CLAUDE.md Phase 37 finalization (STAT-QUAL-01, STAT-QUAL-02, STAT-QUAL-11)
+- [x] 37-05-PLAN.md — E2E smoke.spec.js ΣNORMD Q(1.96) workflow extension (Ubuntu-only) + quality-gate graduation verification (just ci + coverage measurement) + README hard-claim graduation (D-35.3/D-37.11) + CLAUDE.md Phase 37 finalization (STAT-QUAL-01, STAT-QUAL-02, STAT-QUAL-11)
 
 ---
 
@@ -230,7 +230,7 @@ Plans:
 | 34 | v3.1 | 2/2 | Complete   | 2026-05-23 |
 | 35 | v3.1 | 4/4 | Complete    | 2026-05-23 |
 | 36 | v3.1 | 3/3 | Complete   | 2026-05-24 |
-| 37 | v3.1 | 4/5 | In Progress|  |
+| 37 | v3.1 | 5/5 | Complete   | 2026-05-24 |
 
 ---
 
