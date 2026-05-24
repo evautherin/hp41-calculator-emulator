@@ -366,6 +366,7 @@ mod tests {
         load_group(&mut state, 0, 15.0, 55.0, 5);
         load_group(&mut state, 1, 15.0, 55.0, 5);
         op_sigma_aovone(&mut state).unwrap();
+        // LINT-EXEMPT: integer-equality — identical groups produce SSB=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
     }
 
@@ -382,7 +383,7 @@ mod tests {
     fn aovone_k_out_of_range_returns_domain_error() {
         let mut state = CalcState::new();
         state.regs[STAT1_AOV_K_REG] = HpNum::from(1i32);
-        assert_eq!(op_sigma_aovone(&mut state).unwrap_err(), HpError::Domain);
+        assert_eq!(op_sigma_aovone(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum line
         state.regs[STAT1_AOV_K_REG] = HpNum::from(STAT1_AOV_KMAX as i32 + 1);
         assert_eq!(op_sigma_aovone(&mut state).unwrap_err(), HpError::Domain);
     }

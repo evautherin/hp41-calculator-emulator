@@ -431,6 +431,7 @@ mod tests {
         state.regs[5] = HpNum::from(50i32);
         state.regs[6] = HpNum::from(50i32);
         op_sigma_xsqev(&mut state).unwrap();
+        // LINT-EXEMPT: integer-equality — perfect fit O==E gives chi-sq=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
     }
 
@@ -443,7 +444,7 @@ mod tests {
         state.regs[2] = HpNum::zero(); // expected = 0 → undefined
         state.regs[3] = HpNum::from(20i32);
         state.regs[4] = HpNum::from(15i32);
-        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
+        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum setup lines
     }
 
     /// SIZE-floor guard fires.
@@ -459,7 +460,7 @@ mod tests {
     fn xsqev_k_out_of_range_returns_domain_error() {
         let mut state = CalcState::new();
         state.regs[STAT1_XSQEV_K_REG] = HpNum::zero();
-        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
+        assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum setup line
         state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1);
         assert_eq!(op_sigma_xsqev(&mut state).unwrap_err(), HpError::Domain);
     }
@@ -472,6 +473,7 @@ mod tests {
         state.regs[1] = HpNum::from(10i32);
         state.regs[2] = HpNum::from(10i32);
         op_sigma_xsqev(&mut state).unwrap();
+        // LINT-EXEMPT: integer-equality — single-category with O==E gives chi-sq=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
     }
 
@@ -577,6 +579,7 @@ mod tests {
         state.regs[3] = HpNum::from(50i32);
         state.regs[4] = p_one_tenth(5); // 0.5
         op_sigma_efxsq(&mut state).unwrap();
+        // LINT-EXEMPT: integer-equality — perfect fit O==E·N gives chi-sq=0 exactly; rust_decimal arithmetic on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
     }
 
@@ -585,7 +588,7 @@ mod tests {
     fn efxsq_k_out_of_range_returns_domain_error() {
         let mut state = CalcState::new();
         state.regs[STAT1_XSQEV_K_REG] = HpNum::zero();
-        assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
+        assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum setup line
         state.regs[STAT1_XSQEV_K_REG] = HpNum::from(STAT1_XSQEV_KMAX as i32 + 1);
         assert_eq!(op_sigma_efxsq(&mut state).unwrap_err(), HpError::Domain);
     }
@@ -675,6 +678,7 @@ mod tests {
         state.regs[STAT1_CTKKK_CELL_BASE_REG + 2] = HpNum::from(40i32);
         state.regs[STAT1_CTKKK_CELL_BASE_REG + 3] = HpNum::from(40i32);
         op_sigma_ctkkk(&mut state).unwrap();
+        // LINT-EXEMPT: integer-equality — perfect independence (observed == expected) gives chi-sq=0 exactly; rust_decimal on integer inputs yields exact zero
         assert_eq!(state.stack.x, HpNum::zero());
     }
 

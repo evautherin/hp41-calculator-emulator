@@ -35,11 +35,13 @@ fn rand_lcg_formula_first_iter() {
     state.rand_seed = hp(5, 1); // 0.5
     dispatch(&mut state, Op::Rand).expect("RAND must succeed");
     let expected = hp(711_327, 6); // 0.711327
+    // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; rand_seed is a Decimal-exact LCG accumulator
     assert_eq!(
         state.rand_seed, expected,
         "rand_seed mismatch: SPEC Req. 35 decimal-exact LCG"
     );
     // Push lands on stack X.
+    // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; stack.x mirrors rand_seed after RAND
     assert_eq!(state.stack.x, expected);
 }
 
@@ -70,6 +72,7 @@ fn rand_sequence_deterministic_after_save_load() {
     let json = serde_json::to_string(&state_b).expect("CalcState must serialize");
     let mut state_b: CalcState = serde_json::from_str(&json).expect("CalcState must deserialize");
     // Sanity: the round-trip preserved rand_seed.
+    // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; verifying serde round-trip preserves exact Decimal value
     assert_eq!(
         state_b.rand_seed,
         hp(7, 1),
@@ -84,6 +87,7 @@ fn rand_sequence_deterministic_after_save_load() {
     }
 
     // SEQUENCES MUST MATCH EXACTLY — no tolerance, decimal-exact HpNum.
+    // LINT-EXEMPT: exact Vec<HpNum> equality — no f64 bridge; LCG runs on rust_decimal; sequence determinism is the invariant under test
     assert_eq!(
         seq_a, seq_b,
         "RAND sequences from identical seeds must be byte-for-byte identical \
@@ -113,9 +117,11 @@ fn seed_modal_round_trip() {
     // Modal cleared; rand_seed updated.
     assert!(state.modal_program.is_none());
     assert!(state.modal_prompt.is_none());
+    // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; verifying SEED modal sets rand_seed to user-entered Decimal value
     assert_eq!(state.rand_seed, hp(5, 1));
 
     // 3. RAND produces the Req. 35 oracle: FRC(9821·0.5 + 0.211327) = 0.711327.
     dispatch(&mut state, Op::Rand).expect("RAND must succeed");
+    // LINT-EXEMPT: exact HpNum equality via Decimal::new construction — no f64 bridge; rand_seed is a Decimal-exact LCG accumulator
     assert_eq!(state.rand_seed, hp(711_327, 6));
 }

@@ -287,6 +287,7 @@ mod tests {
         // tabulation). Use a 1e-4 band that covers BOTH the Plan 33-02
         // calibrated 0.9500061 AND the RESEARCH.md stale 0.9499719 in
         // case the latter resolves out of stale-cache.
+        // LINT-EXEMPT: 1e-4 band covers both the calibrated oracle 0.9500061 and the RESEARCH.md stale 0.9499719; f64 bridge is the test subject here
         assert!(
             (p_f64 - 0.95).abs() < 1e-4,
             "P(7.815; ν=3) must be ≈ 0.95 (SPEC.md Req. 32); got {p_f64}"
@@ -299,6 +300,7 @@ mod tests {
         let mut state = make_state_with_x(0.0);
         op_sigma_chisqd_eval_cdf(&mut state, 3).unwrap();
         let p_f64 = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: testing exact boundary P(0; ν) = 0 via f64 bridge; 1e-12 absolute tolerance is intentional for a value that is mathematically exactly 0
         assert!(p_f64.abs() < 1e-12, "P(0; ν=3) should be 0, got {p_f64}");
     }
 

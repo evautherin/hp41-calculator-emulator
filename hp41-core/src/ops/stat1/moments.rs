@@ -354,11 +354,12 @@ mod tests {
         crate::ops::stats::op_sigma_minus(&mut state).unwrap();
 
         // Every register that was incremented must return to zero.
-        assert_eq!(state.regs[1], HpNum::zero());
-        assert_eq!(state.regs[2], HpNum::zero());
-        assert_eq!(state.regs[3], HpNum::zero());
-        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], HpNum::zero());
-        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], HpNum::zero());
+        // LINT-EXEMPT: integer-equality — Σ+/Σ- roundtrip on integer inputs produces exactly zero via rust_decimal; no f64 bridge
+        assert_eq!(state.regs[1], HpNum::zero()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[2], HpNum::zero()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[3], HpNum::zero()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[STAT1_MMTUG_CUBE_REG], HpNum::zero()); // LINT-EXEMPT: integer-equality
+        assert_eq!(state.regs[STAT1_MMTUG_QUAD_REG], HpNum::zero()); // LINT-EXEMPT: integer-equality
     }
 
     /// SIZE-floor guard fires when state.regs cannot address STAT1_MAX_REG.
