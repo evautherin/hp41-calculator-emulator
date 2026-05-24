@@ -1,882 +1,823 @@
-# Pitfalls: HP-41 Stat 1 Pac Emulation (v3.1)
+# Pitfalls: HP-41CX Time Module Emulation (v3.2)
 
-**Milestone:** v3.1 Stat 1 Pac Emulation (second XROM module after Math Pac I)
-**Researched:** 2026-05-21
-**Scope:** Pitfalls SPECIFIC to adding Stat 1 Pac behavioral emulation on top of the
-shipped v3.0 codebase. Pitfalls 1–17 from v3.0 Math Pac I are mitigated and
-already gate-checked in CI; they are NOT repeated here. Where a v3.0 pitfall has
-a Stat-1-specific extension, that extension is called out explicitly with a
-cross-reference.
+**Milestone:** v3.2 Time Module Emulation (third XROM module, XROM 26)
+**Researched:** 2026-05-24
+**Scope:** Pitfalls SPECIFIC to adding Time Module behavioral emulation on top of
+the shipped v3.1 codebase. Pitfalls 1-31 from v3.0/v3.1 are mitigated and
+already gate-checked in CI; they are NOT repeated here. Where a prior pitfall
+has a Time-Module-specific extension, that extension is called out explicitly
+with a cross-reference.
 
 **Already mitigated (do not re-document):**
-- P1: xrom_resolve fires LAST — `tests/xrom_shadowing.rs` CI gate already checks every
-  `MATH_1.ops` entry; v3.1 adds an identical gate for every `STAT_1.ops` entry.
-- P11: Long-running op Mutex release + `request_cancel` — infrastructure already
-  ships in v3.0. v3.1 iterative ops (distribution quantile solvers, curve-fit
-  iterations) must wire into the same `cancel_requested` channel; see P25 below.
-- P14: Cross-platform f64 drift, relative tolerance 1e-7 baseline — already
-  documented, `lint_math1_assertions.rs` CI gate already enforces the discipline.
-  See P23 for whether stats ops need a TIGHTER baseline than 1e-7.
-- P16: Per-Op test count ≥ 5 — `math1_op_test_count.rs` CI gate already enforces.
-  v3.1 extends the gate to cover stat1 Op variants.
-- P17: `assert_eq!` on iterated HpNum — `lint_math1_assertions.rs` already blocks this.
-- Free42 GPL contamination: `scripts/check-free42-contamination.sh` 12-symbol CI gate
-  already runs. v3.1 may add stats-domain identifiers to the pattern list; see P31.
+- P1: xrom_resolve fires LAST -- `tests/xrom_shadowing.rs` CI gate checks every
+  `MATH_1.ops` + `STAT_1.ops` entry; v3.2 adds a `TIME.ops` gate.
+- P11: Long-running op Mutex release + `request_cancel` -- v3.0 infrastructure.
+  Time Module has no iterative solvers, so this is less relevant.
+- P14: Cross-platform f64 drift -- already enforced via `lint_math1_assertions.rs`.
+- P16: Per-Op test count >= 5 -- `math1_op_test_count.rs` gate extends to time ops.
+- P17: `assert_eq!` on iterated HpNum -- already blocked by CI.
+- P19 (Free42 contamination): `scripts/check-free42-contamination.sh` 18-token CI
+  gate already runs on `math1/` + `stat1/`; v3.2 must add `time/` directory.
+  See P40 for Time-specific contamination risks.
+- P20 (serde shape): `rand_seed` established the `#[serde(default)]` without `skip`
+  pattern for persistent non-obvious fields. See P33 for Time Module serde traps.
+- P22 (XROM shadowing): disjointness test already covers Math 1 x Stat 1.
+  v3.2 must extend to Math 1 x Stat 1 x Time. See P36 for specific conflicts.
 
 **Confidence (overall):** MEDIUM-HIGH.
-Variance algorithm behavior (Pitfall 18) is verifiable from first principles and
-from the existing `stats.rs` code. Distribution quantile convergence (Pitfall 19)
-is documented in the Stat 1 Pac Owner's Manual (HP 00041-15001) and cross-checked
-against the pattern established in Math Pac I for SOLVE. RNG pitfalls (Pitfall 20)
-are deterministic by design — the constraints are architectural, not empirical.
-Sigma-register collision (Pitfall 21) is a direct consequence of the v2.2 stats
-layout in `ops/stats.rs` which is in the codebase and readable. Alpha-prompt
-shadowing (Pitfall 22) and documentation hygiene (Pitfall 27) are MEDIUM-confidence
-process pitfalls. Distribution numerical precision (Pitfall 23) is LOW-MEDIUM:
-the exact tolerance floor depends on which distributions Stat 1 includes and how
-iterative they are — to be confirmed against the Owner's Manual in Phase 33.
+The Time Module's real-time aspects (P32, P34, P38) are the highest-risk area
+because they introduce a genuinely new paradigm -- live updates independent of
+user keystrokes -- into a previously keystroke-driven event loop. The date
+arithmetic pitfalls (P35) are well-understood algorithmically (Tantzen Julian
+day conversion is a solved problem). The alarm system (P37) is the most
+complex feature and has MEDIUM confidence because the full XYZALM parameter
+specification requires Owner's Manual verification.
 
 ---
 
 ## Summary
 
-Eight pitfall categories dominate the v3.1 risk surface. All are NEW relative to
-v3.0 — none duplicates the Math Pac I pitfall list:
+Twelve pitfall categories dominate the v3.2 risk surface. They break into four
+clusters: real-time architecture (3 pitfalls), date/time representation (2),
+alarm system complexity (2), and integration/framework (5):
 
-1. **Variance catastrophic cancellation** (P18) — naive two-pass formula accumulates
-   all sums THEN subtracts, triggering catastrophic cancellation on large-N or
-   nearly-equal datasets. The existing v2.2 `op_sdev` in `stats.rs` uses this
-   formula. Stat 1 Pac extends statistics beyond the six Σ-registers and may add
-   functions that compute variance internally — all must use the numerically stable
-   formula. This is a CRITICAL silent-wrong-answer risk.
+1. **Live display updates without polling** (P32) -- CRITICAL. The stopwatch and
+   clock display modes require sub-second LCD refresh, but `hp41-core` has no
+   timer, no async, and no polling loop. The CLI's `event::poll(16ms)` already
+   provides ~60fps rendering opportunity, but the core has no mechanism to
+   "push" a display update without a keystroke. The GUI's "no polling (D-11)"
+   invariant explicitly forbids frontend polling.
 
-2. **Distribution quantile Newton iteration non-convergence** (P19) — inverse CDF
-   functions (e.g. inverse normal, inverse t, inverse chi-squared) use Newton's
-   method or bisection on the CDF. Poor initial-guess choices or pathological inputs
-   can fail to converge or bracket. The convergence termination convention must match
-   the Stat 1 OM spec, not a generic tolerance.
+2. **System clock dependency in hp41-core** (P34) -- CRITICAL. `hp41-core` is
+   currently I/O-free by design (`no async, no panics`). TIME and DATE must
+   read the host system clock, which is an I/O operation. This requires either
+   breaking the I/O-free invariant or introducing a clock abstraction layer.
 
-3. **RNG state serialization and SystemRandom contamination** (P20) — if `RAND` is
-   implemented, the PRNG seed must be a new `CalcState` field with `#[serde(default)]`
-   (not `serde(skip)`) so it survives save/load. Equally, the PRNG algorithm must be
-   a deterministic pure-Rust implementation — no `getrandom` / `rand::ThreadRng` /
-   `SystemRandom` in `hp41-core` (the crate is I/O-free by invariant).
+3. **CalcState field explosion** (P33) -- the Time Module needs persistent state
+   for: clock display mode (CLK12/CLK24/off), date format (DMY/MDY), accuracy
+   factor, stopwatch accumulated time, stopwatch running flag, and the alarm
+   catalog. Each field needs correct `#[serde(default)]` / `#[serde(skip)]`
+   annotation. Getting this wrong breaks backward compat with v3.1 save files.
 
-4. **Sigma-register collision and layout conflicts** (P21) — v2.2's stats block uses
-   R01–R06 for Σx², Σx, n, Σy², Σy, Σxy. Stat 1 Pac may use additional Σ-registers
-   or a different layout for extended statistics (higher moments, histogram bins).
-   Misalignment between v2.2's fixed layout and Stat 1's expected layout produces
-   silently wrong results. Also: `SIZE` conflicts — if the user runs `SIZE` to shrink
-   the register bank below R06, the v2.2 fail-closed guard in `stats.rs` fires.
-   Stat 1's new register requirements extend this minimum SIZE floor.
+4. **Date decimal format parsing** (P35) -- dates as `MM.DDYYYY` or `DD.MMYYYY`
+   stored as HpNum decimals have treacherous parsing edge cases (leading zeros,
+   single-digit months, year extraction from fractional part).
 
-5. **ALPHA-prompt name shadowing** (P22) — if a Stat 1 Pac workflow prompt uses a
-   name that matches a built-in mnemonic (e.g. "MEAN?" or "CORR?"), the XEQ-by-name
-   modal may mis-route. Modal prompt names and built-in names occupy different
-   namespaces, but the CLI `xeq_by_name_local_resolve` string match is prefix-based;
-   a Stat 1 function named exactly "MEAN" would shadow the v2.2 built-in `MEAN`.
+5. **Alarm system state machine** (P37) -- the HP-41CX alarm system distinguishes
+   control alarms (interrupting vs. non-interrupting), message alarms, and past-due
+   alarms. Each has different behavior depending on calculator state (off, idle,
+   running a program, displaying the clock). This is the most complex state
+   machine in the emulator.
 
-6. **Distribution CDF/PDF numerical tolerance baseline** (P23) — distribution
-   computations (normal CDF, t-distribution CDF, chi-squared, F, binomial, Poisson)
-   are NOT iterative in the same sense as INTG/SOLVE, but they DO involve special
-   functions (erf, incomplete gamma, incomplete beta) that accumulate rounding. The
-   1e-7 Math Pac I floor may be too loose for distribution results that users expect
-   to agree with statistical tables to 4–6 decimal places. Tightening tolerance for
-   non-iterative stats ops is possible with `rust_decimal`; the baseline must be
-   established before writing accuracy tests.
+6. **XROM 26 mnemonic shadowing** (P36) -- the Time Module introduces ~33 function
+   names. Several overlap with existing built-in or module names in subtle ways
+   (e.g., "TIME" is common, "DATE" is common, "SW" is two chars).
 
-7. **`xrom_modules` bit allocation for Stat 1** (P24) — v3.0 allocates bit 0 for
-   Math 1 and reserves bit 1 for Stat 1 (the comment in `xrom.rs` line 134 says
-   `// if modules & 0b0000_0010 != 0 { stat1_resolve(name) }`). The `default_xrom_modules`
-   function currently returns `0b0000_0001`. When Stat 1 is added, this default must
-   be updated to `0b0000_0011` to pre-load BOTH modules. V3.0 save files carry
-   `xrom_modules: 1`; they must deserialize correctly when the new default is 3 — the
-   `#[serde(default = "default_xrom_modules")]` annotation means old save files that
-   DO serialize the field will load their stored value (1), not the new default (3).
-   Old save files that DON'T serialize the field (pre-v3.0) will get 3. This is a
-   BEHAVIORAL CHANGE for pre-v3.0 users: Stat 1 becomes enabled on first load.
+7. **Stopwatch keyboard takeover** (P38) -- the HP-41CX's SW function reassigns the
+   keyboard to dedicated stopwatch controls. This is a fundamentally different UX
+   paradigm from anything in v1.0-v3.1.
 
-8. **Cancellation channel wiring for iterative Stat 1 ops** (P25) — quantile solvers
-   and curve-fitting iterations must periodically check `state.cancel_requested`
-   and release the Mutex, exactly as Math Pac I's INTG/SOLVE/DIFEQ does. The
-   infrastructure is already shipped; the risk is forgetting to wire new Stat 1
-   iterative ops into the channel, causing GUI freezes on edge-case inputs.
+8. **Alarm interrupt during program execution** (P39) -- interrupting control alarms
+   can suspend a running program, execute a different program, and resume the
+   original. This requires a re-entrancy mechanism distinct from the existing
+   `call_stack` (which caps at 4 levels for user programs).
 
-Two supporting pitfalls concern documentation and licensing:
-- P26: Stat 1 divergence catalog file naming and phase addressing (analogue of D-29.1)
-- P27: Free42 stats-domain identifier additions to the contamination guard
+9. **Free42 contamination surface expansion** (P40) -- Free42/Plus42 implement
+   DATE, TIME, DDAYS, DATE+, DOW, ADATE, ATIME functions. The contamination
+   guard must extend to the new `time/` directory.
+
+10. **Flag 31 (DMY/MDY) collision** (P41) -- the Time Module uses system flag 31
+    to control date format. This flag is already in the `flags: u64` bitfield.
+    But the emulator's current flag system treats all flags as user-settable;
+    the Time Module gives flag 31 special semantic meaning.
+
+11. **Accuracy factor and clock drift** (P42) -- the physical HP-41CX had a
+    quartz crystal with drift correction (SETAF/RCLAF). The emulator uses the
+    host OS clock which is already NTP-synchronized. Emulating the accuracy
+    factor is semantically meaningless but must be stored for OM fidelity.
+
+12. **4-way exhaustive match explosion** (P43) -- with ~33 new Op variants, the
+    4-way exhaustive match invariant requires updating `dispatch()`,
+    `execute_op()`, CLI `prgm_display.rs`, and GUI `prgm_display.rs` in
+    lockstep. This is the largest single expansion since Math Pac I (52 entries).
 
 ---
 
 ## Critical Pitfalls
 
-These mistakes cause rewrites, silent wrong answers, or backward-compat breaks.
+### P32: Live Display Updates Without a Polling Loop
+
+**What goes wrong:** The stopwatch and clock display modes (CLKT, CLKTD) need
+the LCD to update every second (clock) or every 1/100th second (stopwatch)
+WITHOUT any user keystroke. The current architecture is purely reactive:
+`hp41-core::dispatch()` runs ONLY when the user presses a key.
+
+**Why it happens:** The emulator was designed as a keystroke-driven state
+machine. There is no background thread, no timer interrupt, and no async
+runtime in `hp41-core`. The CLI event loop polls at 16ms but only redraws
+after key events. The GUI frontend explicitly forbids polling (D-11 invariant).
+
+**Consequences:** Without architectural changes, the clock display freezes at
+the time of the last keystroke. The stopwatch shows a static value until the
+user presses a key to read it. This violates the most visible feature of the
+Time Module.
+
+**Prevention:**
+
+*CLI:* The existing `event::poll(Duration::from_millis(16))` already returns
+`false` (no key event) at ~60fps. The fix is to ALWAYS redraw after poll
+returns -- not just when a key event arrives. When the clock/stopwatch is in
+display mode, `get_display_string()` calls a time-provider function to get
+the current time and formats it for display. The 16ms poll cadence is more
+than sufficient for 1-second clock updates; for stopwatch centisecond
+display, it provides ~60fps which is adequate.
+
+*GUI:* The D-11 "no polling" invariant means the frontend does NOT call
+`get_state()` on a timer. Two viable approaches:
+  (a) **Tauri event emission** -- a background thread in the Tauri backend
+      emits a `time-tick` event every 100ms (stopwatch) or 1000ms (clock);
+      the React frontend subscribes and updates its display state.
+  (b) **Frontend-only timer** -- the React frontend runs a `setInterval`
+      that re-renders the time display locally, computed from the last known
+      state + elapsed wall-clock time. This avoids IPC entirely but means
+      the time display is frontend-computed, not core-computed.
+
+Approach (b) is cleaner because it keeps `hp41-core` I/O-free and avoids
+threading in the backend. The frontend already knows whether clock display
+or stopwatch mode is active from `CalcStateView`.
+
+**Detection:** Any `CLKT`, `CLKTD`, or `SW` command that does not produce a
+visually updating display is a P32 failure.
+
+**Phase:** Core architecture decision in the FIRST phase (framework phase).
+This is a load-bearing design decision that affects every subsequent phase.
+
+**Confidence:** HIGH -- the architectural constraint is clearly visible in
+the existing event loop code (`app.rs:270`).
 
 ---
 
-### Pitfall 18: Variance Catastrophic Cancellation — Naive Formula in Extended Stats
+### P34: System Clock Dependency in I/O-Free hp41-core
 
-**What goes wrong:**
-The existing v2.2 `op_sdev` in `hp41-core/src/ops/stats.rs` computes:
+**What goes wrong:** `Op::Time` must return the current time and `Op::Date`
+must return the current date. These require reading the host OS clock, which
+is an I/O operation. But `hp41-core` is explicitly I/O-free -- no network,
+no file system, no system calls. The `no async` invariant is frozen.
+
+**Why it happens:** The original HP-41CX has a dedicated quartz clock chip
+(hardware I/O). The emulator maps this to the host OS clock. But the core
+library was designed without any I/O surface.
+
+**Consequences:** If `std::time::SystemTime::now()` or `chrono::Local::now()`
+is called directly inside `hp41-core`, the crate gains a hidden I/O dependency
+that breaks deterministic testing and violates the architectural invariant.
+
+**Prevention:** Use a **clock trait abstraction** or **callback pattern**:
 
 ```rust
-// σx = sqrt((n·Σx² − (Σx)²) / (n·(n−1)))
-let denom_x = n.checked_mul(sum_x2)?.checked_sub(&sum_x.checked_sq()?)?;
+/// Clock provider trait -- injected at CalcState construction or
+/// passed as a parameter to time-dependent ops.
+pub trait ClockProvider {
+    fn now(&self) -> (u8, u8, u8, u8);    // (hour, min, sec, centisecond)
+    fn today(&self) -> (u8, u8, u16);     // (month, day, year) or (day, month, year)
+}
 ```
 
-This is the textbook one-pass formula using pre-accumulated Σx² and Σx registers.
-With `rust_decimal`'s 28-digit internal precision, this is generally fine for the
-six-register built-in stats (the Σ-registers store exact decimal values, not
-floating-point approximations). However, when Stat 1 Pac extends statistics to higher
-moments or provides summary stats functions that compute variance INLINE from X/Y
-stack values or from a register block — rather than from pre-accumulated Σ-registers —
-the naive two-pass formula `(Σx² − (Σx)²/N)/(N−1)` is dangerous:
+Production implementations (`hp41-cli`, `hp41-gui`) inject a real
+`SystemClockProvider`; tests inject a `MockClockProvider` with deterministic
+values. This mirrors the `print_buffer` drain pattern -- core produces data,
+frontend provides I/O.
 
-- With N=1000 values all near 1,000,000, `Σx²` ≈ 10¹⁵ and `(Σx)²/N` ≈ 10¹⁵. Their
-  difference is at most 10⁸, but both operands use all 28 significant digits. The
-  subtraction cancels ~7 leading digits → result has only ~21 significant digits
-  before `rust_decimal`'s 28-digit representation helps you. That is enough in most
-  cases, but for HP-41's 10-digit display target the margin is thin.
-- If Stat 1 adds a "population variance" function that iterates over a register block
-  using `STO IND` / `RCL IND` patterns (common in HP-41 PAC programs), intermediate
-  accumulations may not have the benefit of 10-digit HP BCD rounding at each step.
+**Alternative:** Store the clock value as a CalcState field updated by the
+frontend before each dispatch. This is simpler but means TIME/DATE values
+are stale by up to one poll cycle (16ms). For a calculator emulator with
+1/100s precision, this is acceptable.
 
-The real pitfall is this: `op_sdev` in v2.2 is CORRECT because it uses pre-accumulated
-Σ-registers (each step adds one `HpNum`-exact value). Any NEW Stat 1 function that
-computes variance from a raw data block (not via Σ+/Σ− accumulation) must use
-Welford's online algorithm or the compensated two-pass form — NOT the naive formula.
+The simplest-correct approach: add `clock_time: Option<HpNum>` and
+`clock_date: Option<HpNum>` as `#[serde(default, skip)]` transient fields
+on `CalcState`. The frontend sets these before every `dispatch()` call.
+`Op::Time` and `Op::Date` read from these fields. Tests set them explicitly.
+Zero new traits, zero new dependencies, zero I/O in core.
 
-**Why it happens:**
-The naive formula is what statistics textbooks and the HP Owner's Manual naturally
-express. The behavioral emulation mandate ("reproduce what the OM says") creates
-tension: the OM formula may be the naive one, but the OM is describing behavior on
-10-digit BCD hardware where intermediate results are rounded at each step — behavior
-that `rust_decimal` does NOT replicate for inline computations.
+**Detection:** Any `use std::time` or `use chrono` in `hp41-core/src/` is a
+P34 violation.
 
-**How to avoid:**
-- Check the Stat 1 Pac OM for each function that computes variance or standard
-  deviation. If the function uses the Σ-registers (R01–R06) as intermediate storage,
-  the existing accumulated-sum path is safe. If it iterates over a raw register block,
-  use Welford's online algorithm:
+**Phase:** Core architecture decision in the FIRST phase (framework phase).
 
-  ```rust
-  // Welford's: O(n) single-pass, numerically stable
-  let mut mean = HpNum::zero();
-  let mut m2   = HpNum::zero();
-  for k in 1..=count {
-      let x = state.regs[start + k].clone();
-      let delta = x.checked_sub(&mean)?;
-      mean = mean.checked_add(&delta.checked_div(&HpNum::from(k as i32))?)?;
-      let delta2 = x.checked_sub(&mean)?;
-      m2 = m2.checked_add(&delta.checked_mul(&delta2)?)?;
-  }
-  let variance = m2.checked_div(&HpNum::from(count - 1))?;
-  ```
-
-- Document in `docs/hp41-stat1-divergences.md` if the emulator's Welford output
-  differs from the OM's example by more than 1 ULP at 10-digit precision. On HP BCD
-  hardware, the OM example was computed with 10-digit intermediate rounding; Welford
-  without intermediate rounding may give a slightly different last digit.
-- The EXISTING `op_sdev` in `stats.rs` does NOT need to change — it is
-  Σ-register-based and correct. Only new functions that work on raw register blocks
-  are at risk.
-
-**Warning signs:**
-- A Stat 1 function for "variance of a data set in R20..R29" produces a result that
-  differs from the OM example by more than 1 ULP for well-conditioned data (data
-  values spread over a wide range). This is NOT catastrophic cancellation — it is just
-  normal floating-point divergence.
-- A Stat 1 function produces a NEGATIVE variance (before sqrt) when all values are
-  nearly identical. This IS catastrophic cancellation in the two-pass formula.
-  `checked_sqrt()` will catch it (returns `HpError::Domain`) but the error is not
-  a meaningful calculator result.
-
-**Phase to address:** Phase 33 (Stat 1 core ops). Any Stat 1 function that operates
-on a raw register block must use Welford's algorithm. The Σ-register-based ops (MEAN,
-SDEV, L.R. extensions) remain on the existing accumulated path.
-
-**CI gate:** Add a `tests/stat1_variance_stability.rs` test with N=100 values all
-near 10^6 that differ only in the last digit. Assert that variance ≠ 0 and relative
-error vs. known analytical value < 1e-7. This catches the negative-variance trap.
+**Confidence:** HIGH -- the I/O-free invariant is documented in CLAUDE.md and
+enforced by the `no async` frozen invariant.
 
 ---
 
-### Pitfall 19: Distribution Quantile Inverse — Newton Iteration Non-Convergence
+### P37: Alarm System State Machine Complexity
 
-**What goes wrong:**
-Stat 1 Pac provides inverse distribution functions — given a probability p, return
-the quantile x such that CDF(x) = p. The inverse normal (e.g. "NORMI" or "INVNORM"),
-inverse t, inverse chi-squared, and inverse F are all computed by iterative root-
-finding on the CDF function.
+**What goes wrong:** The HP-41CX alarm system has four alarm types, three
+triggering contexts, past-due queuing, repeat intervals, and alarm
+acknowledgment. Implementing this as a flat match block produces an
+unmaintainable combinatorial explosion.
 
-Newton's method applied to `CDF(x) = p` is:
-```
-x_{n+1} = x_n − (CDF(x_n) − p) / PDF(x_n)
-```
+**Why it happens:** The alarm system interacts with every other subsystem:
+- **Control alarms (interrupting):** suspend a running program, execute
+  the alarm's target program/function, then resume the interrupted program.
+- **Control alarms (non-interrupting):** if the calculator is idle/off,
+  execute the target; if a program is running, become past-due (deferred).
+- **Message alarms:** display ALPHA text and sound tones; no program execution.
+- **Past-due alarms:** accumulate in a queue; `ALMNOW` activates the oldest;
+  `ALMCAT` lists them; acknowledged alarms are removed.
 
-Three failure modes not covered by the existing SOLVE/secant infrastructure:
+The triggering context (calculator off, idle, running a program, displaying
+the clock) changes the behavior of every alarm type.
 
-1. **Initial-guess failure near the tails.** For p near 0 or 1 (e.g. p = 0.9999),
-   a poor starting guess produces an iteration that immediately jumps to x → −∞ or
-   +∞ because `CDF(x_0) − p` is nearly zero and `PDF(x_0)` is also nearly zero near
-   the tails. The emulator must use the Rational Approximation (Beasley-Springer-Moro
-   or similar) for the initial guess, not x_0 = 0.
+**Consequences:** Incorrect state transitions produce:
+- Alarms that fire during programs but corrupt the call stack (P39).
+- Past-due alarms that never fire or fire repeatedly.
+- Acknowledged alarms that reappear.
+- ALMCAT listing that shows incorrect order.
 
-2. **Non-monotone numerics near the distribution mean.** For the t-distribution with
-   few degrees of freedom, the PDF has heavy tails. A Newton step near the peak of
-   the PDF can overshoot by an amount large enough to flip the bracket. Without
-   bisection fallback, the iteration diverges.
+**Prevention:**
+1. Implement alarms as a `Vec<Alarm>` on CalcState with a structured
+   `Alarm` type (not raw register values):
+   ```rust
+   struct Alarm {
+       time: HpNum,         // HH.MMSSss
+       date: HpNum,         // MM.DDYYYY or DD.MMYYYY
+       repeat: HpNum,       // repeat interval (0 = no repeat)
+       kind: AlarmKind,     // Control(interrupting/non), Message
+       target: String,      // ALPHA label or message text
+       past_due: bool,      // has this alarm's trigger time passed?
+   }
+   ```
+2. Implement alarm triggering as a separate `check_alarms()` function
+   called by the frontend (not by `dispatch()`), similar to how
+   `print_buffer` is drained externally.
+3. Test each alarm type x each context (4 x 4 = 16 combinations)
+   as explicit test cases.
 
-3. **Termination criterion mismatch.** The Stat 1 OM specifies a convergence
-   criterion analogous to the INTG display-mode-tied threshold. If the emulator
-   terminates on `|x_{n+1} − x_n| < 1e-10` (fixed tolerance) instead of the
-   OM-specified criterion, results will agree for p in [0.01, 0.99] but diverge
-   for extreme quantiles where the OM criterion allows earlier termination.
+**Detection:** Any alarm test that only covers one alarm type or one context
+is incomplete.
 
-**Why it happens:**
-Distribution quantile inversion is a well-studied numerical problem and most
-references recommend Newton + bisection hybrid. The HP-41 implementation is
-constrained by available math: it runs on user-code, uses the calculator's 10-digit
-BCD arithmetic, and is bounded by iteration count. The temptation is to use a modern
-more-precise algorithm — but the goal is behavioral emulation of the OM-specified
-behavior, not a numerically superior answer.
+**Phase:** Should be a dedicated phase AFTER basic clock/date functions work.
+Alarms are the most complex part of the Time Module and should not be
+attempted in the same phase as the clock framework.
 
-**How to avoid:**
-- Read the Stat 1 Pac Owner's Manual convergence specification before writing any
-  quantile inversion function. If the OM specifies "convergence to display precision"
-  (as Math Pac I INTG does), tie the threshold to `state.display_mode` exactly as
-  `integ_threshold(mode)` does:
-
-  ```rust
-  fn quantile_threshold(mode: DisplayMode) -> HpNum {
-      // matches Math Pac I D-30-03 / ADR-004 convention:
-      // threshold = 5 × 10^(-(decimals + 1))
-      let d = match mode { DisplayMode::Fix(d) | DisplayMode::Sci(d) | DisplayMode::Eng(d) => d };
-      HpNum::from(5) * HpNum::from(10i64).checked_pow(-(d as i32 + 1))
-  }
-  ```
-
-- Use bisection as primary fallback when the Newton step would leave the valid domain
-  (e.g. x < 0 for chi-squared, |p − CDF| increasing after the step). Do not allow
-  more than 50 Newton + 50 bisection steps before returning `DATA ERROR`.
-- For initial guess: use a simple rational approximation for the normal quantile
-  (the 3-coefficient Abramowitz & Stegun formula is public domain and gives ≤ 0.45%
-  relative error for all p in (0,1), which is an excellent Newton starting point).
-  Document the formula with the A&S reference (section and page number) in the
-  doc-comment — per the citation-discipline pattern from Pitfall 18 in PITFALLS.md v3.0.
-
-**Warning signs:**
-- `NORMI(0.9999)` returns DATA ERROR when the OM example shows a valid result.
-  Root cause: initial guess was too far from the tail quantile.
-- `TINV(0.5, 1)` (median of t with 1 degree of freedom = 0) returns a non-zero
-  value. Root cause: Newton overshot symmetrically around 0 due to flat PDF at 0.
-- Result for p=0.95 differs from a reference table in the 4th decimal place but
-  p=0.5 is exact. Root cause: convergence threshold is too loose for extreme quantiles.
-
-**Phase to address:** Phase 33 (Stat 1 core ops). Establish the convergence
-specification from the OM BEFORE implementing any quantile function. Document in
-`docs/hp41-stat1-divergences.md` if the emulator's convergence behavior differs from
-the OM's described behavior (e.g. if the OM is silent on tail behavior).
-
-**CI gate:** Extend `tests/numerical_accuracy.rs` with ≥ 10 distribution quantile
-cases covering p in {0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999} for the normal
-distribution, using relative tolerance 1e-6 (tighter than Math Pac I 1e-7 because
-quantile tables expect 6 significant digits). Add a specific "tail convergence"
-test for p = 0.9999 and p = 0.0001.
-
----
-
-### Pitfall 20: RNG State Serialization and SystemRandom Contamination
-
-**What goes wrong:**
-If Stat 1 Pac includes a `RAND` (random number generator) function, two separate
-pitfalls merge into one:
-
-**A. RNG state must survive save/load (serde non-skip).**
-The PRNG seed/state is NOT transient — it is part of the reproducible calculator
-state. If a user saves mid-simulation, reloads, and continues, the next `RAND` call
-must produce the same number it would have produced without the save/load cycle.
-This means the RNG state field on `CalcState` must use `#[serde(default)]` but
-NOT `#[serde(skip)]`. The pattern for ALL other transient fields in `CalcState` is
-`#[serde(default, skip)]`; the RNG field is the EXCEPTION. Forgetting this and
-using `skip` means the RNG silently re-seeds from a default on every load — users
-running reproducible simulations get different results after saving.
-
-Concrete implementation: add a new `CalcState` field:
-```rust
-/// PRNG state for RAND (Stat 1 Pac). LCG 32-bit: seed 0 = uninitialized default.
-/// Persistent: survives save/load. NOT serde(skip). D-33-?? to be assigned.
-#[serde(default)]
-pub rand_seed: u32,
-```
-
-The field name and type must be locked in Phase 33 before the first Stat 1 commit
-that adds `RAND` — late addition would silently change the default for loaded v3.0
-save files.
-
-**B. hp41-core must remain SystemRandom-free.**
-The `hp41-core` invariant (`CLAUDE.md` "No async, no panics") extends to I/O:
-`hp41-core` must NOT call `getrandom::getrandom()`, `rand::thread_rng()`, or any
-syscall to `/dev/urandom` or Windows `CryptGenRandom`. These would violate the
-I/O-free / no-external-calls constraint AND make RAND non-deterministic (same seed
-→ same sequence is required for reproducibility). Use a simple deterministic LCG or
-Xorshift32 seeded from `rand_seed`. The HP-41 hardware used a linear congruential
-generator; using the same LCG constants produces hardware-faithful random sequences.
-
-**Why it happens:**
-The `#[serde(default, skip)]` pattern is so pervasive in `CalcState` (8 fields use it)
-that a developer adding RNG state reaches for the same annotation by muscle memory.
-The distinction between "transient state" (skip = correct) and "reproducible persistent
-state" (default without skip = correct) is non-obvious.
-
-The SystemRandom trap: Rust's `rand` crate is convenient and its default RNG is
-excellent — but the crate pulls in `getrandom` as a dependency, which adds platform-
-specific syscall code and breaks the I/O-free property of `hp41-core`. Even a dev-only
-use of `rand::random::<f64>()` in a test inside `hp41-core` would add the dependency.
-
-**How to avoid:**
-- Before Phase 33: add a `// RAND state rule: #[serde(default)] NOT skip` comment in
-  `state.rs` near the Phase 28 block, so future developers see the exception before
-  adding fields.
-- Implement the PRNG as a standalone function in `hp41-core/src/ops/stats1/rand.rs`
-  with no external crate dependencies. Use the HP-41 hardware LCG constants if
-  documented in the Stat 1 OM; otherwise use Xorshift32 (4 lines, no dependencies,
-  period 2³²−1, deterministic).
-- Add `rand` and `getrandom` to the Free42-contamination script's BLOCKED imports:
-
-  ```bash
-  # In scripts/check-free42-contamination.sh, add:
-  grep -rn "extern crate rand\|use rand::\|getrandom" hp41-core/src/ && exit 1
-  ```
-
-- Add a `tests/stat1_rand_determinism.rs` test: seed PRNG to 42, call RAND 100
-  times, serialize CalcState, deserialize into a fresh state, call RAND 1 more time,
-  assert it equals the 101st expected value from a pre-computed reference sequence.
-
-**Warning signs:**
-- `Cargo.toml` for `hp41-core` gains a `rand` or `getrandom` dependency in any
-  non-dev-dependencies block.
-- Two identical save files loaded into two program runs produce DIFFERENT sequences
-  after the first RAND call (would only happen if SystemRandom was used instead of
-  the deterministic LCG).
-- `hp41-core` test run produces different results when run twice with the same seed
-  (determinism violation).
-
-**Phase to address:** Phase 33 (core ops: lock RNG type and serde annotation
-before writing the RAND Op). Phase 36 (test hardening: add the round-trip
-determinism test to the CI suite).
-
----
-
-### Pitfall 21: Sigma-Register Collision and Layout Conflicts with v2.2 SCI-01
-
-**What goes wrong:**
-The existing v2.2 statistics layout (locked in `ops/stats.rs` header comment) is:
-```
-R01 = Σx²
-R02 = Σx
-R03 = n (count)
-R04 = Σy²
-R05 = Σy
-R06 = Σxy
-```
-
-Stat 1 Pac programs on real HP-41 hardware use these SAME registers (R01–R06) as
-their sigma accumulator. This is intentional — Stat 1 extends the built-in Σ+/Σ−/MEAN/
-SDEV foundation. However, several collision risks exist:
-
-**A. Extended-statistics register extension.** If Stat 1 Pac adds functions for
-higher moments (skewness, kurtosis) or histogram operations, it may need R07–R12 or
-another block. If the emulator hard-codes a "Stat 1 uses R07–R12" assumption without
-verifying against the Stat 1 OM, any user program that stores values in R07–R12 will
-corrupt the Stat 1 bookkeeping silently.
-
-**B. SIZE floor conflict.** The v2.2 fail-closed guard `if state.regs.len() < 7` in
-every `stats.rs` function fires when the user shrinks the register bank below R06.
-If Stat 1 uses registers up to R12 (hypothetically), the SIZE floor for Stat 1-using
-programs rises to 13. Currently no guard enforces a minimum SIZE for XROM module ops.
-Without the guard, Stat 1 functions accessing R07–R12 will panic-on-out-of-bounds
-(caught by `#[deny(clippy::unwrap_used)]` at compile time but manifesting as a
-checked-index-out-of-range HpError at runtime that surfaces as DATA ERROR — confusing
-but not a panic).
-
-**C. CLΣSTAT interaction.** The existing `op_cl_sigma_stat` zeroes R01–R06. If Stat 1
-adds an "extended CLΣSTAT" that also zeroes R07–R12, the two ops must share
-consistent semantics. If `CLΣSTAT` (v2.2) zeroes only R01–R06 but a Stat 1 function
-reads R07 expecting it to be initialized by Stat 1's own clear function, a user who
-runs `CLΣSTAT` after some Stat 1 accumulation gets a partially-cleared register block
-and wrong higher-moment results.
-
-**Why it happens:**
-The v2.2 Σ-register layout was locked in Phase 6 for the built-in functions and is
-correct for those functions. Stat 1 Pac was designed on the same hardware and uses the
-same register layout — but the specific register allocation for Stat 1 extensions MAY
-differ from what the emulator assumes based on the v2.2 layout.
-
-**How to avoid:**
-- Before Phase 33: read the Stat 1 Pac OM's "Storage Registers" section (every HP
-  PAC manual has one). Transcribe the exact register layout into a comment at the top
-  of `hp41-core/src/ops/stats1/mod.rs` (the new module, analogous to math1/xrom.rs).
-  Verify it matches or extends R01–R06 exactly.
-- If Stat 1 uses additional registers (R07–R12), add a second fail-closed guard:
-
-  ```rust
-  // In every Stat 1 function that accesses registers beyond R06:
-  if state.regs.len() < STAT1_MAX_REG + 1 {
-      return Err(HpError::InvalidOp);
-  }
-  ```
-
-  where `STAT1_MAX_REG` is a `pub const` derived from the OM's register table.
-- Document the register layout in `docs/hp41-stat1-divergences.md` analogous to
-  the `D-30-NN` divergence catalog pattern from Math Pac I.
-- If Stat 1's CLΣSTAT clears MORE registers than v2.2's, extend `op_cl_sigma_stat`
-  conditionally: clear R01–R06 always; clear R07–R12 only if `state.xrom_modules`
-  has the Stat 1 bit set. Document this as a divergence entry.
-
-**Warning signs:**
-- Stat 1 "skewness" function returns a wrong value on a known distribution (e.g.
-  skewness of a normal sample should be near 0) when the user has not run `CLΣSTAT`
-  first. Root cause: R07 was non-zero from a previous computation.
-- A user program that stores intermediate results in R07 and then calls a Stat 1
-  function produces wrong results. Root cause: Stat 1 overwrote R07 without
-  documentation.
-
-**Phase to address:** Phase 33 (core ops: register layout locked from OM BEFORE
-any Stat 1 Op is implemented). Phase 36 (test hardening: add a `SIZE` floor test —
-set SIZE to 10, call a Stat 1 function that needs R12, assert clean InvalidOp error).
+**Confidence:** MEDIUM -- the XYZALM parameter format requires Owner's Manual
+verification. The search results confirm three stack registers (X = time,
+Y = date, Z = repeat interval) plus ALPHA (target label or message), but
+the exact encoding of alarm type (interrupting vs. non-interrupting via `~`
+prefix in ALPHA) needs OM confirmation.
 
 ---
 
 ## Moderate Pitfalls
 
----
+### P33: CalcState Field Explosion and Serde Shape
 
-### Pitfall 22: ALPHA-Prompt Name Shadowing with Built-In Mnemonics
+**What goes wrong:** The Time Module requires at least 6-8 new `CalcState`
+fields (clock display mode, date format, accuracy factor, stopwatch time,
+stopwatch state, alarm catalog, clock injection fields). Each field needs
+the correct `#[serde(default)]` and optionally `#[serde(skip)]` annotation.
+A single wrong annotation either breaks save-file backward compatibility
+(missing `default`) or persists transient state that should not survive a
+restart (missing `skip` on a transient field).
 
-**What goes wrong:**
-Stat 1 Pac workflows use ALPHA-driven modal prompts (e.g. "MEAN?", "SDEV?", "N=?",
-"CORR?"). The v3.0 modal infrastructure routes ALPHA input through the `modal_program`
-state machine — the prompt name is NOT resolved as a function call. However, the
-CLI's `xeq_by_name_local_resolve` fast-path resolver does check a static set of
-built-in names. If a Stat 1 XROM function is registered under the SAME mnemonic as
-a v2.2 built-in (e.g. a Stat 1 Pac "extended MEAN" also named `"MEAN"`), the built-in
-wins per the Pitfall 1 (v3.0) convention — and the Stat 1 version is unreachable via
-`XEQ "MEAN"`.
+**Why it happens:** The v3.1 `rand_seed` established a unique pattern
+(`default` WITHOUT `skip`) that is easy to mis-apply. Time Module fields
+fall into three categories:
+- **Persistent, non-obvious:** accuracy factor, date format preference,
+  clock display mode preference. These survive save/load. Pattern:
+  `#[serde(default)]` (no `skip`).
+- **Persistent, obvious:** alarm catalog. Pattern: `#[serde(default)]`
+  (no `skip`). But the alarm catalog could be large (unbounded Vec).
+- **Transient:** stopwatch running flag, clock injection values,
+  pending alarm event. Pattern: `#[serde(default, skip)]`.
 
-The specific conflict candidates for Stat 1 Pac are:
-- `"MEAN"` — v2.2 built-in `Op::Mean` in `stats.rs`. A Stat 1 "bivariate MEAN" or
-  "vector MEAN" function must be named differently (e.g. "VMEAN" or "MEAN2").
-- `"SDEV"` — v2.2 built-in `Op::Sdev`. Same issue.
-- `"CORR"` — v2.2 built-in `Op::Corr`.
-- `"LR"` — v2.2 built-in `Op::Lr`.
-- `"YHAT"` — v2.2 built-in `Op::Yhat`.
+**Consequences:** v3.1 save files that lack Time Module fields fail to
+deserialize (missing `default`). Or stopwatch state persists across
+sessions (missing `skip` on the running flag), causing a stopwatch to
+appear "running" on load even though no timer is active.
 
-On real HP-41 hardware, Stat 1 Pac adds EXTENDED versions of these functions that
-operate on a larger register set or accept different parameters. If the OM names them
-identically to the built-ins, the emulator must implement the Stat 1 version as the
-XROM variant (accessible via `XEQ "MEAN"` when Stat 1 module is loaded) and the v2.2
-built-in as the fallback (accessible via direct keyboard Σ/stats keys). This is the
-same disambiguation decision that Pitfall 1 (v3.0) locked for Math Pac I — but Stat 1
-has MORE potential collisions because it extends existing stats functions.
+**Prevention:**
+1. Document each new field's serde shape in the field's doc-comment
+   (following the `rand_seed` precedent at `state.rs:176-200`).
+2. Write a backward-compat test loading a v3.1 save fixture (following
+   `stat1_backward_compat.rs` + `v30-autosave.json` precedent from Phase 37).
+3. Extend `migrate_after_load()` to set bit 2 on `xrom_modules` for the
+   Time Module (pattern: v3.0 -> v3.1 migration set bit 1).
 
-**Why it happens:**
-The v3.0 XROM resolver chain resolves built-ins FIRST, XROM LAST. If the Stat 1 OM
-names its extended MEAN function `"MEAN"`, the XROM-registered `Op::Stat1Mean` is
-unreachable because `xeq_by_name_local_resolve` returns the built-in first. The
-developer must either (a) accept that `XEQ "MEAN"` always calls the v2.2 built-in,
-or (b) switch the resolver priority so XROM wins when the module is loaded, or (c)
-give Stat 1 functions disambiguated names.
+**Decision matrix for Time Module fields:**
 
-**How to avoid:**
-- Before Phase 33: enumerate every Stat 1 Pac OM function name against the v2.2
-  built-in mnemonic list in `docs/hp41cv-functions.json`. Flag each collision.
-- For each collision: decide between (a) different mnemonic in Stat 1 (preferred —
-  no resolver change), (b) module-loaded-priority override (requires Pitfall 1
-  resolver-chain redesign — probably too expensive for v3.1).
-- Add `STAT_1.ops` to the `tests/xrom_shadowing.rs` CI gate — this gate already
-  checks Math Pac I; extending it to Stat 1 is a 5-line addition. The gate asserts
-  that no STAT_1 mnemonic is ALSO a v2.2 built-in mnemonic with the same string.
-  Any collision that slips through testing surfaces immediately.
-- Document each Stat 1 function that has a v2.2 built-in namesake in
-  `docs/hp41-stat1-divergences.md` with an OM citation for the naming decision.
+| Field | Persistent? | `#[serde(default)]` | `#[serde(skip)]` | Rationale |
+|-------|-------------|---------------------|-------------------|-----------|
+| `clock_display_mode` | YES | YES | NO | User preference survives restart |
+| `accuracy_factor` | YES | YES | NO | Calibration data survives restart |
+| `alarm_catalog` | YES | YES | NO | Alarms survive restart |
+| `stopwatch_elapsed` | YES | YES | NO | Stopwatch accumulated time survives power-off on real HP-41CX |
+| `stopwatch_running` | NO | YES | YES | Timer state is transient |
+| `clock_time_injection` | NO | YES | YES | Frontend injects before dispatch |
+| `clock_date_injection` | NO | YES | YES | Frontend injects before dispatch |
+| `pending_alarm_event` | NO | YES | YES | Alarm trigger is transient |
 
-**Warning signs:**
-- `xrom_shadowing.rs` CI gate fails with a new entry in the collision list.
-- A user types `XEQ "CORR"` expecting the Stat 1 extended correlation function and
-  gets the v2.2 built-in result (which requires Σ-registers R01–R06 to be pre-loaded
-  via Σ+, not a raw data block).
+**Detection:** The backward-compat test is the CI guard. Any new CalcState
+field without `#[serde(default)]` is caught by the existing
+`v22_save_loads_with_defaults` test (which loads a minimal JSON without
+any v3.2 fields).
 
-**Phase to address:** Phase 33 (core ops: confirm mnemonic list from OM before
-registering any STAT_1 entry in `xrom.rs`). Phase 34 (CLI integration: extend
-`xrom_shadowing.rs` gate).
+**Phase:** Core framework phase. Fields must be declared before any Op
+implementation.
+
+**Confidence:** HIGH -- the pattern is well-established from v3.0 and v3.1.
 
 ---
 
-### Pitfall 23: Distribution CDF Tolerance Baseline — Tighter Than 1e-7 May Be Needed
+### P35: Date Decimal Format Parsing Edge Cases
 
-**What goes wrong:**
-The Math Pac I relative-tolerance baseline is 1e-7 (6 of 10 HP-41 digits
-guaranteed, last 4 platform-dependent). This is appropriate for INTG/SOLVE/DIFEQ
-because those methods iterate and accumulate rounding error. Distribution CDFs and
-PDFs are NOT iterative in the same sense — they evaluate a closed-form expression
-(possibly via a polynomial approximation of erf, incomplete gamma, or incomplete beta)
-in a fixed number of operations. For a well-implemented distribution function,
-`rust_decimal`'s 28-digit precision should yield results that match 10-digit HP BCD
-tables to all 10 displayed digits.
+**What goes wrong:** HP-41CX dates are stored as `MM.DDYYYY` (when flag 31
+is clear / MDY mode) or `DD.MMYYYY` (when flag 31 is set / DMY mode). These
+are HpNum decimals. Parsing them is treacherous because:
 
-Using a 1e-7 relative tolerance for distribution tests would allow a normal CDF
-implementation to be wrong by 0.0001% and still pass. Statistical tables are tabulated
-to 4–8 significant digits; users comparing the emulator's output against tables
-expect ≤ 1 ULP agreement at 4-digit display.
+1. **Single-digit months:** January 15, 1982 = `1.151982`, not `01.151982`.
+   The integer part is `1`, the fractional part is `.151982`. Extracting
+   DD and YYYY from the fractional part requires knowing the expected field
+   widths.
 
-The wrong direction: tightening to 1e-10 (matching rust_decimal's native precision)
-is also wrong because HP-41 hardware uses 10-digit BCD and rounds intermediate
-results. A result that matches the HP-41 hardware output exactly may differ from the
-"true" mathematical value at the 1e-10 level.
+2. **Leading zeros in day:** March 5, 2026 in MDY = `3.052026`. The
+   fractional part `.052026` must NOT be parsed as `52026` (which would
+   imply day=52, year=026).
 
-**Why it happens:**
-Re-using the Math Pac I `1e-7` floor as a universal stats tolerance is expedient —
-the `lint_math1_assertions.rs` CI gate enforces it for math1 tests. If the same gate
-is naively applied to stat1 tests without distinguishing iterative vs. closed-form,
-distribution tests become too loose.
+3. **Year extraction:** The year is the last 4 digits of the fractional part.
+   For `3.052026`, the fractional string is `052026`, day = `05`, year = `2026`.
+   But for `12.252026` (Dec 25, 2026), the fractional string is `252026`,
+   day = `25`, year = `2026`.
 
-**How to avoid:**
-- Establish a TWO-LEVEL tolerance policy for Stat 1:
-  - **Closed-form / polynomial-approximation ops** (CDF, PDF, erf-based functions):
-    tolerance = 1e-9 (9 of 10 digits). These should agree with HP BCD tables to
-    this level. Use `assert_hp_close!(actual, expected, 1e-9)` in test files.
-  - **Iterative ops** (quantile inversion, curve-fitting): tolerance = 1e-7 (matches
-    Math Pac I floor). Use `assert_hp_close!(actual, expected, 1e-7)` in test files.
-- Create a `tests/stat1_accuracy.rs` file distinct from the existing
-  `tests/numerical_accuracy.rs`. The new file uses the two-level tolerance policy
-  from day one — do not mix Stat 1 and Math Pac I accuracy cases in the same file
-  (the lint gate filenames are `math1_*`; keeping `stat1_*` separate allows
-  distinct lint rules if needed).
-- When the Stat 1 OM quotes example values (e.g. "P(Z < 1.645) ≈ 0.9500"), use
-  those as the expected values in accuracy tests — not a modern high-precision
-  reference. The goal is to match what HP-41 hardware produces, not to be more
-  accurate than the OM.
+4. **Gregorian calendar boundary:** Valid dates start at October 15, 1582
+   (10.151582 in MDY). Any date before this is invalid.
 
-**Warning signs:**
-- A normal CDF test passes at 1e-7 tolerance but fails at 1e-9 — the implementation
-  is losing 2+ significant digits somewhere in the polynomial approximation.
-- A normal CDF test that was passing at 1e-9 starts failing on a new platform after
-  a `rust_decimal` upgrade — the intermediate precision changed. Check whether the
-  polynomial coefficients use `f64` literals (which round differently on x86 vs ARM).
+5. **Century boundaries:** Year 2000 = `.DDYYYY` where YYYY=2000. But
+   `1.012000` could be parsed as month=1, day=01, year=2000 OR as the
+   decimal number 1.012 (if trailing zeros are lost). The `rust_decimal`
+   representation preserves trailing zeros, but this must be verified.
 
-**Phase to address:** Phase 33 (core ops: establish tolerance baseline per function
-category BEFORE writing tests). Phase 36 (test hardening: `stat1_accuracy.rs` with
-the two-level tolerance policy enforced).
+6. **Decimal precision:** HpNum uses `rust_decimal` with 10-significant-digit
+   rounding. The date `12.312026` has 8 significant digits. The date
+   `1.012000` has 7 significant digits (or 4 if trailing zeros are dropped).
+   The parsing algorithm must NOT rely on digit counting.
 
----
+**Prevention:** Parse dates by string-splitting at the decimal point (the
+same technique used for ISG/DSE counters per the frozen invariant in CLAUDE.md).
+Extract the integer part as the month (or day in DMY mode). Extract the
+fractional part as a 6-character string (zero-padded on the LEFT to ensure
+exactly 6 digits), then split into DD (first 2 chars) and YYYY (last 4 chars).
 
-### Pitfall 24: `xrom_modules` Bit Allocation and Default Value Update
+```rust
+// Correct pattern (mirrors ISG/DSE parse_counter):
+let s = hpnum.to_string();
+let (int_part, frac_part) = s.split_once('.').unwrap_or((&s, ""));
+let month = int_part.parse::<u8>()?;
+let padded = format!("{:0>6}", frac_part);  // left-pad to 6 chars
+let day = padded[..2].parse::<u8>()?;
+let year = padded[2..6].parse::<u16>()?;
+```
 
-**What goes wrong:**
-The `default_xrom_modules()` function in `hp41-core/src/state.rs` currently returns
-`0b0000_0001` (Math 1 loaded, Stat 1 not loaded). The comment in `xrom.rs` line 134
-reserves bit 1 for Stat 1: `// if modules & 0b0000_0010 != 0 { stat1_resolve(name) }`.
+**Detection:** Test with these edge-case dates:
+- `1.012000` (Jan 1, 2000 -- Y2K boundary, trailing zeros)
+- `12.312026` (Dec 31, 2026 -- max month/day)
+- `10.151582` (Oct 15, 1582 -- Gregorian start)
+- `1.011583` (Jan 1, 1583 -- just after Gregorian start)
+- `12.319999` (Dec 31, 9999 -- max supported date)
+- `2.292024` (Feb 29, 2024 -- leap day)
+- `2.292023` (Feb 29, 2023 -- INVALID, not a leap year)
 
-When Stat 1 is added, `default_xrom_modules()` must change to `0b0000_0011` so both
-modules are pre-loaded by default. This creates a BACKWARD-COMPAT wrinkle:
+**Phase:** Core implementation phase, as part of DATE+/DDAYS ops.
 
-**Case A: v3.0 save file that serializes `xrom_modules`.**
-The `#[serde(default = "default_xrom_modules")]` annotation means: if the JSON field
-is PRESENT, use the stored value. If ABSENT, use the default function. A v3.0 save
-file where `xrom_modules: 1` is present will deserialize with `xrom_modules = 1` —
-even after the default function returns 3. The user will not have Stat 1 loaded on
-their first launch after upgrade. They will need to manually enable Stat 1 (or the
-emulator provides a migration path).
-
-**Case B: Pre-v3.0 save file (no `xrom_modules` field).**
-The field was introduced in v3.0 with `#[serde(default = "default_xrom_modules")]`.
-A v2.2 save file has no `xrom_modules` key — serde uses the default function, which
-after v3.1 returns 3. Pre-v3.0 users get BOTH Math 1 AND Stat 1 on their first launch
-after upgrading to v3.1. This is probably the desired behavior.
-
-**The migration decision for v3.0 save files:**
-Option A: Accept that v3.0 users need to re-enable Stat 1 manually. Document in
-release notes. Low implementation cost.
-Option B: On load, if `xrom_modules == 1` (exactly the v3.0 default), set it to 3
-automatically. This is a one-way migration that requires a version field in the save
-file (currently absent). Implementation cost: moderate.
-Option C: Change the default function to `0b0000_0011` and accept that v3.0 save
-files that explicitly stored `1` will silently lose Stat 1 enablement on first load,
-but a "first launch after upgrade" check (or just documentation) covers this.
-
-The recommended approach (locks in Phase 33): use Option A with a release note, plus
-a startup migration: if `xrom_modules & 0b0000_0010 == 0` on the first dispatch after
-load, set the bit and re-save. This is the least invasive change.
-
-**Why it happens:**
-The serde default-function pattern works correctly for NEW fields that did not exist
-before. It does NOT auto-upgrade EXISTING fields whose stored value is now stale. The
-`xrom_modules` field was introduced with value 1; upgrading the default to 3 does not
-retroactively change stored-1 saves.
-
-**How to avoid:**
-- In Phase 33 Phase 0 (framework extension): update `default_xrom_modules` to return
-  `0b0000_0011`. Add the startup-migration one-liner in `state.rs::CalcState::new()`
-  or in the serde post-deserialization hook (implement `serde_with::DeserializeAs`
-  or a manual `impl<'de> Deserialize<'de> for CalcState` — the latter is heavy; the
-  simpler option is to add a `fn migrate_xrom_modules` called once from the
-  persistence layer after deserialization).
-- Lock the v3.1 release notes to mention: "Stat 1 Pac auto-enabled on first launch;
-  v3.0 save files upgraded automatically."
-- Add a test: deserialize a v3.0-era JSON fixture with `xrom_modules: 1`, run the
-  migration, assert `xrom_modules == 3`.
-
-**Warning signs:**
-- After installing v3.1, `XEQ "MEAN2"` (hypothetical Stat 1 MEAN extension) returns
-  `"MEAN2 is planned for a future phase"` stub-error instead of running. Root cause:
-  the loaded save file has `xrom_modules: 1`, bit 1 is clear, `xrom_resolve` skips
-  Stat 1 entirely.
-- The v3.1 `xrom_shadowing.rs` test for `STAT_1` fails because `xrom_resolve("MEAN2",
-  0b0000_0011)` returns None — the stat1_resolve function was not wired in.
-
-**Phase to address:** Phase 33 (framework extension: first commit that adds `STAT_1`
-must update `default_xrom_modules` and the `xrom_resolve` bit-1 branch in `xrom.rs`).
+**Confidence:** HIGH -- the ISG/DSE string-split precedent is well-established,
+and the Tantzen Julian day algorithm (ACM Algorithm 199, 1963) is a standard
+reference for date arithmetic.
 
 ---
 
-### Pitfall 25: Cancellation Channel Omission in Iterative Stat 1 Ops
+### P36: XROM 26 Mnemonic Shadowing Across Three Modules
 
-**What goes wrong:**
-The v3.0 `request_cancel` infrastructure (Pitfall 11 mitigation) is already shipped:
-- `state.cancel_requested: Arc<AtomicBool>` field on `CalcState`
-- `request_cancel` Tauri command flips the flag
-- INTG/SOLVE/DIFEQ check the flag every N sample points and release the Mutex
+**What goes wrong:** The Time Module (XROM 26) introduces ~33 function
+mnemonics. Several have collision risk with existing built-in names or
+XROM module names:
 
-The risk for Stat 1 is not building the infrastructure (it exists) — it is FORGETTING
-to wire new iterative ops into the channel.
+**Known collision candidates:**
+- `TIME` -- not in `builtin_card_op` or Math 1 or Stat 1. SAFE.
+- `DATE` -- not in any existing resolver. SAFE.
+- `DATE+` -- the `+` character may cause XEQ-by-name input issues.
+- `T+X` -- the `+` character again; also `T` is a stack register name.
+- `DMY` / `MDY` -- short mnemonics, not in existing resolvers. SAFE.
+- `SW` -- two-character mnemonic. Not in existing resolvers. SAFE but fragile.
+- `SIZE` -- ALREADY REGISTERED as `Op::MatSize` in `MATH_1.ops`! This is a
+  CONFIRMED COLLISION. The Time Module does NOT define SIZE; the Math Pac I
+  does. But if future modules reuse "SIZE", the collision would shadow.
+- `CORRECT` -- not in existing resolvers. SAFE.
+- `CLK12` / `CLK24` -- not in existing resolvers. SAFE.
 
-Stat 1 Pac functions that are likely iterative:
-- Quantile inversion functions (Newton/bisection iterations, potentially 50+ steps)
-- Curve-fitting routines (iterative least-squares, potentially 100+ steps)
-- Any function that iterates over a user-supplied register block (N potentially large)
+**Actually confirmed safe (no collision):** After checking `builtin_card_op`
+(4 card ops + 8 conditional tests), `MATH_1.ops` (52 entries), and
+`STAT_1.ops` (26 entries), none of the ~33 Time Module mnemonics collide
+with existing entries EXCEPT the note about SIZE above (which is Math Pac I,
+not Time Module).
 
-For single-distribution-evaluation functions (PDF, CDF) — NOT iterative — the
-`cancel_requested` check is unnecessary overhead. The distinction matters for Phase 33
-implementation: add the check ONLY in functions that iterate.
+**Why it happens:** The resolver chain fires Math 1 -> Stat 1 -> Time (once
+bit 2 is added). If a Time mnemonic duplicates a Math 1 mnemonic, Math 1
+wins silently. This is correct per the hardware behavior (modules in lower
+port numbers have priority), but it could be confusing.
 
-**Why it happens:**
-The developer implementing a "small" quantile inversion function (50 Newton steps
-with fast arithmetic) thinks "this won't block the GUI for more than a few ms" and
-skips the `cancel_requested` check. On a 10-degree-of-freedom t-distribution with
-p=0.9999, the Newton iteration diverges near the tail and runs the full 50 steps
-with expensive incomplete-beta evaluations — wall time is now 2–5 ms on modern
-hardware but could be 200 ms on slower machines. Multiply by a user program that
-calls `TINV` in a loop (curve-fitting outer iteration) and the GUI freezes.
+**Prevention:**
+1. Extend `tests/xrom_shadowing.rs` to cross-check `TIME.ops` against
+   `MATH_1.ops` + `STAT_1.ops` + `builtin_card_op`.
+2. Verify all ~33 mnemonics before coding any resolver arms.
+3. For `DATE+` and `T+X`: ensure the `+` character is accepted by the
+   XEQ-by-name text input modal (currently the modal accepts alphanumeric
+   chars; symbols like `+` may need to be explicitly allowed).
 
-**How to avoid:**
-- Any Stat 1 function with a loop that runs > 10 iterations MUST check
-  `state.cancel_requested.load(Ordering::Relaxed)` at the top of each iteration.
-  This is a compile-time-unenforceable rule; enforce it via code review checklist.
-- Add a `// Cancellation: check cancel_requested at iteration start` comment in the
-  function template used for new stat1 iterative ops (analogous to the v3.0 INTG
-  implementation's pattern).
-- For the Mutex release interval: release every 64 iterations for distribution
-  quantile functions (fast per-step) and every 16 iterations for curve-fitting
-  (slower per-step). Document the interval choice in the function's doc-comment.
-- CI gate: add a test in `tests/stat1_cancellation.rs` that sets `cancel_requested`
-  BEFORE calling a quantile inversion function, asserts the function returns
-  `Err(HpError::Interrupted)` without computing the answer.
+**Detection:** `xrom_shadowing.rs` CI gate catches any collision at compile
+time.
 
-**Warning signs:**
-- A GUI E2E smoke test that clicks "TINV" with p=0.0001 and immediately clicks R/S
-  hangs for > 500 ms before returning control. Root cause: `cancel_requested` not
-  checked in the Newton iteration.
-- A Stat 1 test that calls a quantile function with a deliberately non-convergent
-  input (e.g. p=2.0, outside [0,1]) loops to max iterations instead of returning
-  `DATA ERROR` after 50 steps.
+**Phase:** Core framework phase (XROM registration).
 
-**Phase to address:** Phase 33 (core ops: add `cancel_requested` check to every
-iterative Stat 1 function as part of the initial implementation — do not defer to
-a "cleanup phase"). Phase 36 (test hardening: `stat1_cancellation.rs`).
+**Confidence:** HIGH -- the shadowing test infrastructure already exists.
+
+---
+
+### P38: Stopwatch Keyboard Takeover Mode
+
+**What goes wrong:** On the real HP-41CX, the `SW` (Stopwatch) function
+reassigns the entire keyboard to dedicated stopwatch controls:
+- Top row: split/lap functions
+- Number keys: not available
+- R/S: start/stop
+- Special keys: reset, read
+
+This is fundamentally different from any existing UI mode in the emulator.
+ALPHA mode only redirects letter keys; PRGM mode only changes what dispatch
+does. Stopwatch mode reassigns the MEANING of physical keys.
+
+**Why it happens:** The HP-41CX hardware had dedicated microcode for
+stopwatch keyboard scanning. The emulator must simulate this without
+microcode-level emulation.
+
+**Consequences:**
+- If stopwatch mode is a CalcState flag, then `hp41-core::dispatch()` must
+  check it and route to stopwatch ops instead of normal ops. This adds a
+  branch to every single dispatch call.
+- If stopwatch mode is a frontend-only flag (like `shift_armed`), then the
+  CLI and GUI must independently implement the keyboard reassignment, risking
+  CLI-GUI parity divergence.
+- The real HP-41CX's stopwatch keyboard is NOT programmable (it cannot be
+  used from within a program). This means `Op::Sw` is valid in programs but
+  `Op::SwStart`/`Op::SwStop` etc. are NOT.
+
+**Prevention:**
+1. Model stopwatch mode as a `CalcState` flag (similar to `alpha_mode` or
+   `prgm_mode`). When set, `dispatch()` routes to a `stopwatch_dispatch()`
+   sub-function.
+2. `stopwatch_dispatch()` handles only the 5-6 stopwatch keys; all other
+   keys are ignored or produce a soft error.
+3. The flag is `#[serde(default, skip)]` -- stopwatch mode does not survive
+   a save/load cycle (the real HP-41CX exits stopwatch mode on power-off).
+4. CLI and GUI both check this flag when interpreting key events, ensuring
+   parity.
+
+**Detection:** Any test that operates the stopwatch without entering
+stopwatch mode is testing the wrong thing.
+
+**Phase:** Dedicated stopwatch phase, AFTER basic clock/date. This is a
+new UI paradigm and should not be mixed with the date arithmetic phase.
+
+**Confidence:** MEDIUM -- the exact set of stopwatch keys and their mappings
+requires Owner's Manual verification.
+
+---
+
+### P39: Alarm Interrupt Re-entrancy vs. Call Stack
+
+**What goes wrong:** An interrupting control alarm can fire DURING program
+execution. On the real HP-41CX, this suspends the current program, runs the
+alarm's target program, and then resumes the interrupted program. But the
+emulator's `call_stack` has a 4-level hardware limit (D-14). If the running
+program has already used 3 call levels, the alarm's XEQ pushes a 4th, and
+the alarm target itself calls a subroutine -- stack overflow.
+
+**Why it happens:** The HP-41CX hardware has a separate alarm interrupt
+mechanism outside the normal subroutine call stack. The emulator currently
+has only one call stack.
+
+**Consequences:**
+- If interrupting alarms use the normal `call_stack`, programs running at
+  deep call levels lose alarm functionality.
+- If a separate interrupt stack is added, it must not interfere with the
+  `is_running` flag, `pc`, or any other program execution state.
+- Resume-after-alarm must restore the EXACT program counter, stack contents,
+  and register state from before the interruption.
+
+**Prevention:**
+1. **Defer interrupting alarm support** -- implement only non-interrupting
+   alarms and message alarms first. Document interrupting alarms as a
+   known emulator divergence. This follows the project's "behavioral
+   emulation, not cycle-accurate" philosophy.
+2. If interrupting alarms are implemented: save the entire execution
+   context (pc, call_stack, is_running) to a separate `alarm_context:
+   Option<AlarmContext>` field BEFORE dispatching the alarm target. Restore
+   after the alarm target returns.
+3. Nest depth guard: if `call_stack.len() >= 4` when an interrupting alarm
+   fires, demote it to non-interrupting (past-due) behavior.
+
+**Detection:** Test an interrupting alarm firing at call_stack depth 3.
+
+**Phase:** Alarm phase (if implemented). Strong recommendation to DEFER
+interrupting alarms to a follow-up milestone or mark as documented
+divergence.
+
+**Confidence:** MEDIUM -- the exact HP-41CX interrupt mechanism is not
+fully documented in public sources. The Owner's Manual describes the
+user-visible behavior but not the internal stack management.
+
+---
+
+### P40: Free42 Contamination Surface Expansion
+
+**What goes wrong:** Free42 and Plus42 implement DATE, TIME, DDAYS, DATE+,
+DOW, ADATE, ATIME, ATIME24, CLK12, CLK24, DMY, MDY, and YMD functions.
+The implementations in Free42's `core_commands7.cc` are GPL-licensed. Any
+copy-paste or structural duplication triggers the contamination guard.
+
+**Why it happens:** When implementing date arithmetic (DDAYS, DATE+, DOW),
+it is tempting to consult Free42's implementation for the correct algorithm.
+Free42 uses the Tantzen Julian day conversion -- which is a PUBLIC DOMAIN
+algorithm from 1963 -- but Free42's specific IMPLEMENTATION of it is
+GPL-licensed code.
+
+**Consequences:** GPL contamination of `hp41-core` (MIT-licensed).
+
+**Prevention:**
+1. Extend `scripts/check-free42-contamination.sh` to scan `hp41-core/src/ops/time/`
+   as a third directory alongside `math1/` and `stat1/`.
+2. Add Time-specific tokens to the contamination pattern:
+   - `core_commands7` (Free42's time module source file name)
+   - `date2j` / `j2date` (Free42's Julian conversion function names)
+   - Any other Free42-specific identifiers discovered during implementation.
+3. Re-derive the Tantzen algorithm from the original 1963 ACM paper
+   (Algorithm 199), NOT from Free42's implementation.
+4. Carry the verbatim disclaim header on every `time/*.rs` file:
+   `// Algorithm independently re-derived from primary sources; Free42
+   // source consulted only as sanity-check oracle, not copied.`
+
+**Detection:** `check-free42-contamination.sh` CI gate.
+
+**Phase:** Core framework phase (script extension before any time code).
+
+**Confidence:** HIGH -- the contamination guard pattern is well-established.
+
+---
+
+### P41: Flag 31 (DMY/MDY) Semantic Collision
+
+**What goes wrong:** The HP-41CX Time Module uses system flag 31 to control
+date format:
+- Flag 31 clear = MDY (Month-Day-Year)
+- Flag 31 set = DMY (Day-Month-Year)
+
+Additionally, the Time Module uses flag 44 as the "continuous on" flag (prevents
+auto power-off), and the clock display mode may interact with other system flags.
+
+The emulator's current flag system (`flags: u64` on CalcState) stores all 56
+flags as a flat bitfield. `Op::SfFlag(31)` and `Op::CfFlag(31)` already work.
+But the Time Module's `DMY` and `MDY` ops are ALIASES for `SF 31` and `CF 31`
+respectively. If the emulator implements `DMY` as a separate op that doesn't
+also set flag 31, or implements flag 31 without checking it in date formatting,
+the two systems drift.
+
+**Prevention:**
+1. Implement `Op::Dmy` as `state.flags |= (1 << 31)` -- literally the same
+   operation as `Op::SfFlag(31)`.
+2. Implement `Op::Mdy` as `state.flags &= !(1 << 31)`.
+3. All date formatting functions check `state.flags & (1 << 31)` to determine
+   the format, NOT a separate `date_format` field.
+4. Do NOT add a separate `date_format: DateFormat` field to CalcState. Use
+   the flag directly. The HP-41CX hardware uses the flag, not a separate register.
+
+**Detection:** Test that `SF 31` + `DATE` produces DMY format, and `CF 31` +
+`DATE` produces MDY format. Also test that `DMY` sets flag 31 and `MDY` clears it.
+
+**Phase:** Core date ops phase.
+
+**Confidence:** HIGH -- the flag system is well-understood and already implemented.
 
 ---
 
 ## Minor Pitfalls
 
----
+### P42: Accuracy Factor Semantic Vacuity
 
-### Pitfall 26: Stat 1 Divergence Catalog File Naming and Phase Addressing
+**What goes wrong:** The HP-41CX's SETAF and RCLAF functions set and recall
+a clock accuracy factor (-99.9 to 99.9 PPM). On the real hardware, this
+adjusts the quartz crystal frequency to compensate for temperature drift.
+On the emulator, the host OS clock is already NTP-synchronized to sub-second
+accuracy. The accuracy factor is semantically meaningless.
 
-**What goes wrong:**
-The Math Pac I divergence catalog lives in `docs/hp41-math1-divergences.md` per the
-D-29.1 precedent (Phase 29, Plan 30-02 DOC-04 expanded format). The catalog uses
-`D-30-NN` identifiers tied to the PHASE where the entry was written (Phase 30).
+**Prevention:** Implement SETAF and RCLAF as a simple store/recall of an
+HpNum field on CalcState. The CORRECT function (which sets time and adjusts
+the accuracy factor simultaneously) stores the factor but does not actually
+adjust any clock. Document this as an explicit emulator divergence.
 
-For Stat 1, the analogous file must be `docs/hp41-stat1-divergences.md`. The risk is:
-(a) re-using the same `D-30-NN` numbering (collision), or (b) calling the file
-`hp41-math1-divergences.md` by mistake (conflation), or (c) not creating the file
-until Phase 36 test hardening when the entries should have been written in Phase 33.
+**Phase:** Clock ops phase.
 
-Stat 1-specific divergences that should go into this file from the start of Phase 33:
-- The register layout confirmation or divergence (Pitfall 21 outcome)
-- The CLΣSTAT extended-clear policy (if Stat 1 changes it)
-- The RNG algorithm (Pitfall 20: LCG constants vs. hardware-faithful sequence)
-- The convergence termination criterion for each iterative function (Pitfall 19)
-- The `xrom_modules` default migration (Pitfall 24)
-
-**How to avoid:**
-- Create `docs/hp41-stat1-divergences.md` in Phase 33 Phase 0 (framework), with the
-  same five-field format as `hp41-math1-divergences.md`:
-  OM citation / our behavior / OM behavior / rationale / see.
-- Use `D-33-NN` identifiers (tied to Phase 33, the creation phase) for the first
-  batch of entries. If additional entries are written in Phase 34 or later, use
-  `D-34-NN` etc. — the same pattern as Math Pac I's `D-30-NN` entries.
-- Never add Stat 1 entries to the Math Pac I divergence file — they are separate
-  modules and separate OM documents.
-
-**Phase to address:** Phase 33 (framework: create the file stub before the first
-Stat 1 Op is committed). Phase 36 (test hardening: complete all entries before the
-v3.1 accuracy test suite is finalized).
+**Confidence:** HIGH.
 
 ---
 
-### Pitfall 27: Free42 Stats-Domain Identifiers Not in Contamination Guard
+### P43: 4-Way Exhaustive Match Explosion (~33 Variants)
 
-**What goes wrong:**
-The `scripts/check-free42-contamination.sh` CI gate greps for 12 distinctive
-identifiers that appear in Free42's GPL source code for Math Pac I operations
-(`core_math1.cc`, decNumber, Intel BID). Free42 also has `core_math2.cc` and
-`core_sto_rcl.cc` with statistics-related code. The statistics domain uses different
-identifiers: `free42_stats`, `do_normal_cdf`, `NSTAT`, `do_linear_regression`,
-`do_chi_square_cdf`, etc.
+**What goes wrong:** The Time Module's ~33 functions require ~33 new Op enum
+variants. Each must be added to:
+1. `dispatch()` in `hp41-core/src/ops/mod.rs`
+2. `execute_op()` in `hp41-core/src/ops/program.rs`
+3. `op_display_name()` in `hp41-cli/src/prgm_display.rs`
+4. `op_display_name()` in `hp41-gui/src-tauri/src/prgm_display.rs`
 
-If v3.1 Stat 1 ops are accidentally contaminated with Free42 statistics code, the
-existing 12-symbol grep will NOT catch it because the stats-domain identifiers differ
-from the math-domain identifiers already in the guard.
+This is the 4-way exhaustive match invariant. With ~33 new variants, this is
+the largest single expansion since the original Math Pac I (52 entries).
 
-**How to avoid:**
-- Before Phase 33: inspect Free42's `core_math2.cc` (the statistics implementation
-  file) and identify 6–8 distinctive function/variable names that appear in Free42
-  but should NOT appear in `hp41-core`. Add them to the grep pattern in
-  `scripts/check-free42-contamination.sh`.
-  Candidates (to verify against Free42 source): `do_xroot_of_y`, `stats_x`,
-  `stat1_n`, `reg_names_n`, `do_normcdf`, `t_cdf_helper`.
-- Update the header comment in each `hp41-core/src/ops/stats1/*.rs` file to use the
-  Stat 1 OM citation variant:
-  `// Algorithm independently re-derived from HP Stat 1 Pac Owner's Manual 00041-15001;`
-  `// Free42 source consulted only as sanity-check oracle, not copied.`
-  (The existing Math Pac I files carry the analogous math1 citation per ADR-002.)
-- The CI script `check-free42-contamination.sh` must list both the math1 AND stats1
-  disclaimer sentences as REQUIRED headers (present in every math1/stats1 source file)
-  and both math1 AND stats1 distinctive identifiers as BLOCKED patterns.
+**Prevention:** Follow the established Phase 33/34/36 cadence:
+- Phase N (core): add all Op variants to items 1+2. Intentional CI break
+  in items 3+4 (sanctioned-deferred).
+- Phase N+1 (CLI): close item 3.
+- Phase N+2 or N+3 (GUI): close item 4.
 
-**Phase to address:** Phase 33 (framework: update the contamination script before
-any stats1 source file is written). Phase 36 (test hardening: verify all new
-stats1 source files carry the correct per-file header).
+Do NOT attempt to add all 4 sites in a single phase. The sanctioned-CI-break
+pattern from Phase 33 (Stat 1) worked well.
+
+**Detection:** Compile error in `hp41-cli` and `hp41-gui` until items 3+4
+are closed. This is the invariant working as designed.
+
+**Phase:** Core phase -> CLI phase -> GUI phase (3 separate phases).
+
+**Confidence:** HIGH -- the pattern is well-established from v3.0 and v3.1.
 
 ---
 
-## Technical Debt Patterns
+### P44: Time Format HH.MMSSss Parsing
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Re-use `op_sdev`'s two-pass formula for new stats ops | 0 new code | Silent wrong answers on nearly-equal data sets | Never — use Welford for raw-block ops |
-| Skip `cancel_requested` check in "small" quantile inversion | Simpler code | GUI freeze on tail inputs in user-program loops | Never — add the check even for small N |
-| `#[serde(default, skip)]` on `rand_seed` | Consistent with other transient fields | RNG state lost on save/load; simulations not reproducible | Never — `rand_seed` must NOT be skip |
-| Reuse Math Pac I 1e-7 tolerance for distribution CDFs | No new tolerance logic | Distribution results off by 10 ULP pass tests silently | Only acceptable for iterative distribution ops (quantile inversion) |
-| Add Stat 1 Op variants to existing math1 source files | Fewer new files | math1 files are frozen per CLAUDE.md invariant | Never — new `stats1/` subdirectory required |
+**What goes wrong:** HP-41CX times are stored as `HH.MMSSss` where HH is
+hours (0-23), MM is minutes (0-59), SS is seconds (0-59), and ss is
+centiseconds (0-99). This is NOT the same as the H.MMSS format used by
+HMS->H and ->HMS in the existing `hms.rs`. The Time Module format includes
+CENTISECONDS (two extra fractional digits).
 
----
+- HMS format:  `H.MMSS` (4 fractional digits: MM, SS)
+- Time format: `HH.MMSSss` (6 fractional digits: MM, SS, ss)
 
-## Integration Gotchas
+**Why it happens:** The Time Module needs finer granularity (centiseconds)
+for the stopwatch function.
 
-| Integration point | Common Mistake | Correct Approach |
-|-------------------|----------------|------------------|
-| `xrom_resolve` bit-1 branch | Forgetting to uncomment the `stat1_resolve` stub in `xrom.rs` line 134 | Uncomment and implement `stat1_resolve` in Phase 33 Phase 0 |
-| `default_xrom_modules` | Returning `0b0000_0001` after adding Stat 1 | Update to `0b0000_0011`; add startup migration for v3.0 save files |
-| `STAT_1.ops` entry count | Not updating the `math1_ops_has_correct_entry_count` test | Add a `stat1_ops_has_correct_entry_count` test with the expected Stat 1 Op count |
-| `op_display_name()` in both `prgm_display.rs` files | Adding Stat 1 Op variants to only cli's copy | Four-way exhaustive-match invariant: both CLI and GUI copies must be updated simultaneously |
-| `docs/hp41-stat1-functions.json` | Not creating this file before Phase 34 CLI integration | Create in Phase 33 alongside the Op variants; Phase 34 OnceLock wires it in |
-| `scripts/docs-matrix` | Not extending to three-input mode for the Stat 1 JSON source | `docs-matrix` already handles two JSON sources; add a third input mode |
+**Consequences:** If the existing `parse_hms()` function in `hms.rs` is
+reused for time parsing, centiseconds are silently truncated. If a new
+parser is written, it must handle the 6-digit fractional part correctly,
+including left-padding to ensure exactly 6 digits.
 
----
+**Prevention:**
+1. Write a NEW `parse_time()` function specifically for `HH.MMSSss` format.
+   Do NOT reuse `parse_hms()` from `hms.rs` (which handles `H.MMSS`).
+2. Use the same string-split-at-decimal technique as ISG/DSE and date parsing.
+3. Validate: HH in 0..23, MM in 0..59, SS in 0..59, ss in 0..99.
+4. The SETIME function accepts `HH.MMSSss`; the TIME function returns
+   `HH.MMSSss` with the current centiseconds from the system clock.
 
-## "Looks Done But Isn't" Checklist
+**Detection:** Test `23.595999` (max valid time: 23:59:59.99) and `0.000000`
+(midnight exactly).
 
-- [ ] **RAND implementation:** `rand_seed` field added to `CalcState` with `#[serde(default)]` (NOT skip) — verify by checking serde annotations
-- [ ] **Stat 1 Σ-register layout:** confirmed from Stat 1 OM "Storage Registers" section — verify by checking `stats1/mod.rs` header comment against OM
-- [ ] **`xrom_modules` default migration:** v3.0 save file with `xrom_modules: 1` loads correctly and gets bit 1 set — verify via serde round-trip test
-- [ ] **Cancellation wiring:** every iterative Stat 1 function checks `cancel_requested` at loop top — verify via `stat1_cancellation.rs` test
-- [ ] **Contamination guard extended:** `check-free42-contamination.sh` includes stats-domain identifiers — verify by running script against a file containing a known Free42 stats identifier
-- [ ] **Divergence catalog created:** `docs/hp41-stat1-divergences.md` exists with entries for each known divergence before v3.1 ships — verify file exists and has ≥ 3 entries
-- [ ] **Four-way exhaustive match:** all Stat 1 Op variants present in dispatch, execute_op, cli/prgm_display, gui/prgm_display — compile-time enforced
-- [ ] **Per-Op test count ≥ 5:** `math1_op_test_count.rs` CI gate extended to cover stat1 Op variants — verify by checking gate configuration
+**Phase:** Core clock ops phase.
+
+**Confidence:** HIGH -- the format difference is clearly documented.
 
 ---
 
-## Pitfall-to-Phase Mapping
+### P45: Stopwatch Accumulated Time Persistence
 
-| Pitfall | Name | Prevention Phase | Verification |
-|---------|------|-----------------|--------------|
-| P18 | Variance catastrophic cancellation | Phase 33 (core ops) | `tests/stat1_variance_stability.rs` with nearly-equal values |
-| P19 | Quantile inversion non-convergence | Phase 33 (core ops) | `tests/numerical_accuracy.rs` extended; ≥ 10 tail quantile cases |
-| P20 | RNG serde and SystemRandom contamination | Phase 33 (core ops) | `tests/stat1_rand_determinism.rs` round-trip test; `Cargo.toml` review |
-| P21 | Sigma-register layout collision | Phase 33 (core ops) | OM register table transcription; SIZE floor test |
-| P22 | ALPHA-prompt mnemonic shadowing | Phase 33 (core ops + xrom.rs) | `xrom_shadowing.rs` extended to STAT_1.ops |
-| P23 | Distribution tolerance baseline | Phase 33 (core ops) | `stat1_accuracy.rs` two-level tolerance policy |
-| P24 | `xrom_modules` bit allocation | Phase 33 (framework) | Serde migration test; startup bit-set verification |
-| P25 | Cancellation channel omission | Phase 33 (core ops) | `stat1_cancellation.rs`; GUI E2E smoke for R/S-during-TINV |
-| P26 | Divergence catalog file naming | Phase 33 (framework) | File exists and uses `D-33-NN` identifiers before Phase 36 |
-| P27 | Free42 stats contamination gap | Phase 33 (framework) | `check-free42-contamination.sh` updated; per-file headers on all stats1 sources |
+**What goes wrong:** On the real HP-41CX, the stopwatch accumulates elapsed
+time even when the calculator is off (the quartz crystal keeps counting).
+In the emulator, there is no background process when the app is closed.
+If the stopwatch is "running" when the user quits, the accumulated time
+on next launch should include the elapsed wall-clock time since quit.
+
+**Consequences:** If the stopwatch running state and start timestamp are
+not persisted correctly, the stopwatch resets on every app restart. If they
+ARE persisted but the start timestamp is a `SystemTime` absolute value,
+deserialization on a different machine or after a timezone change produces
+wrong results.
+
+**Prevention:**
+1. Store `stopwatch_elapsed: HpNum` (accumulated centiseconds) as a
+   persistent `#[serde(default)]` field.
+2. Store `stopwatch_start: Option<u64>` (Unix epoch millis when started)
+   as a persistent `#[serde(default)]` field.
+3. On load, if `stopwatch_start` is `Some(t)`, compute additional elapsed
+   time as `now - t` and add to `stopwatch_elapsed`. Then update
+   `stopwatch_start` to `now`.
+4. Alternative (simpler): do NOT persist stopwatch running state. Document
+   that the emulator stops the stopwatch on exit (divergence from hardware).
+   The SETSW function restores a specific stopwatch value anyway.
+
+**Phase:** Stopwatch phase.
+
+**Confidence:** MEDIUM -- the exact HP-41CX stopwatch persistence behavior
+needs Owner's Manual verification.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Core framework + clock trait | P32 (live display), P34 (I/O-free), P33 (serde) | Clock injection pattern decided FIRST; serde shape for all fields declared |
+| XROM registration | P36 (shadowing), P43 (4-way match) | Verify all ~33 mnemonics; extend shadowing test |
+| Date arithmetic (DATE+, DDAYS, DOW) | P35 (date parsing), P41 (flag 31), P40 (Free42) | String-split parsing; Tantzen from primary source; flag 31 = sole DMY/MDY control |
+| Time functions (TIME, DATE, ATIME, ADATE) | P34 (I/O-free), P44 (HH.MMSSss) | Inject clock from frontend; new parser, not reuse hms.rs |
+| Clock display (CLKT, CLKTD) | P32 (live display) | CLI: always-redraw; GUI: frontend timer |
+| Stopwatch (SW, RUNSW, STOPSW, SETSW) | P38 (keyboard takeover), P32 (live display), P45 (persistence) | CalcState flag for SW mode; elapsed time field |
+| Alarm system (XYZALM, ALMCAT, RCLALM) | P37 (alarm state machine), P39 (interrupt re-entrancy) | Structured Alarm type; defer interrupting alarms |
+| CLI integration | P43 (4-way match), P32 (display updates) | Sanctioned CI break resolved; always-redraw in event loop |
+| GUI integration | P43 (4-way match), P32 (display updates) | Frontend timer for clock/stopwatch display |
+| Free42 contamination | P40 (surface expansion) | Extend script to time/ dir; add new tokens |
+| Test hardening | P33 (backward compat), P35 (date edge cases) | v3.1 save fixture test; date edge case suite |
+| Documentation | P42 (accuracy factor), P37 (alarm) | Divergence catalog for accuracy factor |
+
+---
+
+## XROM 26 Complete Function Reference
+
+Based on research, the HP-41CX Time Module (XROM 26) defines the following
+functions. Function IDs from multiple sources (not all confirmed individually):
+
+| # | Mnemonic | XROM | Category | Description |
+|---|----------|------|----------|-------------|
+| 1 | ADATE | 26,01 | Alpha | Append date to ALPHA |
+| 2 | ALMCAT | 26,02 | Alarm | List all pending/past-due alarms |
+| 3 | ALMNOW | 26,03 | Alarm | Activate oldest overdue alarm |
+| 4 | ATIME | 26,04 | Alpha | Append time to ALPHA (CLK12/24) |
+| 5 | ATIME24 | 26,05 | Alpha | Append time in 24h format |
+| 6 | CLK12 | 26,06 | Clock | Set 12-hour display |
+| 7 | CLK24 | 26,07 | Clock | Set 24-hour display |
+| 8 | CLKT | 26,08 | Clock | Time-only display |
+| 9 | CLKTD | 26,09 | Clock | Time and date display |
+| 10 | CLOCK | 26,10 | Clock | Display the clock (non-programmable?) |
+| 11 | CORRECT | 26,11 | Clock | Set time + adjust accuracy factor |
+| 12 | DATE | 26,12 | Date | Recall current date to X |
+| 13 | DATE+ | 26,13 | Date | Y-date + X-days = new date |
+| 14 | DDAYS | 26,14 | Date | Days between two dates |
+| 15 | DMY | 26,15 | Date | Set Day-Month-Year format (SF 31) |
+| 16 | DOW | 26,16 | Date | Day of week (0=Sun .. 6=Sat) |
+| 17 | MDY | 26,17 | Date | Set Month-Day-Year format (CF 31) |
+| 18 | RCLAF | 26,18 | Clock | Recall accuracy factor |
+| 19 | RCLSW | 26,19 | Stopwatch | Recall stopwatch time to X |
+| 20 | RUNSW | 26,20 | Stopwatch | Start stopwatch |
+| 21 | SETAF | 26,21 | Clock | Set accuracy factor |
+| 22 | SETDATE | 26,22 | Clock | Set clock date from X |
+| 23 | SETSW | 26,23 | Stopwatch | Set stopwatch starting time |
+| 24 | STOPSW | 26,24 | Stopwatch | Halt stopwatch |
+| 25 | SW | 26,25 | Stopwatch | Enter Stopwatch mode |
+| 26 | T+X | 26,26 | Clock | Adjust clock time by X |
+| 27 | TIME | 26,27 | Time | Recall current time to X |
+| 28 | XYZALM | 26,28 | Alarm | Set alarm from X/Y/Z/ALPHA |
+| -- | (gap) | 26,29-30 | -- | Not assigned |
+| 29 | CLALMA | 26,31 | Alarm | Clear alarm by ALPHA match |
+| 30 | CLALMX | 26,32 | Alarm | Clear alarm by X value |
+| 31 | CLRALMS | 26,33 | Alarm | Clear all alarms |
+| 32 | RCLALM | 26,34 | Alarm | Recall alarm parameters |
+| 33 | SWPT | 26,35 | Stopwatch | Stopwatch split point |
+
+**Total: 33 functions across 5 categories** (Clock: 8, Date: 5, Time: 1,
+Stopwatch: 6, Alarm: 6, Alpha formatting: 3, Clock adjustment: 4).
+
+**Note:** Some functions (CLOCK, SW) may not be programmable on real hardware.
+This needs Owner's Manual verification.
 
 ---
 
 ## Sources
 
-**Confidence: HIGH** (project codebase — directly verifiable)
-- `hp41-core/src/ops/stats.rs` — v2.2 Σ-register layout, existing variance formula,
-  fail-closed `regs.len() < 7` guard pattern.
-- `hp41-core/src/state.rs` — `CalcState` field patterns: `#[serde(default)]` vs
-  `#[serde(default, skip)]`; `default_xrom_modules()` current return value `0b0000_0001`;
-  `cancel_requested: Arc<AtomicBool>` infrastructure from v3.0.
-- `hp41-core/src/ops/math1/xrom.rs` — bit-1 Stat 1 stub comment at line 134;
-  bit-0 Math 1 check pattern for replication.
-- `docs/hp41-math1-divergences.md` — D-29.1 divergence catalog format and naming
-  convention as template for `hp41-stat1-divergences.md`.
-- `docs/adr/v3.0-002-user-callback-policy.md` — ADR-002 strict-reject policy as
-  precedent for Stat 1 iterative op policy decisions.
-- `CLAUDE.md` frozen invariants — `#[serde(default, skip)]` discipline; 4-way
-  exhaustive match; `hp41-core/src/ops/math1/` is frozen; no `println!` in core.
+- [HP-41C XROM Numbers](https://www.hpmuseum.org/software/xroms.htm) -- XROM ID 26 for Time Module
+- [HP 82182A Time Module QREF](https://qrg41.fjk.ch/hp82182a.html) -- Function list and descriptions
+- [HP-41 Module Database](https://calc.fjk.ch/db/hp41mod.php) -- Time Module 1A/1B/1C/2C all XROM 26
+- [HP-41CX Comparison](http://holyjoe.org/hp/New-in-41CX.pdf) -- CX vs CV/C differences
+- [DDAYS and DATE+ Implementation](https://archived.hpcalc.org/hp42s/programs/date/olddate.html) -- Tantzen ACM Algorithm 199
+- [HP-41CX QRG](https://literature.hpcalc.org/community/hp41cx-qrg-en.pdf) -- Quick reference guide
+- [Time Module Owner's Manual Section 4](https://archived.hpcalc.org/greendyk/hp41c-time-module/48-contents.html) -- Alarm system types
+- [go41cx XYZALM Issues](https://forum.hp41.org/viewtopic.php?f=21&t=649) -- Emulator alarm bugs
+- [Free42 Project](https://thomasokken.com/free42/) -- GPL-licensed time functions
+- [HP Museum Forum: Time Module Flags](https://www.hpmuseum.org/forum/thread-8569.html) -- Flag 31 and 44 usage
+- [HP-41 Daytimer](http://wilsonminesco.com/HP-41daytimer.html) -- XYZALM parameter usage
+- [DM41X Manual](https://technical.swissmicros.com/dm41x/doc/dm41x_user_manual.html) -- Modern Time Module emulation
+- [HP-41CX Date Format Discussion](https://www.hpmuseum.org/cgi-sys/cgiwrap/hpmuseum/archv016.cgi?read=90046) -- MM.DDYYYY format details
+- [Free42 Date Tools](https://richmit.github.io/hp42/date.html) -- Date function subset from HP-41 Time Module
 
-**Confidence: MEDIUM** (HP documentation — public-domain, requires verification)
-- HP Stat 1 Pac Owner's Manual (HP 00041-15001) — the authoritative spec for Stat 1
-  behavioral emulation. Register layout, convergence criteria, distribution function
-  algorithms, and worked examples are all in this document. Must be verified against
-  a physical or scanned copy before Phase 33 implementation begins.
-  Available at: https://www.hpmuseum.org/software/41/41stat.htm (scan may be available;
-  verify access during Phase 33 research setup).
-
-**Confidence: MEDIUM** (numerical analysis — well-established, context-dependent)
-- Welford's online algorithm: Welford, B. P. (1962), "Note on a method for calculating
-  corrected sums of squares and products", Technometrics 4(3): 419–420. Public domain,
-  widely reproduced. Used in the variance stability recommendation (Pitfall 18).
-- Abramowitz and Stegun §26.2.17 rational approximation for normal quantile — initial
-  guess recommendation (Pitfall 19). P.D in public domain.
-- Beasley-Springer-Moro algorithm for normal quantile initial guess — alternative to
-  A&S, higher accuracy. Springer (1977) "Algorithm AS 111". MEDIUM confidence that
-  this is what the HP Stat 1 OM specifies; verify against the OM.
-
-**Confidence: LOW** (unverified — flag for Phase 33 research)
-- Free42 `core_math2.cc` statistics identifiers — the specific identifier names
-  listed in Pitfall 27 are HYPOTHETICAL based on Free42's code organization pattern.
-  Verify against actual Free42 source before adding to the contamination script.
-  URL: https://github.com/thomasokken/free42/blob/master/common/core_math2.cc
-- HP Stat 1 Pac XROM ID number — reported as a different module ID from Math Pac I
-  (XROM 7 = "MATH 1A"). Stat 1's hardware XROM ID must be confirmed from the Stat 1
-  OM or from community sources (e.g. HP-41 MCODE FAQ, MoHPC forum) before assigning
-  a module bit position in `xrom_modules`.
-  Risk: if Stat 1 is XROM N for some N not equal to what we assume, the CATALOG 2
-  enumeration will display the wrong module name.
-
----
-*Pitfalls research for: HP-41 Stat 1 Pac behavioral emulation (v3.1)*
-*Researched: 2026-05-21*
-*Supersedes: The previous PITFALLS.md in this directory (v3.0 Math Pac I, Pitfalls 1–22).*
-*Math Pac I pitfalls 1–22 remain valid as mitigated invariants; see*
-*`.planning/milestones/v3.0-ROADMAP.md` and `CLAUDE.md` for their current status.*
+**Confidence per source:**
+- XROM ID 26: HIGH (multiple independent sources agree)
+- Function list: MEDIUM-HIGH (cross-referenced across QREF, Wikipedia, finseth.com)
+- XYZALM parameters: MEDIUM (Owner's Manual excerpts only, not full spec)
+- Alarm types: MEDIUM (Section 4 excerpt confirms interrupt/non-interrupt distinction)
+- Date format: HIGH (universally documented as MM.DDYYYY / DD.MMYYYY with flag 31)
+- Stopwatch keyboard takeover: LOW-MEDIUM (referenced but not fully documented in search results)
