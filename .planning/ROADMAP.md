@@ -73,7 +73,7 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 - [x] **Phase 34: hp41-cli — CLI Integration** — `docs/hp41-stat1-functions.json` canonical source; third `OnceLock<Vec<HelpEntry>>`; ~24 new `op_display_name` arms; "Stat 1 Pac (XROM 2)" help-overlay section; `xrom_shadowing.rs` extended to STAT_1.ops; modal-prompt routing for multi-step Stat 1 workflows. Estimate 2–3 plans. (completed 2026-05-23)
 - [x] **Phase 35: Documentation & ADRs** — `docs/hp41-stat1-divergences.md` three-bucket catalog; `scripts/docs-matrix` three-input extension; `docs/hp41-stat1-function-matrix.md` generated; new ADRs for v3.1 architectural decisions (RNG-state serde, register layout, distribution-primitive policy); README v3.1 section + CLAUDE.md `### v3.1 additions` block; `docs/architecture-history.md` v3.1 narrative. Estimate 3–4 plans. (completed 2026-05-23)
 - [x] **Phase 36: hp41-gui — GUI Integration** — 26 new `op_display_name` arms in GUI `prgm_display.rs` (4-way invariant item 4 sealed); CATALOG 2 gains "STAT 1B" XROM entry via surgical `op_catalog` bit-1 block; help overlay "Stat 1 Pac (XROM 2)" third section via Vite JSON import; LCD-alternation modal-prompt routing verified for all 5 Stat1Step variants; STAT-GUI-05 reassigned to Phase 37 per D-36.2 (bounded 50-iter primitives). 3 plans. (completed 2026-05-24)
-- [ ] **Phase 37: Test Hardening & Quality Gates** — `hp41-core` coverage hold ≥ 95.39 % lines / ≥ 94.26 % regions; per-file `stat1/*.rs` floor ≥ 90 %; two-level tolerance discipline (1e-9 closed-form, 1e-7 iterative); `stat1_op_test_count.rs` meta-gate; `xrom_shadowing.rs` STAT_1 extension; backward-compat test for v3.0 save migration; `numerical_accuracy.rs` extended with ~30 Stat 1 oracle cases; `lint_stat1_assertions.rs`; `stat1_rand_determinism.rs`; E2E smoke extended with one Stat 1 Pac workflow on Ubuntu. Estimate 6–10 plans.
+- [ ] **Phase 37: Test Hardening & Quality Gates** — `hp41-core` coverage hold ≥ 95.39 % lines / ≥ 94.26 % regions; per-file `stat1/*.rs` floor ≥ 90 %; two-level tolerance discipline (1e-9 closed-form, 1e-7 iterative); `stat1_op_test_count.rs` meta-gate; `xrom_shadowing.rs` STAT_1 extension; backward-compat test for v3.0 save migration; `numerical_accuracy.rs` extended with ~30 Stat 1 oracle cases; `lint_stat1_assertions.rs`; `stat1_rand_determinism.rs`; E2E smoke extended with one Stat 1 Pac workflow on Ubuntu. 5 plans.
 
 ---
 
@@ -193,8 +193,26 @@ Plans:
   4. `stat1_rand_determinism.rs` verifies that the RNG sequence is identical after a serde save/load cycle — seed survives persistence
   5. E2E smoke (`ci-gui.yml::e2e-linux`) includes at least one Stat 1 Pac workflow: `XEQ "ΣNORMD"` with x = 1.96 returns Q ≈ 0.0250 on the GUI LCD (Ubuntu, WebdriverIO)
 
-**Plans**: TBD
+**Plans**: 5 plans
 **UI hint**: no
+Plans:
+
+**Wave 1**
+
+- [ ] 37-01-PLAN.md — LINT-EXEMPT pre-annotations on stat1_rand_determinism.rs + stat1_op_test_count.rs meta-gate (26 variants, dual-scan) + lint_stat1_assertions.rs assertion-discipline lint (Pitfall 14/17) + STAT-QUAL-08 xrom_shadowing attestation (STAT-QUAL-06, STAT-QUAL-07, STAT-QUAL-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 37-02-PLAN.md — stat1_modal_coverage.rs coverage-gap closure (modal.rs 74% -> >= 90%): submit_step error paths, cancel paths, multi-step modal chains across all 5 Stat1Step variants (STAT-QUAL-03)
+- [ ] 37-03-PLAN.md — stat1_anova_coverage.rs (anova.rs 86% -> >= 90%) + stat1_backward_compat.rs + v30-autosave.json fixture + D-35-13 STAT-GUI-05 waiver in divergences doc + Free42 re-verification (STAT-QUAL-03, STAT-QUAL-09, STAT-QUAL-10, STAT-GUI-05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 37-04-PLAN.md — numerical_accuracy.rs ITER_TOL constant + iter macro arm + ~30 scipy-derived Stat 1 oracle cases; combined >= 98% pass rate; two-level tolerance discipline (1e-9/1e-7) (STAT-QUAL-04, STAT-QUAL-05)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 37-05-PLAN.md — E2E smoke.spec.js ΣNORMD Q(1.96) workflow extension (Ubuntu-only) + quality-gate graduation verification (just ci + coverage measurement) + README hard-claim graduation (D-35.3/D-37.11) + CLAUDE.md Phase 37 finalization (STAT-QUAL-01, STAT-QUAL-02, STAT-QUAL-11)
 
 ---
 
@@ -212,8 +230,8 @@ Plans:
 | 34 | v3.1 | 2/2 | Complete   | 2026-05-23 |
 | 35 | v3.1 | 4/4 | Complete    | 2026-05-23 |
 | 36 | v3.1 | 3/3 | Complete   | 2026-05-24 |
-| 37 | v3.1 | 0/0 | Not started | - |
+| 37 | v3.1 | 0/5 | Not started | - |
 
 ---
 
-*Last updated: 2026-05-24 — Phase 36 planned (3 plans authored per D-36.4; STAT-GUI-01..04 addressed, STAT-GUI-05 reassigned to Phase 37 per D-36.2).*
+*Last updated: 2026-05-24 — Phase 37 planned (5 plans authored across 4 waves; STAT-QUAL-01..11 + STAT-GUI-05 addressed).*
