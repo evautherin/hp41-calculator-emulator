@@ -102,7 +102,15 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
   3. User can execute `XEQ "RUNSW"` / `XEQ "STOPSW"` / `XEQ "RCLSW"` and observe elapsed time tracked via monotonic Instant, surviving system clock adjustments
   4. User can execute `XEQ "XYZALM"` to store an alarm and `XEQ "RCLALM"` to recall it, with alarm catalog persisting across save/load cycles
   5. All ~33 Op variants compile in dispatch() and execute_op() (4-way invariant items 1+2 complete; intentional CI break in hp41-cli/hp41-gui until Phase 39/41)
-**Plans**: TBD
+**Plans:** 6 plans
+
+Plans:
+- [ ] 38-01-PLAN.md — Framework scaffolding: Op enum (35 variants), XROM 26 registration, CalcState fields, migration, Free42 guard, time/ module skeleton
+- [ ] 38-02-PLAN.md — Date arithmetic: JDN Fliegel-Van Flandern, parse helpers, DATE+/DDAYS/DOW/DMY/MDY
+- [ ] 38-03-PLAN.md — Clock + format ops: TIME/DATE/T+X/CORRECT/SETAF/RCLAF/CLK12/CLK24/CLKT/CLKTD/CLOCK/SETIME/SETDATE
+- [ ] 38-04-PLAN.md — Alpha time + Stopwatch: ATIME/ATIME24/ADATE + RUNSW/STOPSW/SETSW/RCLSW/SWPT/STPW/SW
+- [ ] 38-05-PLAN.md — Alarm system: XYZALM/RCLALM/ALMCAT/CLALMA/CLALMX/CLRALMS/ALMNOW/check_alarms
+- [ ] 38-06-PLAN.md — Modal prompts: TimeStep submit logic for SETIME/SETDATE + ModalProgram::Time wiring
 
 ### Phase 39: hp41-cli -- CLI Integration + Live Display
 **Goal**: Users can discover and use all Time Pac functions from the CLI with live-updating clock/stopwatch display, searchable help, and alarm notifications surfaced in the status bar
@@ -156,7 +164,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 0/TBD | Not started | - |
+| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 0/6 | Planning complete | - |
 | 39. hp41-cli -- CLI Integration + Live Display | 0/TBD | Not started | - |
 | 40. Documentation & ADRs | 0/TBD | Not started | - |
 | 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
@@ -164,4 +172,4 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 
 ---
 
-*Last updated: 2026-05-24 -- v3.2 Time Pac Emulation roadmap created.*
+*Last updated: 2026-05-24 -- Phase 38 planned (6 plans, 3 waves).*
