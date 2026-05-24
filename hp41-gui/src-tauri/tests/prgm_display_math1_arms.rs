@@ -66,6 +66,62 @@ const MATH1_VARIANT_IDS: &[&str] = &[
     "Four", "TriSss", "TriAsa", "TriSaa", "TriSas", "TriSsa", "Trans2d", "Trans3d",
 ];
 
+/// Hard-coded list of Stat 1 Pac Op variant identifier strings whose arms must appear
+/// in `prgm_display.rs` as `Op::<Id>` substrings.
+///
+/// Source: Phase 33 Op variants shipped in plans 33-03..33-08.
+/// Count: 26 unique Stat 1 Pac Op variants.
+const STAT1_VARIANT_IDS: &[&str] = &[
+    // ── Plan 33-05/06: Univariate / Bivariate (4 variants) ───────────────────
+    "SigmaBstat", "SigmaBstg", "SigmaMmtug", "SigmaMmtgd",
+    // ── Plan 33-06: ANOVA Family (3 variants) ────────────────────────────────
+    "SigmaAovone", "SigmaAovtwo", "SigmaAnocov",
+    // ── Plan 33-05/08: Curve Fitting + Regression (8 variants) ──────────────
+    "SigmaLin", "SigmaExp", "SigmaLogi", "SigmaPow",
+    "SigmaMlrxy", "SigmaMlrxyz", "SigmaPolypWorkflow", "SigmaPolyc",
+    // ── Plan 33-07: Hypothesis Tests (2 variants) ────────────────────────────
+    "SigmaPtst", "SigmaTstat",
+    // ── Plan 33-04/06: Nonparam / Chi-Sq Eval / Contingency (5 variants) ────
+    "SigmaXsqev", "SigmaEfxsq", "SigmaCtkkk", "SigmaCtkk", "SigmaSpear",
+    // ── Plan 33-03: Distributions (2 variants) ───────────────────────────────
+    "SigmaNormdWorkflow", "SigmaChisqdWorkflow",
+    // ── Plan 33-08: RNG (2 variants) ─────────────────────────────────────────
+    "Rand", "Seed",
+];
+
+/// Catches: missing `op_display_name` arm for a Phase 33 Stat 1 Pac Op variant,
+///          causing wrong PRGM listing output for that variant (4-way invariant item 4).
+///
+/// Mirrors `every_math1_op_appears_in_prgm_display` — same file-text-scan strategy.
+#[test]
+fn every_stat1_op_appears_in_prgm_display() {
+    assert!(
+        !PRGM_DISPLAY_SRC.trim().is_empty(),
+        "prgm_display.rs loaded via include_str! is empty — check the relative path"
+    );
+
+    let mut missing: Vec<&str> = Vec::new();
+    for id in STAT1_VARIANT_IDS {
+        let needle = format!("Op::{id}");
+        if !PRGM_DISPLAY_SRC.contains(needle.as_str()) {
+            missing.push(id);
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "Missing op_display_name arms in hp41-gui/src-tauri/src/prgm_display.rs:\n{}\n\n\
+         Each of the above Op variants was shipped in Phase 33 plans 33-03..33-08 \
+         but does NOT appear as `Op::<Id>` in prgm_display.rs. Add the missing arm(s) \
+         to restore the 4-exhaustive-match invariant (item 4).",
+        missing
+            .iter()
+            .map(|id| format!("  - missing arm: Op::{id}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+}
+
 /// Catches: missing `op_display_name` arm for a Phase 28 Math Pac I Op variant,
 ///          causing wrong PRGM listing output for that variant.
 ///

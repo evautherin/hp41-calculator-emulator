@@ -88,7 +88,7 @@ Requirements for v3.1 Stat 1 Pac Emulation. Each maps to exactly one phase durin
 - [ ] **STAT-GUI-02**: CATALOG 2 XROM enumeration discovers and displays `STAT_1` alongside `MATH_1` — both XROM module IDs visible to the user from within the calculator
 - [ ] **STAT-GUI-03**: `?` keyboard-shortcut overlay parallel-load adds a third JSON-import section "Stat 1 Pac (XROM 2)" — search across all three XROM sections + built-ins
 - [ ] **STAT-GUI-04**: LCD-alternation modal prompts (e.g. `SEED?` for RAND/SEED) reuse the existing modal-prompt infrastructure with the v2.1 frontend-only one-shot SHIFT (`shiftActive`) untouched
-- [ ] **STAT-GUI-05**: `request_cancel` cancellation channel (introduced in v3.0 Phase 31) reused for iterative-quantile paths in ΣNORMD inverse + ΣCHISQD CDF — per-loop AtomicBool check + lock release (Pitfall 11 mitigation extended to Stat 1)
+- [ ] **STAT-GUI-05**: `request_cancel` cancellation channel (introduced in v3.0 Phase 31) reused for iterative-quantile paths in ΣNORMD inverse + ΣCHISQD CDF — per-loop AtomicBool check + lock release (Pitfall 11 mitigation extended to Stat 1) -- reassessed Phase 36 planning: bounded 50-iter primitives (Acklam closed-form / gser+gcf with ITER_CAP=50) do not need cancellation; deferred to Phase 37 STAT-QUAL block per 36-CONTEXT D-36.2
 
 ### Documentation (STAT-DOC)
 
@@ -219,7 +219,7 @@ Which phases cover which requirements. Filled by `gsd-roadmapper` during roadmap
 | STAT-GUI-02 | Phase 36 | Pending |
 | STAT-GUI-03 | Phase 36 | Pending |
 | STAT-GUI-04 | Phase 36 | Pending |
-| STAT-GUI-05 | Phase 36 | Pending |
+| STAT-GUI-05 | Phase 37 | Pending |
 | STAT-DOC-01 | Phase 35 | Complete |
 | STAT-DOC-02 | Phase 35 | Complete |
 | STAT-DOC-03 | Phase 35 | Complete |
@@ -248,11 +248,11 @@ Which phases cover which requirements. Filled by `gsd-roadmapper` during roadmap
 | Phase 33 | STAT-FW-01..04, STAT-UNI-01..04, STAT-AOV-01..04, STAT-REG-01..09, STAT-HYP-01..07, STAT-DST-01..07, STAT-RNG-01..04 | 39 |
 | Phase 34 | STAT-CLI-01..05 | 5 |
 | Phase 35 | STAT-DOC-01..06 | 6 |
-| Phase 36 | STAT-GUI-01..05 | 5 |
-| Phase 37 | STAT-QUAL-01..11 | 11 |
+| Phase 36 | STAT-GUI-01..04 | 4 |
+| Phase 37 | STAT-QUAL-01..11, STAT-GUI-05 | 12 |
 | **Total** | | **66** |
 
 ---
 
 *Requirements defined: 2026-05-22*
-*Last updated: 2026-05-22 — traceability table filled by `gsd-roadmapper`; all 66 v1 requirements mapped to Phases 33–37*
+*Last updated: 2026-05-24 — STAT-GUI-05 reassigned Phase 36 → Phase 37 per 36-CONTEXT D-36.2 (bounded 50-iter distribution primitives do not need cancellation at microsecond timescale)*

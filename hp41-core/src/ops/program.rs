@@ -15,7 +15,7 @@ use std::str::FromStr;
 
 use crate::error::HpError;
 use crate::num::HpNum;
-use crate::ops::math1::xrom::MATH_1;
+use crate::ops::math1::xrom::{MATH_1, STAT_1};
 use crate::ops::{Op, TestKind};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
@@ -349,7 +349,19 @@ pub fn op_catalog(state: &mut CalcState, n: u8) -> Result<(), HpError> {
                 for (name, _op) in MATH_1.ops {
                     state.print_buffer.push(format!("{name:<24}"));
                 }
-            } else {
+            }
+            if state.xrom_modules & 0b0000_0010 != 0 {
+                // Stat 1 Pac (bit 1) is loaded — D-36.1 parallel sibling block.
+                state.print_buffer.push(format!(
+                    "{:<24}",
+                    format!("XROM {} {}", STAT_1.id, STAT_1.name)
+                ));
+                for (name, _op) in STAT_1.ops {
+                    state.print_buffer.push(format!("{name:<24}"));
+                }
+            } else if state.xrom_modules & 0b0000_0001 == 0 {
+                // NO XROM: fires only when BOTH bit-0 (Math 1) AND bit-1 (Stat 1)
+                // are clear. Post-migrate_after_load this is defensive-only.
                 state.print_buffer.push(format!("{:<24}", "NO XROM"));
             }
         }

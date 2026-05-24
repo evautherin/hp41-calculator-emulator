@@ -8,20 +8,24 @@
 //          CAT 3/4 accidentally changed to enumerate instead of "NOT AVAILABLE".
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::math1::xrom::MATH_1;
+use hp41_core::ops::math1::xrom::{MATH_1, STAT_1};
 use hp41_core::ops::program::op_catalog;
 use hp41_core::state::CalcState;
 
-/// CAT 2 with Math 1 loaded (default v3.0 config: xrom_modules bit 0 = 1)
-/// must emit a module header line followed by every name in MATH_1.ops.
+/// CAT 2 with Math 1 loaded (bit 0 = 1, Stat 1 bit 1 = 0) must emit a module
+/// header line followed by every name in MATH_1.ops (and nothing from STAT_1).
+/// Uses explicit xrom_modules: 0b0000_0001 because v3.1 default is 0b0000_0011.
 #[test]
 fn catalog_2_with_math1_loaded_lists_header_and_functions() {
-    let mut state = CalcState::default();
-    // Verify default xrom_modules has bit 0 set (Math 1 pre-loaded).
+    let mut state = CalcState {
+        xrom_modules: 0b0000_0001, // Math 1 only (bit 0); Stat 1 not active
+        ..CalcState::default()
+    };
+    // Verify the test state has bit 0 set (Math 1) and bit 1 clear (no Stat 1).
     assert_ne!(
         state.xrom_modules & 0b0000_0001,
         0,
-        "Default CalcState must have Math 1 loaded (bit 0 of xrom_modules)"
+        "Test state must have Math 1 loaded (bit 0 of xrom_modules)"
     );
 
     let initial_buf_len = state.print_buffer.len();
@@ -133,5 +137,64 @@ fn catalog_3_and_4_still_not_available() {
     assert!(
         cat4_lines.iter().any(|l| l.contains("NOT AVAILABLE")),
         "CAT 4 should still emit 'NOT AVAILABLE': {cat4_lines:?}"
+    );
+}
+
+/// Phase 36-01 — CAT 2 with both XROM bits set (xrom_modules = 0b0000_0011)
+/// must emit headers + function entries for BOTH MATH_1 and STAT_1.
+///
+/// Verifies the D-36.1 parallel bit-1 conditional block alongside the existing
+/// bit-0 block in `op_catalog`. Both modules must be visible to the user.
+#[test]
+fn catalog_2_lists_stat1_when_bit1_set() {
+    let mut state = CalcState {
+        xrom_modules: 0b0000_0011, // both Math 1 (bit 0) + Stat 1 (bit 1) active
+        ..CalcState::default()
+    };
+
+    let initial_buf_len = state.print_buffer.len();
+    op_catalog(&mut state, 2).unwrap();
+
+    let new_lines = &state.print_buffer[initial_buf_len..];
+
+    // Flatten to a single string for substring checks.
+    let all_text: String = new_lines.join("\n");
+
+    // Must contain the MATH_1 module header ("MATH 1A" from MATH_1.name).
+    assert!(
+        all_text.contains(MATH_1.name),
+        "CAT 2 must contain MATH_1 module name '{}' when bit 0 is set; got:\n{all_text}",
+        MATH_1.name
+    );
+
+    // Must contain the STAT_1 module header ("STAT 1B" from STAT_1.name).
+    assert!(
+        all_text.contains(STAT_1.name),
+        "CAT 2 must contain STAT_1 module name '{}' when bit 1 is set; got:\n{all_text}",
+        STAT_1.name
+    );
+
+    // Spot-check one entry from Math 1 (POLY is in MATH_1.ops).
+    assert!(
+        all_text.contains("POLY"),
+        "CAT 2 must contain 'POLY' from MATH_1.ops; got:\n{all_text}"
+    );
+
+    // Spot-check one entry from Stat 1 (ΣBSTAT is the first STAT_1.ops entry).
+    assert!(
+        all_text.contains("\u{03A3}BSTAT"),
+        "CAT 2 must contain 'ΣBSTAT' from STAT_1.ops; got:\n{all_text}"
+    );
+
+    // Total buffer growth sanity check:
+    // banner(1) + MATH_1 header(1) + MATH_1.ops + STAT_1 header(1) + STAT_1.ops + END(1)
+    let expected_lines = 1 + 1 + MATH_1.ops.len() + 1 + STAT_1.ops.len() + 1;
+    assert_eq!(
+        new_lines.len(),
+        expected_lines,
+        "Expected {} lines (banner + math1_hdr + math1_ops + stat1_hdr + stat1_ops + END), \
+         got {}:\n{all_text}",
+        expected_lines,
+        new_lines.len()
     );
 }
