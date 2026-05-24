@@ -26,6 +26,8 @@ use std::str::FromStr;
 
 const TOLERANCE: f64 = 1e-9;
 const WIDE_TOL: f64 = 1e-6;
+// STAT-QUAL-05: iterative-path tolerance tier (1e-9 closed-form, 1e-7 iterative)
+const ITER_TOL: f64 = 1e-7;
 
 struct AccuracyCase {
     id: usize,
@@ -118,6 +120,17 @@ fn test_numerical_accuracy_suite() {
                 expected: $expected,
                 actual: $actual,
                 tol: WIDE_TOL,
+            });
+        }};
+        ($domain:expr, $desc:expr, $expected:expr, $actual:expr, iter) => {{
+            id += 1;
+            cases.push(AccuracyCase {
+                id,
+                domain: $domain,
+                description: $desc.to_string(),
+                expected: $expected,
+                actual: $actual,
+                tol: ITER_TOL,
             });
         }};
     }
