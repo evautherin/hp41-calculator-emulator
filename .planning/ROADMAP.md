@@ -199,16 +199,16 @@ Plans:
 
 **Wave 1**
 
-- [ ] 37-01-PLAN.md — LINT-EXEMPT pre-annotations on stat1_rand_determinism.rs + stat1_op_test_count.rs meta-gate (26 variants, dual-scan) + lint_stat1_assertions.rs assertion-discipline lint (Pitfall 14/17) + STAT-QUAL-08 xrom_shadowing attestation (STAT-QUAL-06, STAT-QUAL-07, STAT-QUAL-08)
+- [x] 37-01-PLAN.md — LINT-EXEMPT pre-annotations on stat1_rand_determinism.rs + stat1_op_test_count.rs meta-gate (26 variants, dual-scan) + lint_stat1_assertions.rs assertion-discipline lint (Pitfall 14/17) + STAT-QUAL-08 xrom_shadowing attestation (STAT-QUAL-06, STAT-QUAL-07, STAT-QUAL-08)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 37-02-PLAN.md — stat1_modal_coverage.rs coverage-gap closure (modal.rs 74% -> >= 90%): submit_step error paths, cancel paths, multi-step modal chains across all 5 Stat1Step variants (STAT-QUAL-03)
-- [ ] 37-03-PLAN.md — stat1_anova_coverage.rs (anova.rs 86% -> >= 90%) + stat1_backward_compat.rs + v30-autosave.json fixture + D-35-13 STAT-GUI-05 waiver in divergences doc + Free42 re-verification (STAT-QUAL-03, STAT-QUAL-09, STAT-QUAL-10, STAT-GUI-05)
+- [x] 37-02-PLAN.md — stat1_modal_coverage.rs coverage-gap closure (modal.rs 74% -> >= 90%): submit_step error paths, cancel paths, multi-step modal chains across all 5 Stat1Step variants (STAT-QUAL-03)
+- [x] 37-03-PLAN.md — stat1_anova_coverage.rs (anova.rs 86% -> >= 90%) + stat1_backward_compat.rs + v30-autosave.json fixture + D-35-13 STAT-GUI-05 waiver in divergences doc + Free42 re-verification (STAT-QUAL-03, STAT-QUAL-09, STAT-QUAL-10, STAT-GUI-05)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 37-04-PLAN.md — numerical_accuracy.rs ITER_TOL constant + iter macro arm + ~30 scipy-derived Stat 1 oracle cases; combined >= 98% pass rate; two-level tolerance discipline (1e-9/1e-7) (STAT-QUAL-04, STAT-QUAL-05)
+- [x] 37-04-PLAN.md — numerical_accuracy.rs ITER_TOL constant + iter macro arm + ~30 scipy-derived Stat 1 oracle cases; combined >= 98% pass rate; two-level tolerance discipline (1e-9/1e-7) (STAT-QUAL-04, STAT-QUAL-05)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -230,7 +230,7 @@ Plans:
 | 34 | v3.1 | 2/2 | Complete   | 2026-05-23 |
 | 35 | v3.1 | 4/4 | Complete    | 2026-05-23 |
 | 36 | v3.1 | 3/3 | Complete   | 2026-05-24 |
-| 37 | v3.1 | 0/5 | Not started | - |
+| 37 | v3.1 | 4/5 | In Progress|  |
 
 ---
 
