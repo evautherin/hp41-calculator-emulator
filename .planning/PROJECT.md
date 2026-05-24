@@ -1,18 +1,18 @@
 # HP-41 Calculator Emulator
 
-## Current State
+## Current Milestone: v3.2 Time Pac Emulation
 
-**Last shipped:** v3.1 Stat 1 Pac Emulation — tag `v3.1` cut 2026-05-24.
+**Goal:** Behavioral emulation of the HP-41CX Time Module (OM 00041-90035) as the third XROM application module — date/time arithmetic backed by the host system clock, full alarm catalog with interrupt-driven triggering, and live-updating stopwatch with real-time LCD display.
 
-**Status:** Between milestones. Next: `/gsd-new-milestone` to define v3.2 scope.
-
-## Next Milestone Goals
-
-Run `/gsd-new-milestone` to define v3.2 scope. Candidate areas:
-
-- **Time Pac** (HP-41CX clock functions, XROM TBD)
-- **Advanced Matrix Pac** (M+, MAT*, INV-as-transpose, V+, VDOT, IDN)
-- **Signed binary releases** (cargo-dist CLI + tauri-action GUI — deferred since v3.1)
+**Target features:**
+- System-clock-backed TIME and DATE (host OS time)
+- Date arithmetic: DATE+, DDAYS, DOW
+- Time/date display in ALPHA: ADATE, ATIME, ATIME24
+- Time/date setting modals: SETTIME, SETDATE
+- Clock display mode: CLKT, CLKTD
+- Full alarm system: XYZALM (set), RCLAF (recall), ALMCAT (catalog), alarm acknowledgment
+- Live stopwatch: SETSW, SW, STPW with real-time LCD updates
+- CLI + GUI integration mirroring the v3.0/v3.1 module footprint
 
 <details>
 <summary>v3.1 Stat 1 Pac Emulation (shipped 2026-05-24 — see <code>milestones/v3.1-ROADMAP.md</code>)</summary>
