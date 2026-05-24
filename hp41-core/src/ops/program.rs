@@ -114,9 +114,9 @@ pub fn op_isg(state: &mut CalcState, reg: u8) -> Result<bool, HpError> {
     if reg as usize >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    let (current, final_val, step, frac_padded) = parse_counter(&state.regs[reg as usize])?;
+    let (current, final_val, step, frac_padded) = parse_counter(&state.regs[reg as usize].numeric_or_zero())?;
     let new_current = current + step;
-    state.regs[reg as usize] = build_counter(new_current, &frac_padded)?;
+    state.regs[reg as usize] = build_counter(new_current, &frac_padded)?.into();
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(new_current > final_val) // true = skip next (loop exits, D-11)
 }
@@ -127,9 +127,9 @@ pub fn op_dse(state: &mut CalcState, reg: u8) -> Result<bool, HpError> {
     if reg as usize >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    let (current, final_val, step, frac_padded) = parse_counter(&state.regs[reg as usize])?;
+    let (current, final_val, step, frac_padded) = parse_counter(&state.regs[reg as usize].numeric_or_zero())?;
     let new_current = current - step;
-    state.regs[reg as usize] = build_counter(new_current, &frac_padded)?;
+    state.regs[reg as usize] = build_counter(new_current, &frac_padded)?.into();
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(new_current <= final_val) // true = skip next (loop exits, D-11)
 }
@@ -256,7 +256,7 @@ pub fn op_clst(state: &mut CalcState) -> Result<(), HpError> {
 /// OQ-2 (AMENDED 2026-05-14): `nnn == 0` silently clamps to 1 (documented
 /// divergence from real HP-41 which accepts `SIZE 000`). `nnn > 319`
 /// returns `HpError::InvalidOp`. Otherwise `state.regs.resize(target,
-/// HpNum::zero())`: shrinking truncates the tail (hardware-faithful
+/// crate::num::HpValue::default())`: shrinking truncates the tail (hardware-faithful
 /// "MEM LOST"); growing zero-fills the new slots. Preserves values where
 /// the old and new ranges overlap.
 ///
@@ -271,7 +271,7 @@ pub fn op_size(state: &mut CalcState, nnn: u16) -> Result<(), HpError> {
         return Err(HpError::InvalidOp);
     }
     let target = nnn.max(1) as usize; // OQ-2: SIZE 0 → silently clamp to 1
-    state.regs.resize(target, crate::num::HpNum::zero());
+    state.regs.resize(target, crate::num::HpValue::default());
     // Phase 23 D-23.4 (WR-01): drop text_regs entries that now point past
     // end-of-regs so a shrink-then-grow cycle cannot resurrect a stale text
     // shadow. CONTEXT.md D-23.4's audit inventory listed STO/STO-arith/CLREG
@@ -1359,7 +1359,7 @@ mod program_tests {
     #[test]
     fn test_isg_increments_and_then_skips() {
         let mut state = CalcState::default();
-        state.regs[0] = HpNum(Decimal::from_str("4.005").unwrap());
+        state.regs[0] = HpNum(Decimal::from_str("4.005").unwrap()).into();
         let result1 = op_isg(&mut state, 0).unwrap();
         assert!(
             !result1,

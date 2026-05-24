@@ -31,8 +31,8 @@ fn make_solve_state(label: &str, x1: f64, x2: f64, program: Vec<Op>) -> (CalcSta
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO));
-    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO));
+    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO)).into();
     state.stack.lift_enabled = false;
     state.display_mode = DisplayMode::Fix(4);
     (state, program)
@@ -226,8 +226,8 @@ fn solve_root_between() {
     state.program = program.clone();
     state.alpha_reg = "FSIN".to_string();
     // x1=3.0 (sin>0 in rad), x2=4.0 (sin<0 in rad) — brackets π ≈ 3.1416
-    state.regs[0] = HpNum::from(Decimal::from_f64(3.0).unwrap_or(Decimal::ZERO));
-    state.regs[1] = HpNum::from(Decimal::from_f64(4.0).unwrap_or(Decimal::ZERO));
+    state.regs[0] = HpNum::from(Decimal::from_f64(3.0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(4.0).unwrap_or(Decimal::ZERO)).into();
     state.stack.lift_enabled = false;
     state.display_mode = DisplayMode::Fix(4);
     // Use RAD mode for sin to get sin(3.0)>0 and sin(4.0)<0

@@ -346,7 +346,7 @@ fn op_pack_in_run_program() {
     // require all three are unchanged.
     let mut state = CalcState::new();
     push(&mut state, "42");
-    state.regs[7] = HpNum::rounded(Decimal::from(99));
+    state.regs[7] = HpNum::rounded(Decimal::from(99)).into();
     state.flags = hp41_core::ops::flags::flag_set(state.flags, 5);
     let x_before = state.stack.x.clone();
     let reg7_before = state.regs[7].clone();
@@ -406,7 +406,7 @@ fn op_asn_in_run_program() {
 fn op_view_in_run_program() {
     // Catches: program-context divergence on Op::View — execute_op arm at program.rs.
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::from(42i32);
+    state.regs[3] = HpNum::from(42i32).into();
     state.display_mode = hp41_core::DisplayMode::Fix(2);
     run_op_in_program(&mut state, Op::View(3)).unwrap();
     assert!(state.display_override.is_some());
@@ -444,7 +444,7 @@ fn op_stop_in_run_program() {
 fn op_arcl_in_run_program() {
     // Catches: program-context divergence on Op::Arcl — execute_op arm at program.rs.
     let mut state = CalcState::new();
-    state.regs[3] = HpNum::from(42i32);
+    state.regs[3] = HpNum::from(42i32).into();
     state.display_mode = hp41_core::DisplayMode::Fix(0);
     run_op_in_program(&mut state, Op::Arcl(3)).unwrap();
     // Arcl appends the formatted register value to alpha_reg.
@@ -516,7 +516,7 @@ fn op_posa_in_run_program() {
 fn op_sto_ind_in_run_program() {
     // Catches: program-context divergence on Op::StoInd — execute_op arm at program.rs.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(7i32); // pointer
+    state.regs[5] = HpNum::from(7i32).into(); // pointer
     state.stack.x = HpNum::from(99i32); // value
     run_op_in_program(&mut state, Op::StoInd(5)).unwrap();
     assert_eq!(state.regs[7].inner(), Decimal::from(99));
@@ -526,8 +526,8 @@ fn op_sto_ind_in_run_program() {
 fn op_rcl_ind_in_run_program() {
     // Catches: program-context divergence on Op::RclInd — execute_op arm at program.rs.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(7i32); // pointer
-    state.regs[7] = HpNum::from(123i32); // target value
+    state.regs[5] = HpNum::from(7i32).into(); // pointer
+    state.regs[7] = HpNum::from(123i32).into(); // target value
     run_op_in_program(&mut state, Op::RclInd(5)).unwrap();
     assert_eq!(state.stack.x.inner(), Decimal::from(123));
 }
@@ -536,8 +536,8 @@ fn op_rcl_ind_in_run_program() {
 fn op_sto_arith_ind_in_run_program() {
     // Catches: program-context divergence on Op::StoArithInd — execute_op arm at program.rs.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(7i32);
-    state.regs[7] = HpNum::from(10i32);
+    state.regs[5] = HpNum::from(7i32).into();
+    state.regs[7] = HpNum::from(10i32).into();
     state.stack.x = HpNum::from(3i32);
     run_op_in_program(&mut state, Op::StoArithInd(5, StoArithKind::Add)).unwrap();
     // regs[7] = 10 + 3 = 13
@@ -548,7 +548,7 @@ fn op_sto_arith_ind_in_run_program() {
 fn op_sf_flag_ind_in_run_program() {
     // Catches: program-context divergence on Op::SfFlagInd — execute_op arm at program.rs.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(10i32); // flag number = 10
+    state.regs[5] = HpNum::from(10i32).into(); // flag number = 10
     run_op_in_program(&mut state, Op::SfFlagInd(5)).unwrap();
     assert_ne!(state.flags & (1u64 << 10), 0);
 }
@@ -559,8 +559,8 @@ fn op_isg_ind_skip_in_run_program() {
     // first iteration when initial current > final. With pointer regs[5]=12 and
     // regs[12]="5.005" (current=5, target=5, step=1): new_current=6, 6 > 5 ⇒ skip.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::rounded(Decimal::from_str("5.005").unwrap());
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::rounded(Decimal::from_str("5.005").unwrap()).into();
     state.program = vec![
         Op::Lbl("T".into()),
         Op::IsgInd(5),
@@ -579,8 +579,8 @@ fn op_dse_ind_skip_in_run_program() {
     // (new_current <= final). Pointer regs[5]=12; regs[12]="1.000" current=1,
     // target=0, step=1; new_current=0, 0 <= 0 ⇒ skip.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(12i32);
-    state.regs[12] = HpNum::rounded(Decimal::from_str("1.000").unwrap());
+    state.regs[5] = HpNum::from(12i32).into();
+    state.regs[12] = HpNum::rounded(Decimal::from_str("1.000").unwrap()).into();
     state.program = vec![
         Op::Lbl("T".into()),
         Op::DseInd(5),
@@ -598,7 +598,7 @@ fn op_flag_test_ind_skip_in_run_program() {
     // regs[5] = 7 (flag number 7). Flag 7 is SET; FS?C(IND 5) ⇒ should_skip = false,
     // but always clears flag 7.
     let mut state = CalcState::new();
-    state.regs[5] = HpNum::from(7i32);
+    state.regs[5] = HpNum::from(7i32).into();
     state.flags = 1u64 << 7;
     state.program = vec![
         Op::Lbl("T".into()),

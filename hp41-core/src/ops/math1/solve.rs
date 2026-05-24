@@ -206,8 +206,8 @@ pub fn op_solve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), Hp
     // Phase 29 / CLI-07 wires the full FunctionNamePrompt/Guess1Prompt/Guess2Prompt
     // modal flow that stages these into the same registers before calling run_loop.
     let user_label = state.alpha_reg.clone();
-    let x1 = state.regs.first().cloned().unwrap_or_default();
-    let x2 = state.regs.get(1).cloned().unwrap_or_default();
+    let x1 = state.regs.first().map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let x2 = state.regs.get(1).map(|v| v.numeric_or_zero()).unwrap_or_default();
 
     // ── Commit: set solve_state after all pre-mutation guards pass ────────────
     state.solve_state = Some(SolveState {
@@ -272,8 +272,8 @@ pub fn op_sol_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpEr
     }
 
     // Read x1 from R00, x2 from R01 (scratch registers per SOLV-05)
-    let x1 = state.regs.first().cloned().unwrap_or_default();
-    let x2 = state.regs.get(1).cloned().unwrap_or_default();
+    let x1 = state.regs.first().map(|v| v.numeric_or_zero()).unwrap_or_default();
+    let x2 = state.regs.get(1).map(|v| v.numeric_or_zero()).unwrap_or_default();
 
     // ── Commit: set solve_state after all pre-mutation guards pass ────────────
     state.solve_state = Some(SolveState {
@@ -573,7 +573,7 @@ pub fn submit_step(
             if state.regs.is_empty() {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[0] = state.stack.x.clone();
+            state.regs[0] = state.stack.x.clone().into();
             state.modal_program = Some(ModalProgram::Solve(SolveInputStep::Guess2Prompt));
             state.modal_prompt = Some("GUESS 2=?".to_string());
             Ok(())
@@ -583,7 +583,7 @@ pub fn submit_step(
             if state.regs.len() < 2 {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[1] = state.stack.x.clone();
+            state.regs[1] = state.stack.x.clone().into();
             // Advance to Ready — parameters staged; caller may invoke op_solve_run_loop
             state.modal_program = Some(ModalProgram::Solve(SolveInputStep::Ready));
             state.modal_prompt = None;
@@ -638,8 +638,8 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "FN".to_string();
-        state.regs[0] = HpNum::from(-1i32); // x1 = -1
-        state.regs[1] = HpNum::from(1i32); // x2 = 1
+        state.regs[0] = HpNum::from(-1i32).into(); // x1 = -1
+        state.regs[1] = HpNum::from(1i32).into(); // x2 = 1
         state.stack.lift_enabled = false;
         (state, program)
     }
@@ -658,8 +658,8 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "G".to_string();
-        state.regs[0] = HpNum::from(1i32); // x1 = 1
-        state.regs[1] = HpNum::from(2i32); // x2 = 2
+        state.regs[0] = HpNum::from(1i32).into(); // x1 = 1
+        state.regs[1] = HpNum::from(2i32).into(); // x2 = 2
         state.stack.lift_enabled = false;
         state.display_mode = DisplayMode::Fix(4);
         (state, program)
@@ -796,8 +796,8 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "NC".to_string();
-        state.regs[0] = HpNum::from(1i32); // x1 = 1
-        state.regs[1] = HpNum::from(2i32); // x2 = 2
+        state.regs[0] = HpNum::from(1i32).into(); // x1 = 1
+        state.regs[1] = HpNum::from(2i32).into(); // x2 = 2
         state.stack.lift_enabled = false;
 
         let result = op_solve_run_loop(&mut state, &program);
@@ -874,8 +874,8 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "CAP".to_string();
-        state.regs[0] = HpNum::from(1i32);
-        state.regs[1] = HpNum::from(2i32);
+        state.regs[0] = HpNum::from(1i32).into();
+        state.regs[1] = HpNum::from(2i32).into();
 
         let result = op_solve_run_loop(&mut state, &program);
         assert!(
@@ -1059,8 +1059,8 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "CANC".to_string();
-        state.regs[0] = HpNum::from(1i32);
-        state.regs[1] = HpNum::from(2i32);
+        state.regs[0] = HpNum::from(1i32).into();
+        state.regs[1] = HpNum::from(2i32).into();
         // Set cancel_requested = true BEFORE starting SOLVE
         state.cancel_requested.store(true, Ordering::Relaxed);
 
@@ -1091,8 +1091,8 @@ mod tests {
         let mut state = CalcState::new();
         state.program = program.clone();
         state.alpha_reg = "CP".to_string();
-        state.regs[0] = HpNum::from(1i32);
-        state.regs[1] = HpNum::from(2i32);
+        state.regs[0] = HpNum::from(1i32).into();
+        state.regs[1] = HpNum::from(2i32).into();
         state.cancel_requested.store(true, Ordering::Relaxed);
 
         let result = op_sol_run_loop(&mut state, &program);

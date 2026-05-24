@@ -26,7 +26,7 @@ fn make_state() -> CalcState {
 
 fn set_reg(state: &mut CalcState, idx: usize, val: f64) {
     let d = Decimal::from_f64(val).unwrap_or(Decimal::ZERO);
-    state.regs[idx] = hp41_core::HpNum::rounded(d);
+    state.regs[idx] = hp41_core::HpNum::rounded(d).into();
 }
 
 // ── Op::PolyWorkflow — integration tests via dispatch() ──────────────────────

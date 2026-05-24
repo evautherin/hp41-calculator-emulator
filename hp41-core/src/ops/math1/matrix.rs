@@ -87,7 +87,7 @@ fn matrix_get(state: &CalcState, r: u8, c: u8) -> Result<HpNum, HpError> {
     if idx >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    Ok(state.regs[idx].clone())
+    Ok(state.regs[idx].numeric_or_zero())
 }
 
 /// Set matrix element A(r, c) using column-major storage.
@@ -100,7 +100,7 @@ fn matrix_set(state: &mut CalcState, r: u8, c: u8, val: HpNum) -> Result<(), HpE
     if idx >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    state.regs[idx] = val;
+    state.regs[idx] = val.into();
     Ok(())
 }
 
@@ -360,7 +360,7 @@ pub fn submit_step(state: &mut CalcState, step: MatrixInputStep) -> Result<(), H
             if ORDER_REG >= state.regs.len() {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[ORDER_REG] = HpNum::from(n as i32);
+            state.regs[ORDER_REG] = HpNum::from(n as i32).into();
             // Set matrix dimensions and active register
             state.matrix_dim = Some((n, n));
             state.matrix_active_reg = Some(DEFAULT_MATRIX_BASE_REG);
@@ -418,7 +418,7 @@ pub fn op_mat_size(state: &mut CalcState) -> Result<(), HpError> {
     if ORDER_REG >= state.regs.len() {
         return Err(HpError::InvalidOp);
     }
-    let order_val = state.regs[ORDER_REG].clone();
+    let order_val = state.regs[ORDER_REG].numeric_or_zero();
     state.stack.lastx = state.stack.x.clone();
     enter_number(state, order_val);
     apply_lift_effect(state, LiftEffect::Enable);
@@ -565,7 +565,7 @@ pub fn op_mat_simeq(state: &mut CalcState) -> Result<(), HpError> {
         if idx >= state.regs.len() {
             return Err(HpError::InvalidOp);
         }
-        let v = state.regs[idx].inner().to_f64().ok_or(HpError::Overflow)?;
+        let v = state.regs[idx].numeric_or_zero().inner().to_f64().ok_or(HpError::Overflow)?;
         b_vec.push(v);
     }
 
@@ -578,7 +578,7 @@ pub fn op_mat_simeq(state: &mut CalcState) -> Result<(), HpError> {
                     return Err(HpError::InvalidOp);
                 }
                 let d = Decimal::from_f64(xi).ok_or(HpError::Overflow)?;
-                state.regs[idx] = HpNum::rounded(d);
+                state.regs[idx] = HpNum::rounded(d).into();
             }
             // Set flag 5 — MAT-11: SIMEQ sets flag 5 on successful solution
             state.flags = flag_set(state.flags, 5);
@@ -613,7 +613,7 @@ pub fn op_mat_vcol(state: &mut CalcState) -> Result<(), HpError> {
         if idx >= state.regs.len() {
             return Err(HpError::InvalidOp);
         }
-        let val = state.regs[idx].clone();
+        let val = state.regs[idx].numeric_or_zero();
         let line = format!("B{}={}", i + 1, format_hpnum(&val, &state.display_mode));
         state.print_buffer.push(line);
     }
@@ -638,13 +638,13 @@ pub fn setup_matrix(state: &mut CalcState, n: u8, elements: &[f64]) {
     state.matrix_dim = Some((n, n));
     state.matrix_active_reg = Some(DEFAULT_MATRIX_BASE_REG);
     // Store ORDER in R14
-    state.regs[ORDER_REG] = HpNum::from(n as i32);
+    state.regs[ORDER_REG] = HpNum::from(n as i32).into();
     // Ensure regs vector is large enough to hold the matrix (base + n*n elements)
     // Plus extra room for B-vector in SIMEQ tests (base + n*n + n)
     let required_size =
         DEFAULT_MATRIX_BASE_REG as usize + (n as usize) * (n as usize) + n as usize + 1;
     if state.regs.len() < required_size {
-        state.regs.resize(required_size, HpNum::zero());
+        state.regs.resize(required_size, crate::num::HpValue::default());
     }
     // Store elements column-major (input elements are row-major)
     for c in 0..(n as usize) {
@@ -652,7 +652,7 @@ pub fn setup_matrix(state: &mut CalcState, n: u8, elements: &[f64]) {
             let idx = DEFAULT_MATRIX_BASE_REG as usize + c * n as usize + r;
             let v = elements[r * n as usize + c]; // row-major input → column-major storage
             let d = Decimal::from_f64(v).expect("test value must be finite f64");
-            state.regs[idx] = HpNum::rounded(d);
+            state.regs[idx] = HpNum::rounded(d).into();
         }
     }
 }
@@ -703,7 +703,7 @@ mod tests {
     #[test]
     fn mat_size_returns_r14() {
         let mut state = CalcState::new();
-        state.regs[ORDER_REG] = HpNum::from(3i32);
+        state.regs[ORDER_REG] = HpNum::from(3i32).into();
         op_mat_size(&mut state).unwrap();
         assert_eq!(
             state.stack.x,
@@ -941,12 +941,12 @@ mod tests {
         setup_matrix(&mut state, 2, &[1.0, 1.0, 1.0, -1.0]);
         // B vector in R(N+1), R(N+2) = R17, R18 (base=15, n=2, b_base=15+4=19)
         // base=15, n=2, n*n=4, b_base=15+4=19
-        state.regs[19] = HpNum::from(3i32); // B1=3
-        state.regs[20] = HpNum::from(1i32); // B2=1
+        state.regs[19] = HpNum::from(3i32).into(); // B1=3
+        state.regs[20] = HpNum::from(1i32).into(); // B2=1
         op_mat_simeq(&mut state).unwrap();
         // Solution should be at R19, R20
-        let x_sol = state.regs[19].inner().to_f64().unwrap();
-        let y_sol = state.regs[20].inner().to_f64().unwrap();
+        let x_sol = state.regs[19].numeric_or_zero().inner().to_f64().unwrap();
+        let y_sol = state.regs[20].numeric_or_zero().inner().to_f64().unwrap();
         assert!(
             (x_sol - 2.0).abs() < 1e-7,
             "SIMEQ solution x must be ≈2.0, got {x_sol}"
@@ -962,8 +962,8 @@ mod tests {
     fn simeq_sets_flag_5() {
         let mut state = CalcState::new();
         setup_matrix(&mut state, 2, &[1.0, 1.0, 1.0, -1.0]);
-        state.regs[19] = HpNum::from(3i32);
-        state.regs[20] = HpNum::from(1i32);
+        state.regs[19] = HpNum::from(3i32).into();
+        state.regs[20] = HpNum::from(1i32).into();
         op_mat_simeq(&mut state).unwrap();
         assert!(
             flag_get(state.flags, 5),
@@ -979,8 +979,8 @@ mod tests {
         let mut state = CalcState::new();
         // Singular: [[1,2],[2,4]] — det=0
         setup_matrix(&mut state, 2, &[1.0, 2.0, 2.0, 4.0]);
-        state.regs[19] = HpNum::from(1i32);
-        state.regs[20] = HpNum::from(2i32);
+        state.regs[19] = HpNum::from(1i32).into();
+        state.regs[20] = HpNum::from(2i32).into();
         op_mat_simeq(&mut state).unwrap();
         assert_eq!(
             state.modal_prompt,
@@ -1015,7 +1015,7 @@ mod tests {
     fn mat_size_and_det_enable_lift() {
         let mut state = CalcState::new();
         state.stack.lift_enabled = false;
-        state.regs[ORDER_REG] = HpNum::from(2i32);
+        state.regs[ORDER_REG] = HpNum::from(2i32).into();
         op_mat_size(&mut state).unwrap();
         assert!(
             state.stack.lift_enabled,

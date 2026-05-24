@@ -243,7 +243,7 @@ pub fn op_integ_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), Hp
     let n_raw = state
         .regs
         .first()
-        .map(|r| r.trunc_int())
+        .map(|r| r.numeric_or_zero().trunc_int())
         .unwrap_or_default();
     let n_val = n_raw.inner().to_u32().unwrap_or(0);
     let user_label = state.alpha_reg.clone();
@@ -561,7 +561,7 @@ pub fn submit_step(
             if state.regs.is_empty() {
                 return Err(HpError::InvalidOp);
             }
-            state.regs[0] = HpNum::from(n_raw as i32);
+            state.regs[0] = HpNum::from(n_raw as i32).into();
             // Restore (a, b) → (X, Y): after the N push, Z = a, Y = b.
             // Pop N off the top by shifting the stack down one slot.
             let new_x = state.stack.z.clone(); // a
@@ -724,7 +724,7 @@ mod tests {
         state.program = program.clone();
         state.alpha_reg = "F".to_string();
         // R00 = 10 (subdivision count)
-        state.regs[0] = HpNum::from(10i32);
+        state.regs[0] = HpNum::from(10i32).into();
         // Stack: X = 0 (a), Y = 1 (b)
         state.stack.x = HpNum::from(0i32); // a = 0
         state.stack.y = HpNum::from(1i32); // b = 1
@@ -756,7 +756,7 @@ mod tests {
         let (mut state, program) = make_x_squared_state();
         state.display_mode = DisplayMode::Fix(9);
         // Use more subdivisions for higher precision test
-        state.regs[0] = HpNum::from(100i32);
+        state.regs[0] = HpNum::from(100i32).into();
 
         let result = op_integ_run_loop(&mut state, &program);
         assert!(result.is_ok(), "op_integ_run_loop failed: {result:?}");
@@ -772,7 +772,7 @@ mod tests {
     fn subdivision_cap_rejected() {
         let (mut state, program) = make_x_squared_state();
         // Set n > 32768 in R00
-        state.regs[0] = HpNum::from(32_769i32);
+        state.regs[0] = HpNum::from(32_769i32).into();
 
         let result = op_integ_run_loop(&mut state, &program);
         assert_eq!(result, Err(HpError::Domain), "n > 32768 must return Domain");
@@ -865,7 +865,7 @@ mod tests {
         // Set cancel_requested = true BEFORE starting INTG
         state.cancel_requested.store(true, Ordering::Relaxed);
         // n=64 so the first per-64 check fires at k=0 (0 & 0x3F == 0)
-        state.regs[0] = HpNum::from(64i32);
+        state.regs[0] = HpNum::from(64i32).into();
 
         let result = op_integ_run_loop(&mut state, &program);
         assert_eq!(

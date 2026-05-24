@@ -1601,26 +1601,26 @@ fn test_numerical_accuracy_suite() {
     let isg_bool = |counter: &str| -> bool {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_isg(&mut s, 0).unwrap()
     };
     let dse_bool = |counter: &str| -> bool {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_dse(&mut s, 0).unwrap()
     };
     let isg_reg = |counter: &str| -> f64 {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_isg(&mut s, 0).unwrap();
         s.regs[0].inner().to_f64().unwrap_or(f64::NAN)
     };
     let dse_reg = |counter: &str| -> f64 {
         let mut s = CalcState::new();
         let d = dec(counter);
-        s.regs[0] = HpNum::from(d);
+        s.regs[0] = HpNum::from(d).into();
         op_dse(&mut s, 0).unwrap();
         s.regs[0].inner().to_f64().unwrap_or(f64::NAN)
     };
@@ -4149,7 +4149,7 @@ fn test_numerical_accuracy_suite() {
     fn set_poly_reg(s: &mut CalcState, idx: usize, val: f64) {
         use rust_decimal::prelude::FromPrimitive;
         let d = rust_decimal::Decimal::from_f64(val).unwrap_or(rust_decimal::Decimal::ZERO);
-        s.regs[idx] = HpNum::rounded(d);
+        s.regs[idx] = HpNum::rounded(d).into();
     }
 
     // ── Op::PolyWorkflow: 3 state-machine cases ───────────────────────────────
@@ -4636,17 +4636,17 @@ fn test_numerical_accuracy_suite() {
         use rust_decimal::prelude::FromPrimitive;
         state.matrix_dim = Some((n, n));
         state.matrix_active_reg = Some(15);
-        state.regs[14] = HpNum::from(n as i32);
+        state.regs[14] = HpNum::from(n as i32).into();
         let required = 15 + (n as usize) * (n as usize) + n as usize + 1;
         if state.regs.len() < required {
-            state.regs.resize(required, HpNum::zero());
+            state.regs.resize(required, hp41_core::HpValue::default());
         }
         for c in 0..(n as usize) {
             for r in 0..(n as usize) {
                 let idx = 15 + c * n as usize + r;
                 let v = elements[r * n as usize + c];
                 let d = rust_decimal::Decimal::from_f64(v).unwrap_or(rust_decimal::Decimal::ZERO);
-                state.regs[idx] = HpNum::rounded(d);
+                state.regs[idx] = HpNum::rounded(d).into();
             }
         }
     }
@@ -4796,8 +4796,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: MatSimeq not preserving RHS for identity coefficient matrix.
         let mut s = CalcState::new();
         mat_setup_p32(&mut s, 2, &[1.0, 0.0, 0.0, 1.0]);
-        s.regs[19] = HpNum::from(7i32); // b[0]
-        s.regs[20] = HpNum::from(3i32); // b[1]
+        s.regs[19] = HpNum::from(7i32).into(); // b[0]
+        s.regs[20] = HpNum::from(3i32).into(); // b[1]
         dispatch(&mut s, Op::MatSimeq).unwrap();
         let x0 = s.regs[19].inner().to_f64().unwrap_or(f64::NAN);
         case!(
@@ -4813,8 +4813,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: MatSimeq not writing back to all components.
         let mut s = CalcState::new();
         mat_setup_p32(&mut s, 2, &[1.0, 0.0, 0.0, 1.0]);
-        s.regs[19] = HpNum::from(7i32);
-        s.regs[20] = HpNum::from(3i32);
+        s.regs[19] = HpNum::from(7i32).into();
+        s.regs[20] = HpNum::from(3i32).into();
         dispatch(&mut s, Op::MatSimeq).unwrap();
         let x1 = s.regs[20].inner().to_f64().unwrap_or(f64::NAN);
         case!(
@@ -4844,7 +4844,7 @@ fn test_numerical_accuracy_suite() {
         // Source: HP 00041-90034 p.11 — MatSize accessor.
         // Catches: MatSize reading wrong register.
         let mut s = CalcState::new();
-        s.regs[14] = HpNum::from(5i32);
+        s.regs[14] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::MatSize).unwrap();
         case!(
             "mat_size_5",
@@ -4916,8 +4916,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: MatSimeq Err return on legal input.
         let mut s = CalcState::new();
         mat_setup_p32(&mut s, 2, &[1.0, 0.0, 0.0, 1.0]);
-        s.regs[19] = HpNum::from(1i32);
-        s.regs[20] = HpNum::from(1i32);
+        s.regs[19] = HpNum::from(1i32).into();
+        s.regs[20] = HpNum::from(1i32).into();
         let r = dispatch(&mut s, Op::MatSimeq);
         case!(
             "mat_simeq_ok",
@@ -5319,11 +5319,11 @@ fn test_numerical_accuracy_suite() {
         // Catches: eval_at_t cosine value at zero broken.
         use hp41_core::ops::math1::four::op_four_eval_at_t;
         let mut s = CalcState::new();
-        s.regs[0] = hp41_core::HpNum::zero();
-        s.regs[1] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32));
-        s.regs[2] = hp41_core::HpNum::zero();
-        s.regs[23] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(8i32));
-        s.regs[24] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32));
+        s.regs[0] = hp41_core::HpNum::zero().into();
+        s.regs[1] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32)).into();
+        s.regs[2] = hp41_core::HpNum::zero().into();
+        s.regs[23] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(8i32)).into();
+        s.regs[24] = hp41_core::HpNum::rounded(rust_decimal::Decimal::from(1i32)).into();
         let result = op_four_eval_at_t(&s, HpNum::zero(), HpNum::zero()).unwrap();
         let val = result.inner().to_f64().unwrap_or(f64::NAN);
         case!(
@@ -5489,13 +5489,13 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         s.program = program.clone();
         s.alpha_reg = "EG2".to_string();
-        s.regs[0] = HpNum::from(1i32); // ORDER = 1
+        s.regs[0] = HpNum::from(1i32).into(); // ORDER = 1
         s.regs[1] = HpNum::from(
             rust_decimal::Decimal::from_f64(0.1).unwrap_or(rust_decimal::Decimal::ZERO),
-        ); // step size
-        s.regs[2] = HpNum::from(0i32); // x0
-        s.regs[3] = HpNum::from(1i32); // y0
-        s.regs[5] = HpNum::from(max_steps as i32);
+        ).into(); // step size
+        s.regs[2] = HpNum::from(0i32).into(); // x0
+        s.regs[3] = HpNum::from(1i32).into(); // y0
+        s.regs[5] = HpNum::from(max_steps as i32).into();
         (s, program)
     }
 
@@ -5505,7 +5505,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: DIFEQ accepting invalid ORDER silently.
         use hp41_core::ops::math1::difeq::op_difeq_run_loop;
         let (mut s, program) = make_difeq_state_p32(5);
-        s.regs[0] = HpNum::from(0i32); // invalid ORDER
+        s.regs[0] = HpNum::from(0i32).into(); // invalid ORDER
         let r = op_difeq_run_loop(&mut s, &program);
         let surfaced = s.modal_prompt == Some("ORDER MUST BE 1 OR 2".to_string());
         case!(
@@ -5521,7 +5521,7 @@ fn test_numerical_accuracy_suite() {
         // Catches: ORDER guard rejecting only certain invalid values.
         use hp41_core::ops::math1::difeq::op_difeq_run_loop;
         let (mut s, program) = make_difeq_state_p32(5);
-        s.regs[0] = HpNum::from(3i32);
+        s.regs[0] = HpNum::from(3i32).into();
         let r = op_difeq_run_loop(&mut s, &program);
         let surfaced = s.modal_prompt == Some("ORDER MUST BE 1 OR 2".to_string());
         case!(
@@ -5613,8 +5613,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: ORDER=2 not branching to 2nd-order setup.
         use hp41_core::ops::math1::difeq::op_difeq_run_loop;
         let (mut s, program) = make_difeq_state_p32(2);
-        s.regs[0] = HpNum::from(2i32);
-        s.regs[4] = HpNum::from(0i32); // y'0 = 0
+        s.regs[0] = HpNum::from(2i32).into();
+        s.regs[4] = HpNum::from(0i32).into(); // y'0 = 0
                                        // ORDER=2 setup acceptance is asserted by: no panic on dispatch + (Ok OR ORDER
                                        // validation modal). The exponential-growth f isn't well-typed for ORDER=2
                                        // (the LBL EG2 returns y, not y'' = f(x,y,y')), so we accept any non-panic
@@ -6275,7 +6275,7 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         s.program = program.clone();
         s.alpha_reg = label.to_string();
-        s.regs[0] = HpNum::from(n as i32);
+        s.regs[0] = HpNum::from(n as i32).into();
         s.stack.x =
             HpNum::from(rust_decimal::Decimal::from_f64(a).unwrap_or(rust_decimal::Decimal::ZERO));
         s.stack.y =
@@ -6555,9 +6555,9 @@ fn test_numerical_accuracy_suite() {
         s.program = program.clone();
         s.alpha_reg = label.to_string();
         s.regs[0] =
-            HpNum::from(rust_decimal::Decimal::from_f64(x1).unwrap_or(rust_decimal::Decimal::ZERO));
+            HpNum::from(rust_decimal::Decimal::from_f64(x1).unwrap_or(rust_decimal::Decimal::ZERO)).into();
         s.regs[1] =
-            HpNum::from(rust_decimal::Decimal::from_f64(x2).unwrap_or(rust_decimal::Decimal::ZERO));
+            HpNum::from(rust_decimal::Decimal::from_f64(x2).unwrap_or(rust_decimal::Decimal::ZERO)).into();
         (s, program)
     }
 
@@ -6675,8 +6675,8 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         s.program = program.clone();
         s.alpha_reg = "".to_string();
-        s.regs[0] = HpNum::from(0i32);
-        s.regs[1] = HpNum::from(1i32);
+        s.regs[0] = HpNum::from(0i32).into();
+        s.regs[1] = HpNum::from(1i32).into();
         let r = op_sol_run_loop(&mut s, &program);
         case!(
             "sol_no_label",
@@ -7200,13 +7200,13 @@ fn test_numerical_accuracy_suite() {
         };
         let mut s = CalcState::new();
         // Group 1: x=[1,2,3,4,5] → n=5, Σx=15, Σx²=55
-        s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32);
-        s.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32);
-        s.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32);
+        s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32).into();
         // Group 2: x=[6,7,8,9,10] → n=5, Σx=40, Σx²=330
-        s.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32);
-        s.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32);
-        s.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        s.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32).into();
+        s.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32).into();
+        s.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::SigmaTstat).unwrap();
         // X = t ≈ -5.0, Y = p ≈ 0.001053
         case!(
@@ -7227,12 +7227,12 @@ fn test_numerical_accuracy_suite() {
             STAT1_TSTAT_G2_N_REG, STAT1_TSTAT_G2_SUMSQ_REG, STAT1_TSTAT_G2_SUM_REG,
         };
         let mut s = CalcState::new();
-        s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32);
-        s.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32);
-        s.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32);
-        s.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32);
-        s.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32);
-        s.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32);
+        s.regs[STAT1_TSTAT_G1_SUMSQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_TSTAT_G1_SUM_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_TSTAT_G1_N_REG] = HpNum::from(5i32).into();
+        s.regs[STAT1_TSTAT_G2_SUMSQ_REG] = HpNum::from(330i32).into();
+        s.regs[STAT1_TSTAT_G2_SUM_REG] = HpNum::from(40i32).into();
+        s.regs[STAT1_TSTAT_G2_N_REG] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::SigmaTstat).unwrap();
         // Y = p; read via get_y
         // scipy: 0.0010528257933665395; AS 63 deep-tail gives ≈0.0010528 (1e-3 rel band per D-35-06)
@@ -7254,8 +7254,8 @@ fn test_numerical_accuracy_suite() {
         // Catches: SigmaSpear — ΣSPEAR Spearman rank correlation closed-form (D-35-03)
         let mut s = CalcState::new();
         // R02 = Σd² = 4; R03 = n = 5 (v1.x convention: pre-loaded by user via Σ+)
-        s.regs[2] = HpNum::from(4i32);
-        s.regs[3] = HpNum::from(5i32);
+        s.regs[2] = HpNum::from(4i32).into();
+        s.regs[3] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::SigmaSpear).unwrap();
         case!(
             "stat1_spear",
@@ -7270,8 +7270,8 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: ΣSPEAR perfect-positive-correlation boundary
         let mut s = CalcState::new();
-        s.regs[2] = HpNum::zero();
-        s.regs[3] = HpNum::from(5i32);
+        s.regs[2] = HpNum::zero().into();
+        s.regs[3] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::SigmaSpear).unwrap();
         case!(
             "stat1_spear",
@@ -7424,13 +7424,13 @@ fn test_numerical_accuracy_suite() {
         // Catches: SigmaPolyc — ΣXSQEV chi-square with O/E interleaved registers
         use hp41_core::ops::stat1::STAT1_XSQEV_K_REG;
         let mut s = CalcState::new();
-        s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
-        s.regs[1] = HpNum::from(10i32);
-        s.regs[2] = HpNum::from(15i32);
-        s.regs[3] = HpNum::from(20i32);
-        s.regs[4] = HpNum::from(20i32);
-        s.regs[5] = HpNum::from(30i32);
-        s.regs[6] = HpNum::from(25i32);
+        s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
+        s.regs[1] = HpNum::from(10i32).into();
+        s.regs[2] = HpNum::from(15i32).into();
+        s.regs[3] = HpNum::from(20i32).into();
+        s.regs[4] = HpNum::from(20i32).into();
+        s.regs[5] = HpNum::from(30i32).into();
+        s.regs[6] = HpNum::from(25i32).into();
         dispatch(&mut s, Op::SigmaXsqev).unwrap();
         case!(
             "stat1_xsqev",
@@ -7447,13 +7447,13 @@ fn test_numerical_accuracy_suite() {
         use hp41_core::ops::stat1::STAT1_XSQEV_K_REG;
         use rust_decimal::Decimal;
         let mut s = CalcState::new();
-        s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32);
-        s.regs[1] = HpNum::from(10i32);
-        s.regs[2] = HpNum::from(Decimal::new(2, 1)); // 0.2
-        s.regs[3] = HpNum::from(30i32);
-        s.regs[4] = HpNum::from(Decimal::new(3, 1)); // 0.3
-        s.regs[5] = HpNum::from(60i32);
-        s.regs[6] = HpNum::from(Decimal::new(5, 1)); // 0.5
+        s.regs[STAT1_XSQEV_K_REG] = HpNum::from(3i32).into();
+        s.regs[1] = HpNum::from(10i32).into();
+        s.regs[2] = HpNum::from(Decimal::new(2, 1)).into(); // 0.2
+        s.regs[3] = HpNum::from(30i32).into();
+        s.regs[4] = HpNum::from(Decimal::new(3, 1)).into(); // 0.3
+        s.regs[5] = HpNum::from(60i32).into();
+        s.regs[6] = HpNum::from(Decimal::new(5, 1)).into(); // 0.5
         dispatch(&mut s, Op::SigmaEfxsq).unwrap();
         case!(
             "stat1_efxsq",
@@ -7475,15 +7475,15 @@ fn test_numerical_accuracy_suite() {
             STAT1_MLRXY_SUM_X2Y_REG, STAT1_MLRXY_SUM_X2_REG, STAT1_MLRXY_SUM_Y_REG,
         };
         let mut s = CalcState::new();
-        s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32);
-        s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32);
-        s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32);
-        s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32);
-        s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32);
-        s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32);
-        s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32);
-        s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32);
-        s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32);
+        s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
+        s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32).into();
         dispatch(&mut s, Op::SigmaMlrxy).unwrap();
         // X=b2, Y=b1, Z=b0
         case!(
@@ -7504,15 +7504,15 @@ fn test_numerical_accuracy_suite() {
             STAT1_MLRXY_SUM_X2Y_REG, STAT1_MLRXY_SUM_X2_REG, STAT1_MLRXY_SUM_Y_REG,
         };
         let mut s = CalcState::new();
-        s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32);
-        s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32);
-        s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32);
-        s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32);
-        s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32);
-        s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32);
-        s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32);
-        s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32);
-        s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32);
+        s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
+        s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32).into();
+        s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32).into();
+        s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32).into();
         dispatch(&mut s, Op::SigmaMlrxy).unwrap();
         case!(
             "stat1_mlrxy",
@@ -7534,22 +7534,22 @@ fn test_numerical_accuracy_suite() {
             STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_K_REG,
         };
         let mut s = CalcState::new();
-        s.regs[STAT1_AOV_K_REG] = HpNum::from(3i32); // k=3 groups
+        s.regs[STAT1_AOV_K_REG] = HpNum::from(3i32).into(); // k=3 groups
                                                      // Group 0: x=[1..5] → Σx=15, Σx²=55, n=5
         let base0 = STAT1_AOV_GROUP_BASE_REG;
-        s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(15i32);
-        s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(55i32);
-        s.regs[base0 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32);
+        s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(15i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(55i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32).into();
         // Group 1: x=[6..10] → Σx=40, Σx²=330, n=5
         let base1 = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE;
-        s.regs[base1 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(40i32);
-        s.regs[base1 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(330i32);
-        s.regs[base1 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32);
+        s.regs[base1 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(40i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(330i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32).into();
         // Group 2: x=[11..15] → Σx=65, Σx²=855, n=5
         let base2 = STAT1_AOV_GROUP_BASE_REG + 2 * STAT1_AOV_GROUP_STRIDE;
-        s.regs[base2 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(65i32);
-        s.regs[base2 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(855i32);
-        s.regs[base2 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32);
+        s.regs[base2 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(65i32).into();
+        s.regs[base2 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(855i32).into();
+        s.regs[base2 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(5i32).into();
         dispatch(&mut s, Op::SigmaAovone).unwrap();
         case!(
             "stat1_aovone",
@@ -7583,17 +7583,17 @@ fn test_numerical_accuracy_suite() {
             STAT1_AOV_GROUP_SUMSQ_OFFSET, STAT1_AOV_GROUP_SUM_OFFSET, STAT1_AOV_K_REG,
         };
         let mut s = CalcState::new();
-        s.regs[STAT1_AOV_K_REG] = HpNum::from(2i32); // k=2 groups
+        s.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into(); // k=2 groups
         let base0 = STAT1_AOV_GROUP_BASE_REG;
         // Group 0: x=[1,3,5] → Σx=9, Σx²=35, n=3
-        s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(9i32);
-        s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(35i32);
-        s.regs[base0 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(3i32);
+        s.regs[base0 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(9i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(35i32).into();
+        s.regs[base0 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(3i32).into();
         let base1 = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE;
         // Group 1: x=[7,9,11] → Σx=27, Σx²=251, n=3
-        s.regs[base1 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(27i32);
-        s.regs[base1 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(251i32);
-        s.regs[base1 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(3i32);
+        s.regs[base1 + STAT1_AOV_GROUP_SUM_OFFSET] = HpNum::from(27i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_SUMSQ_OFFSET] = HpNum::from(251i32).into();
+        s.regs[base1 + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(3i32).into();
         dispatch(&mut s, Op::SigmaAovone).unwrap();
         case!(
             "stat1_aovone",
@@ -7823,17 +7823,17 @@ fn matrix_setup_acc(state: &mut CalcState, n: u8, elements: &[f64]) {
     assert_eq!(elements.len(), (n as usize) * (n as usize));
     state.matrix_dim = Some((n, n));
     state.matrix_active_reg = Some(15);
-    state.regs[14] = HpNum::from(n as i32);
+    state.regs[14] = HpNum::from(n as i32).into();
     let required = 15 + (n as usize) * (n as usize) + n as usize + 1;
     if state.regs.len() < required {
-        state.regs.resize(required, HpNum::zero());
+        state.regs.resize(required, hp41_core::HpValue::default());
     }
     for c in 0..(n as usize) {
         for r in 0..(n as usize) {
             let idx = 15 + c * n as usize + r;
             let v = elements[r * n as usize + c];
             let d = Decimal::from_f64(v).expect("finite f64");
-            state.regs[idx] = HpNum::rounded(d);
+            state.regs[idx] = HpNum::rounded(d).into();
         }
     }
 }
@@ -7892,8 +7892,8 @@ fn matrix_simeq_exact_solution() {
     let mut s = CalcState::new();
     matrix_setup_acc(&mut s, 2, &[2.0, 1.0, 1.0, 3.0]);
     // b_base = 15 + 4 = 19
-    s.regs[19] = HpNum::from(5i32); // B1=5
-    s.regs[20] = HpNum::from(10i32); // B2=10
+    s.regs[19] = HpNum::from(5i32).into(); // B1=5
+    s.regs[20] = HpNum::from(10i32).into(); // B2=10
     dispatch(&mut s, Op::Xeq("SIMEQ".to_string())).unwrap();
     let x_sol = s.regs[19].inner().to_f64().unwrap();
     let y_sol = s.regs[20].inner().to_f64().unwrap();
@@ -7944,7 +7944,7 @@ fn make_integ_state_for_acc(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(n as i32);
+    state.regs[0] = HpNum::from(n as i32).into();
     state.stack.x = HpNum::from(Decimal::from_f64(a).unwrap_or(Decimal::ZERO));
     state.stack.y = HpNum::from(Decimal::from_f64(b).unwrap_or(Decimal::ZERO));
     state.stack.lift_enabled = false;
@@ -8102,8 +8102,8 @@ fn make_solve_state_for_acc(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO));
-    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO));
+    state.regs[0] = HpNum::from(Decimal::from_f64(x1).unwrap_or(Decimal::ZERO)).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(x2).unwrap_or(Decimal::ZERO)).into();
     state.stack.lift_enabled = false;
     (state, program)
 }
@@ -8265,12 +8265,12 @@ fn make_difeq_state_for_acc(
     let mut state = CalcState::new();
     state.program = program.clone();
     state.alpha_reg = label.to_string();
-    state.regs[0] = HpNum::from(order as i32);
-    state.regs[1] = HpNum::from(Decimal::from_f64(h).unwrap_or(Decimal::ZERO));
-    state.regs[2] = HpNum::from(Decimal::from_f64(x0).unwrap_or(Decimal::ZERO));
-    state.regs[3] = HpNum::from(Decimal::from_f64(y0).unwrap_or(Decimal::ZERO));
-    state.regs[4] = HpNum::from(Decimal::from_f64(y_prime0).unwrap_or(Decimal::ZERO));
-    state.regs[5] = HpNum::from(max_steps as i32);
+    state.regs[0] = HpNum::from(order as i32).into();
+    state.regs[1] = HpNum::from(Decimal::from_f64(h).unwrap_or(Decimal::ZERO)).into();
+    state.regs[2] = HpNum::from(Decimal::from_f64(x0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[3] = HpNum::from(Decimal::from_f64(y0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[4] = HpNum::from(Decimal::from_f64(y_prime0).unwrap_or(Decimal::ZERO)).into();
+    state.regs[5] = HpNum::from(max_steps as i32).into();
     (state, program)
 }
 
@@ -8620,11 +8620,11 @@ fn four_eval_at_t_accuracy() {
     use rust_decimal::Decimal;
 
     let mut state = CalcState::new();
-    state.regs[0] = HpNum::zero();
-    state.regs[1] = HpNum::rounded(Decimal::from_f64(1.0).unwrap());
-    state.regs[2] = HpNum::zero();
-    state.regs[23] = HpNum::rounded(Decimal::from_f64(8.0).unwrap());
-    state.regs[24] = HpNum::rounded(Decimal::from_f64(1.0).unwrap());
+    state.regs[0] = HpNum::zero().into();
+    state.regs[1] = HpNum::rounded(Decimal::from_f64(1.0).unwrap()).into();
+    state.regs[2] = HpNum::zero().into();
+    state.regs[23] = HpNum::rounded(Decimal::from_f64(8.0).unwrap()).into();
+    state.regs[24] = HpNum::rounded(Decimal::from_f64(1.0).unwrap()).into();
 
     let result_0 = op_four_eval_at_t(&state, HpNum::zero(), HpNum::zero()).unwrap();
     let val_0 = result_0.inner().to_f64().unwrap();

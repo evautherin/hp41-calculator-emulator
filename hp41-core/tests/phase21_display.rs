@@ -38,7 +38,7 @@ fn test_display_override_skipped_on_serialize() {
 #[test]
 fn test_view_writes_register_to_override() {
     let mut s = CalcState::new();
-    s.regs[3] = HpNum::from(42i32);
+    s.regs[3] = HpNum::from(42i32).into();
     s.display_mode = DisplayMode::Fix(4);
     dispatch(&mut s, Op::View(3)).unwrap();
     let out = s.display_override.as_deref().unwrap();
@@ -54,7 +54,7 @@ fn test_view_preserves_stack() {
     s.stack.z = HpNum::from(3i32);
     s.stack.t = HpNum::from(4i32);
     s.stack.lastx = HpNum::from(5i32);
-    s.regs[7] = HpNum::from(99i32);
+    s.regs[7] = HpNum::from(99i32).into();
     dispatch(&mut s, Op::View(7)).unwrap();
     assert_eq!(s.stack.x, HpNum::from(1i32));
     assert_eq!(s.stack.y, HpNum::from(2i32));

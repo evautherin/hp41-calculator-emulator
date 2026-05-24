@@ -139,15 +139,15 @@ fn mlrxy_solves_simple_system() {
         STAT1_MLRXY_SUM_X2Y_REG, STAT1_MLRXY_SUM_X2_REG, STAT1_MLRXY_SUM_Y_REG,
     };
     let mut s = CalcState::new();
-    s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32);
-    s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32);
-    s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32);
-    s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32);
-    s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32);
-    s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32);
-    s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32);
-    s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32);
-    s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32);
+    s.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
+    s.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32).into();
+    s.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32).into();
+    s.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32).into();
+    s.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+    s.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32).into();
+    s.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32).into();
+    s.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32).into();
+    s.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32).into();
     dispatch(&mut s, Op::SigmaMlrxy).unwrap();
 }
 
@@ -162,20 +162,20 @@ fn load_mlrxyz_independent(s: &mut CalcState) {
         STAT1_MLRXYZ_SUM_X3_REG, STAT1_MLRXYZ_SUM_Y_REG,
     };
     // y = 1+2x1+3x2+4x3, data: (1,0,0,3),(0,1,0,4),(0,0,1,5),(1,1,0,6),(0,1,1,8)
-    s.regs[STAT1_MLRXYZ_N_REG] = HpNum::from(5i32);
-    s.regs[STAT1_MLRXYZ_SUM_Y_REG] = HpNum::from(26i32);
-    s.regs[STAT1_MLRXYZ_SUM_X1_REG] = HpNum::from(2i32);
-    s.regs[STAT1_MLRXYZ_SUM_X2_REG] = HpNum::from(3i32);
-    s.regs[STAT1_MLRXYZ_SUM_X3_REG] = HpNum::from(2i32);
-    s.regs[STAT1_MLRXYZ_SUM_X1SQ_REG] = HpNum::from(2i32);
-    s.regs[STAT1_MLRXYZ_SUM_X2SQ_REG] = HpNum::from(3i32);
-    s.regs[STAT1_MLRXYZ_SUM_X3SQ_REG] = HpNum::from(2i32);
-    s.regs[STAT1_MLRXYZ_SUM_X1X2_REG] = HpNum::from(1i32);
-    s.regs[STAT1_MLRXYZ_SUM_X1X3_REG] = HpNum::from(0i32);
-    s.regs[STAT1_MLRXYZ_SUM_X2X3_REG] = HpNum::from(1i32);
-    s.regs[STAT1_MLRXYZ_SUM_X1Y_REG] = HpNum::from(9i32);
-    s.regs[STAT1_MLRXYZ_SUM_X2Y_REG] = HpNum::from(18i32);
-    s.regs[STAT1_MLRXYZ_SUM_X3Y_REG] = HpNum::from(13i32);
+    s.regs[STAT1_MLRXYZ_N_REG] = HpNum::from(5i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_Y_REG] = HpNum::from(26i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X1_REG] = HpNum::from(2i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X2_REG] = HpNum::from(3i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X3_REG] = HpNum::from(2i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X1SQ_REG] = HpNum::from(2i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X2SQ_REG] = HpNum::from(3i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X3SQ_REG] = HpNum::from(2i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X1X2_REG] = HpNum::from(1i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X1X3_REG] = HpNum::from(0i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X2X3_REG] = HpNum::from(1i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X1Y_REG] = HpNum::from(9i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X2Y_REG] = HpNum::from(18i32).into();
+    s.regs[STAT1_MLRXYZ_SUM_X3Y_REG] = HpNum::from(13i32).into();
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn mlrxyz_empty_returns_domain() {
 fn mlrxyz_singular_returns_domain() {
     use hp41_core::ops::stat1::STAT1_MLRXYZ_N_REG;
     let mut s = CalcState::new();
-    s.regs[STAT1_MLRXYZ_N_REG] = HpNum::from(1i32);
+    s.regs[STAT1_MLRXYZ_N_REG] = HpNum::from(1i32).into();
     assert!(dispatch(&mut s, Op::SigmaMlrxyz).is_err());
 }
 
@@ -256,13 +256,13 @@ fn polyc_after_linear_fit() {
 fn ctkk_two_by_two_table() {
     use hp41_core::ops::stat1::{STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_R_REG};
     let mut s = CalcState::new();
-    s.regs[STAT1_CTKKK_R_REG] = HpNum::from(2);
-    s.regs[STAT1_CTKKK_C_REG] = HpNum::from(2);
+    s.regs[STAT1_CTKKK_R_REG] = HpNum::from(2).into();
+    s.regs[STAT1_CTKKK_C_REG] = HpNum::from(2).into();
     let base = STAT1_CTKKK_CELL_BASE_REG;
-    s.regs[base] = HpNum::from(10);
-    s.regs[base + 1] = HpNum::from(20);
-    s.regs[base + 2] = HpNum::from(30);
-    s.regs[base + 3] = HpNum::from(40);
+    s.regs[base] = HpNum::from(10).into();
+    s.regs[base + 1] = HpNum::from(20).into();
+    s.regs[base + 2] = HpNum::from(30).into();
+    s.regs[base + 3] = HpNum::from(40).into();
     dispatch(&mut s, Op::SigmaCtkk).unwrap();
 }
 
@@ -270,13 +270,13 @@ fn ctkk_two_by_two_table() {
 fn ctkk_symmetric_table() {
     use hp41_core::ops::stat1::{STAT1_CTKKK_CELL_BASE_REG, STAT1_CTKKK_C_REG, STAT1_CTKKK_R_REG};
     let mut s = CalcState::new();
-    s.regs[STAT1_CTKKK_R_REG] = HpNum::from(2);
-    s.regs[STAT1_CTKKK_C_REG] = HpNum::from(2);
+    s.regs[STAT1_CTKKK_R_REG] = HpNum::from(2).into();
+    s.regs[STAT1_CTKKK_C_REG] = HpNum::from(2).into();
     let base = STAT1_CTKKK_CELL_BASE_REG;
-    s.regs[base] = HpNum::from(25);
-    s.regs[base + 1] = HpNum::from(25);
-    s.regs[base + 2] = HpNum::from(25);
-    s.regs[base + 3] = HpNum::from(25);
+    s.regs[base] = HpNum::from(25).into();
+    s.regs[base + 1] = HpNum::from(25).into();
+    s.regs[base + 2] = HpNum::from(25).into();
+    s.regs[base + 3] = HpNum::from(25).into();
     dispatch(&mut s, Op::SigmaCtkk).unwrap();
 }
 

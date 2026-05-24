@@ -23,7 +23,7 @@
 //   - Phase 2 adds `features = ["maths"]` to rust_decimal for ln/exp/pow.
 //   - No f64 arithmetic on HP-41 register values anywhere in hp41-core.
 
-use crate::num::HpNum;
+use crate::num::{HpNum, HpValue};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -53,7 +53,7 @@ pub enum DisplayMode {
 pub struct CalcState {
     pub stack: Stack,
     /// Storage registers R00–R99 (0-indexed). All zero on startup.
-    pub regs: Vec<HpNum>,
+    pub regs: Vec<HpValue>,
     /// ALPHA register — up to 24 characters.
     pub alpha_reg: String,
     /// true = keyboard routes chars to alpha_reg instead of entry_buf.
@@ -309,7 +309,7 @@ impl CalcState {
     pub fn new() -> Self {
         CalcState {
             stack: Stack::new(),
-            regs: vec![HpNum::zero(); 100],
+            regs: vec![HpValue::default(); 100],
             alpha_reg: String::new(),
             alpha_mode: false,
             angle_mode: AngleMode::Deg,

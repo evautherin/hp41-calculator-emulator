@@ -123,7 +123,7 @@ fn run_loop_xeq_card_op_does_not_skip_next_instruction() {
     run_program(&mut state, "MAIN").expect("MAIN must run cleanly");
     assert_eq!(
         state.regs[1],
-        hp41_core::num::HpNum::from(42i32),
+        hp41_core::HpValue::from(42i32),
         "STO 01 after XEQ \"WPRGM\" must execute — proves the fallback did not over-advance pc",
     );
     // And the card op should still be staged.

@@ -211,12 +211,12 @@ proptest! {
     ) {
         // r is the register pointer; regs[r] holds n as a Decimal integer.
         let mut s_direct = CalcState::new();
-        s_direct.regs[r as usize] = HpNum::from(n as i32);
+        s_direct.regs[r as usize] = HpNum::from(n as i32).into();
         dispatch(&mut s_direct, Op::SfFlag(n)).unwrap();
         let direct_flags = s_direct.flags;
 
         let mut s_ind = CalcState::new();
-        s_ind.regs[r as usize] = HpNum::from(n as i32);
+        s_ind.regs[r as usize] = HpNum::from(n as i32).into();
         dispatch(&mut s_ind, Op::SfFlagInd(r)).unwrap();
         prop_assert_eq!(s_ind.flags, direct_flags);
     }
@@ -236,13 +236,13 @@ proptest! {
         r in 0u8..100,
     ) {
         let mut s_direct = CalcState::new();
-        s_direct.regs[r as usize] = HpNum::from(n as i32);
+        s_direct.regs[r as usize] = HpNum::from(n as i32).into();
         dispatch(&mut s_direct, Op::SfFlag(n)).unwrap();
         dispatch(&mut s_direct, Op::CfFlag(n)).unwrap();
         let direct_flags = s_direct.flags;
 
         let mut s_ind = CalcState::new();
-        s_ind.regs[r as usize] = HpNum::from(n as i32);
+        s_ind.regs[r as usize] = HpNum::from(n as i32).into();
         dispatch(&mut s_ind, Op::SfFlag(n)).unwrap();
         dispatch(&mut s_ind, Op::CfFlagInd(r)).unwrap();
         prop_assert_eq!(s_ind.flags, direct_flags);

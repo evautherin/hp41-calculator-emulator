@@ -68,7 +68,7 @@ fn decode_group_count(k_num: &HpNum, cap: usize) -> Result<usize, HpError> {
 /// Source: OM 00041-90030 §ΣAOVONE (p. 20). Oracle: scipy.stats.f_oneway.
 pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
-    let k = decode_group_count(&state.regs[STAT1_AOV_K_REG].clone(), STAT1_AOV_KMAX)?;
+    let k = decode_group_count(&state.regs[STAT1_AOV_K_REG].numeric_or_zero(), STAT1_AOV_KMAX)?;
 
     // First pass: grand totals (N, Σx, Σx²) — recomputed for atomic
     // correctness (do NOT trust R01..R03 contents).
@@ -77,13 +77,13 @@ pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
     let mut grand_sumsq = HpNum::zero();
     for i in 0..k {
         let base = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i;
-        let n_i = state.regs[base + STAT1_AOV_GROUP_N_OFFSET].clone();
+        let n_i = state.regs[base + STAT1_AOV_GROUP_N_OFFSET].numeric_or_zero();
         if n_i.is_zero() {
             return Err(HpError::InvalidOp);
         }
         grand_n = grand_n.checked_add(&n_i)?;
-        grand_sum = grand_sum.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET])?;
-        grand_sumsq = grand_sumsq.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET])?;
+        grand_sum = grand_sum.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET].numeric_or_zero())?;
+        grand_sumsq = grand_sumsq.checked_add(&state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET].numeric_or_zero())?;
     }
 
     let k_hp = HpNum::from(rust_decimal::Decimal::from(k));
@@ -98,9 +98,9 @@ pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
     let mut ssw = HpNum::zero();
     for i in 0..k {
         let base = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i;
-        let sum_i = state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET].clone();
-        let sumsq_i = state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET].clone();
-        let n_i = state.regs[base + STAT1_AOV_GROUP_N_OFFSET].clone();
+        let sum_i = state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET].numeric_or_zero();
+        let sumsq_i = state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET].numeric_or_zero();
+        let n_i = state.regs[base + STAT1_AOV_GROUP_N_OFFSET].numeric_or_zero();
         let mean_i = sum_i.checked_div(&n_i)?;
         let dev_i = mean_i.checked_sub(&grand_mean)?;
         ssb = ssb.checked_add(&n_i.checked_mul(&dev_i.checked_sq()?)?)?;
@@ -108,9 +108,9 @@ pub fn op_sigma_aovone(state: &mut CalcState) -> Result<(), HpError> {
     }
 
     // Update grand-block registers for downstream consumers.
-    state.regs[STAT1_AOV_GRAND_SUMSQ_REG] = grand_sumsq;
-    state.regs[STAT1_AOV_GRAND_SUM_REG] = grand_sum;
-    state.regs[STAT1_AOV_N_REG] = grand_n;
+    state.regs[STAT1_AOV_GRAND_SUMSQ_REG] = grand_sumsq.into();
+    state.regs[STAT1_AOV_GRAND_SUM_REG] = grand_sum.into();
+    state.regs[STAT1_AOV_N_REG] = grand_n.into();
 
     let df_between = k_hp.checked_sub(&HpNum::from(1i32))?;
     if df_between.is_zero() {
@@ -149,11 +149,11 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     // dimension cap is the OM-cited STAT1_AOVTWO_DIM_MAX rather than
     // a bare `4` literal.
     let r = decode_group_count(
-        &state.regs[STAT1_AOVTWO_R_REG].clone(),
+        &state.regs[STAT1_AOVTWO_R_REG].numeric_or_zero(),
         STAT1_AOVTWO_DIM_MAX,
     )?;
     let c = decode_group_count(
-        &state.regs[STAT1_AOVTWO_C_REG].clone(),
+        &state.regs[STAT1_AOVTWO_C_REG].numeric_or_zero(),
         STAT1_AOVTWO_DIM_MAX,
     )?;
     // Bounds check: row + col marginal sums occupy
@@ -162,8 +162,8 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     if STAT1_AOVTWO_ROW_BASE_REG + r + c > STAT1_MAX_REG + 1 {
         return Err(HpError::Domain);
     }
-    let grand_sumsq = state.regs[STAT1_AOVTWO_GRAND_SUMSQ_REG].clone();
-    let grand_sum = state.regs[STAT1_AOVTWO_GRAND_SUM_REG].clone();
+    let grand_sumsq = state.regs[STAT1_AOVTWO_GRAND_SUMSQ_REG].numeric_or_zero();
+    let grand_sum = state.regs[STAT1_AOVTWO_GRAND_SUM_REG].numeric_or_zero();
     let n_hp = HpNum::from(rust_decimal::Decimal::from(r * c));
     if n_hp.is_zero() {
         return Err(HpError::InvalidOp);
@@ -177,13 +177,13 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
     // SS_row = c · Σᵢ(Rᵢ/c − x̄)²;  SS_col = r · Σⱼ(Cⱼ/r − x̄)²
     let mut ss_row = HpNum::zero();
     for i in 0..r {
-        let row_mean = state.regs[row_base + i].checked_div(&c_hp)?;
+        let row_mean = state.regs[row_base + i].numeric_or_zero().checked_div(&c_hp)?;
         ss_row = ss_row.checked_add(&row_mean.checked_sub(&grand_mean)?.checked_sq()?)?;
     }
     ss_row = c_hp.checked_mul(&ss_row)?;
     let mut ss_col = HpNum::zero();
     for j in 0..c {
-        let col_mean = state.regs[col_base + j].checked_div(&r_hp)?;
+        let col_mean = state.regs[col_base + j].numeric_or_zero().checked_div(&r_hp)?;
         ss_col = ss_col.checked_add(&col_mean.checked_sub(&grand_mean)?.checked_sq()?)?;
     }
     ss_col = r_hp.checked_mul(&ss_col)?;
@@ -228,7 +228,7 @@ pub fn op_sigma_aovtwo(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
     require_stat1_size_floor(state)?;
 
-    let k_num = state.regs[STAT1_AOV_K_REG].clone();
+    let k_num = state.regs[STAT1_AOV_K_REG].numeric_or_zero();
     let k = decode_group_count(&k_num, STAT1_AOV_KMAX)?;
 
     // Per-group blocks: stride 5, base R07 (Σy, Σy², n, Σx, Σxy).
@@ -244,7 +244,7 @@ pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
     if group_base + group_stride * k > STAT1_MAX_REG + 1 {
         return Err(HpError::Domain);
     }
-    let grand_sumsq_x = state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG].clone();
+    let grand_sumsq_x = state.regs[STAT1_ANOCOV_GRAND_SUMSQ_X_REG].numeric_or_zero();
 
     let mut grand_n = HpNum::zero();
     let mut grand_sum_y = HpNum::zero();
@@ -256,11 +256,11 @@ pub fn op_sigma_anocov(state: &mut CalcState) -> Result<(), HpError> {
     let mut ssw_xy = HpNum::zero();
     for i in 0..k {
         let base = group_base + group_stride * i;
-        let sum_y = state.regs[base + STAT1_ANOCOV_GROUP_SUM_Y_OFFSET].clone();
-        let sumsq_y = state.regs[base + STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET].clone();
-        let n_i = state.regs[base + STAT1_ANOCOV_GROUP_N_OFFSET].clone();
-        let sum_x = state.regs[base + STAT1_ANOCOV_GROUP_SUM_X_OFFSET].clone();
-        let sum_xy = state.regs[base + STAT1_ANOCOV_GROUP_SUM_XY_OFFSET].clone();
+        let sum_y = state.regs[base + STAT1_ANOCOV_GROUP_SUM_Y_OFFSET].numeric_or_zero();
+        let sumsq_y = state.regs[base + STAT1_ANOCOV_GROUP_SUMSQ_Y_OFFSET].numeric_or_zero();
+        let n_i = state.regs[base + STAT1_ANOCOV_GROUP_N_OFFSET].numeric_or_zero();
+        let sum_x = state.regs[base + STAT1_ANOCOV_GROUP_SUM_X_OFFSET].numeric_or_zero();
+        let sum_xy = state.regs[base + STAT1_ANOCOV_GROUP_SUM_XY_OFFSET].numeric_or_zero();
         if n_i.is_zero() {
             return Err(HpError::InvalidOp);
         }
@@ -333,10 +333,10 @@ mod tests {
     fn load_group(state: &mut CalcState, i: usize, sum: f64, sumsq: f64, n: i32) {
         let base = STAT1_AOV_GROUP_BASE_REG + STAT1_AOV_GROUP_STRIDE * i;
         state.regs[base + STAT1_AOV_GROUP_SUM_OFFSET] =
-            HpNum::from(rust_decimal::Decimal::from_f64_retain(sum).expect("finite"));
+            HpNum::from(rust_decimal::Decimal::from_f64_retain(sum).expect("finite")).into();
         state.regs[base + STAT1_AOV_GROUP_SUMSQ_OFFSET] =
-            HpNum::from(rust_decimal::Decimal::from_f64_retain(sumsq).expect("finite"));
-        state.regs[base + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(n);
+            HpNum::from(rust_decimal::Decimal::from_f64_retain(sumsq).expect("finite")).into();
+        state.regs[base + STAT1_AOV_GROUP_N_OFFSET] = HpNum::from(n).into();
     }
 
     /// ΣAOVONE oracle: 3 groups of 5 samples [1..5], [6..10], [11..15].
@@ -347,7 +347,7 @@ mod tests {
     #[test]
     fn aovone_three_groups_of_five_yields_f_50() {
         let mut state = CalcState::new();
-        state.regs[STAT1_AOV_K_REG] = HpNum::from(3i32);
+        state.regs[STAT1_AOV_K_REG] = HpNum::from(3i32).into();
         // group 0: [1..5] → Σ=15, Σ²=55, n=5
         load_group(&mut state, 0, 15.0, 55.0, 5);
         // group 1: [6..10] → Σ=40, Σ²=330, n=5
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn aovone_identical_groups_yields_f_zero() {
         let mut state = CalcState::new();
-        state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+        state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
         load_group(&mut state, 0, 15.0, 55.0, 5);
         load_group(&mut state, 1, 15.0, 55.0, 5);
         op_sigma_aovone(&mut state).unwrap();
@@ -382,9 +382,9 @@ mod tests {
     #[test]
     fn aovone_k_out_of_range_returns_domain_error() {
         let mut state = CalcState::new();
-        state.regs[STAT1_AOV_K_REG] = HpNum::from(1i32);
+        state.regs[STAT1_AOV_K_REG] = HpNum::from(1i32).into();
         assert_eq!(op_sigma_aovone(&mut state).unwrap_err(), HpError::Domain); // LINT-EXEMPT: error-type comparison, no HpNum; lookahead false positive from adjacent HpNum line
-        state.regs[STAT1_AOV_K_REG] = HpNum::from(STAT1_AOV_KMAX as i32 + 1);
+        state.regs[STAT1_AOV_K_REG] = HpNum::from(STAT1_AOV_KMAX as i32 + 1).into();
         assert_eq!(op_sigma_aovone(&mut state).unwrap_err(), HpError::Domain);
     }
 
@@ -424,21 +424,21 @@ mod tests {
     #[test]
     fn aovtwo_3x4_oracle() {
         let mut state = CalcState::new();
-        state.regs[0] = HpNum::from(3i32); // r
-        state.regs[1] = HpNum::from(4i32); // c
-        state.regs[2] = HpNum::from(12i32); // N
+        state.regs[0] = HpNum::from(3i32).into(); // r
+        state.regs[1] = HpNum::from(4i32).into(); // c
+        state.regs[2] = HpNum::from(12i32).into(); // N
                                             // grand Σx² and Σx
-        state.regs[3] = HpNum::from(rust_decimal::Decimal::from(233i32));
-        state.regs[4] = HpNum::from(rust_decimal::Decimal::from(51i32));
+        state.regs[3] = HpNum::from(rust_decimal::Decimal::from(233i32)).into();
+        state.regs[4] = HpNum::from(rust_decimal::Decimal::from(51i32)).into();
         // row sums R05, R06, R07 = 19, 14, 18
-        state.regs[5] = HpNum::from(19i32);
-        state.regs[6] = HpNum::from(14i32);
-        state.regs[7] = HpNum::from(18i32);
+        state.regs[5] = HpNum::from(19i32).into();
+        state.regs[6] = HpNum::from(14i32).into();
+        state.regs[7] = HpNum::from(18i32).into();
         // col sums R08, R09, R10, R11 = 15, 9, 12, 15
-        state.regs[8] = HpNum::from(15i32);
-        state.regs[9] = HpNum::from(9i32);
-        state.regs[10] = HpNum::from(12i32);
-        state.regs[11] = HpNum::from(15i32);
+        state.regs[8] = HpNum::from(15i32).into();
+        state.regs[9] = HpNum::from(9i32).into();
+        state.regs[10] = HpNum::from(12i32).into();
+        state.regs[11] = HpNum::from(15i32).into();
         op_sigma_aovtwo(&mut state).unwrap();
         // F_col lands at X, F_row at Y
         assert_relative_eq!(to_f64(&state.stack.x), 11.0 / 3.0, max_relative = 1e-7);
@@ -476,25 +476,25 @@ mod tests {
     #[test]
     fn anocov_two_group_oracle() {
         let mut state = CalcState::new();
-        state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32);
+        state.regs[STAT1_AOV_K_REG] = HpNum::from(2i32).into();
         // grand-block at R01..R06; R01 unused by ANCOVA (use 0).
         // R02 = grand Σy² (unused — Op recomputes from per-group),
         // R03 = grand Σy  (recomputed),
         // R04 = grand Σx² → 91
-        state.regs[4] = HpNum::from(91i32);
+        state.regs[4] = HpNum::from(91i32).into();
         // Per-group blocks at R07..R16 (k=2, stride=5):
         // Group 0: Σy=12, Σy²=56, n=3, Σx=6, Σxy=28
-        state.regs[7] = HpNum::from(12i32);
-        state.regs[8] = HpNum::from(56i32);
-        state.regs[9] = HpNum::from(3i32);
-        state.regs[10] = HpNum::from(6i32);
-        state.regs[11] = HpNum::from(28i32);
+        state.regs[7] = HpNum::from(12i32).into();
+        state.regs[8] = HpNum::from(56i32).into();
+        state.regs[9] = HpNum::from(3i32).into();
+        state.regs[10] = HpNum::from(6i32).into();
+        state.regs[11] = HpNum::from(28i32).into();
         // Group 1: Σy=15, Σy²=83, n=3, Σx=15, Σxy=78
-        state.regs[12] = HpNum::from(15i32);
-        state.regs[13] = HpNum::from(83i32);
-        state.regs[14] = HpNum::from(3i32);
-        state.regs[15] = HpNum::from(15i32);
-        state.regs[16] = HpNum::from(78i32);
+        state.regs[12] = HpNum::from(15i32).into();
+        state.regs[13] = HpNum::from(83i32).into();
+        state.regs[14] = HpNum::from(3i32).into();
+        state.regs[15] = HpNum::from(15i32).into();
+        state.regs[16] = HpNum::from(78i32).into();
         op_sigma_anocov(&mut state).unwrap();
         let expected = (17.5 - (11.5_f64 * 11.5) / 17.5 - 3.75) / 1.0 / (3.75 / 3.0);
         assert_relative_eq!(to_f64(&state.stack.x), expected, max_relative = 1e-7);

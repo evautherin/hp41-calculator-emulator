@@ -173,7 +173,7 @@ fn push_coefficients(state: &mut CalcState, coeffs: &[HpNum]) {
 /// Local helper: clone a register slot.
 #[inline]
 fn r(state: &CalcState, idx: usize) -> HpNum {
-    state.regs[idx].clone()
+    state.regs[idx].numeric_or_zero()
 }
 
 /// ΣMLRXY — 2-predictor MLR (`y = b₀+b₁x₁+b₂x₂`). 9 named-const Σ stats;
@@ -293,7 +293,7 @@ pub(crate) fn compute_polyp_coefficients(state: &mut CalcState) -> Result<(), Hp
         .collect();
     let coeffs = solve_normal_equations(&mut matrix, &mut rhs)?;
     for (i, c) in coeffs.iter().enumerate() {
-        state.regs[STAT1_POLYP_COEF_BASE_REG + i] = c.clone();
+        state.regs[STAT1_POLYP_COEF_BASE_REG + i] = c.clone().into();
     }
     state.stack.lift_enabled = true;
     enter_number(state, coeffs[d].clone());
@@ -565,15 +565,15 @@ mod tests {
     #[test]
     fn mlrxy_two_predictor_oracle() {
         let mut state = CalcState::new();
-        state.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32);
-        state.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32);
-        state.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32);
-        state.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32);
-        state.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32);
-        state.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32);
-        state.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32);
-        state.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32);
-        state.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32);
+        state.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
+        state.regs[STAT1_MLRXY_SUM_Y_REG] = HpNum::from(160i32).into();
+        state.regs[STAT1_MLRXY_SUM_X1_REG] = HpNum::from(15i32).into();
+        state.regs[STAT1_MLRXY_SUM_X2_REG] = HpNum::from(55i32).into();
+        state.regs[STAT1_MLRXY_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+        state.regs[STAT1_MLRXY_SUM_X2SQ_REG] = HpNum::from(979i32).into();
+        state.regs[STAT1_MLRXY_SUM_X1X2_REG] = HpNum::from(225i32).into();
+        state.regs[STAT1_MLRXY_SUM_X1Y_REG] = HpNum::from(630i32).into();
+        state.regs[STAT1_MLRXY_SUM_X2Y_REG] = HpNum::from(2688i32).into();
         op_sigma_mlrxy(&mut state).expect("ΣMLRXY oracle must succeed");
         // X = b₂, Y = b₁, Z = b₀ per the three-push convention.
         assert_relative_eq!(as_f64(&state.stack.x), 2.0, max_relative = 1e-6);
@@ -594,7 +594,7 @@ mod tests {
     fn mlrxy_singular_returns_domain() {
         let mut state = CalcState::new();
         // Trivial degenerate: all sums zero except n.
-        state.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_MLRXY_N_REG] = HpNum::from(5i32).into();
         // All Σ stays zero → Gauss elimination encounters a zero pivot
         // on column 1 (after the row-0 pivot is n).
         assert_eq!(op_sigma_mlrxy(&mut state).unwrap_err(), HpError::Domain);
@@ -619,20 +619,20 @@ mod tests {
     #[test]
     fn mlrxyz_three_predictor_oracle() {
         let mut state = CalcState::new();
-        state.regs[STAT1_MLRXYZ_N_REG] = HpNum::from(5i32);
-        state.regs[STAT1_MLRXYZ_SUM_Y_REG] = HpNum::from(106i32);
-        state.regs[STAT1_MLRXYZ_SUM_X1_REG] = HpNum::from(15i32);
-        state.regs[STAT1_MLRXYZ_SUM_X2_REG] = HpNum::from(9i32);
-        state.regs[STAT1_MLRXYZ_SUM_X3_REG] = HpNum::from(11i32);
-        state.regs[STAT1_MLRXYZ_SUM_X1SQ_REG] = HpNum::from(55i32);
-        state.regs[STAT1_MLRXYZ_SUM_X2SQ_REG] = HpNum::from(19i32);
-        state.regs[STAT1_MLRXYZ_SUM_X3SQ_REG] = HpNum::from(31i32);
-        state.regs[STAT1_MLRXYZ_SUM_X1X2_REG] = HpNum::from(32i32);
-        state.regs[STAT1_MLRXYZ_SUM_X1X3_REG] = HpNum::from(32i32);
-        state.regs[STAT1_MLRXYZ_SUM_X2X3_REG] = HpNum::from(19i32);
-        state.regs[STAT1_MLRXYZ_SUM_X1Y_REG] = HpNum::from(349i32);
-        state.regs[STAT1_MLRXYZ_SUM_X2Y_REG] = HpNum::from(206i32);
-        state.regs[STAT1_MLRXYZ_SUM_X3Y_REG] = HpNum::from(256i32);
+        state.regs[STAT1_MLRXYZ_N_REG] = HpNum::from(5i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_Y_REG] = HpNum::from(106i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X1_REG] = HpNum::from(15i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X2_REG] = HpNum::from(9i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X3_REG] = HpNum::from(11i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X1SQ_REG] = HpNum::from(55i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X2SQ_REG] = HpNum::from(19i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X3SQ_REG] = HpNum::from(31i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X1X2_REG] = HpNum::from(32i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X1X3_REG] = HpNum::from(32i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X2X3_REG] = HpNum::from(19i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X1Y_REG] = HpNum::from(349i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X2Y_REG] = HpNum::from(206i32).into();
+        state.regs[STAT1_MLRXYZ_SUM_X3Y_REG] = HpNum::from(256i32).into();
         op_sigma_mlrxyz(&mut state).expect("ΣMLRXYZ oracle must succeed");
         // Pushed in order b₀, b₁, b₂, b₃ → T, Z, Y, X after four lifts.
         // Tolerance 1e-6 matches ΣMLRXY bump rationale — chained Gauss
@@ -653,17 +653,17 @@ mod tests {
     ///   Σx    = 15        Σx²  = 55        Σx³ = 225      Σx⁴ = 979
     ///   Σy    = 55        Σxy  = 225       Σx²y = 979
     fn load_polyp_y_eq_x_sq(state: &mut CalcState) {
-        state.regs[STAT1_POLYP_N_REG] = HpNum::from(5i32);
+        state.regs[STAT1_POLYP_N_REG] = HpNum::from(5i32).into();
         // Σx^k at offsets k-1 for k=1..4.
-        state.regs[STAT1_POLYP_SUM_X_BASE_REG] = HpNum::from(15i32); // Σx
-        state.regs[STAT1_POLYP_SUM_X_BASE_REG + 1] = HpNum::from(55i32); // Σx²
-        state.regs[STAT1_POLYP_SUM_X_BASE_REG + 2] = HpNum::from(225i32); // Σx³
-        state.regs[STAT1_POLYP_SUM_X_BASE_REG + 3] = HpNum::from(979i32); // Σx⁴
+        state.regs[STAT1_POLYP_SUM_X_BASE_REG] = HpNum::from(15i32).into(); // Σx
+        state.regs[STAT1_POLYP_SUM_X_BASE_REG + 1] = HpNum::from(55i32).into(); // Σx²
+        state.regs[STAT1_POLYP_SUM_X_BASE_REG + 2] = HpNum::from(225i32).into(); // Σx³
+        state.regs[STAT1_POLYP_SUM_X_BASE_REG + 3] = HpNum::from(979i32).into(); // Σx⁴
                                                                           // Σ(x^k·y) at offsets k for k=0..2.
-        state.regs[STAT1_POLYP_SUM_XY_BASE_REG] = HpNum::from(55i32); // Σy
-        state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 1] = HpNum::from(225i32); // Σxy
-        state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 2] = HpNum::from(979i32); // Σx²y
-        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(2i32);
+        state.regs[STAT1_POLYP_SUM_XY_BASE_REG] = HpNum::from(55i32).into(); // Σy
+        state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 1] = HpNum::from(225i32).into(); // Σxy
+        state.regs[STAT1_POLYP_SUM_XY_BASE_REG + 2] = HpNum::from(979i32).into(); // Σx²y
+        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(2i32).into();
     }
 
     /// SPEC.md Req. 22 oracle: d=2, y=x² → coefficients (a₀=0, a₁=0, a₂=1)
@@ -674,9 +674,9 @@ mod tests {
         load_polyp_y_eq_x_sq(&mut state);
         compute_polyp_coefficients(&mut state).expect("ΣPOLYP compute must succeed");
         // a_0..a_2 stored in registers; a_2 also pushed to stack X.
-        let a0 = state.regs[STAT1_POLYP_COEF_BASE_REG].clone();
-        let a1 = state.regs[STAT1_POLYP_COEF_BASE_REG + 1].clone();
-        let a2 = state.regs[STAT1_POLYP_COEF_BASE_REG + 2].clone();
+        let a0 = state.regs[STAT1_POLYP_COEF_BASE_REG].numeric_or_zero();
+        let a1 = state.regs[STAT1_POLYP_COEF_BASE_REG + 1].numeric_or_zero();
+        let a2 = state.regs[STAT1_POLYP_COEF_BASE_REG + 2].numeric_or_zero();
         assert!(
             as_f64(&a0).abs() < 1e-7,
             "a₀ must be ≈ 0, got {}",
@@ -710,12 +710,12 @@ mod tests {
     #[test]
     fn polyp_invalid_degree_returns_domain() {
         let mut state = CalcState::new();
-        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(0i32);
+        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(0i32).into();
         assert_eq!(
             compute_polyp_coefficients(&mut state).unwrap_err(),
             HpError::Domain
         );
-        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(99i32);
+        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(99i32).into();
         assert_eq!(
             compute_polyp_coefficients(&mut state).unwrap_err(),
             HpError::Domain
@@ -740,7 +740,7 @@ mod tests {
     #[test]
     fn polyc_without_polyp_returns_domain() {
         let mut state = CalcState::new();
-        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(0i32);
+        state.regs[STAT1_POLYP_DEGREE_REG] = HpNum::from(0i32).into();
         state.stack.x = HpNum::from(1i32);
         assert_eq!(op_sigma_polyc(&mut state).unwrap_err(), HpError::Domain);
     }

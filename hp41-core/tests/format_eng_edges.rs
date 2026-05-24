@@ -281,7 +281,7 @@ fn op_isg_interactive_discards_skip_signal() {
     // Counter "1.001" = current=1, increment=0.001 → increment to 1.001 +
     // delta=0.001 → current becomes 2 (per parse_counter semantics).
     let mut s = CalcState::new();
-    s.regs[5] = HpNum::rounded(Decimal::from_str("1.001").expect("literal"));
+    s.regs[5] = HpNum::rounded(Decimal::from_str("1.001").expect("literal")).into();
     let pc_before = s.pc;
     let reg5_before = s.regs[5].clone();
     dispatch(&mut s, Op::Isg(5)).unwrap();
@@ -299,7 +299,7 @@ fn op_dse_interactive_discards_skip_signal() {
     // rationale: assert regs[5] is mutated so a "true no-op" regression
     // doesn't silently pass.
     let mut s = CalcState::new();
-    s.regs[5] = HpNum::rounded(Decimal::from_str("5.001").expect("literal"));
+    s.regs[5] = HpNum::rounded(Decimal::from_str("5.001").expect("literal")).into();
     let pc_before = s.pc;
     let reg5_before = s.regs[5].clone();
     dispatch(&mut s, Op::Dse(5)).unwrap();
