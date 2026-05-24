@@ -88,7 +88,7 @@ use std::sync::atomic::Ordering;
 /// Sets `state.modal_program = Some(ModalProgram::Stat1(Stat1Step::ChisqdNuPrompt))`
 /// and prompt `ν=?` (Unicode `\u{03BD}=?`). The user enters ν in X and
 /// presses R/S; `submit_step(ChisqdNuPrompt)` advances to
-/// `ChisqdModeChoice` after stashing ν in `state.stack.t` (D-33.5).
+/// `ChisqdModeChoice` after stashing ν in `state.pending_chisqd_nu` (WR-03 fix).
 ///
 /// LiftEffect: `Neutral` (modal-opener convention).
 ///
