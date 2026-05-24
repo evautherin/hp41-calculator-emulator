@@ -72,7 +72,7 @@ See [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) for full phase deta
 - [x] **Phase 33: hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops** — Spec-phase OM layout transcription; contamination-guard extension (Pitfall 27, first); STAT_1 XROM registration (bit 1); `default_xrom_modules` migration (0b0000_0001 → 0b0000_0011); `rand_seed` CalcState field; `stat1/distributions.rs` (3 numerical primitives); all ~24 Op variants across `stat1/` module tree; 4-way invariant items 1 + 2 complete. Estimate 9–11 plans. (completed 2026-05-22)
 - [x] **Phase 34: hp41-cli — CLI Integration** — `docs/hp41-stat1-functions.json` canonical source; third `OnceLock<Vec<HelpEntry>>`; ~24 new `op_display_name` arms; "Stat 1 Pac (XROM 2)" help-overlay section; `xrom_shadowing.rs` extended to STAT_1.ops; modal-prompt routing for multi-step Stat 1 workflows. Estimate 2–3 plans. (completed 2026-05-23)
 - [x] **Phase 35: Documentation & ADRs** — `docs/hp41-stat1-divergences.md` three-bucket catalog; `scripts/docs-matrix` three-input extension; `docs/hp41-stat1-function-matrix.md` generated; new ADRs for v3.1 architectural decisions (RNG-state serde, register layout, distribution-primitive policy); README v3.1 section + CLAUDE.md `### v3.1 additions` block; `docs/architecture-history.md` v3.1 narrative. Estimate 3–4 plans. (completed 2026-05-23)
-- [ ] **Phase 36: hp41-gui — GUI Integration** — ~24 new `op_display_name` arms in GUI `prgm_display.rs`; CATALOG 2 gains "STAT 1B" XROM entry; help overlay "Stat 1 Pac (XROM 2)" parallel-load section; modal-prompt routing for Stat 1 multi-step workflows; `request_cancel` reuse for iterative-quantile paths (ΣNORMD inverse + ΣCHISQD CDF). Estimate 3–5 plans.
+- [ ] **Phase 36: hp41-gui — GUI Integration** — 26 new `op_display_name` arms in GUI `prgm_display.rs` (4-way invariant item 4 sealed); CATALOG 2 gains "STAT 1B" XROM entry via surgical `op_catalog` bit-1 block; help overlay "Stat 1 Pac (XROM 2)" third section via Vite JSON import; LCD-alternation modal-prompt routing verified for all 5 Stat1Step variants; STAT-GUI-05 reassigned to Phase 37 per D-36.2 (bounded 50-iter primitives). 3 plans.
 - [ ] **Phase 37: Test Hardening & Quality Gates** — `hp41-core` coverage hold ≥ 95.39 % lines / ≥ 94.26 % regions; per-file `stat1/*.rs` floor ≥ 90 %; two-level tolerance discipline (1e-9 closed-form, 1e-7 iterative); `stat1_op_test_count.rs` meta-gate; `xrom_shadowing.rs` STAT_1 extension; backward-compat test for v3.0 save migration; `numerical_accuracy.rs` extended with ~30 Stat 1 oracle cases; `lint_stat1_assertions.rs`; `stat1_rand_determinism.rs`; E2E smoke extended with one Stat 1 Pac workflow on Ubuntu. Estimate 6–10 plans.
 
 ---
@@ -157,24 +157,34 @@ Plans:
 
 ### Phase 36: hp41-gui — GUI Integration
 
-**Goal**: Users can invoke all Stat 1 Pac programs from the GUI — CATALOG 2 shows "STAT 1B", the `?` overlay has a "Stat 1 Pac (XROM 2)" section, program listings display correct names, and iterative-quantile paths are cancellable via R/S
+**Goal**: Users can invoke all Stat 1 Pac programs from the GUI — CATALOG 2 shows "STAT 1B", the `?` overlay has a "Stat 1 Pac (XROM 2)" section, program listings display correct names, and modal prompts route through existing CalcStateView infrastructure
 **Depends on**: Phase 35
-**Requirements**: STAT-GUI-01, STAT-GUI-02, STAT-GUI-03, STAT-GUI-04, STAT-GUI-05
+**Requirements**: STAT-GUI-01, STAT-GUI-02, STAT-GUI-03, STAT-GUI-04
 **Success Criteria** (what must be TRUE):
 
   1. `XEQ "ΣNORMD"` entered from the GUI keyboard (via the XEQ modal) returns Q(1.96) ≈ 0.0250 displayed on the LCD — the GUI prgm_display.rs Op variant arms are exhaustive and compile without `_ =>` catch-all
   2. CATALOG 2 displays "STAT 1B" alongside "MATH 1A" — both XROM module entries are visible in the GUI
   3. The GUI `?` overlay shows a "Stat 1 Pac (XROM 2)" section with all 14 Stat 1 entry-point mnemonics; search returns Stat 1 results alongside built-in and Math Pac I results
-  4. A running ΣNORMD inverse computation (iterative quantile path) can be cancelled by pressing R/S — the `request_cancel` `Arc<AtomicBool>` check fires within the iterative loop (per-loop check reusing the v3.0 Pitfall 11 pattern)
+  4. STAT-GUI-05 (request_cancel reuse) reassigned to Phase 37 per D-36.2 — bounded 50-iter distribution primitives complete in microseconds; no cancellation needed at this timescale
 
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+Plans:
+
+**Wave 1**
+
+- [ ] 36-01-PLAN.md — STAT-GUI-05 reassignment bookkeeping (D-36.3) + 26 op_display_name arms in GUI prgm_display.rs (4-way invariant item 4) + op_catalog bit-1 block for STAT_1 + catalog_2 test + prgm_display file-text-scan test extension (STAT-GUI-01, STAT-GUI-02, STAT-GUI-05)
+- [ ] 36-02-PLAN.md — help_data.ts third Vite JSON import + helpEntriesStat1() + 3-pool helpEntriesAll() + HelpOverlay.tsx SECTIONS third entry "Stat 1 Pac (XROM 2)" + expanded state widening + lcd_alternation_modal_prompt_stat1.rs Rust integration test (5 Stat1Step variants) (STAT-GUI-03, STAT-GUI-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 36-03-PLAN.md — HelpOverlay.test.tsx vitest extensions: Stat 1 data-layer tests + section render/collapse/search tests + sectionButtons.length 2->3 update + just gui-ci verification (STAT-GUI-03, STAT-GUI-04)
 
 ### Phase 37: Test Hardening & Quality Gates
 
 **Goal**: All v3.1 quality gates hold — `hp41-core` coverage does not regress below the v3.0 baseline, Stat 1 Pac numerical accuracy meets the two-level tolerance discipline, backward-compat migration is verified, and no Free42 contamination is detectable
 **Depends on**: Phase 36
-**Requirements**: STAT-QUAL-01, STAT-QUAL-02, STAT-QUAL-03, STAT-QUAL-04, STAT-QUAL-05, STAT-QUAL-06, STAT-QUAL-07, STAT-QUAL-08, STAT-QUAL-09, STAT-QUAL-10, STAT-QUAL-11
+**Requirements**: STAT-QUAL-01, STAT-QUAL-02, STAT-QUAL-03, STAT-QUAL-04, STAT-QUAL-05, STAT-QUAL-06, STAT-QUAL-07, STAT-QUAL-08, STAT-QUAL-09, STAT-QUAL-10, STAT-QUAL-11, STAT-GUI-05
 **Success Criteria** (what must be TRUE):
 
   1. `just ci` reports `hp41-core` line coverage ≥ 95.39 % and region coverage ≥ 94.26 % (v3.0 baseline preserved); all `hp41-core/src/ops/stat1/*.rs` files individually report ≥ 90 % coverage
@@ -201,9 +211,9 @@ Plans:
 | 33 | v3.1 | 9/9 | Complete    | 2026-05-22 |
 | 34 | v3.1 | 2/2 | Complete   | 2026-05-23 |
 | 35 | v3.1 | 4/4 | Complete    | 2026-05-23 |
-| 36 | v3.1 | 0/0 | Not started | - |
+| 36 | v3.1 | 0/3 | Planning complete | - |
 | 37 | v3.1 | 0/0 | Not started | - |
 
 ---
 
-*Last updated: 2026-05-23 — Phase 34 planned (2 plans authored per D-34.2; STAT-CLI-01..05 all addressed).*
+*Last updated: 2026-05-24 — Phase 36 planned (3 plans authored per D-36.4; STAT-GUI-01..04 addressed, STAT-GUI-05 reassigned to Phase 37 per D-36.2).*
