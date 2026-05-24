@@ -94,6 +94,7 @@ fn display_mode_fix_6_yields_1e_7_threshold() {
     let tol = quantile_threshold(DisplayMode::Fix(6));
     // Strict relative comparison — the value should be a bit-exact
     // power of 10 (10.0_f64.powi(-7) = 1e-7 with no rounding noise).
+    // LINT-EXEMPT: testing the VALUE of the tolerance function itself (f64 power-of-10 exact); not a computed numerical result
     assert!(
         (tol - 1e-7).abs() < 1e-20,
         "quantile_threshold(Fix(6)) must equal 1e-7 exactly; got {tol}"
@@ -109,6 +110,7 @@ fn display_mode_fix_6_yields_1e_7_threshold() {
 #[test]
 fn display_mode_fix_4_yields_1e_5_threshold() {
     let tol = quantile_threshold(DisplayMode::Fix(4));
+    // LINT-EXEMPT: testing the VALUE of the tolerance function itself (f64 power-of-10 exact); not a computed numerical result
     assert!(
         (tol - 1e-5).abs() < 1e-18,
         "quantile_threshold(Fix(4)) must equal 1e-5 exactly; got {tol}"

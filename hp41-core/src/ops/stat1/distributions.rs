@@ -643,6 +643,7 @@ mod tests {
     fn beta_regularized_symmetric_at_midpoint() {
         // scipy.special.betainc(2, 2, 0.5) = 0.5 (exact by symmetry)
         let v = beta_regularized_f64(2.0, 2.0, 0.5).unwrap();
+        // LINT-EXEMPT: distribution primitive unit test — tight 1e-12 absolute tolerance intentional; result is exact by symmetry, f64-bridge is the test subject
         assert!((v - 0.5).abs() < 1e-12, "expected ~0.5, got {v}");
     }
 
@@ -662,6 +663,7 @@ mod tests {
     fn beta_regularized_at_upper_endpoint() {
         // scipy.special.betainc(2.5, 0.5, 1) = 1.0 (exact endpoint)
         let v = beta_regularized_f64(2.5, 0.5, 1.0).unwrap();
+        // LINT-EXEMPT: distribution primitive unit test — tight 1e-12 absolute tolerance intentional; endpoint x=1 is handled by closed-form shortcut, f64-bridge is the test subject
         assert!((v - 1.0).abs() < 1e-12, "expected 1.0, got {v}");
     }
 
@@ -675,6 +677,7 @@ mod tests {
         // the swap is mandated by AS 63 / NR §6.4 for x >= threshold.
         // 1e-10 is still inside SPEC.md Req. 33's 1e-9 oracle band.
         let v = beta_regularized_f64(10.0, 10.0, 0.5).unwrap();
+        // LINT-EXEMPT: distribution primitive unit test — 1e-10 absolute tolerance intentional (swap path introduces cancellation ~1e-11); f64-bridge is the test subject
         assert!((v - 0.5).abs() < 1e-10, "expected ~0.5, got {v}");
     }
 
