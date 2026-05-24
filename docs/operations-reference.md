@@ -320,6 +320,75 @@ DATA` until the first request has been drained.
 
 ---
 
+## Stat 1 Pac (XROM 2, v3.1)
+
+The Stat 1 Pac provides 13 programs with 26 XEQ entry points for advanced statistical analysis, all invoked via `XEQ "name"`. Behavioral emulation follows HP Owner's Manual 00041-90030; see [Stat 1 Pac Function Matrix](hp41-stat1-function-matrix.md) for per-op details and [Stat 1 Pac Divergences](hp41-stat1-divergences.md) for known divergences from the original hardware.
+
+Several operations use **modal prompts** to gather parameters before execution: SEED prompts `SEED?`, ΣPOLYP prompts `DEGREE=?`, ΣNORMD and ΣCHISQD prompt for mode/parameters interactively.
+
+### Univariate Statistics
+
+| Mnemonic | Description |
+|----------|-------------|
+| `ΣBSTAT` | Basic statistics (mean, std dev, min, max, count) |
+| `ΣBSTG` | Basic statistics — grouped data |
+| `ΣMMTUG` | Moments (skewness, kurtosis) — ungrouped data |
+| `ΣMMTGD` | Moments (skewness, kurtosis) — grouped data |
+
+### ANOVA
+
+| Mnemonic | Description |
+|----------|-------------|
+| `ΣAOVONE` | One-way analysis of variance |
+| `ΣAOVTWO` | Two-way analysis of variance |
+| `ΣANOCOV` | Analysis of covariance |
+
+### Regression
+
+| Mnemonic | Description |
+|----------|-------------|
+| `ΣLIN` | Linear regression (y = a + bx) |
+| `ΣEXP` | Exponential regression (y = ae^bx) |
+| `ΣLOGI` | Logistic regression |
+| `ΣPOW` | Power regression (y = ax^b) |
+| `ΣMLRXY` | Multiple linear regression (2 predictors) |
+| `ΣMLRXYZ` | Multiple linear regression (3 predictors) |
+| `ΣPOLYP` | Polynomial regression — predict (modal: prompts `DEGREE=?`) |
+| `ΣPOLYC` | Polynomial regression — coefficients |
+
+### Hypothesis Tests
+
+| Mnemonic | Description |
+|----------|-------------|
+| `ΣPTST` | Paired t-test |
+| `ΣTSTAT` | Two-sample t-test (pooled-variance only) |
+
+### Nonparametric Tests
+
+| Mnemonic | Description |
+|----------|-------------|
+| `ΣXSQEV` | Chi-square test — equal expected values |
+| `ΣEFXSQ` | Chi-square test — unequal expected values |
+| `ΣCTKKK` | Contingency table (k × k) |
+| `ΣCTKK` | Contingency table (k × k, alternative entry) |
+| `ΣSPEAR` | Spearman rank correlation |
+
+### Distributions
+
+| Mnemonic | Description |
+|----------|-------------|
+| `ΣNORMD` | Normal distribution — 3-mode (CDF, PDF, or inverse CDF); prompts for mode |
+| `ΣCHISQD` | Chi-square distribution — prompts for degrees of freedom (ν), then CDF or PDF |
+
+### Random Number Generator
+
+| Mnemonic | Description |
+|----------|-------------|
+| `RAND` | Generate pseudo-random number (LCG; emulator extension, not part of OM claim) |
+| `SEED` | Set RNG seed (modal: prompts `SEED?`; emulator extension) |
+
+---
+
 ## Worked Examples
 
 ### `%CH` — Percent Change
