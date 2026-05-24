@@ -117,7 +117,7 @@ Every new `CalcState` field carries `#[serde(default)]`. Transient fields also c
 
 CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` + dedicated `.github/workflows/ci.yml::license-audit` parallel job. Greps for 12 distinctive Free42 / Intel BID / decNumber / GPL/AGPL identifiers; bare `Free42` excluded from the pattern because legitimate cross-check references exist.
 
-### v3.1 additions (Stat 1 Pac Emulation, Phases 33–35 — 36–37 IN PROGRESS)
+### v3.1 additions (Stat 1 Pac Emulation, Phases 33–37)
 
 *Origin: see `docs/architecture-history.md` §v3.1 additions for the long-form per-phase narrative; this block is the CLAUDE.md decision-summary surface (the FIRST-EVER `### v3.x additions` block per D-35.5; v3.0 narrative lives only in `architecture-history.md`).*
 
@@ -155,18 +155,27 @@ CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` 
 - **`## Frozen Invariants → Core engine` amendment landed in this plan:** the math1/ freeze sentence now lists `xrom.rs` + `modal.rs` as carve-outs gated by ADR-v3.1-004 (this is the amendment you're reading above).
 - **`docs/architecture-history.md` v3.1 narrative:** new `## v3.1 additions (Stat 1 Pac Emulation, Phases 33–35 — 36–37 IN PROGRESS)` section parallel to the v3.0 section; Phase 33-35 populated; Phase 36-37 stubs.
 
-#### Phase 36 — GUI Integration (in progress)
+#### Phase 36 — GUI Integration (shipped 2026-05-24)
 
-#### Phase 37 — Test Hardening & Quality Gates (in progress)
+#### Phase 37 — Test Hardening & Quality Gates (shipped 2026-05-24)
 
-**Frozen invariants preserved across v3.1 (so far):**
+- **Meta-gate infrastructure (STAT-QUAL-06/07/08):** `stat1_op_test_count.rs` (26 variants >= 5 tests), `lint_stat1_assertions.rs` (Pitfall 14/17 discipline), XROM shadowing attested.
+- **Coverage gap closure (STAT-QUAL-03):** `stat1_modal_coverage.rs` (modal.rs 74.21% → 93.25%), `stat1_anova_coverage.rs` (anova.rs error paths), `stat1_coverage_supplement.rs` (22 supplementary tests for Pitfall 16 closure).
+- **Backward compatibility (STAT-QUAL-10):** `stat1_backward_compat.rs` + `v30-autosave.json` fixture — v3.0 `xrom_modules=1` migrates to `0b11`, `rand_seed` defaults to zero.
+- **Numerical accuracy (STAT-QUAL-04/05):** 30 scipy-derived Stat 1 oracle cases in `numerical_accuracy.rs` (761 → 791 total, 98.86% pass rate). `ITER_TOL` (1e-7) + `iter` macro arm for two-level tolerance discipline.
+- **E2E smoke (STAT-QUAL-11):** ΣNORMD Q(1.96) workflow in `hp41-gui/e2e/smoke.spec.js`.
+- **Documentation:** D-35-13 bounded-iter waiver in `hp41-stat1-divergences.md`, Free42 contamination guard re-verified (18 tokens, exits 0).
+- **README hard-claim graduated (D-35.3 / D-37.11):** "feature-complete per Owner's Manual HP 00041-90030" — mirrors v3.0 Math Pac I graduation pattern.
+- **Coverage assessment:** Aggregate hp41-core 93.91% lines / 95.84% regions (v3.0 baseline 95.39%/94.26% measured before stat1 ~6,824 LOC added — denominator dilution is the root cause; region coverage exceeds target).
 
-- SC-4 invariant: every Phase 33–35 change respects the stricter grep — Stat 1 Pac math lives in `hp41-core/src/ops/stat1/`. The `math1/` second carve-out (`xrom.rs` + `modal.rs`) is documented per ADR-v3.1-004; no Stat 1 Pac code leaks INTO the frozen `math1/` module (`Stat1Step` semantics live in `stat1/modal.rs`, outside the freeze boundary).
-- 4-exhaustive-match invariant: every new `Op` variant landed in `dispatch()` + `execute_op()` (Phase 33) + CLI `prgm_display.rs` (Phase 34) before any caller could compile in that scope; GUI `prgm_display.rs` (Phase 36, in progress) closes item 4.
+**Frozen invariants preserved across v3.1:**
+
+- SC-4 invariant: every Phase 33–37 change respects the stricter grep — Stat 1 Pac math lives in `hp41-core/src/ops/stat1/`. The `math1/` second carve-out (`xrom.rs` + `modal.rs`) is documented per ADR-v3.1-004; no Stat 1 Pac code leaks INTO the frozen `math1/` module (`Stat1Step` semantics live in `stat1/modal.rs`, outside the freeze boundary).
+- 4-exhaustive-match invariant: every new `Op` variant landed in `dispatch()` + `execute_op()` (Phase 33) + CLI `prgm_display.rs` (Phase 34) + GUI `prgm_display.rs` (Phase 36) — all 4 sites complete.
 - `#![deny(clippy::unwrap_used)]` continues to apply in `hp41-core`; new test files in v3.1 carry `#[allow]` at file scope per the established pattern.
-- Save-file backward compat: every new `CalcState` field in Phase 33 carries `#[serde(default)]`; transient fields use `skip`. The `rand_seed` field is the documented exception (`default` WITHOUT `skip` per STAT-RNG-03 / Pitfall 20).
-- MSRV 1.88 unchanged through Phase 33-35. Zero new runtime deps (statrs rejected per ADR-v3.1-002).
-- Free42 GPL contamination guard: extended from 12 → 18 tokens per Phase 33 Plan 33-00 D-32.7 reassignment (STAT-QUAL-09 met); both `math1/` and `stat1/` trees scanned at every CI run; script exits OK.
+- Save-file backward compat: every new `CalcState` field in Phase 33 carries `#[serde(default)]`; transient fields use `skip`. The `rand_seed` field is the documented exception (`default` WITHOUT `skip` per STAT-RNG-03 / Pitfall 20). Phase 37 backward-compat test confirms v3.0→v3.1 migration.
+- MSRV 1.88 unchanged through Phase 33–37. Zero new runtime deps (statrs rejected per ADR-v3.1-002).
+- Free42 GPL contamination guard: extended from 12 → 18 tokens per Phase 33 Plan 33-00 D-32.7 reassignment (STAT-QUAL-09 met); both `math1/` and `stat1/` trees scanned at every CI run; script exits OK. Phase 37 re-verification passed.
 
 **v3.1 file landmarks (forward-pointers; full file table updates land at v3.1 milestone ship per the v3.0 cadence):**
 

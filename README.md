@@ -50,7 +50,7 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
 - Persistent state via JSON at `~/.hp41/autosave.json` — human-readable, version-stable, shared between CLI and GUI
 - v3.0 ships Math Pac I behavioral emulation, feature-complete per Owner's Manual 00041-90034
   ([documented divergences](docs/hp41-math1-divergences.md)) — see [Math Pac I Function Matrix](docs/hp41-math1-function-matrix.md)
-- Stat 1 Pac behavioral emulation (13 programs, 26 XEQ entry points,
+- Stat 1 Pac behavioral emulation, feature-complete per Owner's Manual HP 00041-90030 (13 programs, 26 XEQ entry points,
   RAND/SEED extension, [documented divergences](docs/hp41-stat1-divergences.md)) — see [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md)
 
 **Terminal UI (`hp41-cli`)**
