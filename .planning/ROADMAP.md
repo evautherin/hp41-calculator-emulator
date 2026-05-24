@@ -173,8 +173,8 @@ Plans:
 
 **Wave 1**
 
-- [ ] 36-01-PLAN.md — STAT-GUI-05 reassignment bookkeeping (D-36.3) + 26 op_display_name arms in GUI prgm_display.rs (4-way invariant item 4) + op_catalog bit-1 block for STAT_1 + catalog_2 test + prgm_display file-text-scan test extension (STAT-GUI-01, STAT-GUI-02, STAT-GUI-05)
-- [ ] 36-02-PLAN.md — help_data.ts third Vite JSON import + helpEntriesStat1() + 3-pool helpEntriesAll() + HelpOverlay.tsx SECTIONS third entry "Stat 1 Pac (XROM 2)" + expanded state widening + lcd_alternation_modal_prompt_stat1.rs Rust integration test (5 Stat1Step variants) (STAT-GUI-03, STAT-GUI-04)
+- [x] 36-01-PLAN.md — STAT-GUI-05 reassignment bookkeeping (D-36.3) + 26 op_display_name arms in GUI prgm_display.rs (4-way invariant item 4) + op_catalog bit-1 block for STAT_1 + catalog_2 test + prgm_display file-text-scan test extension (STAT-GUI-01, STAT-GUI-02, STAT-GUI-05)
+- [x] 36-02-PLAN.md — help_data.ts third Vite JSON import + helpEntriesStat1() + 3-pool helpEntriesAll() + HelpOverlay.tsx SECTIONS third entry "Stat 1 Pac (XROM 2)" + expanded state widening + lcd_alternation_modal_prompt_stat1.rs Rust integration test (5 Stat1Step variants) (STAT-GUI-03, STAT-GUI-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -211,7 +211,7 @@ Plans:
 | 33 | v3.1 | 9/9 | Complete    | 2026-05-22 |
 | 34 | v3.1 | 2/2 | Complete   | 2026-05-23 |
 | 35 | v3.1 | 4/4 | Complete    | 2026-05-23 |
-| 36 | v3.1 | 0/3 | Planning complete | - |
+| 36 | v3.1 | 2/3 | In Progress|  |
 | 37 | v3.1 | 0/0 | Not started | - |
 
 ---
