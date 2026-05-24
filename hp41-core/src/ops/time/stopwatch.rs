@@ -28,17 +28,12 @@ use serde::{Deserialize, Serialize};
 /// `Stopped`: timer is paused; elapsed = accumulated.
 ///
 /// Default: `Idle` (hardware cold-start state per HP 82182A OM).
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum StopwatchMode {
+    #[default]
     Idle,
     Running,
     Stopped,
-}
-
-impl Default for StopwatchMode {
-    fn default() -> Self {
-        StopwatchMode::Idle
-    }
 }
 
 /// RUNSW — Start the stopwatch.
@@ -150,7 +145,7 @@ pub fn op_stpw(state: &mut CalcState) -> Result<(), HpError> {
 ///
 /// This is the inverse of `parse_time_hpnum` in `date_arith.rs`.
 pub(crate) fn secs_to_hpnum_time(secs: f64) -> Result<HpNum, HpError> {
-    if secs < 0.0 || secs >= 360_000.0 {
+    if !(0.0..360_000.0_f64).contains(&secs) {
         // 360_000 seconds = 100 hours, HP-41 max displayable
         return Err(HpError::InvalidOp);
     }

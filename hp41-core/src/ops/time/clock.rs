@@ -27,17 +27,12 @@ use serde::{Deserialize, Serialize};
 /// `TimeAndDate`: CLKTD — display time and date alternating.
 ///
 /// Default: `Off`.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum ClockDisplayMode {
+    #[default]
     Off,
     TimeOnly,
     TimeAndDate,
-}
-
-impl Default for ClockDisplayMode {
-    fn default() -> Self {
-        ClockDisplayMode::Off
-    }
 }
 
 /// TIME — Read current time (adjusted by `time_offset_secs`) and push as
