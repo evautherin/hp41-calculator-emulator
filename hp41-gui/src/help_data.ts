@@ -16,6 +16,7 @@
 
 import functions from '../../docs/hp41cv-functions.json';
 import math1Functions from '../../docs/hp41-math1-functions.json';
+import stat1Functions from '../../docs/hp41-stat1-functions.json';
 
 /// XROM module reference attached to Math Pac I (and future v3.1+ pac) entries.
 /// Matches the `xrom` object shape in docs/hp41-math1-functions.json (ADR-005 /
@@ -144,11 +145,25 @@ export function helpEntriesMath1(): readonly HelpEntry[] {
     return math1Functions as readonly HelpEntry[];
 }
 
-/// Phase 31-04: Merged accessor returning all built-in + Math Pac I entries.
+/// Phase 36 Plan 36-02: Stat 1 Pac function entries from docs/hp41-stat1-functions.json.
 ///
-/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 29 D-29.2).
-/// Used by HelpOverlay.tsx to obtain the full entry pool; the overlay then
-/// partitions by presence of `entry.xrom` into two sections (D-31.8).
+/// Vite static JSON-import: baked into the production bundle at build time.
+/// Malformed JSON fails the Vite build — hard-build-blocker semantics per
+/// D-25.17 (parallel to hp41-cli/src/help_data.rs `.expect("...malformed")`).
+/// Mirrors Phase 34 D-34.2 third OnceLock + accessor pattern in Rust (hp41-cli).
+/// Source: docs/hp41-stat1-functions.json (26 entries, 7-category convention per D-34.1).
+export function helpEntriesStat1(): readonly HelpEntry[] {
+    return stat1Functions as readonly HelpEntry[];
+}
+
+/// Phase 36 Plan 36-02: Merged accessor returning built-in + Math Pac I + Stat 1 Pac entries.
+///
+/// UPDATED from Phase 31-04 (2-pool) to 3-pool concatenation.
+/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 34 D-34.2 3-pool chain).
+/// Used by HelpOverlay.tsx to obtain the full entry pool; the overlay then partitions
+/// entries by `entry.xrom` into three sections (D-31.8 extended for Stat 1 Pac).
+/// Pitfall 5: do NOT create a parallel helpEntriesAll3() — update in-place so all
+/// existing callers (HelpOverlay.tsx) automatically pick up Stat 1 entries.
 export function helpEntriesAll(): readonly HelpEntry[] {
-    return [...helpEntries(), ...helpEntriesMath1()];
+    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1()];
 }
