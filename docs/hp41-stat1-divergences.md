@@ -590,8 +590,56 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
 
 ---
 
-*Last updated: 2026-05-23. Catalog established in Plan 35-02 (Phase 35 / STAT-DOC-03).*
+### D-35-13: Bounded-Iteration Distribution Primitives Do Not Wire cancel_requested
 
-*Next planned update: Phase 37 may add entries for cross-platform numerical-drift
-documentation discovered during the STAT-QUAL-04 coverage push, and additional
-behavioral policies discovered during Phase 36 GUI integration.*
+- **OM citation**: `N/A — emulator-internal design choice`. The HP-41C hardware
+  has no cancellation mechanism for built-in math primitives; the HP-41C Stat 1
+  Pac Owner's Manual HP 00041-90030 (1979) does not describe any mid-computation
+  interrupt facility for the distribution evaluation programs.
+
+- **Our behavior**: The three hand-coded f64-bridge distribution primitives —
+  `norm_cdf_inv_f64` (Acklam / Wichura AS 241), `gamma_regularized_f64`
+  (Cody AS 239), and `beta_regularized_f64` (Lentz AS 63) — are bounded at
+  `ITER_CAP = 50` iterations in `hp41-core/src/ops/stat1/distributions.rs` and
+  complete in microseconds on any supported platform (macOS M1 / Ubuntu / Windows).
+  They do NOT check `state.cancel_requested` on a per-iteration basis. The
+  `cancel_requested` flag is checked ONCE at the ΣNORMD inverse entry-point
+  (`op_sigma_normd_eval_inverse`) before entering the Newton refinement loop, per
+  the T-31-W1-sticky-cancel parity pattern established for v3.0 INTG/SOLVE/DIFEQ.
+
+- **OM behavior**: `N/A — emulator-internal design choice`. The HP-41C hardware
+  executes distribution programs atomically from the user's perspective — there
+  is no R/S mid-calculation cancel mechanism for XROM math primitives.
+
+- **Rationale**: The Phase 31 `cancel_requested` channel (`Arc<AtomicBool>`) was
+  designed specifically for OPEN-ENDED iterative paths (INTG, SOLVE, DIFEQ) that
+  can run for seconds or minutes and where the user might press R/S to interrupt
+  a diverging or slow computation (D-28.7 / D-28.8). Bounded 50-iteration f64
+  primitives complete faster than an R/S keypress can register (< 1 µs typical
+  on M1; < 5 µs on the slowest CI runner). Wiring per-iteration
+  `cancel_requested.load(Relaxed)` into a 50-iteration loop would add platform-
+  specific overhead (cache miss on the Arc<AtomicBool> pointer chain) to a loop
+  that is already a performance non-issue, with zero user-visible benefit — the
+  computation would complete before the cancel flag propagated from the GUI thread.
+  Rejected alternative: add a per-iteration cancel check to all three primitives
+  (cost: 3 additional `&CalcState` borrows through the call chain, complicating
+  the pure-f64 function signatures; benefit: zero, since 50 iterations of f64
+  arithmetic cannot block the GUI event loop for a perceptible duration).
+  See D-36.2 (36-CONTEXT.md) for the Phase 36 planning reassessment that confirmed
+  this disposition and reassigned STAT-GUI-05 to Phase 37 for documentation.
+
+- **See**: `hp41-core/src/ops/stat1/distributions.rs` (`ITER_CAP = 50` constant,
+  all three bounded primitives); `hp41-core/src/ops/stat1/normd.rs`
+  (`op_sigma_normd_eval_inverse` — entry-point cancel check BEFORE Newton loop);
+  `.planning/phases/36-hp41-gui-gui-integration/36-CONTEXT.md` D-36.2 (bounded-iter
+  rationale and STAT-GUI-05 reassignment commit message);
+  `docs/adr/v3.1-002-distribution-primitives-policy.md` (Plan 35-03 ADR — free
+  parameters ITER_CAP and convergence threshold selection); STAT-GUI-05
+  (REQUIREMENTS.md — formally resolved by this behavioral-policy entry per Plan
+  37-03 D-37.9 disposition).
+
+---
+
+*Last updated: 2026-05-24. Entry D-35-13 added in Plan 37-03 (Phase 37 / STAT-GUI-05 resolution).*
+
+*Prior update: 2026-05-23. Catalog established in Plan 35-02 (Phase 35 / STAT-DOC-03).*
