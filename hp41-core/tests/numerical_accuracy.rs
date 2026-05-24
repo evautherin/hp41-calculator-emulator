@@ -7346,9 +7346,9 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaLin — ΣLIN slope for pure-linear dataset
         let mut s = CalcState::new();
-        for (xi, yi) in [(1,2),(2,4),(3,6),(4,8),(5,10)] {
-            s.stack.y = HpNum::from(yi as i32);
-            s.stack.x = HpNum::from(xi as i32);
+        for (xi, yi) in [(1i32,2),(2,4),(3,6),(4,8),(5,10)] {
+            s.stack.y = HpNum::from(yi);
+            s.stack.x = HpNum::from(xi);
             dispatch(&mut s, Op::SigmaLin).unwrap();
         }
         dispatch(&mut s, Op::LR).unwrap(); // L.R. extracts slope (Y) and intercept (X)
@@ -7366,9 +7366,9 @@ fn test_numerical_accuracy_suite() {
         // Free42: N/A — Stat 1 Pac oracle; scipy.stats ground truth per D-37.1
         // Catches: SigmaExp — ΣLIN intercept for affine-linear dataset
         let mut s = CalcState::new();
-        for (xi, yi) in [(1,3),(2,5),(3,7),(4,9),(5,11)] {
-            s.stack.y = HpNum::from(yi as i32);
-            s.stack.x = HpNum::from(xi as i32);
+        for (xi, yi) in [(1i32,3),(2,5),(3,7),(4,9),(5,11)] {
+            s.stack.y = HpNum::from(yi);
+            s.stack.x = HpNum::from(xi);
             dispatch(&mut s, Op::SigmaLin).unwrap();
         }
         dispatch(&mut s, Op::LR).unwrap();

@@ -56,21 +56,25 @@ fn set_x_decimal(state: &mut CalcState, mantissa: i64, scale: u32) -> HpNum {
 }
 
 /// Open the ΣNORMD modal (dispatch `Op::SigmaNormdWorkflow`).
+#[allow(dead_code)]
 fn open_normd(state: &mut CalcState) {
     dispatch(state, Op::SigmaNormdWorkflow).expect("ΣNORMD workflow open must succeed");
 }
 
 /// Open the ΣCHISQD modal (dispatch `Op::SigmaChisqdWorkflow`).
+#[allow(dead_code)]
 fn open_chisqd(state: &mut CalcState) {
     dispatch(state, Op::SigmaChisqdWorkflow).expect("ΣCHISQD workflow open must succeed");
 }
 
 /// Open the ΣPOLYP modal (dispatch `Op::SigmaPolypWorkflow`).
+#[allow(dead_code)]
 fn open_polyp(state: &mut CalcState) {
     dispatch(state, Op::SigmaPolypWorkflow).expect("ΣPOLYP workflow open must succeed");
 }
 
 /// Open the SEED modal (dispatch `Op::Seed`).
+#[allow(dead_code)]
 fn open_seed(state: &mut CalcState) {
     dispatch(state, Op::Seed).expect("SEED open must succeed");
 }

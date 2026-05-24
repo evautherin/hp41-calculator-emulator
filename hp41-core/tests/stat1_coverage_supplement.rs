@@ -27,7 +27,7 @@ fn mmtug_accumulates_three_points() {
         push_xy(&mut s, 0, x);
         dispatch(&mut s, Op::SigmaMmtug).unwrap();
     }
-    assert_eq!(s.regs[3].inner(), Decimal::from(3));
+    assert_eq!(s.regs[3].inner(), Decimal::from(3)); // LINT-EXEMPT: integer N counter, not iterated result
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn mmtug_single_point() {
     let mut s = CalcState::new();
     push_xy(&mut s, 0, 5);
     dispatch(&mut s, Op::SigmaMmtug).unwrap();
-    assert_eq!(s.regs[3].inner(), Decimal::from(1));
+    assert_eq!(s.regs[3].inner(), Decimal::from(1)); // LINT-EXEMPT: integer N counter
 }
 
 // ── SigmaMmtgd ──────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ fn mmtgd_frequency_weighted_accumulation() {
     let mut s = CalcState::new();
     push_xy(&mut s, 3, 10);
     dispatch(&mut s, Op::SigmaMmtgd).unwrap();
-    assert_eq!(s.regs[3].inner(), Decimal::from(3));
+    assert_eq!(s.regs[3].inner(), Decimal::from(3)); // LINT-EXEMPT: integer N counter, not iterated result
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn mmtgd_two_groups() {
     dispatch(&mut s, Op::SigmaMmtgd).unwrap();
     push_xy(&mut s, 3, 10);
     dispatch(&mut s, Op::SigmaMmtgd).unwrap();
-    assert_eq!(s.regs[3].inner(), Decimal::from(5));
+    assert_eq!(s.regs[3].inner(), Decimal::from(5)); // LINT-EXEMPT: integer N counter
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn mmtgd_single_observation() {
     let mut s = CalcState::new();
     push_xy(&mut s, 1, 7);
     dispatch(&mut s, Op::SigmaMmtgd).unwrap();
-    assert_eq!(s.regs[3].inner(), Decimal::from(1));
+    assert_eq!(s.regs[3].inner(), Decimal::from(1)); // LINT-EXEMPT: integer N counter
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn mmtgd_large_frequency() {
     let mut s = CalcState::new();
     push_xy(&mut s, 100, 2);
     dispatch(&mut s, Op::SigmaMmtgd).unwrap();
-    assert_eq!(s.regs[3].inner(), Decimal::from(100));
+    assert_eq!(s.regs[3].inner(), Decimal::from(100)); // LINT-EXEMPT: integer N counter
 }
 
 // ── SigmaLin ────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ fn lin_accumulates_five_points() {
         push_xy(&mut s, y, x);
         dispatch(&mut s, Op::SigmaLin).unwrap();
     }
-    assert_eq!(s.regs[3].inner(), Decimal::from(5));
+    assert_eq!(s.regs[3].inner(), Decimal::from(5)); // LINT-EXEMPT: integer N counter
 }
 
 // ── SigmaExp ────────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ fn exp_accumulates_positive_data() {
         push_xy(&mut s, y, x);
         dispatch(&mut s, Op::SigmaExp).unwrap();
     }
-    assert_eq!(s.regs[3].inner(), Decimal::from(3));
+    assert_eq!(s.regs[3].inner(), Decimal::from(3)); // LINT-EXEMPT: integer N counter, not iterated result
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn logi_accumulates_positive_x() {
         push_xy(&mut s, y, x);
         dispatch(&mut s, Op::SigmaLogi).unwrap();
     }
-    assert_eq!(s.regs[3].inner(), Decimal::from(3));
+    assert_eq!(s.regs[3].inner(), Decimal::from(3)); // LINT-EXEMPT: integer N counter, not iterated result
 }
 
 // ── SigmaPow ────────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ fn pow_accumulates_positive_xy() {
         push_xy(&mut s, y, x);
         dispatch(&mut s, Op::SigmaPow).unwrap();
     }
-    assert_eq!(s.regs[3].inner(), Decimal::from(3));
+    assert_eq!(s.regs[3].inner(), Decimal::from(3)); // LINT-EXEMPT: integer N counter, not iterated result
 }
 
 // ── SigmaMlrxy (register-based solver) ──────────────────────────────────────
@@ -191,7 +191,7 @@ fn mlrxyz_n_count_preserved() {
     load_mlrxyz_independent(&mut s);
     dispatch(&mut s, Op::SigmaMlrxyz).unwrap();
     let n_reg = hp41_core::ops::stat1::STAT1_MLRXYZ_N_REG;
-    assert_eq!(s.regs[n_reg].inner(), Decimal::from(5));
+    assert_eq!(s.regs[n_reg].inner(), Decimal::from(5)); // LINT-EXEMPT: integer N counter
 }
 
 #[test]

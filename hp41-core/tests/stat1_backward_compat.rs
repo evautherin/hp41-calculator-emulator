@@ -36,12 +36,9 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::error::HpError;
-use hp41_core::num::HpNum;
 use hp41_core::ops::{dispatch, Op};
 use hp41_core::state::CalcState;
 use rust_decimal::Decimal;
-use serde_json;
 
 // ── Fixture ───────────────────────────────────────────────────────────────────
 
