@@ -150,17 +150,95 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ## Traceability
 
-(Populated during roadmap creation)
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | | |
+| TIME-FW-01 | Phase 38 | Pending |
+| TIME-FW-02 | Phase 38 | Pending |
+| TIME-FW-03 | Phase 38 | Pending |
+| TIME-FW-04 | Phase 38 | Pending |
+| TIME-FW-05 | Phase 38 | Pending |
+| TIME-FW-06 | Phase 38 | Pending |
+| TIME-CLK-01 | Phase 38 | Pending |
+| TIME-CLK-02 | Phase 38 | Pending |
+| TIME-CLK-03 | Phase 38 | Pending |
+| TIME-CLK-04 | Phase 38 | Pending |
+| TIME-CLK-05 | Phase 38 | Pending |
+| TIME-CLK-06 | Phase 38 | Pending |
+| TIME-DAT-01 | Phase 38 | Pending |
+| TIME-DAT-02 | Phase 38 | Pending |
+| TIME-DAT-03 | Phase 38 | Pending |
+| TIME-DAT-04 | Phase 38 | Pending |
+| TIME-DAT-05 | Phase 38 | Pending |
+| TIME-DAT-06 | Phase 38 | Pending |
+| TIME-DSP-01 | Phase 38 | Pending |
+| TIME-DSP-02 | Phase 38 | Pending |
+| TIME-DSP-03 | Phase 38 | Pending |
+| TIME-DSP-04 | Phase 38 | Pending |
+| TIME-DSP-05 | Phase 38 | Pending |
+| TIME-FMT-01 | Phase 38 | Pending |
+| TIME-FMT-02 | Phase 38 | Pending |
+| TIME-FMT-03 | Phase 38 | Pending |
+| TIME-FMT-04 | Phase 38 | Pending |
+| TIME-FMT-05 | Phase 38 | Pending |
+| TIME-SW-01 | Phase 38 | Pending |
+| TIME-SW-02 | Phase 38 | Pending |
+| TIME-SW-03 | Phase 38 | Pending |
+| TIME-SW-04 | Phase 38 | Pending |
+| TIME-SW-05 | Phase 38 | Pending |
+| TIME-SW-06 | Phase 38 | Pending |
+| TIME-SW-07 | Phase 38 | Pending |
+| TIME-SW-08 | Phase 38 | Pending |
+| TIME-SW-09 | Phase 38 | Pending |
+| TIME-ALM-01 | Phase 38 | Pending |
+| TIME-ALM-02 | Phase 38 | Pending |
+| TIME-ALM-03 | Phase 38 | Pending |
+| TIME-ALM-04 | Phase 38 | Pending |
+| TIME-ALM-05 | Phase 38 | Pending |
+| TIME-ALM-06 | Phase 38 | Pending |
+| TIME-ALM-07 | Phase 38 | Pending |
+| TIME-ALM-08 | Phase 38 | Pending |
+| TIME-ALM-09 | Phase 38 | Pending |
+| TIME-ALM-10 | Phase 38 | Pending |
+| TIME-ALM-11 | Phase 38 | Pending |
+| TIME-ALM-12 | Phase 38 | Pending |
+| TIME-CLI-01 | Phase 39 | Pending |
+| TIME-CLI-02 | Phase 39 | Pending |
+| TIME-CLI-03 | Phase 39 | Pending |
+| TIME-CLI-04 | Phase 39 | Pending |
+| TIME-CLI-05 | Phase 39 | Pending |
+| TIME-CLI-06 | Phase 39 | Pending |
+| TIME-CLI-07 | Phase 39 | Pending |
+| TIME-CLI-08 | Phase 39 | Pending |
+| TIME-DOC-01 | Phase 40 | Pending |
+| TIME-DOC-02 | Phase 40 | Pending |
+| TIME-DOC-03 | Phase 40 | Pending |
+| TIME-DOC-04 | Phase 40 | Pending |
+| TIME-DOC-05 | Phase 40 | Pending |
+| TIME-DOC-06 | Phase 40 | Pending |
+| TIME-GUI-01 | Phase 41 | Pending |
+| TIME-GUI-02 | Phase 41 | Pending |
+| TIME-GUI-03 | Phase 41 | Pending |
+| TIME-GUI-04 | Phase 41 | Pending |
+| TIME-GUI-05 | Phase 41 | Pending |
+| TIME-GUI-06 | Phase 41 | Pending |
+| TIME-GUI-07 | Phase 41 | Pending |
+| TIME-QUAL-01 | Phase 42 | Pending |
+| TIME-QUAL-02 | Phase 42 | Pending |
+| TIME-QUAL-03 | Phase 42 | Pending |
+| TIME-QUAL-04 | Phase 42 | Pending |
+| TIME-QUAL-05 | Phase 42 | Pending |
+| TIME-QUAL-06 | Phase 42 | Pending |
+| TIME-QUAL-07 | Phase 42 | Pending |
+| TIME-QUAL-08 | Phase 42 | Pending |
+| TIME-QUAL-09 | Phase 42 | Pending |
+| TIME-QUAL-10 | Phase 42 | Pending |
+| TIME-QUAL-11 | Phase 42 | Pending |
 
 **Coverage:**
-- v3.2 requirements: 70 total
-- Mapped to phases: 0
-- Unmapped: 70
+- v3.2 requirements: 81 total
+- Mapped to phases: 81
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-24*
-*Last updated: 2026-05-24 after initial definition*
+*Last updated: 2026-05-24 -- traceability populated by roadmapper*
