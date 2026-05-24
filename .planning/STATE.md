@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: — Time Pac Emulation
 status: planning
-last_updated: "2026-05-24"
+last_updated: "2026-05-24T19:09:26.817Z"
 last_activity: 2026-05-24 -- Roadmap created (5 phases, 81 requirements mapped)
 progress:
   total_phases: 5
@@ -72,6 +72,7 @@ None.
 ### Decisions
 
 (None yet for v3.2 -- key decisions to resolve in Phase 38:)
+
 - Clock access pattern in hp41-core: direct `std::time::SystemTime` vs. frontend injection
 - Live display architecture: "pull on redraw" pattern -- CLI 16ms poll loop, GUI conditional setInterval
 - Interrupting control alarm deferral: document as known divergence per research recommendation
