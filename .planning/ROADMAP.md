@@ -84,7 +84,7 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
 
 **Milestone Goal:** Behavioral emulation of the HP-41CX Time Module (HP 82182A, XROM 26, OM 00041-90035) as the third XROM application module -- date/time arithmetic backed by the host system clock, full alarm catalog with past-due detection, and live-updating stopwatch/clock display. This is the FIRST module introducing real-time behavior into the previously event-driven emulator.
 
-- [ ] **Phase 38: hp41-core -- XROM Framework + Clock/Date/Stopwatch/Alarm Core** - All ~33 Op variants in dispatch()/execute_op(); XROM 26 registration; JDN date arithmetic; stopwatch state machine; alarm catalog; clock display mode; live display architecture decision
+- [x] **Phase 38: hp41-core -- XROM Framework + Clock/Date/Stopwatch/Alarm Core** - All ~33 Op variants in dispatch()/execute_op(); XROM 26 registration; JDN date arithmetic; stopwatch state machine; alarm catalog; clock display mode; live display architecture decision (completed 2026-05-24)
 - [ ] **Phase 39: hp41-cli -- CLI Integration + Live Display** - 4-way invariant item 3; fourth JSON source-of-truth; live-updating clock/stopwatch in TUI; alarm notifications; stopwatch keyboard mode
 - [ ] **Phase 40: Documentation & ADRs** - Divergences catalog; function matrix; ADRs for clock access, live display, alarm design; README soft-claim; CLAUDE.md/architecture-history.md updates
 - [ ] **Phase 41: hp41-gui -- GUI Integration + Live Display** - 4-way invariant item 4; tick_time Tauri command with conditional setInterval (D-11 exception); alarm toast; CATALOG 2 + help overlay
@@ -105,7 +105,7 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
   4. User can execute `XEQ "XYZALM"` to store an alarm and `XEQ "RCLALM"` to recall it, with alarm catalog persisting across save/load cycles
   5. All ~33 Op variants compile in dispatch() and execute_op() (4-way invariant items 1+2 complete; intentional CI break in hp41-cli/hp41-gui until Phase 39/41)
 
-**Plans:** 4/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -120,8 +120,8 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 38-05-PLAN.md — Alarm system: XYZALM/RCLALM/ALMCAT/CLALMA/CLALMX/CLRALMS/ALMNOW/check_alarms
-- [ ] 38-06-PLAN.md — Modal prompts: TimeStep submit logic for SETIME/SETDATE + ModalProgram::Time wiring
+- [x] 38-05-PLAN.md — Alarm system: XYZALM/RCLALM/ALMCAT/CLALMA/CLALMX/CLRALMS/ALMNOW/check_alarms
+- [x] 38-06-PLAN.md — Modal prompts: TimeStep submit logic for SETIME/SETDATE + ModalProgram::Time wiring
 
 ### Phase 39: hp41-cli -- CLI Integration + Live Display
 
@@ -186,7 +186,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 4/6 | In Progress|  |
+| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete   | 2026-05-24 |
 | 39. hp41-cli -- CLI Integration + Live Display | 0/TBD | Not started | - |
 | 40. Documentation & ADRs | 0/TBD | Not started | - |
 | 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
