@@ -2,28 +2,26 @@
 
 ## Current State
 
-**Last shipped:** v3.0 Math Pac I Emulation — tag `v3.0` cut 2026-05-20; bookkeeping archive 2026-05-21.
+**Last shipped:** v3.1 Stat 1 Pac Emulation — tag `v3.1` cut 2026-05-24.
 
-**Status:** v3.1 Stat 1 Pac Emulation — Phase 35 shipped (2026-05-23); Phase 36 GUI Integration next.
+**Status:** Between milestones. Next: `/gsd-new-milestone` to define v3.2 scope.
 
-## Current Milestone: v3.1 Stat 1 Pac Emulation
+## Next Milestone Goals
 
-**Goal:** Behavioral Emulation des HP-41C **Stat 1 Pac** (HP-Teilenummer 00041-15001) als zweites XROM-Application-Modul — OM-getriebene Statistik-Workflows nutzbar in CLI + GUI über die in v3.0 etablierte Modal-Workflow-Schicht, mirroring den v3.0 Math Pac I Footprint, ohne HP-copyrighted ROM-Image-Redistribution.
+Run `/gsd-new-milestone` to define v3.2 scope. Candidate areas:
 
-**Target features (provisional — final list pinned in REQUIREMENTS.md after research):**
-- XROM-Modul-Registrierung (`STAT_1`, XROM-ID per HP Stat 1 Pac) ins bestehende `xrom_resolve` chain eingehängt (fires LAST per Pitfall 1)
-- Alle Top-Level Stat 1 Pac Programme per OM — Univariate Statistik über die Σ-Register hinaus, Bivariate / Linear Regression, Curve Fitting, Verteilungen (Normal / t / Chi² / F / Binomial / Poisson), Zufallszahlen, Permutationen & Kombinationen
-- Modal-Workflow-Prompts (ALPHA-driven) wiederverwenden v3.0 `print_buffer` + Modal-Routing-Infrastruktur
-- CLI-Integration: `xeq_by_name_local_resolve` → `xrom_resolve` (bereits da), dritter `OnceLock<Vec<HelpEntry>>` aus `docs/hp41-stat1-functions.json`, neue `op_display_name` arms
-- GUI-Integration: CATALOG 2 XROM-Enumeration erweitern, Help-Overlay-Sektion „Stat 1 Pac (XROM N)", LCD-Alternation Modal-Prompts, `request_cancel` reuse für iterative Methoden (z. B. distributions)
-- Quality-Gates: `hp41-core` Coverage ≥ 95 % (continuing from 95.39 % baseline), numerical accuracy ≥ 98 % (`numerical_accuracy.rs` um Stat-1-Cases erweitern), Free42 contamination guard ggf. um neue Domain-Identifier erweitert
-- Dokumentation: `docs/hp41-stat1-divergences.md`, ADRs falls neue architektonische Entscheidungen nötig, README + CLAUDE.md v3.1-Sektion, `scripts/docs-matrix` um dritte JSON-Quelle erweitert
+- **Time Pac** (HP-41CX clock functions, XROM TBD)
+- **Advanced Matrix Pac** (M+, MAT*, INV-as-transpose, V+, VDOT, IDN)
+- **Signed binary releases** (cargo-dist CLI + tauri-action GUI — deferred since v3.1)
 
-**Build sequence (provisional):** core (XROM-Framework reuse + Stat-1 ops) → cli (XEQ-by-name + JSON help) → docs (Function-Matrix v3.1 + ADRs) → gui (key_map + Modal-Routing extension) → tests (Coverage + Accuracy cases). Phase numbering continues from v3.0 (starts at **Phase 33**).
+<details>
+<summary>v3.1 Stat 1 Pac Emulation (shipped 2026-05-24 — see <code>milestones/v3.1-ROADMAP.md</code>)</summary>
 
-**Scope boundary (locked 2026-05-21):** v3.1 ist Stat 1 Pac only. Time Pac → v3.2; Advanced Matrix Pac → v3.2+; Advantage Pac → v3.3+. Signed binary releases (cargo-dist CLI + tauri-action GUI) bleiben aus v3.1 ausgeschlossen und werden in v3.1.x oder v3.2 separat behandelt. HP-copyrighted ROM-image redistribution bleibt permanent ausgeschlossen.
+**Goal:** Behavioral emulation of the HP-41C Stat 1 Pac (HP 00041-14001, OM 00041-90030) as the second XROM application module — 13 programs / 26 XEQ entry points across univariate / ANOVA / regression / hypothesis / nonparametric / distribution / RNG families.
 
-Run `/gsd-progress` to track milestone status.
+**Delivered:** 5 phases (33–37), 23 plans, 66 requirements, 26 new Op variants, 3 hand-coded distribution primitives, RAND/SEED bonus utility, full CLI + GUI integration, 791-case numerical accuracy at 98.86%.
+
+</details>
 
 <details>
 <summary>v3.0 milestone scope (shipped — see <code>milestones/v3.0-ROADMAP.md</code>)</summary>
@@ -71,7 +69,7 @@ Run `/gsd-progress` to track milestone status.
   - Phase 30 Documentation & ADRs (2026-05-17) — `docs/` + tooling only; 3 plans; matrix-renderer two-input extension; 3 new ADRs; divergence catalog expansion; v3.0 narrative across README/PROJECT.md/CLAUDE.md
   - Phase 31 GUI Integration (2026-05-18) — `hp41-gui` only; 5 plans; CATALOG 2 XROM enumeration + Math Pac I help overlay + LCD-alternation modal prompts + R/S 3-way + Esc cascade + request_cancel channel
   - Phase 32 Test Hardening & Quality Gates (2026-05-18) — `tests/` + `scripts/` + `.github/` + `justfile` only; 10 plans (3 original + 7 gap-closure); meta-gate graduation (`math1_op_test_count` + `xrom_shadowing` actively cross-check 45 Op variants × 14 test files + 52 MATH_1.ops × 18-entry allowlist); `lint_math1_assertions.rs` Pitfall 14 + 17 discipline; `numerical_accuracy.rs` 566 → 763 cases (99.3 % pass); E2E smoke extended (`sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu); `scripts/check-free42-contamination.sh` D-32.7 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job (D-32.8). Gap-closure run (Plans 32-04..32-10) added ~70 error-branch tests across 9 new files, closing the coverage gate from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions; README v3.0 line graduated to the OM-cited hard claim per D-32.5.
-- v3.1 Stat 1 Pac Emulation (Phase 35 shipped 2026-05-23) — Phases 33–37, second XROM application module (13 programs, 26 XEQ entry points, RAND/SEED extension, distribution primitives, ANOVA family, multiple + polynomial regression, hypothesis tests). Phase 36 GUI Integration + Phase 37 Test Hardening IN PROGRESS — milestone tag waits for Phase 37 ship via `/gsd-complete-milestone`.
+- v3.1 Stat 1 Pac Emulation (2026-05-24) — Phases 33–37, 23 plans; second XROM application module (13 programs, 26 XEQ entry points, RAND/SEED extension, distribution primitives, ANOVA family, multiple + polynomial regression, hypothesis tests); 95.84 % region coverage; 98.86 % numerical accuracy (791 cases); tag `v3.1`
   - Phase 33 hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops (2026-05-22) — `hp41-core` only; 9 plans; 39 STAT-* requirements; ~26 new Op variants; 3 hand-coded distribution primitives (Acklam/AS 241 + Cody AS 239 + Lentz AS 63); 5 architectural locks captured as ADR-v3.1-001..005; `xrom_modules` default updated 0b01 → 0b11 with `migrate_after_load()` for v3.0 save-file forward-compat; 95.39 % line / 94.26 % region coverage preserved; Free42 contamination guard extended 12 → 18 tokens covering both `math1/` and `stat1/` trees.
   - Phase 34 hp41-cli — CLI Integration (2026-05-23) — `hp41-cli` only; 2 plans; 5 STAT-CLI requirements; 26 new `op_display_name` arms (4-way invariant item 3 complete); third `OnceLock<Vec<HelpEntry>>` in `help_data.rs` for `docs/hp41-stat1-functions.json` (26 entries, 7-category convention per D-34.1); 3-pool JSON parity test cross-checks Op ↔ JSON across cv + math1 + stat1; `?` overlay "Stat 1 Pac (XROM 2)" section parallel-loads alongside Math 1 Pac; modal-prompt routing reuses v3.0 infrastructure with no new transient CalcState fields beyond `rand_seed`; `xrom_shadowing.rs` extended to `STAT_1.ops` (Pitfall 22 verified across both XROM modules).
   - Phase 35 Documentation & ADRs (2026-05-23) — `docs/` + `.planning/` + repo-root markdown only; 4 plans; 6 STAT-DOC requirements; `scripts/docs-matrix` three-input extension (4-line basename dispatch; binary signature 1-in/1-out preserved per D-30.1 carry-forward); `docs/hp41-stat1-function-matrix.md` regenerated (26 entries); `docs/hp41-stat1-divergences.md` three-bucket catalog with 12 D-35-NN entries (6 oracle-drift bucket-3 reconciliations cross-referencing `33-SPEC-AMENDMENT.md` + 2 emulator extensions + 4 additional behavioral policies); `33-SPEC-AMENDMENT.md` history-preserving SPEC supplement (6-row drift reconciliation table); 5 new ADRs (v3.1-001..005, long-form per D-30.6); README v3.1 soft-claim per D-35.3; CLAUDE.md FIRST-EVER `### v3.x additions` block (v3.1 only, no v3.0 back-fill per D-35.5) + math1/ freeze carve-out amendment gated by ADR-v3.1-004; `docs/architecture-history.md` v3.1 narrative parallel to v3.0; `.planning/MILESTONES.md` v3.1 stub.
@@ -211,13 +209,19 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **QUAL-01..08**: `hp41-core` 95.39 % lines / 94.26 % regions; `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass (v1.x 503-case floor 498 preserved); E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu; `scripts/check-free42-contamination.sh` 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job; per-Op test count ≥ 5 (Pitfall 16); `xrom_shadowing.rs` Pitfall 1 CI gate; `math1_user_callback.rs` 5 re-entrancy regression tests — v3.0 Phase 32
 - ✓ **D-32.5 README v3.0 hard-claim graduation**: README "Math Pac I" line replaced "soft-claim" with the OM-cited "feature-complete per Owner's Manual 00041-90034" wording after the post-Phase-32 gap-closure run (Plans 32-04..32-10) lifted coverage from 91.74 % → 95.39 % lines — v3.0 Phase 32 (Plan 32-10 SHIP commit)
 
-### Active (v3.1 — Stat 1 Pac Emulation, in flight)
+### Validated (v3.1 — Stat 1 Pac Emulation, shipped 2026-05-24)
 
-*REQUIREMENTS.md, ROADMAP.md, and per-phase plans landed after `/gsd-new-milestone` research → requirements → roadmap chain. 39 STAT-* requirements traced (STAT-FW / STAT-UNI / STAT-AOV / STAT-REG / STAT-HYP / STAT-DST / STAT-RNG families). Active phases:*
-
-- **Phase 33 (shipped 2026-05-22)** — hp41-core XROM activation + distribution primitives + all 26 Stat 1 Ops. Items 1+2 of the 4-way exhaustive-match invariant complete in hp41-core; items 3+4 (cli/gui `op_display_name`) sanctioned-deferred to Phase 34 + 36 (intentional `non-exhaustive patterns` CI break in hp41-cli/hp41-gui until Phase 34 closes it).
-- **Phase 34 (next)** — hp41-cli integration: keyboard/XEQ resolver, JSON help corpus extension, modal-prompt CLI surface (`ν=?`, `DEGREE=?`, `SEED?`), `op_display_name()` exhaustive arm for the new Stat 1 Op variants.
-- **Phase 35–37** — docs/ADRs (35), GUI integration (36), test hardening (37).
+- ✓ **STAT-FW-01..04**: XROM framework activation (STAT_1 XROM ID 2, 4-way invariant, XEQ-by-name) — v3.1 Phase 33
+- ✓ **STAT-UNI-01..04**: Extended univariate stats (ΣBSTAT/BSTG, ΣMMTUG/MMTGD, correction key) — v3.1 Phase 33
+- ✓ **STAT-AOV-01..04**: ANOVA family (ΣAOVONE/AOVTWO/ANOCOV, OM register layout) — v3.1 Phase 33
+- ✓ **STAT-REG-01..09**: Regression family (ΣLIN/EXP/LOGI/POW, ΣMLRXY/MLRXYZ, ΣPOLYP/POLYC, self-contained Gauss elimination) — v3.1 Phase 33
+- ✓ **STAT-HYP-01..07**: Hypothesis tests (ΣPTST/ΣTSTAT, ΣXSQEV/ΣEFXSQ, ΣCTKKK/CTKK, ΣSPEAR) — v3.1 Phase 33
+- ✓ **STAT-DST-01..07**: Distribution evaluators (ΣNORMD CDF/PDF/inverse, ΣCHISQD CDF/PDF, 3 hand-coded primitives) — v3.1 Phase 33
+- ✓ **STAT-RNG-01..04**: RNG bonus utility (RAND/SEED, persistent `rand_seed` field) — v3.1 Phase 33
+- ✓ **STAT-CLI-01..05**: CLI integration (3-pool JSON help, 26 `op_display_name` arms, `?` overlay) — v3.1 Phase 34
+- ✓ **STAT-DOC-01..06**: Documentation (divergences, function matrix, 5 ADRs, README/CLAUDE.md) — v3.1 Phase 35
+- ✓ **STAT-GUI-01..05**: GUI integration (CATALOG 2, help overlay, modal prompts, bounded-iter waiver) — v3.1 Phases 36–37
+- ✓ **STAT-QUAL-01..11**: Quality gates (coverage, accuracy, meta-gates, backward-compat, E2E smoke) — v3.1 Phase 37
 
 ### Out of Scope
 

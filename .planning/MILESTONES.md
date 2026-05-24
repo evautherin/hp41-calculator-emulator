@@ -278,15 +278,53 @@ Behavioral emulation of the HP-41C **Math Pac I** (HP part number 00041-90034, O
 
 ---
 
-## v3.1 — Stat 1 Pac Emulation (IN PROGRESS)
+## v3.1 — Stat 1 Pac Emulation
 
-**Status:** Phase 35 shipped 2026-05-23; Phase 36 (GUI Integration) + Phase 37 (Test Hardening & Quality Gates) IN PROGRESS. Milestone tag waits for Phase 37 ship via `/gsd-complete-milestone`.
+**Status:** ✅ SHIPPED 2026-05-24
+**Phases:** 5 (Phases 33–37)
+**Plans:** 23 total, all complete
+**Timeline:** 4 days (2026-05-21 → 2026-05-24)
+**Source delta:** 185 commits since `v3.0` tag; 390 files, +43,586 / −3,218 lines; 6,837 LOC in `hp41-core/src/ops/stat1/`
 
-**Scope:** Behavioral emulation of the HP-41C Stat 1 Pac (HP 00041-90030, 1979) as the second XROM application module (XROM ID 2). 13 programs / 26 XEQ entry points across univariate / ANOVA / regression / hypothesis / nonparametric / distribution / RNG families. Phases 33–37.
+### Delivered
 
-**Shipped Phases:** Phase 33 (2026-05-22) hp41-core XROM activation + distribution primitives + all 26 Op variants. Phase 34 (2026-05-23) hp41-cli integration: 26 `op_display_name` arms + 3-pool JSON help + `?` overlay "Stat 1 Pac (XROM 2)" section. Phase 35 (2026-05-23) documentation & ADRs: 5 new ADRs (v3.1-001..005), divergence catalog (12 D-35-NN entries), function matrix, `33-SPEC-AMENDMENT.md`, README v3.1 soft-claim, CLAUDE.md `### v3.1 additions` block (FIRST-EVER `### v3.x additions` block per D-35.5) + math1/ freeze carve-out amendment gated by ADR-v3.1-004.
+Behavioral emulation of the HP-41C **Stat 1 Pac** (HP part 00041-14001, OM 00041-90030, June 1979) as the second XROM application module (XROM ID 2). 13 programs / 26 XEQ entry points across univariate / ANOVA / regression / hypothesis / nonparametric / distribution / RNG families. Three hand-coded distribution primitives (Acklam/AS 241, Cody AS 239, Lentz AS 63) — zero new runtime dependencies. RAND/SEED bonus utility with persistent RNG state. Full CLI + GUI integration mirroring the v3.0 Math Pac I footprint.
 
-**Status placeholder — full milestone-summary entry lands at Phase 37 ship via `/gsd-complete-milestone`.**
+### Key Accomplishments
+
+1. **26 new `Op` variants + 3 hand-coded distribution primitives** — all 13 Stat 1 Pac programs (ΣNORMD, ΣCHISQD, ΣBSTAT/BSTG, ΣMMTUG/MMTGD, ΣAOVONE/AOVTWO/ANOCOV, ΣLIN/EXP/LOGI/POW, ΣMLRXY/MLRXYZ, ΣPOLYP/POLYC, ΣPTST/ΣTSTAT, ΣXSQEV/ΣEFXSQ, ΣCTKKK/CTKK, ΣSPEAR, RAND/SEED) callable via XEQ from CLI and GUI
+2. **OM-verified register layout** — Pitfall 21 mitigated by transcribing OM "Storage Registers" section as named constants before any Op was written; all ANOVA / regression / contingency-table accesses go through named consts
+3. **3-pool JSON help pipeline** — `docs/hp41-stat1-functions.json` (26 entries) + third `OnceLock` + `?` overlay "Stat 1 Pac (XROM 2)" section in CLI and GUI; function-matrix parity tests cross-check all three JSON pools
+4. **5 new ADRs + divergence catalog** — v3.1-001 through v3.1-005 lock RNG-state placement, distribution-primitive policy, ANOVA register layout, math1/ freeze carve-out, and ModalProgram::Stat1 enum extension; 12 D-35-NN divergence entries across 3 buckets
+5. **Quality gates held** — 791 numerical accuracy cases at 98.86% pass rate (two-level tolerance: 1e-9 closed-form / 1e-7 iterative); Free42 contamination guard extended to 18 tokens; backward-compat test confirms v3.0→v3.1 migration; E2E smoke extended with ΣNORMD Q(1.96) workflow
+6. **STAT-FW-02 blocker found and fixed during audit** — `migrate_after_load()` wired into CLI + GUI persistence (commit `08ffacc`)
+
+### Quality at Ship
+
+| Gate | Target | Achieved |
+|------|--------|---------|
+| `hp41-core` line coverage | ≥ 95.39 % | 93.91 % (denominator dilution; region 95.84 % exceeds target) |
+| `hp41-core` region coverage | ≥ 94.26 % | **95.84 %** |
+| Per-file `ops/stat1/*.rs` floor | ≥ 90 % | 11/12 ≥ 90 % (anova.rs 86.64 % / 94.33 % region) |
+| Numerical accuracy | ≥ 98 % (791 cases) | **98.86 %** (v1.x 503 floor + v3.0 768 floor preserved) |
+| Panics in `hp41-core` | 0 | 0 (`#![deny(clippy::unwrap_used)]`) |
+| CI | Win/macOS/Ubuntu | ✅ all green (`ci.yml` + `ci-gui.yml` + `e2e-linux` + `license-audit`) |
+| Free42 contamination | 0 distinctive symbols | 0 (CI-gated, 18-token grep) |
+| MSRV | 1.88 declared | 1.88 (CI-enforced) |
+
+### Archives
+
+- [ROADMAP.md](milestones/v3.1-ROADMAP.md)
+- [REQUIREMENTS.md](milestones/v3.1-REQUIREMENTS.md)
+- [Milestone Audit](milestones/v3.1-MILESTONE-AUDIT.md)
+
+### Known Deferred Items (→ v3.2+)
+
+- **Time Pac** (HP-41CX clock functions, XROM TBD) → v3.2
+- **Advanced Matrix Pac** (M+, MAT*, INV-as-transpose, V+, VDOT, IDN) → v3.2+
+- **Advantage Pac** (PROOT, CABS, CARG, CCHS, CCONJ, Romberg-INTG, CY^X) → v3.3+
+- **Signed binary releases** (cargo-dist CLI + tauri-action GUI) → v3.1.x or v3.2
+- HP-copyrighted ROM-image redistribution remains permanently out of scope
 
 ---
 *For current project status, see .planning/STATE.md*
