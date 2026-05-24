@@ -105,18 +105,18 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
   4. User can execute `XEQ "XYZALM"` to store an alarm and `XEQ "RCLALM"` to recall it, with alarm catalog persisting across save/load cycles
   5. All ~33 Op variants compile in dispatch() and execute_op() (4-way invariant items 1+2 complete; intentional CI break in hp41-cli/hp41-gui until Phase 39/41)
 
-**Plans:** 6 plans
+**Plans:** 4/6 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 38-01-PLAN.md — Framework scaffolding: Op enum (35 variants), XROM 26 registration, CalcState fields, migration, Free42 guard, time/ module skeleton
+- [x] 38-01-PLAN.md — Framework scaffolding: Op enum (35 variants), XROM 26 registration, CalcState fields, migration, Free42 guard, time/ module skeleton
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 38-02-PLAN.md — Date arithmetic: JDN Fliegel-Van Flandern, parse helpers, DATE+/DDAYS/DOW/DMY/MDY
-- [ ] 38-03-PLAN.md — Clock + format ops: TIME/DATE/T+X/CORRECT/SETAF/RCLAF/CLK12/CLK24/CLKT/CLKTD/CLOCK/SETIME/SETDATE
-- [ ] 38-04-PLAN.md — Alpha time + Stopwatch: ATIME/ATIME24/ADATE + RUNSW/STOPSW/SETSW/RCLSW/SWPT/STPW/SW
+- [x] 38-02-PLAN.md — Date arithmetic: JDN Fliegel-Van Flandern, parse helpers, DATE+/DDAYS/DOW/DMY/MDY
+- [x] 38-03-PLAN.md — Clock + format ops: TIME/DATE/T+X/CORRECT/SETAF/RCLAF/CLK12/CLK24/CLKT/CLKTD/CLOCK/SETIME/SETDATE
+- [x] 38-04-PLAN.md — Alpha time + Stopwatch: ATIME/ATIME24/ADATE + RUNSW/STOPSW/SETSW/RCLSW/SWPT/STPW/SW
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -186,7 +186,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 0/6 | Planning complete | - |
+| 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 4/6 | In Progress|  |
 | 39. hp41-cli -- CLI Integration + Live Display | 0/TBD | Not started | - |
 | 40. Documentation & ADRs | 0/TBD | Not started | - |
 | 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
