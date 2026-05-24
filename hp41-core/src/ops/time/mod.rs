@@ -41,11 +41,11 @@ pub mod modal;
 pub mod stopwatch;
 
 // Re-export types needed by ops/mod.rs, ops/program.rs, and state.rs.
-pub use alarm::{op_clalma, op_clalmx, op_clralms, op_rclaf, op_rclalm, op_setaf, op_xyzalm, AlarmEntry, AlarmType};
+pub use alarm::{op_clalma, op_clalmx, op_clralms, op_rclalm, op_xyzalm, AlarmEntry, AlarmType};
 pub use alpha_time::{op_adate, op_atime, op_atime24};
 pub use clock::{
-    op_clk12, op_clk24, op_clkt, op_clktd, op_clock, op_correct, op_date, op_setdate, op_setime,
-    op_time, op_tplusx, ClockDisplayMode,
+    op_clk12, op_clk24, op_clkt, op_clktd, op_clock, op_correct, op_date, op_rclaf, op_setaf,
+    op_setdate, op_setime, op_time, op_tplusx, ClockDisplayMode,
 };
 pub use date_arith::{op_date_plus, op_ddays, op_dmy, op_dow, op_mdy};
 pub use modal::TimeStep;

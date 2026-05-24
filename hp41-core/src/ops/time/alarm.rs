@@ -132,7 +132,7 @@ fn epoch_secs_to_date(epoch_secs: i64) -> (i32, i32, i32) {
     };
     let jdn = day_number + UNIX_EPOCH_JDN;
     let (year, month, day) = jdn_to_date(jdn);
-    (year, month as i32, day as i32)
+    (year, month, day)
 }
 
 /// Build a time HpNum (HH.MMSScc) from components.
@@ -193,7 +193,7 @@ fn decompose_alarm_unix(trigger_unix: i64) -> (i32, i32, i32, u8, u8, u8) {
     let second = (time_of_day % 60) as u8;
     let jdn = day_number + UNIX_EPOCH_JDN;
     let (year, month, day) = jdn_to_date(jdn);
-    (year, month as i32, day as i32, hour, minute, second)
+    (year, month, day, hour, minute, second)
 }
 
 // ── Alarm Op Implementations ──────────────────────────────────────────────────
@@ -282,7 +282,7 @@ pub fn op_xyzalm(state: &mut CalcState) -> Result<(), HpError> {
 /// LiftEffect: Enable.
 pub fn op_rclalm(state: &mut CalcState) -> Result<(), HpError> {
     // Read X as 1-indexed alarm number (truncate to integer).
-    let x_val = state.stack.x.inner().clone();
+    let x_val = state.stack.x.inner();
     let num_i64 = x_val
         .trunc()
         .to_string()
@@ -411,25 +411,6 @@ pub fn op_almnow(state: &mut CalcState) -> Result<(), HpError> {
     Ok(())
 }
 
-/// RCLAF — Recall alarm flags (alarm count) to stack.
-///
-/// Pushes alarm count as HpNum onto X.
-/// LiftEffect: Enable.
-pub fn op_rclaf(state: &mut CalcState) -> Result<(), HpError> {
-    let count = HpNum::from(state.alarms.len() as i32);
-    enter_number(state, count);
-    apply_lift_effect(state, LiftEffect::Enable);
-    Ok(())
-}
-
-/// SETAF — Set alarm flags.
-///
-/// Phase 38 stub: no-op (alarm flags management deferred).
-/// LiftEffect: Neutral.
-pub fn op_setaf(state: &mut CalcState) -> Result<(), HpError> {
-    apply_lift_effect(state, LiftEffect::Neutral);
-    Ok(())
-}
 
 /// CLALMA — Clear alarm matching ALPHA register content.
 ///
@@ -458,7 +439,7 @@ pub fn op_clalma(state: &mut CalcState) -> Result<(), HpError> {
 /// Returns HpError::InvalidInput if position is out of range.
 /// LiftEffect: Neutral.
 pub fn op_clalmx(state: &mut CalcState) -> Result<(), HpError> {
-    let x_val = state.stack.x.inner().clone();
+    let x_val = state.stack.x.inner();
     let num_i64 = x_val
         .trunc()
         .to_string()
@@ -1357,27 +1338,6 @@ mod tests {
         assert!(op_almnow(&mut state).is_ok());
     }
 
-    // ── op_rclaf ─────────────────────────────────────────────────────────────
-
-    #[test]
-    fn op_rclaf_returns_alarm_count() {
-        let mut state = CalcState::new();
-        state.alarms.push(AlarmEntry {
-            trigger_unix: 1000,
-            repeat_secs: 0,
-            alarm_type: AlarmType::Message("test".to_string()),
-            past_due: false,
-        });
-        op_rclaf(&mut state).unwrap();
-        assert_eq!(state.stack.x, crate::num::HpNum::from(1i32));
-    }
-
-    #[test]
-    fn op_rclaf_zero_when_no_alarms() {
-        let mut state = CalcState::new();
-        op_rclaf(&mut state).unwrap();
-        assert_eq!(state.stack.x, HpNum::from(0i32));
-    }
 
     // ── Previously existing tests preserved ──────────────────────────────────
 

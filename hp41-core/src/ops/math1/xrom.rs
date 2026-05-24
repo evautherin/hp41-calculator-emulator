@@ -478,7 +478,7 @@ fn time_resolve(name: &str) -> Option<Op> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{time_resolve, xrom_resolve, MATH_1, STAT_1, TIME_MODULE};
+    use super::{xrom_resolve, MATH_1, STAT_1, TIME_MODULE};
     use crate::ops::Op;
 
     const NONEXISTENT_NAME: &str = "__MATH1_PROBE_NONEXISTENT__";

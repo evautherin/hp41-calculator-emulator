@@ -381,7 +381,7 @@ mod tests {
     fn parse_date_trailing_zero_year_2010_mdy() {
         // 1.012010 → MDY → year=2010
         let n = HpNum::from(Decimal::from_str("1.012010").unwrap());
-        let (year, month, day) = parse_date_hpnum(&n, false).unwrap();
+        let (year, _month, _day) = parse_date_hpnum(&n, false).unwrap();
         assert_eq!(year, 2010);
     }
 
