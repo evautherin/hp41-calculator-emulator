@@ -5,11 +5,12 @@
 //!
 //! Implements multi-key sequences for TVM, matrix naming/dimensioning/editing,
 //! vector-entry, MATRX/MTR operation selection, and FDIFEQ configuration.
-//! All `submit_step` arms are stubs (return `Err(HpError::InvalidOp)`) for v3.3
-//! skeleton; Plans 43-06 and 43-08 implement the actual logic.
+//! TVM modal steps (TvmN/TvmI/TvmPv/TvmPmt/TvmFv/TvmBeginEnd) are fully
+//! implemented in this plan (43-09). All other arms remain stubs.
 
 use crate::{
     error::HpError,
+    ops::math1::modal::ModalProgram,
     state::CalcState,
 };
 
@@ -112,22 +113,85 @@ pub fn requires_alpha_label(step: &AdvantageStep) -> bool {
 
 /// Advance the modal workflow by one step given the current `AdvantageStep`.
 ///
-/// Stub implementation: all arms return `Err(HpError::InvalidOp)`.
-/// Plans 43-06 (TVM) and 43-08 (matrix/solver workflows) implement the full logic.
+/// TVM steps (TvmN/TvmI/TvmPv/TvmPmt/TvmFv/TvmBeginEnd) are fully implemented:
+/// each arm stores the current X register value into the appropriate TVM register
+/// and advances to the next modal step (or closes the modal after TvmBeginEnd).
+///
+/// Non-TVM steps remain stubs (return `Err(HpError::InvalidOp)`); Plans 43-08
+/// and later implement matrix/solver workflow steps.
 ///
 /// # Errors
-/// Always returns `Err(HpError::InvalidOp)` in this skeleton phase.
+/// - TVM arms: forwarded from TVM register-store ops.
+/// - Non-TVM arms: `Err(HpError::InvalidOp)` (stub).
 pub fn submit_step(
-    _state: &mut CalcState,
+    state: &mut CalcState,
     step: AdvantageStep,
 ) -> Result<(), HpError> {
     match step {
-        AdvantageStep::TvmN => Err(HpError::InvalidOp),
-        AdvantageStep::TvmI => Err(HpError::InvalidOp),
-        AdvantageStep::TvmPv => Err(HpError::InvalidOp),
-        AdvantageStep::TvmPmt => Err(HpError::InvalidOp),
-        AdvantageStep::TvmFv => Err(HpError::InvalidOp),
-        AdvantageStep::TvmBeginEnd => Err(HpError::InvalidOp),
+        // ── TVM register-entry workflow ────────────────────────────────────────
+        // Each arm:
+        //   1. Stores X into the TVM register via the canonical op function.
+        //   2. Advances modal_program to the next step (or clears it at end).
+        //   3. Updates modal_prompt for the next step (or clears at end).
+        AdvantageStep::TvmN => {
+            crate::ops::advantage::tvm::op_adv_tvm_n(state)?;
+            state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::TvmI));
+            state.modal_prompt = Some("I%YR=?".to_string());
+            Ok(())
+        }
+        AdvantageStep::TvmI => {
+            // I%YR is stored as the annual rate (user enters percent; we store raw percent).
+            // The *I solver stores periodic rate; this prompt stores annual rate directly.
+            let x = state.stack.x.clone();
+            {
+                let tvm = if state.adv_tvm_state.is_none() {
+                    state.adv_tvm_state = Some(crate::ops::advantage::tvm::TvmState::default());
+                    state.adv_tvm_state.as_mut().expect("just initialized")
+                } else {
+                    state.adv_tvm_state.as_mut().expect("checked Some above")
+                };
+                tvm.i = x;
+            }
+            state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::TvmPv));
+            state.modal_prompt = Some("PV=?".to_string());
+            Ok(())
+        }
+        AdvantageStep::TvmPv => {
+            crate::ops::advantage::tvm::op_adv_tvm_pv(state)?;
+            state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::TvmPmt));
+            state.modal_prompt = Some("PMT=?".to_string());
+            Ok(())
+        }
+        AdvantageStep::TvmPmt => {
+            crate::ops::advantage::tvm::op_adv_tvm_pmt(state)?;
+            state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::TvmFv));
+            state.modal_prompt = Some("FV=?".to_string());
+            Ok(())
+        }
+        AdvantageStep::TvmFv => {
+            crate::ops::advantage::tvm::op_adv_tvm_fv(state)?;
+            state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::TvmBeginEnd));
+            state.modal_prompt = Some("BEG/END?".to_string());
+            Ok(())
+        }
+        AdvantageStep::TvmBeginEnd => {
+            // Toggle BEGIN/END mode (any non-zero X = BEGIN, X=0 = END).
+            let x_val = state.stack.x.inner();
+            {
+                let tvm = if state.adv_tvm_state.is_none() {
+                    state.adv_tvm_state = Some(crate::ops::advantage::tvm::TvmState::default());
+                    state.adv_tvm_state.as_mut().expect("just initialized")
+                } else {
+                    state.adv_tvm_state.as_mut().expect("checked Some above")
+                };
+                tvm.begin_mode = !x_val.is_zero();
+            }
+            // Workflow complete — clear modal state
+            state.modal_program = None;
+            state.modal_prompt = None;
+            Ok(())
+        }
+        // ── Non-TVM stubs ──────────────────────────────────────────────────────
         AdvantageStep::MatrixNamePrompt => Err(HpError::InvalidOp),
         AdvantageStep::MatrixDimRowPrompt => Err(HpError::InvalidOp),
         AdvantageStep::MatrixDimColPrompt => Err(HpError::InvalidOp),
@@ -145,6 +209,15 @@ pub fn submit_step(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::state::CalcState;
+    use crate::num::HpNum;
+    use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+    use rust_decimal::Decimal;
+
+    // Helper: push a value to X
+    fn push_x(state: &mut CalcState, v: f64) {
+        state.stack.x = HpNum::from(Decimal::from_f64(v).unwrap());
+    }
 
     // Catches: current_prompt returns Some for numeric-entry steps
     #[test]
@@ -185,5 +258,72 @@ mod tests {
     fn ve_prompt_format() {
         let p = current_prompt(&AdvantageStep::VeComponentPrompt(2)).unwrap();
         assert!(p.contains('2'));
+    }
+
+    // Catches: TVM modal workflow advances N→I→PV→PMT→FV→BeginEnd→done
+    #[test]
+    fn tvm_modal_workflow_complete_cycle() {
+        let mut state = CalcState::new();
+
+        // Step 1: submit N=12
+        push_x(&mut state, 12.0);
+        submit_step(&mut state, AdvantageStep::TvmN).unwrap();
+        assert_eq!(state.modal_prompt, Some("I%YR=?".to_string()));
+        let tvm = state.adv_tvm_state.as_ref().unwrap();
+        assert!((tvm.n.inner().to_f64().unwrap() - 12.0).abs() < 1e-9);
+
+        // Step 2: submit I=6
+        push_x(&mut state, 6.0);
+        submit_step(&mut state, AdvantageStep::TvmI).unwrap();
+        assert_eq!(state.modal_prompt, Some("PV=?".to_string()));
+        let tvm = state.adv_tvm_state.as_ref().unwrap();
+        assert!((tvm.i.inner().to_f64().unwrap() - 6.0).abs() < 1e-9);
+
+        // Step 3: submit PV=1000
+        push_x(&mut state, 1000.0);
+        submit_step(&mut state, AdvantageStep::TvmPv).unwrap();
+        assert_eq!(state.modal_prompt, Some("PMT=?".to_string()));
+
+        // Step 4: submit PMT=-100
+        push_x(&mut state, -100.0);
+        submit_step(&mut state, AdvantageStep::TvmPmt).unwrap();
+        assert_eq!(state.modal_prompt, Some("FV=?".to_string()));
+
+        // Step 5: submit FV=0
+        push_x(&mut state, 0.0);
+        submit_step(&mut state, AdvantageStep::TvmFv).unwrap();
+        assert_eq!(state.modal_prompt, Some("BEG/END?".to_string()));
+
+        // Step 6: submit BeginEnd=0 (END mode)
+        push_x(&mut state, 0.0);
+        submit_step(&mut state, AdvantageStep::TvmBeginEnd).unwrap();
+        assert!(state.modal_program.is_none(), "modal cleared after TvmBeginEnd");
+        assert!(state.modal_prompt.is_none(), "prompt cleared after TvmBeginEnd");
+        let tvm = state.adv_tvm_state.as_ref().unwrap();
+        assert!(!tvm.begin_mode, "X=0 → END mode");
+    }
+
+    // Catches: TvmBeginEnd with non-zero X sets begin_mode=true
+    #[test]
+    fn tvm_begin_mode_toggled_by_nonzero_x() {
+        let mut state = CalcState::new();
+        push_x(&mut state, 1.0); // non-zero → BEGIN mode
+        submit_step(&mut state, AdvantageStep::TvmBeginEnd).unwrap();
+        let tvm = state.adv_tvm_state.as_ref().unwrap();
+        assert!(tvm.begin_mode, "non-zero X → begin_mode=true");
+    }
+
+    // Catches: non-TVM stubs still return InvalidOp
+    #[test]
+    fn non_tvm_steps_still_stub() {
+        let mut state = CalcState::new();
+        assert!(matches!(
+            submit_step(&mut state, AdvantageStep::MatrixNamePrompt),
+            Err(HpError::InvalidOp)
+        ));
+        assert!(matches!(
+            submit_step(&mut state, AdvantageStep::FdifeqFunctionNamePrompt),
+            Err(HpError::InvalidOp)
+        ));
     }
 }
