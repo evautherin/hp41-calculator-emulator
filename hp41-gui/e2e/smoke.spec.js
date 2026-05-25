@@ -427,9 +427,10 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         await invokeBackend('dispatch_op', { keyId: 'xeq_ΣNORMD' });
 
         // Enter mode 1 (CDF = upper-tail Q) and submit via R/S.
-        // R/S triggers the modal submit (App.tsx invokeForKey R/S 3-way routing).
+        // With modal_program_active, R/S routes to submit_modal (not dispatch_op).
+        // invokeBackend bypasses the frontend 3-way routing, so call submit_modal directly.
         await clickKey('1');
-        const view = await invokeBackend('dispatch_op', { keyId: 'r_s' });
+        const view = await invokeBackend('submit_modal');
 
         if (!view.display_str.startsWith('0.0250')) {
             throw new Error(
