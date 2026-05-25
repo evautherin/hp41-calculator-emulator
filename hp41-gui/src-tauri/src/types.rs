@@ -133,10 +133,13 @@ impl CalcStateView {
         //   1. entry_buf (when user is typing)
         //   2. alpha_reg via format_alpha
         //   3. format_hpnum(stack.x, display_mode) (default)
+        // Clock/stopwatch strings use ':' separators (fine for CLI terminal text).
+        // The GUI 14-segment LCD has no colon glyph — replace ':' with '.' so they
+        // render as decimal-dot overlays, matching real HP-41 hardware LCD behavior.
         let display_str = if let Some(s) = get_clock_display_str(state) {
-            s
+            s.replace(':', ".")
         } else if let Some(s) = get_stopwatch_display_str(state) {
-            s
+            s.replace(':', ".")
         } else if state.modal_program.is_some()
             && state.entry_buf.is_empty()
             && state.modal_prompt.is_some()
