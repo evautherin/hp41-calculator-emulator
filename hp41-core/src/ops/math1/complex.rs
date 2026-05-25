@@ -49,7 +49,7 @@ use crate::state::{AngleMode, CalcState};
 /// Returns `HpNum::zero()` for the catastrophic case where `Decimal::from_f64`
 /// cannot represent the result — safe because atan2 output is bounded in [-π, π].
 #[allow(dead_code)] // Pitfall-6 helper kept for future complex-LN/POW use; covered by tests
-pub(super) fn complex_atan2(im: HpNum, re: HpNum) -> HpNum {
+pub(crate) fn complex_atan2(im: HpNum, re: HpNum) -> HpNum {
     if im.is_zero() && re.is_zero() {
         // Pitfall 6: (0,0) → 0, not NaN or Domain error
         return HpNum::zero();
