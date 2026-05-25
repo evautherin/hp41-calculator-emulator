@@ -214,7 +214,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
 | 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
-| 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete   | 2026-05-25 |
+| 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete    | 2026-05-25 |
 | 42. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---

@@ -99,13 +99,13 @@ Requirements for Time Pac Emulation milestone. Each maps to roadmap phases.
 
 ### GUI Integration
 
-- [ ] **TIME-GUI-01**: All new `Op` variants have `op_display_name` arms in `hp41-gui/src-tauri/src/prgm_display.rs` (4-way invariant item 4)
-- [ ] **TIME-GUI-02**: CATALOG 2 gains "TIME 2C" section for Time Pac functions
-- [ ] **TIME-GUI-03**: Help overlay gains "Time Pac (XROM 26)" section
-- [ ] **TIME-GUI-04**: Clock display mode renders live time in GUI LCD (conditional `setInterval` — controlled D-11 exception)
-- [ ] **TIME-GUI-05**: Stopwatch mode renders in GUI with live-updating LCD
-- [ ] **TIME-GUI-06**: Alarm notifications surface as toast overlay in GUI
-- [ ] **TIME-GUI-07**: Modal prompts for SETIME/SETDATE route through existing `modal_prompt` channel
+- [x] **TIME-GUI-01**: All new `Op` variants have `op_display_name` arms in `hp41-gui/src-tauri/src/prgm_display.rs` (4-way invariant item 4)
+- [x] **TIME-GUI-02**: CATALOG 2 gains "TIME 2C" section for Time Pac functions
+- [x] **TIME-GUI-03**: Help overlay gains "Time Pac (XROM 26)" section
+- [x] **TIME-GUI-04**: Clock display mode renders live time in GUI LCD (conditional `setInterval` — controlled D-11 exception)
+- [x] **TIME-GUI-05**: Stopwatch mode renders in GUI with live-updating LCD
+- [x] **TIME-GUI-06**: Alarm notifications surface as toast overlay in GUI
+- [x] **TIME-GUI-07**: Modal prompts for SETIME/SETDATE route through existing `modal_prompt` channel
 
 ### Quality Gates
 
@@ -215,13 +215,13 @@ Deferred to future release. Tracked but not in current roadmap.
 | TIME-DOC-04 | Phase 40 | Pending |
 | TIME-DOC-05 | Phase 40 | Pending |
 | TIME-DOC-06 | Phase 40 | Pending |
-| TIME-GUI-01 | Phase 41 | Pending |
-| TIME-GUI-02 | Phase 41 | Pending |
-| TIME-GUI-03 | Phase 41 | Pending |
-| TIME-GUI-04 | Phase 41 | Pending |
-| TIME-GUI-05 | Phase 41 | Pending |
-| TIME-GUI-06 | Phase 41 | Pending |
-| TIME-GUI-07 | Phase 41 | Pending |
+| TIME-GUI-01 | Phase 41 | Complete |
+| TIME-GUI-02 | Phase 41 | Complete |
+| TIME-GUI-03 | Phase 41 | Complete |
+| TIME-GUI-04 | Phase 41 | Complete |
+| TIME-GUI-05 | Phase 41 | Complete |
+| TIME-GUI-06 | Phase 41 | Complete |
+| TIME-GUI-07 | Phase 41 | Complete |
 | TIME-QUAL-01 | Phase 42 | Pending |
 | TIME-QUAL-02 | Phase 42 | Pending |
 | TIME-QUAL-03 | Phase 42 | Pending |
