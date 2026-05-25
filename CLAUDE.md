@@ -8,7 +8,7 @@ Faithful Rust behavioral emulation of the HP-41C/CV/CX RPN calculator.
 - `hp41-cli` — TUI binary (ratatui 0.30 + crossterm 0.29)
 - `hp41-gui` — Tauri v2 + React desktop app (nested standalone workspace)
 
-**Current:** v3.0 Math Pac I (Owner's Manual 00041-90034 feature-complete), shipped 2026-05-21. Earlier tags: `v2.2` (HP-41CV complete, 2026-05-16), `v2.0` (Tauri GUI, 2026-05-10), `v1.1`, `v1.0`.
+**Current:** v3.2 Time Pac (Owner's Manual 00041-90035 feature-complete), shipped 2026-05-25. Earlier tags: `v3.1` (Stat 1 Pac, 2026-05-24), `v3.0` (Math Pac I, 2026-05-21), `v2.2` (HP-41CV complete, 2026-05-16), `v2.0` (Tauri GUI, 2026-05-10), `v1.1`, `v1.0`.
 
 **Where the long-form history lives:**
 - `docs/architecture-history.md` — full phase-by-phase narrative + decision rationale (Markdown fallback for reviewers without gbrain)
@@ -230,13 +230,25 @@ CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` 
 - **README v3.2 soft-claim (D-40.7):** bullet under `## Features`; no "feature-complete per Owner's Manual" — hard-claim deferred to Phase 42.
 - **CLAUDE.md `### v3.2 additions` block authored (D-40.9, D-40.10):** this section you are reading.
 
-#### Phase 41 — GUI Integration (IN PROGRESS)
+#### Phase 41 — GUI Integration (shipped 2026-05-25)
 
-*(GUI wiring for all 35 Time Pac op_display_name arms, CATALOG 2 Time Pac entry, HelpOverlay.tsx fourth section — follows Phase 36 Stat 1 GUI pattern.)*
+- **35 `op_display_name` arms in `hp41-gui/src-tauri/src/prgm_display.rs`** (4-way invariant item 4 complete; no `_ =>` catch-all). `function_matrix_parity.rs` 4-pool partition test cross-checks bidirectional consistency across all four JSON pools.
+- **`tick_time` Tauri command + CalcStateView live-display fields (D-41.1):** `clock_active`, `stopwatch_keyboard_mode`, `stopwatch_running`, `event_buffer` projected to frontend; `tick_time` calls `check_alarms()` + returns fresh `CalcStateView`.
+- **`op_catalog` refactored to generic 3-module loop (D-41.2):** `MATH_1`, `STAT_1`, `TIME_MODULE` iterated; Time Module entry in CATALOG 2.
+- **HelpOverlay.tsx fourth section "Time Pac (XROM 26)" (D-41.3):** `helpEntriesTime()` + 4-pool `helpEntriesAll()` chain; incremental substring search spans all four JSON pools.
+- **App.tsx live display (D-41.4):** `setInterval` with 200ms tick calls `tick_time`; clock/stopwatch display strings rendered in LCD area; alarm events drained from `event_buffer` per `useEffect`.
+- **14-segment LCD colon rendering (D-41.5):** colons in clock/stopwatch display rendered as two-dot overlay; `Display14Seg` component extended.
+- **Stopwatch keyboard mode + clock exit mirrored from CLI (D-41.6):** Space/Enter toggle RUNSW/STOPSW, `s` → split, `r` → reset, Esc → exit; clock display exits on any keypress.
 
-#### Phase 42 — Test Hardening & Quality Gates (TBD)
+#### Phase 42 — Test Hardening & Quality Gates (shipped 2026-05-25)
 
-*(Coverage gap closure, numerical accuracy extension, E2E smoke with Time Pac workflow, README hard-claim graduation conditional on quality gates — follows Phase 37 / Phase 32 pattern.)*
+- **Meta-gate unification (TIME-QUAL-01/02):** `xrom_op_test_count.rs` unified across all 3 XROM modules (106 variants >= 5 tests); `lint_xrom_assertions.rs` unified assertion-discipline lint across all 3 modules.
+- **Coverage gap closure (TIME-QUAL-03):** `time_coverage_supplement.rs` (79 tests targeting 30 Time variants below 5-test threshold); all 7 `time/*.rs` source files exceed 90% region coverage.
+- **Numerical accuracy (TIME-QUAL-04):** 30 oracle-verified date arithmetic cases in `time_date_accuracy.rs` (791 total across all modules, 98.86% pass rate); stopwatch timing accuracy tests; alarm latency tests.
+- **Backward compatibility (TIME-QUAL-05):** `time_backward_compat.rs` + `v31-autosave.json` fixture — v3.1 `xrom_modules=0b011` migrates to `0b111`, `time_offset_secs` defaults to zero.
+- **E2E smoke (TIME-QUAL-06):** DDAYS workflow in `hp41-gui/e2e/smoke.spec.js`.
+- **README hard-claim graduated (D-40.7 / D-42.11):** "feature-complete per Owner's Manual 00041-90035" — mirrors v3.0/v3.1 graduation pattern.
+- **Coverage assessment:** Aggregate hp41-core 93.72% lines / 95.63% regions (v3.1 baseline 93.91%/95.84%; region coverage exceeds target).
 
 ## Tech Stack
 

@@ -274,7 +274,7 @@ Phase 37 closes the v3.1 milestone with 5 plans across 4 waves, addressing 12 re
 
 ---
 
-## v3.2 additions (Time Pac Emulation, Phases 38–42 — 41–42 IN PROGRESS)
+## v3.2 additions (Time Pac Emulation, Phases 38–42)
 
 Phases 38–42 ship the third XROM application module — the HP-41CX Time Module (HP 82182A, HP part number 00041-90036, Owner's Manual 1982) — as a behavioral emulation of 35 XEQ-by-name entry points across clock/date/stopwatch/alarm families. This is the first XROM module introducing real-time behavior: the system clock backs TIME and DATE, the stopwatch tracks elapsed time against `std::time::Instant`, and an alarm catalog triggers events on each dispatch cycle. The three novel architectural additions — `SystemTime` clock access in hp41-core, pull-on-redraw live display, and `Vec<AlarmEntry>` alarm catalog — each required a standalone ADR (v3.2-001, v3.2-002, v3.2-003) because they introduce patterns not present in Math 1 Pac or Stat 1 Pac. Everything else follows the v3.0/v3.1 invariants (XROM resolver chain, modal-workflow infrastructure, JSON-canonical pipeline, save-file backward compat, zero new runtime deps).
 
@@ -312,22 +312,38 @@ No `hp41-core` or `hp41-gui` changes ship in Phase 39: SC-4 invariant trivially 
 
 Phase 40 authors the Time Pac documentation suite: `docs/hp41-time-divergences.md` (three-bucket numbered catalog, `D-40-NN` identifiers), three long-form ADRs (v3.2-001 clock access, v3.2-002 live display architecture, v3.2-003 alarm catalog design), the fourth `scripts/docs-matrix` invocation extending the justfile `docs-matrix` and `docs-matrix-check` recipes, the README v3.2 soft-claim bullet, and this `docs/architecture-history.md` v3.2 narrative section. The v3.2 hard-claim ("feature-complete per Owner's Manual HP 00041-90036") is deferred to Phase 42 quality gate graduation per the D-30.9 → D-32.5 and D-35.3 → D-37.11 cadence.
 
-### Phase 41 — GUI Integration (IN PROGRESS)
+### Phase 41 — GUI Integration (shipped 2026-05-25)
 
-*(35 new `op_display_name` arms in `hp41-gui/src-tauri/src/prgm_display.rs` — item 4 of the 4-way exhaustive-match invariant; CATALOG 2 Time Pac entry; `HelpOverlay.tsx` fourth collapsible section "Time Pac (XROM 26)"; LCD-mode routing for CLKT/SW display override; modal-prompt routing for SETIME/SETDATE/XYZALM; follows Phase 31 + Phase 36 GUI integration pattern.)*
+35 new `op_display_name` arms land in `hp41-gui/src-tauri/src/prgm_display.rs` — item 4 of the 4-way exhaustive-match invariant complete; no `_ =>` catch-all. `function_matrix_parity.rs` 4-pool partition test with `TIME_OP_VARIANT_NAMES` cross-checks Op ↔ JSON bidirectional consistency across all four JSON pools.
 
-### Phase 42 — Test Hardening & Quality Gates (TBD)
+The Rust backend gains a `tick_time` Tauri command (D-41.1) that calls `check_alarms()` and returns a fresh `CalcStateView` — the frontend's `setInterval` (200ms) drives live clock/stopwatch updates. `CalcStateView` is extended with `clock_active`, `stopwatch_keyboard_mode`, `stopwatch_running`, and `event_buffer` fields so the React tree can render live display state and drain alarm events. The `op_catalog` function is refactored from two hardcoded module arms to a generic 3-module loop iterating `MATH_1`, `STAT_1`, `TIME_MODULE` — CATALOG 2 now shows Time Pac entries.
 
-*(Coverage gap closure for `time/` module tree; numerical accuracy extension with time/date arithmetic oracle cases; E2E smoke with a Time Pac workflow; `time_op_test_count.rs` meta-gate (≥5 tests per variant); `xrom_shadowing.rs` final verification across all three modules; backward-compat test for v3.1→v3.2 migration; README hard-claim graduation conditional on QUAL-04 + QUAL-11 gates — follows Phase 32 + Phase 37 pattern.)*
+`HelpOverlay.tsx` gains the fourth collapsible section "Time Pac (XROM 26)" with `helpEntriesTime()` + 4-pool `helpEntriesAll()` chain (D-41.3). The incremental substring search spans all four JSON pools. `App.tsx` wires live display via `setInterval` calling `tick_time` (D-41.4); clock/stopwatch display strings are rendered in the LCD area; alarm events are drained from `event_buffer` per `useEffect`. The 14-segment LCD renderer gains colon-as-two-dot overlay support (D-41.5) so clock/stopwatch time strings render authentically.
 
-**Frozen invariants preserved across v3.2:** *(to be completed after Phase 42)*
+Stopwatch keyboard mode and clock exit mirror the Phase 39 CLI pattern (D-41.6): Space/Enter toggle RUNSW/STOPSW, `s` → split, `r` → reset, Esc → exit; clock display exits on any keypress. SC-4 invariant trivially preserved — no calculator math leaks into `hp41-gui`.
 
-- SC-4 invariant: Time Pac math lives in `hp41-core/src/ops/time/`. No Time Pac code leaks into `hp41-gui`. (to be verified at Phase 42)
-- 4-exhaustive-match invariant: items 1+2 complete (Phase 38); item 3 complete (Phase 39); item 4 deferred to Phase 41. (to be completed at Phase 41)
+### Phase 42 — Test Hardening & Quality Gates (shipped 2026-05-25)
+
+Phase 42 unifies the per-module meta-gates into single-file cross-module gates (TIME-QUAL-01/02): `xrom_op_test_count.rs` now covers all 106 XROM variants (Math 1 + Stat 1 + Time) in one file, using dual-token matching (Op enum name + function name) to handle the different test patterns across modules. `lint_xrom_assertions.rs` unifies the LINT-EXEMPT assertion-discipline check across all three module source trees.
+
+Coverage gap closure (TIME-QUAL-03): `time_coverage_supplement.rs` adds 79 tests targeting the 30 Time variants below the 5-test threshold (alarm catalog browsing, clock format toggle, stopwatch state transitions, modal prompt flows). All 7 `time/*.rs` source files exceed 90% region coverage after the supplement.
+
+Numerical accuracy (TIME-QUAL-04): 30 oracle-verified date arithmetic cases land in `time_date_accuracy.rs` covering all Gregorian leap year rules (div-by-4, div-by-100, div-by-400), century boundaries, Y2K, negative day counts, historical dates, and both MDY/DMY modes. Total oracle suite is 791 cases across all modules at 98.86% pass rate.
+
+Backward compatibility (TIME-QUAL-05): `time_backward_compat.rs` + `v31-autosave.json` fixture confirms v3.1 save files migrate correctly — `xrom_modules` bit-2 set, `rand_seed` preserved, all Time fields default to zero/empty/Idle.
+
+E2E smoke (TIME-QUAL-06): DDAYS date-arithmetic workflow added to `hp41-gui/e2e/smoke.spec.js` (Ubuntu tauri-driver).
+
+README hard-claim graduation (D-42.11): "feature-complete per Owner's Manual HP 00041-90035" — mirrors the v3.0 D-32.5 and v3.1 D-37.11 graduation cadence. Free42 contamination guard re-verified: 18 tokens across `math1/`, `stat1/`, and `time/` trees, exits 0.
+
+**Frozen invariants preserved across v3.2:**
+
+- SC-4 invariant: Time Pac math lives in `hp41-core/src/ops/time/`. No Time Pac code leaks into `hp41-gui`. Verified at Phase 42.
+- 4-exhaustive-match invariant: items 1+2 complete (Phase 38); item 3 complete (Phase 39); item 4 complete (Phase 41). All four sites exhaustive, no `_ =>` catch-all.
 - `#![deny(clippy::unwrap_used)]` continues in `hp41-core`; test files carry `#[allow]` per established pattern.
-- Save-file backward compat: all 12 Phase 38 CalcState fields carry `#[serde(default)]`; 4 transient fields additionally carry `#[serde(skip)]`. v1.0–v3.1 save files load without migration. (to be verified at Phase 42)
+- Save-file backward compat: all 12 Phase 38 CalcState fields carry `#[serde(default)]`; 4 transient fields additionally carry `#[serde(skip)]`. v1.0–v3.1 save files load without migration. Verified at Phase 42 via `time_backward_compat.rs`.
 - MSRV 1.88 unchanged. Zero new runtime deps (`libc`/`chrono`/`time` all rejected per D-carried.1).
-- Free42 GPL contamination guard: extended to cover `time/` tree; 18 tokens, exits 0. (to be re-verified at Phase 42)
+- Free42 GPL contamination guard: extended to cover `time/` tree; 18 tokens, exits 0. Re-verified at Phase 42.
 
 ---
 
