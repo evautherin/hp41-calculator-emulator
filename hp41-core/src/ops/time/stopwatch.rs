@@ -176,6 +176,7 @@ pub fn op_swpt(state: &mut CalcState) -> Result<(), HpError> {
 /// stopwatch display; the actual keyboard redefinition is Phase 39 (CLI) /
 /// Phase 41 (GUI) scope. LiftEffect::Neutral.
 pub fn op_sw(state: &mut CalcState) -> Result<(), HpError> {
+    state.clock_active = false;
     state.stopwatch_keyboard_mode = true;
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())

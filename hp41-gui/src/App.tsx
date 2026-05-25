@@ -559,6 +559,7 @@ function App() {
 
     // D-39.4/D-39.5 mirror: stopwatch keyboard mode intercepts all keys.
     // Space/Enter → RUNSW/STOPSW toggle, 's' → split, 'r' → reset, Esc → exit.
+    // Key IDs use xeq_ prefix for XROM resolution (key_map.rs xeq_ path).
     if (calcState?.stopwatch_keyboard_mode) {
       e.preventDefault();
       if (e.key === 'Escape') {
@@ -572,11 +573,11 @@ function App() {
       if (busyRef.current) return;
       let swKeyId: string | null = null;
       if (e.key === ' ' || e.key === 'Enter') {
-        swKeyId = calcState.stopwatch_running ? 'time_stopsw' : 'time_runsw';
+        swKeyId = calcState.stopwatch_running ? 'xeq_STOPSW' : 'xeq_RUNSW';
       } else if (e.key === 's') {
-        swKeyId = 'time_swpt';
+        swKeyId = 'xeq_SWPT';
       } else if (e.key === 'r') {
-        swKeyId = 'time_stpw';
+        swKeyId = 'xeq_STPW';
       }
       if (swKeyId) {
         busyRef.current = true;
