@@ -43,6 +43,10 @@ interface CalcStateView {
   modal_program_active: boolean;           // mirrors state.modal_program.is_some()
   modal_requires_alpha_label: boolean;     // true when FUNCTION NAME? prompt step is active
   modal_prompt: string | null;             // mirrors Option<String> (null when no modal)
+  // Phase 41 D-41.3: live-display trigger fields (mirrors CalcState transient booleans).
+  // Frontend starts setInterval(100ms) when either is true; clears when both are false (D-41.8).
+  clock_active: boolean;
+  stopwatch_keyboard_mode: boolean;
 }
 
 // Tauri rejects with GuiError { message: string } — String(err) yields
@@ -209,6 +213,9 @@ function App() {
   // From<HpError> ends up at console.error and the user sees stale state.
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const busyRef = useRef(false);
+  // Phase 41 D-41.2/D-41.8: live-display interval reference.
+  // Holds the setInterval ID when clock_active || stopwatch_keyboard_mode is true.
+  const liveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [printLog, setPrintLog] = useState<string[]>([]);
   const [printPanelOpen, setPrintPanelOpen] = useState(false);
   const printEndRef = useRef<HTMLDivElement>(null);
@@ -246,6 +253,42 @@ function App() {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Phase 41 D-41.2/D-41.3/D-41.8: start/stop the 100ms live-display interval.
+  //
+  // Starts when calcState.clock_active || calcState.stopwatch_keyboard_mode is true.
+  // Clears when both are false. This is the ONLY plan introducing live-updating
+  // display behavior in the GUI (TIME-GUI-04, TIME-GUI-05).
+  //
+  // busyRef guard (Pitfall 2 from RESEARCH.md): tick_time skips if dispatch_op
+  // is already in flight — prevents concurrent Mutex access pileup.
+  // tick_time callback does NOT set busyRef.current = true: it is a read-only
+  // query that must never block user input.
+  //
+  // Cleanup on unmount/dep-change: prevents dangling interval in React StrictMode
+  // (Pitfall 3 from RESEARCH.md).
+  useEffect(() => {
+    if (!calcState) return;
+    const needsTick = calcState.clock_active || calcState.stopwatch_keyboard_mode;
+    if (needsTick && liveTickRef.current === null) {
+      liveTickRef.current = setInterval(() => {
+        if (busyRef.current) return; // skip tick while dispatch_op is in flight (Pitfall 2)
+        invoke<CalcStateView>('tick_time')
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)));
+      }, 100);
+    } else if (!needsTick && liveTickRef.current !== null) {
+      clearInterval(liveTickRef.current);
+      liveTickRef.current = null;
+    }
+    // Cleanup on unmount — prevents dangling interval in React StrictMode (Pitfall 3).
+    return () => {
+      if (liveTickRef.current !== null) {
+        clearInterval(liveTickRef.current);
+        liveTickRef.current = null;
+      }
+    };
+  }, [calcState, showToast]);
 
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
@@ -596,10 +639,27 @@ function App() {
   // policy; the seq counter inside showToast re-fires identical messages).
   // A future v3.x Web Audio API replacement plugs in here without changing
   // the projection contract; the event_buffer schema stays the same.
+  //
+  // Phase 41 D-41.6: extended to parse alarm event prefixes from hp41-core alarm.rs:
+  //   "alarm:message:{text}" → showToast with prefix stripped (shows only alarm text)
+  //   "alarm:xeq:{label}"   → invoke dispatch_op xeq_{label} (control alarm XEQ target)
+  //   other lines            → showToast as before (BEEP/TONE/etc.)
   useEffect(() => {
     if (calcState && calcState.event_buffer.length > 0) {
       for (const line of calcState.event_buffer) {
-        showToast(line);
+        if (line.startsWith('alarm:message:')) {
+          // Strip "alarm:message:" prefix — show only the alarm message text.
+          showToast(line.slice('alarm:message:'.length));
+        } else if (line.startsWith('alarm:xeq:')) {
+          // Extract label and dispatch XEQ through existing infrastructure.
+          const label = line.slice('alarm:xeq:'.length);
+          invoke<CalcStateView>('dispatch_op', { keyId: `xeq_${label}` })
+            .then(view => setCalcState(view))
+            .catch(err => showToast(extractErrMessage(err)));
+        } else {
+          // BEEP, TONE, or other non-alarm events — surface via toast.
+          showToast(line);
+        }
       }
     }
   }, [calcState, showToast]);
