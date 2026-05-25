@@ -81,6 +81,8 @@ pub fn submit_modal(state: &mut CalcState) -> Result<(), HpError> {
         ModalProgram::Stat1(step) => crate::ops::stat1::modal::submit_step(state, step),
         // Phase 38 (v3.2): Time Module modal submit delegates to time::modal.
         ModalProgram::Time(step) => crate::ops::time::modal::submit_step(state, step),
+        // Phase 43 (v3.3): Advantage Pac modal submit delegates to advantage::modal.
+        ModalProgram::Advantage(step) => crate::ops::advantage::modal::submit_step(state, step),
     }
 }
 
