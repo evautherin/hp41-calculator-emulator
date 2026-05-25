@@ -367,7 +367,7 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         // Enter first date: Jan 1 2000 = 1.012000 in MDY format.
         // Real clicks: 1, decimal, 0, 1, 2, 0, 0, 0
         await clickKey('1');
-        await clickKey('decimal');
+        await clickKey('.');
         await clickKey('0');
         await clickKey('1');
         await clickKey('2');
@@ -380,7 +380,7 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         // Enter second date: Feb 1 2000 = 2.012000 in MDY format.
         // Real clicks: 2, decimal, 0, 1, 2, 0, 0, 0
         await clickKey('2');
-        await clickKey('decimal');
+        await clickKey('.');
         await clickKey('0');
         await clickKey('1');
         await clickKey('2');
@@ -417,7 +417,7 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
 
         // Push z-score 1.96 via real clicks, then ENTER to lift to Y.
         await clickKey('1');
-        await clickKey('decimal');
+        await clickKey('.');
         await clickKey('9');
         await clickKey('6');
         await clickKey('enter');
