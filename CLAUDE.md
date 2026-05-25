@@ -190,6 +190,54 @@ CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` 
 - `docs/adr/v3.1-{001..005}-*.md` — 5 long-form ADRs (D-30.6 template; D-35.2 scope).
 - `.planning/phases/33-…/33-SPEC-AMENDMENT.md` — history-preserving SPEC supplement; 6 oracle drifts reconciled (D-35.1).
 
+### v3.2 additions (Time Pac Emulation, Phases 38–42)
+
+*Origin: see `docs/architecture-history.md` §v3.2 additions for the long-form per-phase narrative; this block is the CLAUDE.md decision-summary surface (the SECOND `### v3.x additions` block; the first was v3.1 per D-35.5).*
+
+#### Phase 38 — XROM Framework + Clock/Date/Stopwatch/Alarm Core (shipped 2026-05-24)
+
+- **TIME_MODULE (XROM ID 26) registered (D-carried.5):** `TIME_MODULE.id = 26`, name `"TIME 2C"` (HP 82182A CATALOG 2 display string), 35 ops; `xrom_resolve` bit-2 arm fires LAST after bit-1 (STAT_1) and bit-0 (MATH_1) per Pitfall 1 + Pitfall 22.
+- **`default_xrom_modules() = 0b0000_0111` + `migrate_after_load()` (D-carried.5):** v3.1 save files with `xrom_modules: 0b0000_0011` auto-upgrade to `0b0000_0111` at startup; canonical migration site is `state.rs`; both CLI and GUI persistence paths call it (D-33.7 single-source-of-truth inherited).
+- **Direct `std::time::SystemTime::now()` in hp41-core (D-38.1):** core calls system clock directly — `SystemTime` is a value-returning syscall, not console I/O; the zero-I/O principle applies to console/filesystem/network, not clock reads. Trait injection, frontend callback, and `no_std` abstraction were evaluated and rejected (see ADR-v3.2-001).
+- **`time_offset_secs: i64` on CalcState (D-38.2, `#[serde(default)]`):** SETIME computes delta between entered time and `SystemTime::now()`, stored as seconds; all time/date reads apply `SystemTime::now() + offset` to derive the "HP-41 time". Also encodes the timezone + user adjustment combined — no separate OS timezone query needed.
+- **Pure-Rust Gregorian calendar arithmetic (D-carried.1 + D-38.3):** Fliegel-Van Flandern JDN formula (~60 LOC) in `clock.rs` replaces the planned `libc::localtime_r` call — `libc` is not a runtime dep and D-carried.1 prohibits new runtime deps. Zero new runtime deps achieved.
+- **Date decimal parsing via string-split-at-decimal (D-carried.2):** Left-pad fractional part to exactly 6 chars, split into DD[2]+YYYY[4] (MDY) or MM[2]+YYYY[4] (DMY); ISG/DSE precedent carried forward — `floor()`/`fmod()` forbidden.
+- **Stopwatch fields with split serde shapes (D-38.6, D-38.7):** `stopwatch_mode: StopwatchMode` (`#[serde(default)]`), `stopwatch_accumulated: f64` (`#[serde(default)]`), `stopwatch_split: f64` (`#[serde(default)]`), `stopwatch_start: Option<Instant>` (`#[serde(default, skip)]` — transient). Running stopwatch is frozen to Stopped on save (D-38.6); user must RUNSW to resume; `migrate_after_load()` enforces the freeze.
+- **`AlarmType` enum + `Vec<AlarmEntry>` on CalcState (D-38.8–11):** `AlarmType::Message(String)` | `AlarmType::Control { label, interrupting }` — forward-compatible data model even though interrupting control alarm execution is deferred (D-38.4). Direct `alarms: Vec<AlarmEntry>` with `#[serde(default)]`; free functions in `alarm.rs` (same pattern as `regs: Vec<HpNum>`). `check_alarms()` drain pattern; alarm notifications pushed into `event_buffer`; repeat interval stored as `i64` seconds (D-38.11). 253-entry catalog cap enforced at XYZALM entry.
+- **Interrupting control alarm DEFERRED (D-38.4):** documented divergence in `docs/hp41-time-divergences.md`; data model stores them but execution requires re-entrancy against the 4-level call stack not currently supported. Non-interrupting control alarms XEQ the stored label on acknowledgment (D-38.5).
+- **`ModalProgram::Time(TimeStep)` variant (D-carried.4):** follows ADR-v3.1-005 pattern; `TimeStep` enum in new `time/modal.rs` (outside math1/ freeze boundary).
+- **35 new `Op` variants** in `dispatch()` + `execute_op()` (4-way invariant items 1+2 complete; items 3+4 deferred to Phase 39 CLI / Phase 41 GUI with sanctioned CI break).
+- **Free42 contamination guard extended to `time/` directory:** `scripts/check-free42-contamination.sh` covers `math1/`, `stat1/`, and `time/` trees; token count unchanged (18 tokens, exits 0).
+- **Phase 38 CalcState additions with serde shapes (D-40.10):** `time_offset_secs: i64` (`#[serde(default)]`), `clock_12h: bool` (`#[serde(default)]`), `clock_display_mode: ClockDisplayMode` (`#[serde(default)]`), `accuracy_factor: HpNum` (`#[serde(default)]`), `alarms: Vec<AlarmEntry>` (`#[serde(default)]`), `stopwatch_mode: StopwatchMode` (`#[serde(default)]`), `stopwatch_accumulated: f64` (`#[serde(default)]`), `stopwatch_split: f64` (`#[serde(default)]`), `stopwatch_start: Option<Instant>` (`#[serde(default, skip)]` — transient), `clock_active: bool` (`#[serde(default, skip)]` — transient), `stopwatch_keyboard_mode: bool` (`#[serde(default, skip)]` — transient), `alarm_catalog_mode: bool` (`#[serde(default, skip)]` — transient). XROM bit-2 arm = `TIME_MODULE` (XROM 26).
+
+#### Phase 39 — CLI Integration + Live Display (shipped 2026-05-25)
+
+- **`docs/hp41-time-functions.json` authored (D-39.9):** 35-entry canonical source; 7-category convention (Time Clock / Time Date Arithmetic / Time Display / Time Format / Time Alpha / Time Stopwatch / Time Alarm); `xrom: { module: "Time", module_id: 26, function_id: N }` block per entry per Phase 28 D-28.3 schema; inline `divergences` field on exactly 4 entries (CORRECT, SW, RCLAF, SETAF per D-39.11).
+- **Fourth `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs` (D-39.12):** `TIME_FUNCTIONS_JSON` + `TIME_HELP_ENTRIES` static + `help_entries_time()` accessor + 4-pool chain `help_entries_all()` (cv → math1 → stat1 → time); malformed JSON panics at first access (hard-build-blocker pattern per D-25.17 carried forward to fourth file).
+- **35 new `op_display_name` arms in `hp41-cli/src/prgm_display.rs`** (4-way invariant item 3 complete; no `_ =>` catch-all); `function_matrix_parity.rs` 4-pool partition test + `TIME_OP_VARIANT_NAMES` inventory constant; xrom_shadowing.rs extended to TIME_MODULE.ops.
+- **`?` help overlay "Time Pac (XROM 26)" section (D-39.13):** auto-derived from JSON categories; incremental substring search spans all four JSON pools.
+- **Live clock/stopwatch display — pull-on-redraw (D-39.1, D-39.2):** `get_clock_display_str()` / `get_stopwatch_display_str()` called at top of `get_display_string()` priority chain (before entry_buf); existing 16ms poll loop redraws ~62 Hz — TIME-DSP-05 (≥1 Hz clock) and TIME-SW-08 (≥10 Hz stopwatch) trivially met. Clock exit clears `clock_active` on any keypress (D-39.3 — mutation-only, key falls through).
+- **Stopwatch keyboard mode (D-39.4, D-39.5):** top-level routing block in `handle_key()` after clock-exit; `handle_stopwatch_mode_key()` consumes keys: Space/Enter → toggle RUNSW/STOPSW, `s` → SWPT (split), `r` → STPW (reset), Esc → exit mode. No new `PendingInput` variant needed.
+- **Alarm event draining (D-39.6–8):** `drain_event_buffer()` routes `"alarm:message:{text}"` → `self.message`, `"alarm:xeq:{label}"` → XEQ dispatch; `check_alarms()` called every 16ms tick in `run()` loop OUTSIDE the event-poll conditional (alarms fire in real-time without user interaction); `drain_event_buffer()` also appended to `call_dispatch()` and `call_dispatch_and_drain()`.
+- **XROM shadowing extended to `TIME_MODULE.ops` (D-39.14):** all 35 Time Pac mnemonics confirmed disjoint from `MATH_1.ops` + `STAT_1.ops` + `BUILTIN_CARD_OP_NAMES` allowlist; Pitfall 22 verified end-to-end across all three XROM modules.
+- **Right-panel `key_ref_entries()` filter unchanged:** `entry.xrom.is_none()` excludes Time entries from right panel; discoverable via `?` overlay "Time Pac (XROM 26)" section only (same UX as Math 1 + Stat 1).
+
+#### Phase 40 — Documentation & ADRs (shipped 2026-05-25)
+
+- **`docs/hp41-time-divergences.md` authored (D-40.3):** three-bucket numbered catalog (OM Divergences / Emulator Extensions / Behavioral Policies) with `D-40-NN` identifiers; 5-field entry shape per D-30.5 (OM citation / Our behavior / OM behavior / Rationale / See); known entries include host clock backing, stopwatch freeze-on-save, interrupting control alarm deferral, CORRECT/SETAF accuracy-factor no-op, centisecond resolution.
+- **3 ADRs: v3.2-001 (clock access), v3.2-002 (live display), v3.2-003 (alarm catalog) (D-40.5):** long-form per D-30.6 template; each `## Alternatives Considered` quotes Phase 38 CONTEXT decisions verbatim (D-30.7).
+- **`scripts/docs-matrix` fourth invocation (D-40.1–2):** `hp41-time-functions.json` → `hp41-time-function-matrix.md`; 4th `else if` branch in renderer + 4th invocation in `justfile` `docs-matrix` and `docs-matrix-check` recipes.
+- **README v3.2 soft-claim (D-40.7):** bullet under `## Features`; no "feature-complete per Owner's Manual" — hard-claim deferred to Phase 42.
+- **CLAUDE.md `### v3.2 additions` block authored (D-40.9, D-40.10):** this section you are reading.
+
+#### Phase 41 — GUI Integration (IN PROGRESS)
+
+*(GUI wiring for all 35 Time Pac op_display_name arms, CATALOG 2 Time Pac entry, HelpOverlay.tsx fourth section — follows Phase 36 Stat 1 GUI pattern.)*
+
+#### Phase 42 — Test Hardening & Quality Gates (TBD)
+
+*(Coverage gap closure, numerical accuracy extension, E2E smoke with Time Pac workflow, README hard-claim graduation conditional on quality gates — follows Phase 37 / Phase 32 pattern.)*
+
 ## Tech Stack
 
 - **`just`** — sole task runner. **Never call `cargo` directly in CI or docs.** GUI recipes: `just gui-dev` / `just gui-build` / `just gui-ci` / `just gui-check`.
