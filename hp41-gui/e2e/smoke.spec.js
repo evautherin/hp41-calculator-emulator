@@ -340,6 +340,64 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         }
     });
 
+    // Plan 42-04 / D-42.15 / TIME-QUAL-06 — Time Pac E2E smoke.
+    //
+    // Click-strategy: BROWSER.EXECUTE FALLBACK for xeq_MDY (MDY mode setup)
+    // and xeq_DDAYS (the date arithmetic dispatch), REAL CLICKS for digit
+    // entry and ENTER to lift the first date to Y.
+    //
+    // Workflow: MDY mode → enter 1.012000 (Jan 1 2000) ENTER → enter 2.012000
+    // (Feb 1 2000) → XEQ DDAYS → assert -31 days.
+    //
+    // DDAYS computes JDN(Y) - JDN(X): Y=Jan 1 2000, X=Feb 1 2000 →
+    // JDN(Jan 1) - JDN(Feb 1) = -31 (per date_arith.rs::op_ddays).
+    // FIX 4 format: "-31.0000".
+    //
+    // Assertion: invokeBackend returns CalcStateView directly (no React poll
+    // needed, D-11 — no polling). Same rationale as SINH/DET/NORMD tests.
+    //
+    // Per D-carried.1: runs Ubuntu-only via ci-gui.yml::e2e-linux.
+    it('XEQ "DDAYS" between Jan 1 2000 and Feb 1 2000 displays -31.0000 (Time Pac date arithmetic)', async () => {
+        const display = await $('[data-testid="lcd-display"]');
+        await display.waitForExist({ timeout: 10000 });
+
+        // Ensure MDY mode (clear Flag 31) so dates parse as MM.DDYYYY.
+        await invokeBackend('dispatch_op', { keyId: 'xeq_MDY' });
+
+        // Enter first date: Jan 1 2000 = 1.012000 in MDY format.
+        // Real clicks: 1, decimal, 0, 1, 2, 0, 0, 0
+        await clickKey('1');
+        await clickKey('decimal');
+        await clickKey('0');
+        await clickKey('1');
+        await clickKey('2');
+        await clickKey('0');
+        await clickKey('0');
+        await clickKey('0');
+        // ENTER lifts to Y so the second date can be entered into X.
+        await clickKey('enter');
+
+        // Enter second date: Feb 1 2000 = 2.012000 in MDY format.
+        // Real clicks: 2, decimal, 0, 1, 2, 0, 0, 0
+        await clickKey('2');
+        await clickKey('decimal');
+        await clickKey('0');
+        await clickKey('1');
+        await clickKey('2');
+        await clickKey('0');
+        await clickKey('0');
+        await clickKey('0');
+
+        // Stack state: Y = 1.012000 (Jan 1 2000), X = 2.012000 (Feb 1 2000).
+        // DDAYS = JDN(Y) - JDN(X) = JDN(Jan 1 2000) - JDN(Feb 1 2000) = -31.
+        const view = await invokeBackend('dispatch_op', { keyId: 'xeq_DDAYS' });
+        if (view.display_str !== '-31.0000') {
+            throw new Error(
+                `expected dispatch_op('xeq_DDAYS').display_str='-31.0000', got '${view.display_str}'`,
+            );
+        }
+    });
+
     // Plan 37-05 / D-37.2 / STAT-QUAL-11 — Stat 1 Pac E2E smoke.
     //
     // Click-strategy: BROWSER.EXECUTE FALLBACK for the XEQ-by-name invocation
