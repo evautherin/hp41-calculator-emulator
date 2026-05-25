@@ -135,8 +135,17 @@ Plans:
   3. User can enter interactive stopwatch mode (XEQ "SW") and see centisecond-resolution elapsed time updating in the TUI at 10+ Hz, with dedicated key bindings for start/stop/split/reset
   4. When an alarm comes due, the user sees a status-bar notification without having to execute any command
 
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 39-01-PLAN.md — JSON canonical data (35-entry hp41-time-functions.json) + fourth OnceLock in help_data.rs + parity/shadowing test updates
+ 
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 39-02-PLAN.md — Live display priority in TUI + stopwatch keyboard mode + alarm event draining
+- [ ] 39-03-PLAN.md — Integration tests: help data smoke tests + key-ref exclusion tests
 
 ### Phase 40: Documentation & ADRs
 
@@ -187,11 +196,11 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
-| 39. hp41-cli -- CLI Integration + Live Display | 0/TBD | Not started | - |
+| 39. hp41-cli -- CLI Integration + Live Display | 0/3 | Not started | - |
 | 40. Documentation & ADRs | 0/TBD | Not started | - |
 | 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
 | 42. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---
 
-*Last updated: 2026-05-24 -- Phase 38 planned (6 plans, 3 waves).*
+*Last updated: 2026-05-25 -- Phase 39 planned (3 plans, 2 waves).*
