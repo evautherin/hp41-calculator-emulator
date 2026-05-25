@@ -258,7 +258,7 @@
         "status": "implemented",
         "phase": "38",
         "key_path": "XEQ \"STPW\"",
-        "description": "Stop and reset the stopwatch to zero",
+        "description": "Record current elapsed time as split point (stopwatch continues running)",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 26 }
     },
     {

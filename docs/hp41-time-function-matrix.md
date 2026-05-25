@@ -39,7 +39,7 @@
 | TimeRunsw | RUNSW | Time / 26-20 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "RUNSW"` | Start (run) the stopwatch |
 | TimeSetsw | SETSW | Time / 26-23 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "SETSW"` | Set stopwatch to value in X |
 | TimeStopsw | STOPSW | Time / 26-21 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "STOPSW"` | Stop the stopwatch |
-| TimeStpw | STPW | Time / 26-26 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "STPW"` | Stop and reset the stopwatch to zero |
+| TimeStpw | STPW | Time / 26-26 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "STPW"` | Record current elapsed time as split point (stopwatch continues running) |
 | TimeSw | SW | Time / 26-24 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "SW"` | Interactive stopwatch display mode with live LCD updates |
 | TimeSwpt | SWPT | Time / 26-25 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "SWPT"` | Stopwatch split/lap time: recall elapsed without stopping |
 
