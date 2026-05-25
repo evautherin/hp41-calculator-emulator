@@ -45,6 +45,14 @@ pub enum HpError {
     /// distinguish iter-cap from domain-rejection failures.
     #[error("convergence failed")]
     ConvergenceFailed,
+    /// TVM *I solver iteration-cap exhaustion (D-43.13 / ADV-TVM-06).
+    /// Newton-Raphson failed to converge within `TVM_MAX_ITERATIONS` for the
+    /// TVM interest-rate equation. The last iterate is pushed to X and
+    /// "NO SOLUTION" is pushed to `print_buffer` before this error is returned.
+    /// Distinct from `ConvergenceFailed` (Stat 1 quantile loops) to allow
+    /// CLI/GUI to distinguish TVM-specific non-convergence.
+    #[error("no root found")]
+    NoRoot,
 }
 
 #[cfg(test)]
