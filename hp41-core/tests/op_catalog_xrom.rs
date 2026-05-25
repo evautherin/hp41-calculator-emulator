@@ -8,7 +8,7 @@
 //          CAT 3/4 accidentally changed to enumerate instead of "NOT AVAILABLE".
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::math1::xrom::{MATH_1, STAT_1};
+use hp41_core::ops::math1::xrom::{MATH_1, STAT_1, TIME_MODULE};
 use hp41_core::ops::program::op_catalog;
 use hp41_core::state::CalcState;
 
@@ -194,6 +194,163 @@ fn catalog_2_lists_stat1_when_bit1_set() {
         expected_lines,
         "Expected {} lines (banner + math1_hdr + math1_ops + stat1_hdr + stat1_ops + END), \
          got {}:\n{all_text}",
+        expected_lines,
+        new_lines.len()
+    );
+}
+
+/// Phase 41 D-41.5 — CAT 2 with all 3 XROM bits set (xrom_modules = 0b0000_0111)
+/// must emit headers + function entries for MATH_1, STAT_1, and TIME_MODULE.
+///
+/// Verifies the generic 3-module loop added in Plan 41-01 correctly enumerates
+/// the Time Module alongside the existing Math 1 and Stat 1 modules. Also
+/// verifies "NO XROM" is NOT present when any module is loaded.
+#[test]
+fn catalog_2_lists_time_when_bit2_set() {
+    let mut state = CalcState {
+        xrom_modules: 0b0000_0111, // all 3 modules active (Math 1 + Stat 1 + Time)
+        ..CalcState::default()
+    };
+
+    let initial_buf_len = state.print_buffer.len();
+    op_catalog(&mut state, 2).unwrap();
+
+    let new_lines = &state.print_buffer[initial_buf_len..];
+    let all_text: String = new_lines.join("\n");
+
+    // Must contain all three module headers.
+    assert!(
+        all_text.contains("XROM 7"),
+        "CAT 2 must contain 'XROM 7' (Math 1) header; got:\n{all_text}"
+    );
+    assert!(
+        all_text.contains(MATH_1.name),
+        "CAT 2 must contain MATH_1.name '{}'; got:\n{all_text}",
+        MATH_1.name
+    );
+    assert!(
+        all_text.contains("XROM 2"),
+        "CAT 2 must contain 'XROM 2' (Stat 1) header; got:\n{all_text}"
+    );
+    assert!(
+        all_text.contains(STAT_1.name),
+        "CAT 2 must contain STAT_1.name '{}'; got:\n{all_text}",
+        STAT_1.name
+    );
+    assert!(
+        all_text.contains("XROM 26"),
+        "CAT 2 must contain 'XROM 26' (Time Module) header; got:\n{all_text}"
+    );
+    assert!(
+        all_text.contains(TIME_MODULE.name),
+        "CAT 2 must contain TIME_MODULE.name '{}'; got:\n{all_text}",
+        TIME_MODULE.name
+    );
+
+    // Spot-check one entry from each module.
+    assert!(
+        all_text.contains("POLY"),
+        "CAT 2 must contain 'POLY' from MATH_1.ops; got:\n{all_text}"
+    );
+    assert!(
+        all_text.contains("\u{03A3}BSTAT"),
+        "CAT 2 must contain '\u{03A3}BSTAT' from STAT_1.ops; got:\n{all_text}"
+    );
+    assert!(
+        all_text.contains("TIME"),
+        "CAT 2 must contain 'TIME' from TIME_MODULE.ops; got:\n{all_text}"
+    );
+
+    // "NO XROM" must NOT appear when modules are loaded.
+    assert!(
+        !all_text.contains("NO XROM"),
+        "CAT 2 must NOT contain 'NO XROM' when modules are loaded; got:\n{all_text}"
+    );
+
+    // "-- END --" must be the last line.
+    assert!(
+        new_lines.last().unwrap().contains("END"),
+        "Last line should be END banner: {:?}",
+        new_lines.last()
+    );
+
+    // Total buffer growth sanity check:
+    // banner(1) + MATH_1 header(1) + MATH_1.ops + STAT_1 header(1) + STAT_1.ops
+    //   + TIME_MODULE header(1) + TIME_MODULE.ops + END(1)
+    let expected_lines =
+        1 + 1 + MATH_1.ops.len() + 1 + STAT_1.ops.len() + 1 + TIME_MODULE.ops.len() + 1;
+    assert_eq!(
+        new_lines.len(),
+        expected_lines,
+        "Expected {} lines (banner + 3×(hdr+ops) + END), got {}:\n{all_text}",
+        expected_lines,
+        new_lines.len()
+    );
+}
+
+/// Phase 41 D-41.5 — CAT 2 with ONLY Time Module bit set (xrom_modules = 0b0000_0100)
+/// must enumerate Time Module without Math 1 or Stat 1, and must NOT emit "NO XROM".
+///
+/// This test catches the latent else-if bug in the pre-D-41.5 code: the old
+/// 2-module else-if chain would have silently skipped TIME_MODULE and printed
+/// "NO XROM" in this configuration because neither bit-0 nor bit-1 was set.
+#[test]
+fn catalog_2_time_only() {
+    let mut state = CalcState {
+        xrom_modules: 0b0000_0100, // Time Module only (bit 2)
+        ..CalcState::default()
+    };
+
+    let initial_buf_len = state.print_buffer.len();
+    op_catalog(&mut state, 2).unwrap();
+
+    let new_lines = &state.print_buffer[initial_buf_len..];
+    let all_text: String = new_lines.join("\n");
+
+    // Must contain the TIME_MODULE header.
+    assert!(
+        all_text.contains("XROM 26"),
+        "CAT 2 must contain 'XROM 26' (Time Module) header when bit 2 is set; got:\n{all_text}"
+    );
+    assert!(
+        all_text.contains(TIME_MODULE.name),
+        "CAT 2 must contain TIME_MODULE.name '{}' when bit 2 is set; got:\n{all_text}",
+        TIME_MODULE.name
+    );
+
+    // Must NOT contain Math 1 or Stat 1 headers.
+    // Use MATH_1.name / STAT_1.name for exact-substring matching (avoids "XROM 2" being a
+    // substring of "XROM 26").
+    assert!(
+        !all_text.contains(MATH_1.name),
+        "CAT 2 must NOT contain MATH_1.name '{}' when only Time Module is loaded; got:\n{all_text}",
+        MATH_1.name
+    );
+    assert!(
+        !all_text.contains(STAT_1.name),
+        "CAT 2 must NOT contain STAT_1.name '{}' when only Time Module is loaded; got:\n{all_text}",
+        STAT_1.name
+    );
+
+    // "NO XROM" must NOT appear — this is the key regression catch for the old else-if bug.
+    assert!(
+        !all_text.contains("NO XROM"),
+        "CAT 2 must NOT emit 'NO XROM' when Time Module (bit 2) is set; got:\n{all_text}"
+    );
+
+    // "-- END --" must be the last line.
+    assert!(
+        new_lines.last().unwrap().contains("END"),
+        "Last line should be END banner: {:?}",
+        new_lines.last()
+    );
+
+    // Total buffer growth: banner(1) + TIME_MODULE header(1) + TIME_MODULE.ops + END(1)
+    let expected_lines = 1 + 1 + TIME_MODULE.ops.len() + 1;
+    assert_eq!(
+        new_lines.len(),
+        expected_lines,
+        "Expected {} lines (banner + time_hdr + time_ops + END), got {}:\n{all_text}",
         expected_lines,
         new_lines.len()
     );
