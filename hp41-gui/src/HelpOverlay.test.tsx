@@ -18,14 +18,21 @@
 //   - helpEntriesStat1() drift-catch + xrom-field assertions
 //   - helpEntriesAll() updated from 2-pool to 3-pool length assertion
 //   - sectionButtons.length updated from 2 to 3
+//
+// Phase 41 Plan 41-02 additions (TIME-GUI-03):
+//   - Fourth section "Time Pac (XROM 26)"
+//   - helpEntriesTime() drift-catch + xrom-field assertions
+//   - helpEntriesAll() updated from 3-pool to 4-pool length assertion
+//   - sectionButtons.length updated from 3 to 4
 
 import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { HelpOverlay } from './HelpOverlay';
-import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1 } from './help_data';
+import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime } from './help_data';
 import sourceJson from '../../docs/hp41cv-functions.json';
 import math1Json from '../../docs/hp41-math1-functions.json';
 import stat1Json from '../../docs/hp41-stat1-functions.json';
+import timeJson from '../../docs/hp41-time-functions.json';
 
 describe('help_data', () => {
     it('helpEntries returns all entries from docs/hp41cv-functions.json (drift-catch)', () => {
@@ -51,13 +58,16 @@ describe('help_data', () => {
         }
     });
 
-    it('helpEntriesAll returns concatenation of built-in + Math 1 + Stat 1 entries', () => {
+    it('helpEntriesAll returns concatenation of built-in + Math 1 + Stat 1 + Time entries', () => {
         const all = helpEntriesAll();
-        expect(all.length).toBe(helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length);
-        // Built-in entries appear first (no xrom), Math 1 entries after (xrom.module === 'Math 1'),
-        // Stat 1 entries last (xrom.module === 'Stat 1').
+        expect(all.length).toBe(
+            helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length + helpEntriesTime().length
+        );
+        // Built-in entries appear first (no xrom), Math 1 entries second (xrom.module === 'Math 1'),
+        // Stat 1 entries third (xrom.module === 'Stat 1'), Time entries last (xrom.module === 'Time').
         const hp41cvCount = helpEntries().length;
         const math1Count = helpEntriesMath1().length;
+        const stat1Count = helpEntriesStat1().length;
         for (let i = 0; i < hp41cvCount; i++) {
             expect(all[i].xrom, `built-in entry at index ${i} should have no xrom`).toBeUndefined();
         }
@@ -65,9 +75,13 @@ describe('help_data', () => {
             expect(all[i].xrom, `Math 1 entry at index ${i} should have xrom`).toBeTruthy();
             expect(all[i].xrom!.module, `Math 1 entry at index ${i} should have module === 'Math 1'`).toBe('Math 1');
         }
-        for (let i = hp41cvCount + math1Count; i < all.length; i++) {
+        for (let i = hp41cvCount + math1Count; i < hp41cvCount + math1Count + stat1Count; i++) {
             expect(all[i].xrom, `Stat 1 entry at index ${i} should have xrom`).toBeTruthy();
             expect(all[i].xrom!.module, `Stat 1 entry at index ${i} should have module === 'Stat 1'`).toBe('Stat 1');
+        }
+        for (let i = hp41cvCount + math1Count + stat1Count; i < all.length; i++) {
+            expect(all[i].xrom, `Time entry at index ${i} should have xrom`).toBeTruthy();
+            expect(all[i].xrom!.module, `Time entry at index ${i} should have module === 'Time'`).toBe('Time');
         }
     });
 
@@ -84,6 +98,23 @@ describe('help_data', () => {
             expect(entry.xrom, `entry ${entry.op_variant} should have xrom field`).toBeTruthy();
             expect(entry.xrom!.module).toBe('Stat 1');
             expect(entry.xrom!.module_id).toBe(2);
+        }
+    });
+
+    // Phase 41 Plan 41-02: Time Pac data-layer drift-catch tests (TIME-GUI-03)
+    it('helpEntriesTime returns all entries from docs/hp41-time-functions.json (drift-catch)', () => {
+        const allTimeSource = timeJson as unknown[];
+        expect(helpEntriesTime().length).toBe(allTimeSource.length);
+        // Sanity floor: the Time Pac JSON has 35 entries (Phase 38-39 scope, D-39.9).
+        expect(helpEntriesTime().length).toBeGreaterThanOrEqual(35);
+    });
+
+    it('helpEntriesTime entries all have xrom field with module "Time"', () => {
+        for (const entry of helpEntriesTime()) {
+            expect(entry.xrom, `entry ${entry.op_variant} should have xrom field`).toBeTruthy();
+            // CRITICAL: module is "Time" (not "TIME", "Time Pac", or "TIME 2C") — D-39.9 / Pitfall 6
+            expect(entry.xrom!.module).toBe('Time');
+            expect(entry.xrom!.module_id).toBe(26);
         }
     });
 
@@ -227,13 +258,15 @@ describe('HelpOverlay', () => {
 
     // Phase 31-04 D-31.8 / D-31.9 — two-section overlay tests
 
-    it('renders two top-level sections with HP-41CV and Math 1 Pac headings (D-31.8)', () => {
+    it('renders four top-level sections with HP-41CV, Math 1 Pac, Stat 1 Pac, and Time Pac headings (D-31.8)', () => {
         const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
-        // Both section heading buttons must be present.
+        // All four section heading buttons must be present.
         const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
         const buttonTexts = Array.from(sectionButtons).map(b => b.textContent ?? '');
         expect(buttonTexts.some(t => t.includes('HP-41CV (built-in)'))).toBe(true);
         expect(buttonTexts.some(t => t.includes('Math 1 Pac (XROM 7)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Stat 1 Pac (XROM 2)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Time Pac (XROM 26)'))).toBe(true);
     });
 
     it('Math 1 Pac section contains a Math1 Hyperbolics category (D-31.9)', () => {
@@ -253,8 +286,8 @@ describe('HelpOverlay', () => {
         const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
         // Find the Math 1 Pac section heading button.
         const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
-        // There should be exactly 3 section heading buttons (updated from 2 in Phase 36 Plan 36-03).
-        expect(sectionButtons.length).toBe(3);
+        // There should be exactly 4 section heading buttons (updated from 3 in Phase 41 Plan 41-02).
+        expect(sectionButtons.length).toBe(4);
 
         const math1Button = Array.from(sectionButtons).find(b =>
             b.textContent?.includes('Math 1 Pac')
@@ -331,6 +364,69 @@ describe('HelpOverlay', () => {
         expect(
             rowTexts.some(t => t.includes('NORMD')),
             `Expected at least one row containing 'NORMD'; found rows: ${rowTexts.slice(0, 5).join(' | ')}`
+        ).toBe(true);
+    });
+
+    // Phase 41 Plan 41-02: Time Pac section tests (TIME-GUI-03)
+
+    it('renders four top-level sections including Time Pac (XROM 26)', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
+        const buttonTexts = Array.from(sectionButtons).map(b => b.textContent ?? '');
+        expect(buttonTexts.some(t => t.includes('HP-41CV (built-in)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Math 1 Pac (XROM 7)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Stat 1 Pac (XROM 2)'))).toBe(true);
+        expect(buttonTexts.some(t => t.includes('Time Pac (XROM 26)'))).toBe(true);
+    });
+
+    it('Time Pac section contains a Time category heading', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const headings = container.querySelectorAll('.help-overlay-category-heading');
+        const headingTexts = Array.from(headings).map(h => h.textContent ?? '');
+        // At least one heading should contain a known Time Pac category substring.
+        const hasTimeCategory =
+            headingTexts.some(t => t.toLowerCase().includes('time clock')) ||
+            headingTexts.some(t => t.toLowerCase().includes('time stopwatch')) ||
+            headingTexts.some(t => t.toLowerCase().includes('time alarm')) ||
+            headingTexts.some(t => t.toLowerCase().includes('time date'));
+        expect(
+            hasTimeCategory,
+            `Expected a Time Pac category heading (time clock/stopwatch/alarm/date); found: ${headingTexts.join(', ')}`
+        ).toBe(true);
+    });
+
+    it('clicking Time Pac section heading toggles aria-expanded', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
+
+        const timeButton = Array.from(sectionButtons).find(b =>
+            b.textContent?.includes('Time Pac')
+        ) as HTMLButtonElement | undefined;
+        expect(timeButton, 'Time Pac section heading button must exist').toBeTruthy();
+
+        // Initially expanded (aria-expanded = "true").
+        expect(timeButton!.getAttribute('aria-expanded')).toBe('true');
+
+        // After click, collapsed (aria-expanded = "false").
+        fireEvent.click(timeButton!);
+        expect(timeButton!.getAttribute('aria-expanded')).toBe('false');
+
+        // After second click, expanded again.
+        fireEvent.click(timeButton!);
+        expect(timeButton!.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('search for "SETIME" returns Time entries', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const searchInput = container.querySelector('.help-overlay-search') as HTMLInputElement;
+        expect(searchInput).not.toBeNull();
+        fireEvent.change(searchInput, { target: { value: 'SETIME' } });
+        const rows = container.querySelectorAll('.help-overlay-row');
+        expect(rows.length).toBeGreaterThan(0);
+        const rowTexts = Array.from(rows).map(r => r.textContent ?? '');
+        expect(
+            rowTexts.some(t => t.includes('SETIME')),
+            `Expected at least one row containing 'SETIME'; found rows: ${rowTexts.slice(0, 5).join(' | ')}`
         ).toBe(true);
     });
 });
