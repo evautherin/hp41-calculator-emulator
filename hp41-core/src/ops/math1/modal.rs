@@ -56,6 +56,16 @@ pub enum ModalProgram {
     /// alongside `math1/xrom.rs` (D-33.3) and `ModalProgram::Stat1` (D-33.3b).
     /// All Time-specific semantics live in `hp41-core/src/ops/time/modal.rs`.
     Time(crate::ops::time::modal::TimeStep),
+    /// Advantage Pac workflows (Phase 43 — TVM / matrix / vector / solver prompts).
+    ///
+    /// math1/ freeze exception per D-43.6: this single additive variant +
+    /// three dispatch arms is the FOURTH freeze-carve-out for `math1/modal.rs`,
+    /// alongside `math1/xrom.rs` (D-33.3), `ModalProgram::Stat1` (D-33.3b),
+    /// and `ModalProgram::Time` (D-carried.4).
+    /// All Advantage-specific semantics live in
+    /// `hp41-core/src/ops/advantage/modal.rs` — no Advantage Pac code leaks
+    /// into the frozen math1/ module.
+    Advantage(crate::ops::advantage::modal::AdvantageStep),
 }
 
 impl ModalProgram {
@@ -82,6 +92,8 @@ impl ModalProgram {
             ModalProgram::Stat1(step) => crate::ops::stat1::modal::current_prompt(step),
             // D-carried.4: Time Module modal prompts delegate to time::modal.
             ModalProgram::Time(step) => crate::ops::time::modal::current_prompt(step),
+            // D-43.6: Advantage Pac modal prompts delegate to advantage::modal.
+            ModalProgram::Advantage(step) => crate::ops::advantage::modal::current_prompt(step),
         }
     }
 
@@ -110,6 +122,8 @@ impl ModalProgram {
             ModalProgram::Stat1(step) => crate::ops::stat1::modal::requires_alpha_label(step),
             // D-carried.4: Time Module alpha-label gate delegates to time::modal.
             ModalProgram::Time(step) => crate::ops::time::modal::requires_alpha_label(step),
+            // D-43.6: Advantage Pac alpha-label gate delegates to advantage::modal.
+            ModalProgram::Advantage(step) => crate::ops::advantage::modal::requires_alpha_label(step),
             _ => false,
         }
     }

@@ -243,6 +243,164 @@ pub const TIME_MODULE: XromModule = XromModule {
     ],
 };
 
+/// Advantage Pac ADV CONV + ADV MTRX module registry (D-43.X freeze exception).
+///
+/// - `id = 22` — HP hardware Advantage Pac ADV CONV + ADV MTRX XROM module ID.
+/// - `name = "ADV CONV"` — CATALOG 2 display string per HP Advantage Pac OM 00041-90482.
+/// - `ops` — ADV CONV (12) + ADV MTRX element-access/lifecycle/reduction/linalg/complex/workflow
+///   mnemonics per HP Advantage Pac OM 00041-90482.
+///   All entries confirmed non-shadowing against `MATH_1.ops`, `STAT_1.ops`, `TIME_MODULE.ops`
+///   (CI-gated via `tests/xrom_shadowing.rs`).
+///
+/// **Phase 43 state:** all entries point to stub `Op::Adv*` variants.
+pub const ADV_MATH_A: XromModule = XromModule {
+    id: 22,
+    name: "ADV CONV",
+    ops: &[
+        // ── ADV CONV ──────────────────────────────────────────────────────────────
+        ("BININ", Op::AdvBinin),
+        ("BINVIEW", Op::AdvBinview),
+        ("OCTIN", Op::AdvOctin),
+        ("HEXIN", Op::AdvHexin),
+        ("HEXVIEW", Op::AdvHexview),
+        ("CVTVIEW", Op::AdvCvtview),
+        ("NOT", Op::AdvNot),
+        ("AND", Op::AdvAnd),
+        ("OR", Op::AdvOr),
+        ("XOR", Op::AdvXor),
+        ("ROTXY", Op::AdvRotxy),
+        ("BIT?", Op::AdvBitTest),
+        // ── ADV MTRX element access ───────────────────────────────────────────────
+        ("I+", Op::AdvIPlus),
+        ("I-", Op::AdvIMinus),
+        ("J+", Op::AdvJPlus),
+        ("J-", Op::AdvJMinus),
+        ("MR", Op::AdvMr),
+        ("MS", Op::AdvMs),
+        ("MRIJ", Op::AdvMrij),
+        ("MSIJ", Op::AdvMsij),
+        ("MSIJR", Op::AdvMsijr),
+        ("MRC+", Op::AdvMrcPlus),
+        ("MRC-", Op::AdvMrcMinus),
+        ("MRR+", Op::AdvMrrPlus),
+        ("MRR-", Op::AdvMrrMinus),
+        ("MSR+", Op::AdvMsrPlus),
+        ("MSC+", Op::AdvMscPlus),
+        ("MSWAP", Op::AdvMswap),
+        ("MNAME?", Op::AdvMnameQuery),
+        ("DIM?", Op::AdvDimQuery),
+        ("MATDIM", Op::AdvMatdim),
+        ("MP", Op::AdvMp),
+        ("PIV", Op::AdvPiv),
+        ("R<>R", Op::AdvRExchangeR),
+        ("R>R?", Op::AdvRGtRQuery),
+        // ── ADV MTRX reductions ───────────────────────────────────────────────────
+        ("SUM", Op::AdvSum),
+        ("SUMAB", Op::AdvSumab),
+        ("MAX", Op::AdvMax),
+        ("MAXAB", Op::AdvMaxab),
+        ("MIN", Op::AdvMin),
+        ("RMAXAB", Op::AdvRmaxab),
+        ("RNRM", Op::AdvRnrm),
+        ("RSUM", Op::AdvRsum),
+        ("FNRM", Op::AdvFnrm),
+        // ── ADV MTRX linear algebra ───────────────────────────────────────────────
+        ("MDET", Op::AdvMdet),
+        ("MINV", Op::AdvMinv),
+        ("MSYS", Op::AdvMsys),
+        ("M*M", Op::AdvMMulM),
+        ("MAT+", Op::AdvMatPlus),
+        ("MAT-", Op::AdvMatMinus),
+        ("MAT*C", Op::AdvMatScalarMul),
+        ("MAT/C", Op::AdvMatScalarDiv),
+        ("TRNPS", Op::AdvTrnps),
+        ("MMOVE", Op::AdvMmove),
+        // ── ADV MTRX complex ──────────────────────────────────────────────────────
+        ("C<>C", Op::AdvCExchangeC),
+        ("CMAXAB", Op::AdvCmaxab),
+        ("CNRM", Op::AdvCnrm),
+        ("CSUM", Op::AdvCsum),
+        ("YC+C", Op::AdvYcPlusC),
+        // ── ADV MTRX workflow ─────────────────────────────────────────────────────
+        ("MATRX", Op::AdvMatrx),
+        ("MTR", Op::AdvMtr),
+        ("MEDIT", Op::AdvMedit),
+        ("CMEDIT", Op::AdvCmedit),
+    ],
+};
+
+/// Advantage Pac ADV MATH + ADV TVM module registry (D-43.X freeze exception).
+///
+/// - `id = 24` — HP hardware Advantage Pac ADV MATH + ADV TVM XROM module ID.
+/// - `name = "ADV MATH"` — CATALOG 2 display string per HP Advantage Pac OM 00041-90482.
+/// - `ops` — ADV MATH complex extensions, polynomial, solvers, curve fitting, vectors,
+///   AIP, and ADV TVM mnemonics.
+///
+/// **Phase 43 state:** all entries point to stub `Op::Adv*` variants.
+pub const ADV_MATH_B: XromModule = XromModule {
+    id: 24,
+    name: "ADV MATH",
+    ops: &[
+        // ── ADV MATH complex extensions ───────────────────────────────────────────
+        ("E^Z", Op::AdvExpZ),
+        ("LNZ", Op::AdvLnZ),
+        ("LOGZ", Op::AdvLogZ),
+        ("Z^N", Op::AdvZPowN),
+        ("Z^1/N", Op::AdvZPow1n),
+        ("Z^W", Op::AdvZPowW),
+        ("Z^1/W", Op::AdvZPow1w),
+        ("|Z|", Op::AdvMagz),
+        ("SINZ", Op::AdvSinZ),
+        ("COSZ", Op::AdvCosZ),
+        ("TANZ", Op::AdvTanZ),
+        ("A^Z", Op::AdvAPowZ),
+        ("CADD", Op::AdvCPlus),
+        ("CSUB", Op::AdvCMinus),
+        ("CINV", Op::AdvCinv),
+        ("CMUL", Op::AdvCMul),
+        ("CDIV", Op::AdvCDiv),
+        ("AIP", Op::AdvAip),
+        // ── ADV MATH polynomial ───────────────────────────────────────────────────
+        ("PLY", Op::AdvPly),
+        ("RTS", Op::AdvRts),
+        // ── ADV MATH solvers ──────────────────────────────────────────────────────
+        ("FSOLVE", Op::AdvFsolve),
+        ("FINTG", Op::AdvFintg),
+        ("FDIFEQ", Op::AdvFdifeq),
+        ("FROOT", Op::AdvFroot),
+        // ── ADV MATH curve fitting ────────────────────────────────────────────────
+        ("CFIT", Op::AdvCfit),
+        ("AS", Op::AdvAs),
+        ("DS", Op::AdvDs),
+        ("BFIT", Op::AdvBfit),
+        ("FIT", Op::AdvFit),
+        ("Y?X", Op::AdvYQueryX),
+        ("SZ?", Op::AdvSzQuery),
+        // ── ADV MATH vectors ──────────────────────────────────────────────────────
+        ("V+", Op::AdvVPlus),
+        ("V-", Op::AdvVMinus),
+        ("DOT", Op::AdvDot),
+        ("CROSS", Op::AdvCross),
+        ("VC", Op::AdvVc),
+        ("VS", Op::AdvVs),
+        ("VR", Op::AdvVr),
+        ("VE", Op::AdvVe),
+        ("VXY", Op::AdvVxy),
+        ("UV", Op::AdvUv),
+        ("|V|", Op::AdvVMag),
+        ("V*", Op::AdvVStar),
+        ("VD", Op::AdvVd),
+        ("TR", Op::AdvTr),
+        // ── ADV TVM ───────────────────────────────────────────────────────────────
+        ("TVM", Op::AdvTvm),
+        ("N", Op::AdvTvmN),
+        ("PV", Op::AdvTvmPv),
+        ("PMT", Op::AdvTvmPmt),
+        ("FV", Op::AdvTvmFv),
+        ("*I", Op::AdvTvmStarI),
+    ],
+};
+
 /// Resolve an XEQ-by-name label against loaded XROM modules.
 ///
 /// Returns `Some(Op)` if `name` matches a Math Pac I mnemonic AND bit 0 of
@@ -271,6 +429,21 @@ pub fn xrom_resolve(name: &str, modules: u8) -> Option<Op> {
     // disjointness CI-gated in `tests/xrom_shadowing.rs`.
     if modules & 0b0000_0100 != 0 {
         if let Some(op) = time_resolve(name) {
+            return Some(op);
+        }
+    }
+    // Phase 43 (v3.3): ADV CONV+MTRX bit-3 arm — fires AFTER Time Module per
+    // Pitfall 1 + Pitfall 22. `ADV_MATH_A.ops` confirmed disjoint from all prior
+    // modules (CI-gated via `tests/xrom_shadowing.rs`).
+    if modules & 0b0000_1000 != 0 {
+        if let Some(op) = adv_a_resolve(name) {
+            return Some(op);
+        }
+    }
+    // Phase 43 (v3.3): ADV MATH+TVM bit-4 arm — fires AFTER ADV CONV+MTRX.
+    // `ADV_MATH_B.ops` confirmed disjoint from all prior modules.
+    if modules & 0b0001_0000 != 0 {
+        if let Some(op) = adv_b_resolve(name) {
             return Some(op);
         }
     }
@@ -475,10 +648,154 @@ fn time_resolve(name: &str) -> Option<Op> {
     }
 }
 
+/// Advantage Pac ADV CONV + ADV MTRX (bit 3) mnemonic resolver — Phase 43.
+///
+/// All entries mirror `ADV_MATH_A.ops` for bidirectional consistency.
+fn adv_a_resolve(name: &str) -> Option<Op> {
+    match name {
+        // ADV CONV
+        "BININ" => Some(Op::AdvBinin),
+        "BINVIEW" => Some(Op::AdvBinview),
+        "OCTIN" => Some(Op::AdvOctin),
+        "HEXIN" => Some(Op::AdvHexin),
+        "HEXVIEW" => Some(Op::AdvHexview),
+        "CVTVIEW" => Some(Op::AdvCvtview),
+        "NOT" => Some(Op::AdvNot),
+        "AND" => Some(Op::AdvAnd),
+        "OR" => Some(Op::AdvOr),
+        "XOR" => Some(Op::AdvXor),
+        "ROTXY" => Some(Op::AdvRotxy),
+        "BIT?" => Some(Op::AdvBitTest),
+        // ADV MTRX element access
+        "I+" => Some(Op::AdvIPlus),
+        "I-" => Some(Op::AdvIMinus),
+        "J+" => Some(Op::AdvJPlus),
+        "J-" => Some(Op::AdvJMinus),
+        "MR" => Some(Op::AdvMr),
+        "MS" => Some(Op::AdvMs),
+        "MRIJ" => Some(Op::AdvMrij),
+        "MSIJ" => Some(Op::AdvMsij),
+        "MSIJR" => Some(Op::AdvMsijr),
+        "MRC+" => Some(Op::AdvMrcPlus),
+        "MRC-" => Some(Op::AdvMrcMinus),
+        "MRR+" => Some(Op::AdvMrrPlus),
+        "MRR-" => Some(Op::AdvMrrMinus),
+        "MSR+" => Some(Op::AdvMsrPlus),
+        "MSC+" => Some(Op::AdvMscPlus),
+        "MSWAP" => Some(Op::AdvMswap),
+        "MNAME?" => Some(Op::AdvMnameQuery),
+        "DIM?" => Some(Op::AdvDimQuery),
+        "MATDIM" => Some(Op::AdvMatdim),
+        "MP" => Some(Op::AdvMp),
+        "PIV" => Some(Op::AdvPiv),
+        "R<>R" => Some(Op::AdvRExchangeR),
+        "R>R?" => Some(Op::AdvRGtRQuery),
+        // ADV MTRX reductions
+        "SUM" => Some(Op::AdvSum),
+        "SUMAB" => Some(Op::AdvSumab),
+        "MAX" => Some(Op::AdvMax),
+        "MAXAB" => Some(Op::AdvMaxab),
+        "MIN" => Some(Op::AdvMin),
+        "RMAXAB" => Some(Op::AdvRmaxab),
+        "RNRM" => Some(Op::AdvRnrm),
+        "RSUM" => Some(Op::AdvRsum),
+        "FNRM" => Some(Op::AdvFnrm),
+        // ADV MTRX linear algebra
+        "MDET" => Some(Op::AdvMdet),
+        "MINV" => Some(Op::AdvMinv),
+        "MSYS" => Some(Op::AdvMsys),
+        "M*M" => Some(Op::AdvMMulM),
+        "MAT+" => Some(Op::AdvMatPlus),
+        "MAT-" => Some(Op::AdvMatMinus),
+        "MAT*C" => Some(Op::AdvMatScalarMul),
+        "MAT/C" => Some(Op::AdvMatScalarDiv),
+        "TRNPS" => Some(Op::AdvTrnps),
+        "MMOVE" => Some(Op::AdvMmove),
+        // ADV MTRX complex
+        "C<>C" => Some(Op::AdvCExchangeC),
+        "CMAXAB" => Some(Op::AdvCmaxab),
+        "CNRM" => Some(Op::AdvCnrm),
+        "CSUM" => Some(Op::AdvCsum),
+        "YC+C" => Some(Op::AdvYcPlusC),
+        // ADV MTRX workflow
+        "MATRX" => Some(Op::AdvMatrx),
+        "MTR" => Some(Op::AdvMtr),
+        "MEDIT" => Some(Op::AdvMedit),
+        "CMEDIT" => Some(Op::AdvCmedit),
+        _ => None,
+    }
+}
+
+/// Advantage Pac ADV MATH + ADV TVM (bit 4) mnemonic resolver — Phase 43.
+///
+/// All entries mirror `ADV_MATH_B.ops` for bidirectional consistency.
+fn adv_b_resolve(name: &str) -> Option<Op> {
+    match name {
+        // ADV MATH complex extensions
+        "E^Z" => Some(Op::AdvExpZ),
+        "LNZ" => Some(Op::AdvLnZ),
+        "LOGZ" => Some(Op::AdvLogZ),
+        "Z^N" => Some(Op::AdvZPowN),
+        "Z^1/N" => Some(Op::AdvZPow1n),
+        "Z^W" => Some(Op::AdvZPowW),
+        "Z^1/W" => Some(Op::AdvZPow1w),
+        "|Z|" => Some(Op::AdvMagz),
+        "SINZ" => Some(Op::AdvSinZ),
+        "COSZ" => Some(Op::AdvCosZ),
+        "TANZ" => Some(Op::AdvTanZ),
+        "A^Z" => Some(Op::AdvAPowZ),
+        "CADD" => Some(Op::AdvCPlus),
+        "CSUB" => Some(Op::AdvCMinus),
+        "CINV" => Some(Op::AdvCinv),
+        "CMUL" => Some(Op::AdvCMul),
+        "CDIV" => Some(Op::AdvCDiv),
+        "AIP" => Some(Op::AdvAip),
+        // ADV MATH polynomial
+        "PLY" => Some(Op::AdvPly),
+        "RTS" => Some(Op::AdvRts),
+        // ADV MATH solvers
+        "FSOLVE" => Some(Op::AdvFsolve),
+        "FINTG" => Some(Op::AdvFintg),
+        "FDIFEQ" => Some(Op::AdvFdifeq),
+        "FROOT" => Some(Op::AdvFroot),
+        // ADV MATH curve fitting
+        "CFIT" => Some(Op::AdvCfit),
+        "AS" => Some(Op::AdvAs),
+        "DS" => Some(Op::AdvDs),
+        "BFIT" => Some(Op::AdvBfit),
+        "FIT" => Some(Op::AdvFit),
+        "Y?X" => Some(Op::AdvYQueryX),
+        "SZ?" => Some(Op::AdvSzQuery),
+        // ADV MATH vectors
+        "V+" => Some(Op::AdvVPlus),
+        "V-" => Some(Op::AdvVMinus),
+        "DOT" => Some(Op::AdvDot),
+        "CROSS" => Some(Op::AdvCross),
+        "VC" => Some(Op::AdvVc),
+        "VS" => Some(Op::AdvVs),
+        "VR" => Some(Op::AdvVr),
+        "VE" => Some(Op::AdvVe),
+        "VXY" => Some(Op::AdvVxy),
+        "UV" => Some(Op::AdvUv),
+        "|V|" => Some(Op::AdvVMag),
+        "V*" => Some(Op::AdvVStar),
+        "VD" => Some(Op::AdvVd),
+        "TR" => Some(Op::AdvTr),
+        // ADV TVM
+        "TVM" => Some(Op::AdvTvm),
+        "N" => Some(Op::AdvTvmN),
+        "PV" => Some(Op::AdvTvmPv),
+        "PMT" => Some(Op::AdvTvmPmt),
+        "FV" => Some(Op::AdvTvmFv),
+        "*I" => Some(Op::AdvTvmStarI),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{xrom_resolve, MATH_1, STAT_1, TIME_MODULE};
+    use super::{xrom_resolve, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE};
     use crate::ops::Op;
 
     const NONEXISTENT_NAME: &str = "__MATH1_PROBE_NONEXISTENT__";
@@ -724,5 +1041,153 @@ mod tests {
             Some(Op::TimeTime),
             "xrom_resolve('TIME', bits 0+1+2 set) must return Some(Op::TimeTime)"
         );
+    }
+
+    // ── Phase 43 (v3.3): ADV_MATH_A const + bit-3 arm tests ─────────────────
+
+    // Catches: ADV_MATH_A const field regression (id or display name typo).
+    #[test]
+    fn adv_math_a_const_id_and_name() {
+        assert_eq!(
+            ADV_MATH_A.id, 22,
+            "ADV_MATH_A.id must be 22 (HP Advantage Pac ADV CONV+MTRX hardware XROM ID per OM 00041-90482)"
+        );
+        assert_eq!(
+            ADV_MATH_A.name, "ADV CONV",
+            "ADV_MATH_A.name must be 'ADV CONV' (HP-41C CATALOG 2 display string per OM 00041-90482)"
+        );
+    }
+
+    // Catches: ADV_MATH_A.ops slice size regression.
+    #[test]
+    fn adv_math_a_ops_entry_count() {
+        // 12 CONV + 23 element-access + 9 reductions + 10 linalg + 5 complex + 4 workflow = 63
+        assert_eq!(
+            ADV_MATH_A.ops.len(),
+            63,
+            "ADV_MATH_A.ops must carry exactly 63 entries (D-43 Advantage Pac XROM 22 ops)"
+        );
+    }
+
+    // Catches: ADV_MATH_A.ops mnemonic strings not matching adv_a_resolve keys
+    #[test]
+    fn adv_math_a_ops_mnemonics_resolve_consistently() {
+        for (name, expected_op) in ADV_MATH_A.ops {
+            let resolved = xrom_resolve(name, 0b0000_1000);
+            assert_eq!(
+                resolved.as_ref(),
+                Some(expected_op),
+                "ADV_MATH_A.ops mnemonic {name:?} must resolve via bit-3 arm"
+            );
+        }
+    }
+
+    // Catches: bit-3 isolation regression — ADV CONV+MTRX must resolve under bit 3 ONLY.
+    #[test]
+    fn resolve_uses_bit_3_for_adv_math_a() {
+        // bit 3 set, bits 0+1+2 clear — ADV CONV+MTRX IS loaded.
+        let with_bit3 = xrom_resolve("BININ", 0b0000_1000);
+        assert_eq!(
+            with_bit3,
+            Some(Op::AdvBinin),
+            "xrom_resolve('BININ', bit3=1) must route through adv_a_resolve"
+        );
+
+        // bits 0+1+2 set, bit 3 clear — ADV CONV+MTRX NOT loaded.
+        let without_bit3 = xrom_resolve("BININ", 0b0000_0111);
+        assert!(
+            without_bit3.is_none(),
+            "xrom_resolve('BININ', bit3=0) must return None (bit-3 isolation)"
+        );
+
+        // All five bits set — 'BININ' resolves via bit-3 arm.
+        let all_bits = xrom_resolve("BININ", 0b0001_1111);
+        assert_eq!(
+            all_bits,
+            Some(Op::AdvBinin),
+            "xrom_resolve('BININ', all 5 bits set) must return Some(Op::AdvBinin)"
+        );
+    }
+
+    // ── Phase 43 (v3.3): ADV_MATH_B const + bit-4 arm tests ─────────────────
+
+    // Catches: ADV_MATH_B const field regression (id or display name typo).
+    #[test]
+    fn adv_math_b_const_id_and_name() {
+        assert_eq!(
+            ADV_MATH_B.id, 24,
+            "ADV_MATH_B.id must be 24 (HP Advantage Pac ADV MATH+TVM hardware XROM ID per OM 00041-90482)"
+        );
+        assert_eq!(
+            ADV_MATH_B.name, "ADV MATH",
+            "ADV_MATH_B.name must be 'ADV MATH' (HP-41C CATALOG 2 display string per OM 00041-90482)"
+        );
+    }
+
+    // Catches: ADV_MATH_B.ops slice size regression.
+    #[test]
+    fn adv_math_b_ops_entry_count() {
+        // 18 complex-ext + 2 poly + 4 solvers + 7 curve-fit + 14 vectors + 6 TVM = 51
+        assert_eq!(
+            ADV_MATH_B.ops.len(),
+            51,
+            "ADV_MATH_B.ops must carry exactly 51 entries (D-43 Advantage Pac XROM 24 ops)"
+        );
+    }
+
+    // Catches: ADV_MATH_B.ops mnemonic strings not matching adv_b_resolve keys
+    #[test]
+    fn adv_math_b_ops_mnemonics_resolve_consistently() {
+        for (name, expected_op) in ADV_MATH_B.ops {
+            let resolved = xrom_resolve(name, 0b0001_0000);
+            assert_eq!(
+                resolved.as_ref(),
+                Some(expected_op),
+                "ADV_MATH_B.ops mnemonic {name:?} must resolve via bit-4 arm"
+            );
+        }
+    }
+
+    // Catches: bit-4 isolation regression — ADV MATH+TVM must resolve under bit 4 ONLY.
+    #[test]
+    fn resolve_uses_bit_4_for_adv_math_b() {
+        // bit 4 set, bits 0+1+2+3 clear.
+        let with_bit4 = xrom_resolve("TVM", 0b0001_0000);
+        assert_eq!(
+            with_bit4,
+            Some(Op::AdvTvm),
+            "xrom_resolve('TVM', bit4=1) must route through adv_b_resolve"
+        );
+
+        // bits 0+1+2+3 set, bit 4 clear — ADV MATH+TVM NOT loaded.
+        let without_bit4 = xrom_resolve("TVM", 0b0000_1111);
+        assert!(
+            without_bit4.is_none(),
+            "xrom_resolve('TVM', bit4=0) must return None (bit-4 isolation)"
+        );
+
+        // All five bits set — 'TVM' resolves via bit-4 arm.
+        let all_bits = xrom_resolve("TVM", 0b0001_1111);
+        assert_eq!(
+            all_bits,
+            Some(Op::AdvTvm),
+            "xrom_resolve('TVM', all 5 bits set) must return Some(Op::AdvTvm)"
+        );
+    }
+
+    // Catches: ADV_MATH_B FSOLVE_RUN_LOOP stubs not in module ops table (internal
+    // ops not XEQ-reachable; this test confirms resolver does NOT expose them).
+    #[test]
+    fn adv_fsolve_run_loop_not_in_module_table() {
+        // The *_run_loop ops are internal re-entry points, not user-callable mnemonics.
+        let result = xrom_resolve("FSOLVE_RUN_LOOP", 0b0001_1111);
+        assert!(result.is_none(), "FSOLVE_RUN_LOOP must not be XEQ-resolvable");
+    }
+
+    // Catches: migration default_xrom_modules bit-3 + bit-4 sanity
+    #[test]
+    fn adv_modules_bit_positions_sanity() {
+        assert_eq!(0b0001_1111u8 & 0b0000_1000, 0b0000_1000, "bit 3 = ADV_MATH_A");
+        assert_eq!(0b0001_1111u8 & 0b0001_0000, 0b0001_0000, "bit 4 = ADV_MATH_B");
     }
 }

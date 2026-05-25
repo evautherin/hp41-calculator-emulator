@@ -70,12 +70,13 @@ fn v30_save_loads_with_stat1_migration() {
     // LINT-EXEMPT: integer-equality — xrom_modules is u8, not HpNum; literal comparison is exact
     assert_eq!(state.xrom_modules, 1u8);
 
-    // Apply the v3.0 → v3.2 migration (sets bits 1 + 2 on a v3.0 save).
+    // Apply the v3.0 → v3.3 migration (sets bits 1 + 2 + 3 + 4 on a v3.0 save).
     state.migrate_after_load();
 
-    // Post-migration: bits 1 (Stat 1) + 2 (Time Module) must now be set alongside bit 0 (Math 1).
+    // Post-migration: bits 1 (Stat 1) + 2 (Time Module) + 3 (ADV CONV+MTRX) + 4 (ADV MATH+TVM)
+    // must now be set alongside bit 0 (Math 1).
     // LINT-EXEMPT: integer-equality — xrom_modules is u8, not HpNum; the bitmask is exact
-    assert_eq!(state.xrom_modules, 0b0000_0111u8);
+    assert_eq!(state.xrom_modules, 0b0001_1111u8);
 }
 
 // ── Test 2: rand_seed defaults to Decimal::ZERO when absent ──────────────────
