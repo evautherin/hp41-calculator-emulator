@@ -245,17 +245,162 @@ Deferred to post-v3.3. Tracked but not in current roadmap.
 
 ## Traceability
 
-(Updated during roadmap creation)
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| ADV-FW-01 | Phase 43 | Pending |
+| ADV-FW-02 | Phase 43 | Pending |
+| ADV-FW-03 | Phase 43 | Pending |
+| ADV-FW-04 | Phase 43 | Pending |
+| ADV-FW-05 | Phase 43 | Pending |
+| ADV-FW-06 | Phase 43 | Pending |
+| ADV-CONV-01 | Phase 43 | Pending |
+| ADV-CONV-02 | Phase 43 | Pending |
+| ADV-CONV-03 | Phase 43 | Pending |
+| ADV-CONV-04 | Phase 43 | Pending |
+| ADV-CONV-05 | Phase 43 | Pending |
+| ADV-CONV-06 | Phase 43 | Pending |
+| ADV-CONV-07 | Phase 43 | Pending |
+| ADV-CONV-08 | Phase 43 | Pending |
+| ADV-CONV-09 | Phase 43 | Pending |
+| ADV-CONV-10 | Phase 43 | Pending |
+| ADV-CONV-11 | Phase 43 | Pending |
+| ADV-CONV-12 | Phase 43 | Pending |
+| ADV-MTX-01 | Phase 43 | Pending |
+| ADV-MTX-02 | Phase 43 | Pending |
+| ADV-MTX-03 | Phase 43 | Pending |
+| ADV-MTX-04 | Phase 43 | Pending |
+| ADV-MTX-05 | Phase 43 | Pending |
+| ADV-MTX-06 | Phase 43 | Pending |
+| ADV-MTX-07 | Phase 43 | Pending |
+| ADV-MTX-08 | Phase 43 | Pending |
+| ADV-MTX-09 | Phase 43 | Pending |
+| ADV-MTX-10 | Phase 43 | Pending |
+| ADV-MTX-11 | Phase 43 | Pending |
+| ADV-MTX-12 | Phase 43 | Pending |
+| ADV-MTX-13 | Phase 43 | Pending |
+| ADV-MTX-14 | Phase 43 | Pending |
+| ADV-MTX-15 | Phase 43 | Pending |
+| ADV-MTX-16 | Phase 43 | Pending |
+| ADV-MTX-17 | Phase 43 | Pending |
+| ADV-MTX-18 | Phase 43 | Pending |
+| ADV-MTX-19 | Phase 43 | Pending |
+| ADV-MTX-20 | Phase 43 | Pending |
+| ADV-MTX-21 | Phase 43 | Pending |
+| ADV-MTX-22 | Phase 43 | Pending |
+| ADV-MTX-23 | Phase 43 | Pending |
+| ADV-MTX-24 | Phase 43 | Pending |
+| ADV-MTX-25 | Phase 43 | Pending |
+| ADV-MTX-26 | Phase 43 | Pending |
+| ADV-MTX-27 | Phase 43 | Pending |
+| ADV-MTX-28 | Phase 43 | Pending |
+| ADV-MTX-29 | Phase 43 | Pending |
+| ADV-MTX-30 | Phase 43 | Pending |
+| ADV-MTX-31 | Phase 43 | Pending |
+| ADV-MTX-32 | Phase 43 | Pending |
+| ADV-MTX-33 | Phase 43 | Pending |
+| ADV-MTX-34 | Phase 43 | Pending |
+| ADV-MTX-35 | Phase 43 | Pending |
+| ADV-MTX-36 | Phase 43 | Pending |
+| ADV-MTX-37 | Phase 43 | Pending |
+| ADV-MTX-38 | Phase 43 | Pending |
+| ADV-MTX-39 | Phase 43 | Pending |
+| ADV-MTX-40 | Phase 43 | Pending |
+| ADV-MTX-41 | Phase 43 | Pending |
+| ADV-MTX-42 | Phase 43 | Pending |
+| ADV-MTX-43 | Phase 43 | Pending |
+| ADV-MTX-44 | Phase 43 | Pending |
+| ADV-MTX-45 | Phase 43 | Pending |
+| ADV-MTX-46 | Phase 43 | Pending |
+| ADV-MTX-47 | Phase 43 | Pending |
+| ADV-MTX-48 | Phase 43 | Pending |
+| ADV-MTX-49 | Phase 43 | Pending |
+| ADV-MTX-50 | Phase 43 | Pending |
+| ADV-MATH-01 | Phase 43 | Pending |
+| ADV-MATH-02 | Phase 43 | Pending |
+| ADV-MATH-03 | Phase 43 | Pending |
+| ADV-MATH-04 | Phase 43 | Pending |
+| ADV-MATH-05 | Phase 43 | Pending |
+| ADV-MATH-06 | Phase 43 | Pending |
+| ADV-MATH-07 | Phase 43 | Pending |
+| ADV-MATH-08 | Phase 43 | Pending |
+| ADV-MATH-09 | Phase 43 | Pending |
+| ADV-MATH-10 | Phase 43 | Pending |
+| ADV-MATH-11 | Phase 43 | Pending |
+| ADV-MATH-12 | Phase 43 | Pending |
+| ADV-MATH-13 | Phase 43 | Pending |
+| ADV-MATH-14 | Phase 43 | Pending |
+| ADV-MATH-15 | Phase 43 | Pending |
+| ADV-MATH-16 | Phase 43 | Pending |
+| ADV-MATH-17 | Phase 43 | Pending |
+| ADV-MATH-18 | Phase 43 | Pending |
+| ADV-MATH-19 | Phase 43 | Pending |
+| ADV-MATH-20 | Phase 43 | Pending |
+| ADV-MATH-21 | Phase 43 | Pending |
+| ADV-MATH-22 | Phase 43 | Pending |
+| ADV-MATH-23 | Phase 43 | Pending |
+| ADV-MATH-24 | Phase 43 | Pending |
+| ADV-MATH-25 | Phase 43 | Pending |
+| ADV-MATH-26 | Phase 43 | Pending |
+| ADV-MATH-27 | Phase 43 | Pending |
+| ADV-MATH-28 | Phase 43 | Pending |
+| ADV-MATH-29 | Phase 43 | Pending |
+| ADV-MATH-30 | Phase 43 | Pending |
+| ADV-MATH-31 | Phase 43 | Pending |
+| ADV-MATH-32 | Phase 43 | Pending |
+| ADV-MATH-33 | Phase 43 | Pending |
+| ADV-MATH-34 | Phase 43 | Pending |
+| ADV-MATH-35 | Phase 43 | Pending |
+| ADV-MATH-36 | Phase 43 | Pending |
+| ADV-MATH-37 | Phase 43 | Pending |
+| ADV-MATH-38 | Phase 43 | Pending |
+| ADV-MATH-39 | Phase 43 | Pending |
+| ADV-MATH-40 | Phase 43 | Pending |
+| ADV-MATH-41 | Phase 43 | Pending |
+| ADV-MATH-42 | Phase 43 | Pending |
+| ADV-MATH-43 | Phase 43 | Pending |
+| ADV-MATH-44 | Phase 43 | Pending |
+| ADV-MATH-45 | Phase 43 | Pending |
+| ADV-MATH-46 | Phase 43 | Pending |
+| ADV-MATH-47 | Phase 43 | Pending |
+| ADV-TVM-01 | Phase 43 | Pending |
+| ADV-TVM-02 | Phase 43 | Pending |
+| ADV-TVM-03 | Phase 43 | Pending |
+| ADV-TVM-04 | Phase 43 | Pending |
+| ADV-TVM-05 | Phase 43 | Pending |
+| ADV-TVM-06 | Phase 43 | Pending |
+| ADV-CLI-01 | Phase 44 | Pending |
+| ADV-CLI-02 | Phase 44 | Pending |
+| ADV-CLI-03 | Phase 44 | Pending |
+| ADV-CLI-04 | Phase 44 | Pending |
+| ADV-CLI-05 | Phase 44 | Pending |
+| ADV-CLI-06 | Phase 44 | Pending |
+| ADV-CLI-07 | Phase 44 | Pending |
+| ADV-CLI-08 | Phase 44 | Pending |
+| ADV-DOC-01 | Phase 45 | Pending |
+| ADV-DOC-02 | Phase 45 | Pending |
+| ADV-DOC-03 | Phase 45 | Pending |
+| ADV-DOC-04 | Phase 45 | Pending |
+| ADV-DOC-05 | Phase 45 | Pending |
+| ADV-DOC-06 | Phase 45 | Pending |
+| ADV-GUI-01 | Phase 46 | Pending |
+| ADV-GUI-02 | Phase 46 | Pending |
+| ADV-GUI-03 | Phase 46 | Pending |
+| ADV-GUI-04 | Phase 46 | Pending |
+| ADV-QUAL-01 | Phase 47 | Pending |
+| ADV-QUAL-02 | Phase 47 | Pending |
+| ADV-QUAL-03 | Phase 47 | Pending |
+| ADV-QUAL-04 | Phase 47 | Pending |
+| ADV-QUAL-05 | Phase 47 | Pending |
+| ADV-QUAL-06 | Phase 47 | Pending |
+| ADV-QUAL-07 | Phase 47 | Pending |
+| ADV-QUAL-08 | Phase 47 | Pending |
+| ADV-QUAL-09 | Phase 47 | Pending |
 
 **Coverage:**
-- v3.3 requirements: 115 total
-- Mapped to phases: 0
-- Unmapped: 115
+- v3.3 requirements: 148 total (counted from file; stated 115 was an undercount — actual breakdown: FW=6, CONV=12, MTX=50, MATH=47, TVM=6, CLI=8, DOC=6, GUI=4, QUAL=9)
+- Mapped to phases: 148
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-25*
-*Last updated: 2026-05-25 after initial definition*
+*Last updated: 2026-05-25 — traceability populated by roadmapper*
