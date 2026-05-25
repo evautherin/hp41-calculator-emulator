@@ -274,15 +274,72 @@ Phase 37 closes the v3.1 milestone with 5 plans across 4 waves, addressing 12 re
 
 ---
 
+## v3.2 additions (Time Pac Emulation, Phases 38–42 — 41–42 IN PROGRESS)
+
+Phases 38–42 ship the third XROM application module — the HP-41CX Time Module (HP 82182A, HP part number 00041-90036, Owner's Manual 1982) — as a behavioral emulation of 35 XEQ-by-name entry points across clock/date/stopwatch/alarm families. This is the first XROM module introducing real-time behavior: the system clock backs TIME and DATE, the stopwatch tracks elapsed time against `std::time::Instant`, and an alarm catalog triggers events on each dispatch cycle. The three novel architectural additions — `SystemTime` clock access in hp41-core, pull-on-redraw live display, and `Vec<AlarmEntry>` alarm catalog — each required a standalone ADR (v3.2-001, v3.2-002, v3.2-003) because they introduce patterns not present in Math 1 Pac or Stat 1 Pac. Everything else follows the v3.0/v3.1 invariants (XROM resolver chain, modal-workflow infrastructure, JSON-canonical pipeline, save-file backward compat, zero new runtime deps).
+
+### Phase 38 — XROM Framework + Clock/Date/Stopwatch/Alarm Core (shipped 2026-05-24)
+
+The XROM framework extends from a two-arm cascade (MATH_1 bit-0, STAT_1 bit-1) to a three-arm cascade landing the Time Module at hardware-accurate XROM ID 26 (HP 82182A clock card). The `xrom_resolve` bit-2 arm fires LAST after the bit-1 arm — Pitfall 1 mitigation preserved (Math Pac I and Stat 1 Pac cannot be shadowed by Time Pac mnemonics), and Pitfall 22 (mnemonic collision across three XROM modules) is mitigated by the `xrom_shadowing.rs` test extension in Phase 39. The `default_xrom_modules()` constant flips from `0b0000_0011` to `0b0000_0111`, and `migrate_after_load()` auto-upgrades v3.1 save files carrying `xrom_modules: 3`. The `TIME_MODULE` const uses the hardware display string `"TIME 2C"` (CATALOG 2 appearance on real HP-41CX hardware).
+
+The clock access decision (ADR-v3.2-001, D-38.1) was the most consequential of Phase 38. Three alternatives were evaluated: trait injection into hp41-core (rejected — over-engineered, no existing precedent in core, Pitfall 34), frontend callback via IPC (rejected — requires state polling, violates D-11 no-polling discipline), and `no_std`-compatible clock abstraction (rejected — MSRV 1.88 provides stable `std::time::SystemTime`, no embedded target exists). The adopted approach: core calls `SystemTime::now()` directly, the same way it already holds `Arc<AtomicBool>` for cancel_requested and `Instant` as a transitive dep. The zero-I/O principle was clarified to cover console/filesystem/network — clock reads are value-returning syscalls analogous to `Instant::now()`.
+
+A single `time_offset_secs: i64` persistent field (D-38.2, `#[serde(default)]`) stores the combined timezone + user adjustment. SETIME computes the delta between the user-entered time and `SystemTime::now()`, stores it as seconds, and all subsequent TIME/DATE reads apply `SystemTime::now() + offset`. The planned `libc::localtime_r` call for OS timezone detection (D-38.3) was replaced with a pure-Rust Fliegel-Van Flandern JDN Gregorian decomposition (~60 LOC) because `libc` is not in hp41-core's Cargo.toml and D-carried.1 prohibits new runtime deps. The offset field absorbs both timezone and user-entered correction in a single value — no separate OS timezone query needed.
+
+Date decimal parsing (D-carried.2) follows the ISG/DSE precedent: left-pad the fractional part to exactly 6 chars, split into DD[2]+YYYY[4] (MDY) or MM[2]+YYYY[4] (DMY). `floor()`/`fmod()` are forbidden per the CLAUDE.md ISG/DSE counter invariant. Flag 31 (D-carried.3) is the sole DMY/MDY control — `DMY` sets SF 31, `MDY` clears CF 31 — no separate `date_format` field on CalcState. The `ModalProgram::Time(TimeStep)` variant (D-carried.4) follows ADR-v3.1-005 exactly; `TimeStep` lives in new `time/modal.rs` (outside the math1/ freeze boundary).
+
+Stopwatch state (D-38.6, D-38.7) uses a freeze-on-save policy: on save, `elapsed = Instant::elapsed() + stopwatch_accumulated` is stored in the persistent `stopwatch_accumulated: f64` field, and the stopwatch is marked Stopped. On load, `migrate_after_load()` enforces this — any Running state from a save file is forced to Stopped with accumulated time preserved. `stopwatch_start: Option<Instant>` is transient (`#[serde(default, skip)]`) because `Instant` cannot serialize. Users must RUNSW to resume after load — a documented behavioral policy (ADR-v3.2-003, D-40-NN).
+
+The alarm catalog (D-38.8–11) uses a typed `AlarmType` enum: `Message(String)` for ALPHA-message alarms, `Control { label: String, interrupting: bool }` for program-trigger alarms. The data model is forward-compatible even though interrupting control alarm execution is deferred (D-38.4) — the `interrupting` field is stored and will be honoured when re-entrancy support is added in a future version. Direct `alarms: Vec<AlarmEntry>` on CalcState with `#[serde(default)]` follows the same pattern as `regs: Vec<HpNum>` and `programs: Vec<Program>`. A 253-entry catalog cap is enforced at XYZALM entry time. Repeat intervals are stored as `i64` seconds (D-38.11), converted from HH.MMSScc at XYZALM entry — no rounding drift over repeated reschedules. `check_alarms()` is a public drain function that scans for past-due alarms (`trigger_unix <= now`) and pushes typed events into `state.event_buffer`: `"alarm:message:{text}"` for message alarms, `"alarm:xeq:{label}"` for non-interrupting control alarms, `"alarm:interrupting:deferred"` for the deferred interrupting case.
+
+35 new `Op` variants land in `dispatch()` and `execute_op()`. Items 1+2 of the 4-way exhaustive-match invariant are complete in `hp41-core`; items 3 and 4 (CLI and GUI `op_display_name`) are sanctioned-deferred to Phase 39 and Phase 41 respectively, creating the same intentional `non-exhaustive patterns` CI break used in Phase 33. `scripts/check-free42-contamination.sh` is extended to cover the `time/` directory tree (same 18-token guard; exits 0). Phase 38 ships across 5 plans (framework scaffolding + clock/format/display ops + date arithmetic + stopwatch + alarm catalog); 2249 hp41-core tests pass.
+
+### Phase 39 — CLI Integration + Live Display (shipped 2026-05-25)
+
+The fourth source-of-truth lands as `docs/hp41-time-functions.json` (35 entries; 7-category convention per D-39.9 — Time Clock / Time Date Arithmetic / Time Display / Time Format / Time Alpha / Time Stopwatch / Time Alarm). Every entry carries an `xrom: { module: "Time", module_id: 26, function_id: N }` block per the Phase 28 D-28.3 schema. Inline `divergences` fields appear on exactly 4 entries — CORRECT (documented no-op, host NTP clock replaces analog correction circuit), SW (emulator-extension interactive stopwatch mode), RCLAF (no crystal oscillator to recall accuracy for), SETAF (accuracy factor stored but no physical effect) — following the D-34.3 / D-39.11 surgical-inline discipline.
+
+The JSON-canonical pipeline extends to a fourth `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs`: `TIME_FUNCTIONS_JSON` + `TIME_HELP_ENTRIES` static + `help_entries_time()` accessor. `help_entries_all()` chains all four pools (cv → math1 → stat1 → time) — a fifth `.chain()` arm is ready for Phase 44+ Advantage Pac. The `?` help overlay gains "Time Pac (XROM 26)" section auto-derived from the JSON categories; incremental substring search spans all four pools. 35 new `op_display_name` arms land in `hp41-cli/src/prgm_display.rs` (item 3 of the 4-way exhaustive-match invariant complete; no `_ =>` catch-all). `function_matrix_parity.rs` graduates to a 4-pool partition test with a `TIME_OP_VARIANT_NAMES` per-module inventory constant (mirrors MATH1/STAT1 precedent). `xrom_shadowing.rs` confirms all 35 Time Pac mnemonics are disjoint from `MATH_1.ops` + `STAT_1.ops` + `BUILTIN_CARD_OP_NAMES`.
+
+The live display integration (ADR-v3.2-002, D-39.1–2) leverages the existing 16ms poll loop. `get_clock_display_str()` and `get_stopwatch_display_str()` are called at the TOP of `get_display_string()` priority chain — before entry_buf, prgm mode, and ALPHA mode — because CLKT and SW override all other HP-41CX display modes. The 16ms poll loop redraws ~62 Hz unconditionally (the TUI draws before polling events), so TIME-DSP-05 (≥1 Hz clock) and TIME-SW-08 (≥10 Hz stopwatch) are trivially met without any new async or timer infrastructure. Three alternatives for live display were evaluated: async timer (rejected — `hp41-core` is thread-free, adding async would require a new thread boundary), push-from-core (rejected — core is stateless between dispatch calls, cannot push state), polling thread (rejected — same thread-boundary issue). The pull-on-redraw approach costs zero additional infrastructure.
+
+Stopwatch keyboard mode (D-39.4, D-39.5) uses a top-level routing block in `handle_key()` — the same pattern as `alpha_mode`. When `state.stopwatch_keyboard_mode` is true, `handle_stopwatch_mode_key()` intercepts and consumes all keys: Space/Enter toggle start/stop via RUNSW/STOPSW dispatch, `s` triggers SWPT (split/lap), `r` triggers STPW (reset), Esc exits the mode. No new `PendingInput` variant is needed — the mode is a flat dispatch pattern, not a multi-key accumulation. Clock display exits on any keypress: a mutation-only check in `handle_key()` clears `clock_active` before the key is processed normally (the key is NOT consumed by the exit).
+
+Alarm event draining (D-39.6–8) extends both dispatch tails and the main poll loop. `drain_event_buffer()` parses `state.event_buffer` strings: `"alarm:message:{text}"` routes to `self.message` (status bar, same as print output); `"alarm:xeq:{label}"` dispatches via the existing XEQ infrastructure; `"alarm:interrupting:deferred"` is silently ignored (D-38.4). Critically, `check_alarms()` is called on every 16ms tick OUTSIDE the `event::poll` conditional — alarms fire in real-time even when the user hasn't pressed a key. This satisfies TIME-ALM-08 ("on each keypress/dispatch, check for overdue alarms") and extends it to the idle case.
+
+No `hp41-core` or `hp41-gui` changes ship in Phase 39: SC-4 invariant trivially preserved; item 4 of the 4-way exhaustive-match invariant remains Phase 41 territory.
+
+### Phase 40 — Documentation & ADRs (shipped 2026-05-25)
+
+Phase 40 authors the Time Pac documentation suite: `docs/hp41-time-divergences.md` (three-bucket numbered catalog, `D-40-NN` identifiers), three long-form ADRs (v3.2-001 clock access, v3.2-002 live display architecture, v3.2-003 alarm catalog design), the fourth `scripts/docs-matrix` invocation extending the justfile `docs-matrix` and `docs-matrix-check` recipes, the README v3.2 soft-claim bullet, and this `docs/architecture-history.md` v3.2 narrative section. The v3.2 hard-claim ("feature-complete per Owner's Manual HP 00041-90036") is deferred to Phase 42 quality gate graduation per the D-30.9 → D-32.5 and D-35.3 → D-37.11 cadence.
+
+### Phase 41 — GUI Integration (IN PROGRESS)
+
+*(35 new `op_display_name` arms in `hp41-gui/src-tauri/src/prgm_display.rs` — item 4 of the 4-way exhaustive-match invariant; CATALOG 2 Time Pac entry; `HelpOverlay.tsx` fourth collapsible section "Time Pac (XROM 26)"; LCD-mode routing for CLKT/SW display override; modal-prompt routing for SETIME/SETDATE/XYZALM; follows Phase 31 + Phase 36 GUI integration pattern.)*
+
+### Phase 42 — Test Hardening & Quality Gates (TBD)
+
+*(Coverage gap closure for `time/` module tree; numerical accuracy extension with time/date arithmetic oracle cases; E2E smoke with a Time Pac workflow; `time_op_test_count.rs` meta-gate (≥5 tests per variant); `xrom_shadowing.rs` final verification across all three modules; backward-compat test for v3.1→v3.2 migration; README hard-claim graduation conditional on QUAL-04 + QUAL-11 gates — follows Phase 32 + Phase 37 pattern.)*
+
+**Frozen invariants preserved across v3.2:** *(to be completed after Phase 42)*
+
+- SC-4 invariant: Time Pac math lives in `hp41-core/src/ops/time/`. No Time Pac code leaks into `hp41-gui`. (to be verified at Phase 42)
+- 4-exhaustive-match invariant: items 1+2 complete (Phase 38); item 3 complete (Phase 39); item 4 deferred to Phase 41. (to be completed at Phase 41)
+- `#![deny(clippy::unwrap_used)]` continues in `hp41-core`; test files carry `#[allow]` per established pattern.
+- Save-file backward compat: all 12 Phase 38 CalcState fields carry `#[serde(default)]`; 4 transient fields additionally carry `#[serde(skip)]`. v1.0–v3.1 save files load without migration. (to be verified at Phase 42)
+- MSRV 1.88 unchanged. Zero new runtime deps (`libc`/`chrono`/`time` all rejected per D-carried.1).
+- Free42 GPL contamination guard: extended to cover `time/` tree; 18 tokens, exits 0. (to be re-verified at Phase 42)
+
+---
+
 ## Quality Gate History
 
-| Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) |
-|------|--------|------|-------------|------------------|------------------|------------------|
-| Cold-start | ≤ 0.5 s | 2.2 ms (M1) | unchanged (CLI); GUI not gated | unchanged | unchanged | unchanged |
-| Key latency | ≤ 50 ms median | ~65 ns/op | unchanged | unchanged | unchanged | unchanged |
-| Numerical accuracy | ≥ 98% | 99% (495/500) | unchanged | 99.1% (561/566) | 99.3% (763/768) | 98.86% (791 cases) |
-| `hp41-core` coverage | ≥ 95% lines / ≥ 93% regions (v2.2 raised from 80%) | 94.87% | 92.5% / 89.9% | 95.25% / 93.75% | 95.39% / 94.26% | 93.91% / 95.84% |
-| Panics in `hp41-core` | 0 | 0 | 0 | 0 | 0 | 0 |
-| Free42 contamination | 0 distinctive symbols | n/a | n/a | n/a | 0 (12 tokens, CI-gated) | 0 (18 tokens, CI-gated) |
-| CI | Win 10+, macOS 12+, Ubuntu 22.04+ | `ci.yml` | + `ci-gui.yml` | unchanged | + `license-audit` job | unchanged |
-| MSRV | declared | — | 1.88 | 1.88 | 1.88 | 1.88 |
+| Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) | v3.2 (Phase 42) |
+|------|--------|------|-------------|------------------|------------------|------------------|-----------------|
+| Cold-start | ≤ 0.5 s | 2.2 ms (M1) | unchanged (CLI); GUI not gated | unchanged | unchanged | unchanged | TBD |
+| Key latency | ≤ 50 ms median | ~65 ns/op | unchanged | unchanged | unchanged | unchanged | TBD |
+| Numerical accuracy | ≥ 98% | 99% (495/500) | unchanged | 99.1% (561/566) | 99.3% (763/768) | 98.86% (791 cases) | TBD |
+| `hp41-core` coverage | ≥ 95% lines / ≥ 93% regions (v2.2 raised from 80%) | 94.87% | 92.5% / 89.9% | 95.25% / 93.75% | 95.39% / 94.26% | 93.91% / 95.84% | TBD |
+| Panics in `hp41-core` | 0 | 0 | 0 | 0 | 0 | 0 | TBD |
+| Free42 contamination | 0 distinctive symbols | n/a | n/a | n/a | 0 (12 tokens, CI-gated) | 0 (18 tokens, CI-gated) | TBD |
+| CI | Win 10+, macOS 12+, Ubuntu 22.04+ | `ci.yml` | + `ci-gui.yml` | unchanged | + `license-audit` job | unchanged | TBD |
+| MSRV | declared | — | 1.88 | 1.88 | 1.88 | 1.88 | TBD |
