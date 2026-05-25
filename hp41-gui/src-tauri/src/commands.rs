@@ -231,6 +231,38 @@ pub fn handle_get_state(calc: &mut CalcState) -> Result<CalcStateView, GuiError>
     Ok(CalcStateView::from_state(calc, print_lines, event_lines))
 }
 
+/// Tauri command: periodic tick for live clock/stopwatch display (D-41.1 / D-41.4).
+///
+/// Called by the frontend `setInterval` at 100ms intervals ONLY when
+/// `clock_active || stopwatch_keyboard_mode` is true in the CalcStateView
+/// (D-41.3 / D-41.8). When neither mode is active, the interval is cleared
+/// by the frontend and this command is not called.
+///
+/// Calls `check_alarms()` first so alarm events fire promptly (~100ms latency)
+/// during clock/stopwatch display modes (D-41.4). Outside those modes, alarms
+/// fire on the next `dispatch_op` call per TIME-ALM-08.
+///
+/// This is a READ-ONLY query — it does NOT set `busyRef.current = true`.
+/// A single skipped tick (100ms) due to Mutex contention is imperceptible.
+#[tauri::command]
+pub fn tick_time(state: State<'_, AppState>) -> Result<CalcStateView, GuiError> {
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    handle_tick_time(&mut calc)
+}
+
+/// Pure-Rust helper for tick_time — calls check_alarms, drains both buffers,
+/// returns a CalcStateView with live-display trigger booleans projected.
+///
+/// Factored out for unit-testability (mirrors `handle_get_state` pattern).
+pub fn handle_tick_time(calc: &mut CalcState) -> Result<CalcStateView, GuiError> {
+    // D-41.4: call check_alarms BEFORE draining event_buffer so that any newly
+    // triggered alarms are captured in the drain and returned in event_lines.
+    hp41_core::ops::time::alarm::check_alarms(calc);
+    let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+    let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+    Ok(CalcStateView::from_state(calc, print_lines, event_lines))
+}
+
 /// Tauri command: step the program counter forward by 1 (SST — Single Step).
 /// Mirrors HP-41 hardware: pc stays at program.len(), no wrap-around.
 #[tauri::command]
@@ -636,5 +668,42 @@ mod tests {
         let y_val: Decimal = view.y_str.parse().expect("y_str must parse as Decimal");
         assert_eq!(x_val, Decimal::from(25), "%CH(100→125) must be 25");
         assert_eq!(y_val, Decimal::from(100), "Y must be preserved at 100");
+    }
+
+    /// Phase 41 D-41.4: handle_tick_time must drain event_buffer and return it in the view.
+    /// Verifies the alarm event flow: push event → tick → view contains event + buffer empty.
+    #[test]
+    fn handle_tick_time_drains_event_buffer_and_returns_view() {
+        let mut calc = CalcState::new();
+        calc.event_buffer
+            .push("alarm:message:TEST ALARM".to_string());
+
+        let view = handle_tick_time(&mut calc).expect("handle_tick_time must succeed");
+
+        assert!(
+            calc.event_buffer.is_empty(),
+            "event_buffer must be empty after handle_tick_time drains it; got: {:?}",
+            calc.event_buffer
+        );
+        assert_eq!(
+            view.event_buffer,
+            vec!["alarm:message:TEST ALARM"],
+            "view.event_buffer must contain the drained alarm event"
+        );
+    }
+
+    /// Phase 41 D-41.3: handle_tick_time must project clock_active from CalcState.
+    /// Verifies the live-display trigger field flows through correctly.
+    #[test]
+    fn handle_tick_time_returns_clock_active_field() {
+        let mut calc = CalcState::new();
+        calc.clock_active = true;
+
+        let view = handle_tick_time(&mut calc).expect("handle_tick_time must succeed");
+
+        assert!(
+            view.clock_active,
+            "view.clock_active must mirror CalcState.clock_active (true)"
+        );
     }
 }
