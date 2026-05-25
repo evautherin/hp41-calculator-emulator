@@ -72,7 +72,7 @@ pub fn jdn_to_date(jdn: i64) -> (i32, i32, i32) {
 /// Formula: (jdn + 1) % 7 — JDN 0 was a Monday; +1 shifts Sunday to 0.
 /// Matches HP 82182A OM §DOW: 0=Sunday...6=Saturday.
 pub fn jdn_to_dow(jdn: i64) -> i32 {
-    ((jdn + 1) % 7) as i32
+    ((jdn + 1).rem_euclid(7)) as i32
 }
 
 // ── Parse Helpers ─────────────────────────────────────────────────────────────
@@ -153,23 +153,6 @@ pub fn parse_time_hpnum(hpnum: &HpNum) -> Result<(u8, u8, u8, u8), HpError> {
     Ok((hours, minutes, seconds, centiseconds))
 }
 
-/// Convert total seconds (possibly fractional) to HH.MMSScc HpNum format.
-///
-/// Used by stopwatch / elapsed-time ops that compute with seconds.
-/// Fractional seconds are truncated to centiseconds (0.01 s resolution).
-pub fn secs_to_hpnum_time(secs: f64) -> Result<HpNum, HpError> {
-    let total_centis = (secs * 100.0) as i64;
-    let centiseconds = total_centis % 100;
-    let total_secs = total_centis / 100;
-    let seconds = total_secs % 60;
-    let total_mins = total_secs / 60;
-    let minutes = total_mins % 60;
-    let hours = total_mins / 60;
-    // Build HH.MMSScc as a decimal string to preserve all fields exactly
-    let s = format!("{}.{:02}{:02}{:02}", hours, minutes, seconds, centiseconds);
-    let d = Decimal::from_str(&s).map_err(|_| HpError::Overflow)?;
-    Ok(HpNum::from(d))
-}
 
 // ── Date Format Helper ────────────────────────────────────────────────────────
 
@@ -283,6 +266,7 @@ fn decimal_to_i64(d: Decimal) -> Result<i64, HpError> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::ops::time::stopwatch::secs_to_hpnum_time;
 
     // ── JDN Round-trip Tests ──────────────────────────────────────────────────
 

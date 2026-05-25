@@ -26,9 +26,9 @@ use crate::state::CalcState;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::date_arith::{date_to_jdn, jdn_to_date, parse_date_hpnum, parse_time_hpnum};
+use super::clock;
+use super::date_arith::{date_to_jdn, parse_date_hpnum, parse_time_hpnum};
 
 /// A single alarm entry stored in `CalcState::alarms`.
 ///
@@ -91,15 +91,8 @@ fn parse_alarm_type(alpha: &str) -> AlarmType {
     }
 }
 
-/// Return the current HP-41 "wall clock" as Unix epoch seconds,
-/// applying the user-configured `time_offset_secs`.
-///
-/// Returns 0 if `SystemTime::now()` returns an error (pre-epoch result).
 fn current_unix_secs(offset: i64) -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64 + offset)
-        .unwrap_or(0)
+    clock::adjusted_epoch_secs(offset)
 }
 
 /// Convert a calendar date + time of day to Unix epoch seconds.
@@ -113,19 +106,9 @@ fn time_date_to_unix(hours: u8, minutes: u8, seconds: u8, year: i32, month: i32,
     days_since_epoch * 86_400 + time_of_day_secs
 }
 
-/// Decompose a Unix epoch second into calendar (year, month, day) using JDN.
-///
-/// Mirrors `clock::decompose_epoch_secs` but returns only the date fields
-/// without pulling in that module's local helpers.
 fn epoch_secs_to_date(epoch_secs: i64) -> (i32, i32, i32) {
-    let day_number = if epoch_secs >= 0 {
-        epoch_secs / 86_400
-    } else {
-        (epoch_secs - 86_399) / 86_400
-    };
-    let jdn = day_number + UNIX_EPOCH_JDN;
-    let (year, month, day) = jdn_to_date(jdn);
-    (year, month, day)
+    let (year, month, day, _, _, _) = clock::decompose_epoch_secs(epoch_secs);
+    (year, month as i32, day as i32)
 }
 
 /// Build a time HpNum (HH.MMSScc) from components.
@@ -173,20 +156,9 @@ fn repeat_hpnum_to_secs(hpnum: &HpNum) -> Result<i64, HpError> {
     Ok(hours * 3600 + minutes * 60 + seconds)
 }
 
-/// Decompose a trigger_unix timestamp into (year, month, day, hour, minute, second).
 fn decompose_alarm_unix(trigger_unix: i64) -> (i32, i32, i32, u8, u8, u8) {
-    let day_number = if trigger_unix >= 0 {
-        trigger_unix / 86_400
-    } else {
-        (trigger_unix - 86_399) / 86_400
-    };
-    let time_of_day = (trigger_unix - day_number * 86_400) as u32;
-    let hour = (time_of_day / 3600) as u8;
-    let minute = ((time_of_day % 3600) / 60) as u8;
-    let second = (time_of_day % 60) as u8;
-    let jdn = day_number + UNIX_EPOCH_JDN;
-    let (year, month, day) = jdn_to_date(jdn);
-    (year, month, day, hour, minute, second)
+    let (year, month, day, hour, minute, second) = clock::decompose_epoch_secs(trigger_unix);
+    (year, month as i32, day as i32, hour, minute, second)
 }
 
 // ── Alarm Op Implementations ──────────────────────────────────────────────────
@@ -502,9 +474,9 @@ pub fn check_alarms(state: &mut CalcState) {
 /// and reset `past_due = false` (reschedule). Otherwise remove from catalog.
 ///
 /// Public helper for frontend acknowledge actions (Phase 39/41).
-pub fn acknowledge_alarm(state: &mut CalcState, index: usize) {
+pub fn acknowledge_alarm(state: &mut CalcState, index: usize) -> Result<(), HpError> {
     if index >= state.alarms.len() {
-        return;
+        return Err(HpError::InvalidInput);
     }
     if state.alarms[index].repeat_secs > 0 {
         let repeat = state.alarms[index].repeat_secs;
@@ -513,6 +485,7 @@ pub fn acknowledge_alarm(state: &mut CalcState, index: usize) {
     } else {
         state.alarms.remove(index);
     }
+    Ok(())
 }
 
 // ── Private dispatch helper ───────────────────────────────────────────────────
@@ -1307,7 +1280,7 @@ mod tests {
             alarm_type: AlarmType::Message("hourly".to_string()),
             past_due: true,
         });
-        acknowledge_alarm(&mut state, 0);
+        acknowledge_alarm(&mut state, 0).unwrap();
         assert_eq!(
             state.alarms.len(),
             1,
@@ -1329,7 +1302,7 @@ mod tests {
             alarm_type: AlarmType::Message("once".to_string()),
             past_due: true,
         });
-        acknowledge_alarm(&mut state, 0);
+        acknowledge_alarm(&mut state, 0).unwrap();
         assert!(
             state.alarms.is_empty(),
             "One-shot alarm should be removed after acknowledgment"
@@ -1337,10 +1310,9 @@ mod tests {
     }
 
     #[test]
-    fn acknowledge_alarm_out_of_bounds_is_noop() {
+    fn acknowledge_alarm_out_of_bounds_returns_err() {
         let mut state = CalcState::new();
-        // No panic on out-of-bounds index.
-        acknowledge_alarm(&mut state, 5);
+        assert!(acknowledge_alarm(&mut state, 5).is_err());
         assert!(state.alarms.is_empty());
     }
 

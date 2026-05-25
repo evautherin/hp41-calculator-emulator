@@ -59,7 +59,9 @@ pub enum StopwatchMode {
 fn current_elapsed(state: &CalcState) -> f64 {
     match state.stopwatch_mode {
         StopwatchMode::Running => {
-            let start = state.stopwatch_start.unwrap_or_else(Instant::now);
+            let start = state
+                .stopwatch_start
+                .expect("Running mode requires stopwatch_start");
             state.stopwatch_accumulated + start.elapsed().as_secs_f64()
         }
         _ => state.stopwatch_accumulated,
@@ -214,7 +216,7 @@ pub fn get_stopwatch_display_str(state: &CalcState) -> Option<String> {
 /// where MM = minutes (00-59), SS = seconds (00-59), cc = centiseconds (00-99).
 ///
 /// This is the inverse of `parse_time_hpnum` in `date_arith.rs`.
-pub(crate) fn secs_to_hpnum_time(secs: f64) -> Result<HpNum, HpError> {
+pub fn secs_to_hpnum_time(secs: f64) -> Result<HpNum, HpError> {
     // 360_000 seconds = 100 hours, HP-41 max displayable
     if !(0.0..360_000.0).contains(&secs) {
         return Err(HpError::InvalidOp);

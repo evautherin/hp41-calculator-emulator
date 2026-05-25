@@ -504,20 +504,15 @@ function App() {
     //   4. is_running → request_cancel.
     //   5. shiftActive last (clears the one-shot SHIFT prefix).
     if (e.key === 'Escape') {
-      // D-39.3: clock display exits on any key, including Esc. Non-blocking
-      // fire-and-forget — Esc continues to the normal precedence chain below.
-      if (calcState?.clock_active) {
-        invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
-          .then(view => { setCalcState(view); setErrorMessage(null); })
-          .catch(() => {});
-      }
-      if (calcState?.stopwatch_keyboard_mode) {
-        busyRef.current = true;
-        invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
-          .then(view => { setCalcState(view); setErrorMessage(null); })
-          .catch(err => showToast(extractErrMessage(err)))
-          .finally(() => { busyRef.current = false; });
-        return;
+      if (calcState?.clock_active || calcState?.stopwatch_keyboard_mode) {
+        if (!busyRef.current) {
+          busyRef.current = true;
+          invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
+            .then(view => { setCalcState(view); setErrorMessage(null); })
+            .catch(err => showToast(extractErrMessage(err)))
+            .finally(() => { busyRef.current = false; });
+        }
+        if (calcState?.stopwatch_keyboard_mode) return;
       }
       if (helpOpen) {
         setHelpOpen(false);
@@ -681,7 +676,7 @@ function App() {
           showToast(line.slice('alarm:message:'.length));
         } else if (line.startsWith('alarm:xeq:')) {
           const label = line.slice('alarm:xeq:'.length);
-          if (busyRef.current) return;
+          if (busyRef.current) continue;
           busyRef.current = true;
           invoke<CalcStateView>('dispatch_op', { keyId: `xeq_${label}` })
             .then(view => { setCalcState(view); setErrorMessage(null); })

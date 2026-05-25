@@ -90,7 +90,7 @@ pub(crate) fn decompose_epoch_secs(epoch_secs: i64) -> (i32, u8, u8, u8, u8, u8)
 }
 
 /// Read system clock and apply the user offset, returning epoch seconds.
-fn adjusted_epoch_secs(offset_secs: i64) -> i64 {
+pub(crate) fn adjusted_epoch_secs(offset_secs: i64) -> i64 {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();

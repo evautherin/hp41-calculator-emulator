@@ -20,7 +20,8 @@
 use crate::error::HpError;
 use crate::stack::{apply_lift_effect, LiftEffect};
 use crate::state::CalcState;
-use std::time::{SystemTime, UNIX_EPOCH};
+
+use super::clock;
 
 /// Maximum ALPHA register length (HP-41 hardware limit).
 const ALPHA_MAX_LEN: usize = 24;
@@ -37,56 +38,11 @@ fn alpha_append(state: &mut CalcState, text: &str) {
 /// Get current local time components (year, month, day, hour, minute, second)
 /// adjusted by `offset_secs`.
 ///
-/// Returns `(year, month, day, hour, minute, second)` where:
-/// - year: Gregorian year (e.g. 2026)
-/// - month: 1-12
-/// - day: 1-31
-/// - hour: 0-23
-/// - minute: 0-59
-/// - second: 0-59
-///
-/// Uses the proleptic Gregorian calendar algorithm (Julian Day Number method).
+/// Delegates to `clock::adjusted_epoch_secs` + `clock::decompose_epoch_secs`
+/// (single canonical Fliegel-Van Flandern algorithm for all epoch→calendar conversions).
 pub(crate) fn get_local_time(offset_secs: i64) -> (i32, u8, u8, u8, u8, u8) {
-    let unix_secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-        + offset_secs;
-
-    // Decompose unix timestamp into date + time components.
-    // Days since Unix epoch (1970-01-01).
-    let (day_offset, time_of_day) = if unix_secs >= 0 {
-        let days = unix_secs / 86_400;
-        let secs = unix_secs % 86_400;
-        (days, secs)
-    } else {
-        // Handle negative (before 1970)
-        let days = (unix_secs - 86_399) / 86_400; // floor division
-        let secs = unix_secs - days * 86_400;
-        (days, secs)
-    };
-
-    let hour = (time_of_day / 3600) as u8;
-    let minute = ((time_of_day % 3600) / 60) as u8;
-    let second = (time_of_day % 60) as u8;
-
-    // Convert day offset from Unix epoch to Julian Day Number.
-    // Unix epoch (1970-01-01) = JDN 2440588.
-    let jdn = day_offset + 2_440_588;
-
-    // JDN to Gregorian calendar (algorithm: Richards, "Mapping Time", 2013).
-    let a = jdn + 32_044;
-    let b = (4 * a + 3) / 146_097;
-    let c = a - (146_097 * b) / 4;
-    let d = (4 * c + 3) / 1461;
-    let e = c - (1461 * d) / 4;
-    let m = (5 * e + 2) / 153;
-
-    let day = (e - (153 * m + 2) / 5 + 1) as u8;
-    let month = (m + 3 - 12 * (m / 10)) as u8;
-    let year = (100 * b + d - 4800 + m / 10) as i32;
-
-    (year, month, day, hour, minute, second)
+    let epoch = clock::adjusted_epoch_secs(offset_secs);
+    clock::decompose_epoch_secs(epoch)
 }
 
 /// Format hour, minute, second into a 24-hour time string "HH:MM:SS".

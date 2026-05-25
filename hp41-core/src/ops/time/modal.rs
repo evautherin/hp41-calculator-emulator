@@ -31,7 +31,8 @@ use crate::num::HpNum;
 use crate::state::CalcState;
 use rust_decimal::Decimal;
 use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
+
+use super::clock;
 
 /// Per-step modal state for the Time Module prompt-driven workflows.
 ///
@@ -80,12 +81,8 @@ fn normalize_pm_shorthand(x: &HpNum) -> Option<HpNum> {
     Some(HpNum::from(d))
 }
 
-/// Get the current adjusted epoch seconds from SystemTime.
 fn current_adjusted_epoch(offset_secs: i64) -> i64 {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    now.as_secs() as i64 + offset_secs
+    clock::adjusted_epoch_secs(offset_secs)
 }
 
 /// Per-step submit dispatch — called by `ModalProgram::Time` dispatch arm.
