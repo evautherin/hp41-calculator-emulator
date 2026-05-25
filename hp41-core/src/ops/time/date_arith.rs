@@ -153,7 +153,6 @@ pub fn parse_time_hpnum(hpnum: &HpNum) -> Result<(u8, u8, u8, u8), HpError> {
     Ok((hours, minutes, seconds, centiseconds))
 }
 
-
 // ── Date Format Helper ────────────────────────────────────────────────────────
 
 /// Format (year, month, day) as an HP-41 date HpNum in MDY or DMY mode.
