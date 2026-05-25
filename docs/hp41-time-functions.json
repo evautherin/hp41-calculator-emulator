@@ -137,7 +137,7 @@
         "status": "implemented",
         "phase": "38",
         "key_path": "XEQ \"DOW\"",
-        "description": "Day of week for date in X (1=Mon … 7=Sun)",
+        "description": "Day of week for date in X (0=Sun, 1=Mon … 6=Sat)",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 14 }
     },
     {
@@ -167,7 +167,7 @@
         "status": "implemented",
         "phase": "38",
         "key_path": "XEQ \"ATIME\"",
-        "description": "Append current time as ALPHA string (12-hour format)",
+        "description": "Append current time as ALPHA string (respects CLK12/CLK24 setting)",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 17 }
     },
     {
@@ -248,7 +248,7 @@
         "status": "implemented",
         "phase": "38",
         "key_path": "XEQ \"SWPT\"",
-        "description": "Stopwatch split/lap time: recall elapsed without stopping",
+        "description": "Recall split-point time recorded by STPW into X as HH.MMSScc",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 25 }
     },
     {
@@ -330,7 +330,7 @@
         "status": "implemented",
         "phase": "38",
         "key_path": "XEQ \"CLALMA\"",
-        "description": "Clear all alarms from the alarm catalog",
+        "description": "Clear first alarm matching ALPHA register content from the catalog",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 33 }
     },
     {
@@ -350,7 +350,7 @@
         "status": "implemented",
         "phase": "38",
         "key_path": "XEQ \"CLRALMS\"",
-        "description": "Clear all repeating alarms from the catalog",
+        "description": "Clear all alarms from the catalog",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 35 }
     }
 ]

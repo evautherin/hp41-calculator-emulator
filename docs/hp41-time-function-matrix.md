@@ -9,13 +9,13 @@
 |----|---------|------|----------|--------|-------|----------|-------------|
 | TimeAlmcat | ALMCAT | Time / 26-28 | Time Alarm | ✓ v2.x | 38 | `XEQ "ALMCAT"` | Catalog all pending alarms to the display |
 | TimeAlmnow | ALMNOW | Time / 26-29 | Time Alarm | ✓ v2.x | 38 | `XEQ "ALMNOW"` | Trigger the next alarm immediately |
-| TimeClalma | CLALMA | Time / 26-33 | Time Alarm | ✓ v2.x | 38 | `XEQ "CLALMA"` | Clear all alarms from the alarm catalog |
+| TimeClalma | CLALMA | Time / 26-33 | Time Alarm | ✓ v2.x | 38 | `XEQ "CLALMA"` | Clear first alarm matching ALPHA register content from the catalog |
 | TimeClalmx | CLALMX | Time / 26-34 | Time Alarm | ✓ v2.x | 38 | `XEQ "CLALMX"` | Clear alarm number X from the alarm catalog |
-| TimeClralms | CLRALMS | Time / 26-35 | Time Alarm | ✓ v2.x | 38 | `XEQ "CLRALMS"` | Clear all repeating alarms from the catalog |
+| TimeClralms | CLRALMS | Time / 26-35 | Time Alarm | ✓ v2.x | 38 | `XEQ "CLRALMS"` | Clear all alarms from the catalog |
 | TimeRclalm | RCLALM | Time / 26-30 | Time Alarm | ✓ v2.x | 38 | `XEQ "RCLALM"` | Recall alarm N from X into X/Y/Z registers |
 | TimeXyzalm | XYZALM | Time / 26-27 | Time Alarm | ✓ v2.x | 38 | `XEQ "XYZALM"` | Set alarm: X=time, Y=date, Z=repeat interval |
 | TimeAdate | ADATE | Time / 26-19 | Time Alpha | ✓ v2.x | 38 | `XEQ "ADATE"` | Append current date as ALPHA string |
-| TimeAtime | ATIME | Time / 26-17 | Time Alpha | ✓ v2.x | 38 | `XEQ "ATIME"` | Append current time as ALPHA string (12-hour format) |
+| TimeAtime | ATIME | Time / 26-17 | Time Alpha | ✓ v2.x | 38 | `XEQ "ATIME"` | Append current time as ALPHA string (respects CLK12/CLK24 setting) |
 | TimeAtime24 | ATIME24 | Time / 26-18 | Time Alpha | ✓ v2.x | 38 | `XEQ "ATIME24"` | Append current time as ALPHA string (24-hour format) |
 | TimeClock | CLOCK | Time / 26-9 | Time Clock | ✓ v2.x | 38 | `XEQ "CLOCK"` | Enter live clock display mode — press any key to exit |
 | TimeDate | DATE | Time / 26-2 | Time Clock | ✓ v2.x | 38 | `XEQ "DATE"` | Display current date in X (MM.DDYYYY or DD.MMYYYY) |
@@ -24,7 +24,7 @@
 | TimeDatePlus | DATE+ | Time / 26-12 | Time Date Arithmetic | ✓ v2.x | 38 | `XEQ "DATE+"` | Add X days to date in Y; result in X |
 | TimeDdays | DDAYS | Time / 26-13 | Time Date Arithmetic | ✓ v2.x | 38 | `XEQ "DDAYS"` | Days between date in X and date in Y |
 | TimeDmy | DMY | Time / 26-15 | Time Date Arithmetic | ✓ v2.x | 38 | `XEQ "DMY"` | Switch date format to DD.MMYYYY |
-| TimeDow | DOW | Time / 26-14 | Time Date Arithmetic | ✓ v2.x | 38 | `XEQ "DOW"` | Day of week for date in X (1=Mon … 7=Sun) |
+| TimeDow | DOW | Time / 26-14 | Time Date Arithmetic | ✓ v2.x | 38 | `XEQ "DOW"` | Day of week for date in X (0=Sun, 1=Mon … 6=Sat) |
 | TimeMdy | MDY | Time / 26-16 | Time Date Arithmetic | ✓ v2.x | 38 | `XEQ "MDY"` | Switch date format to MM.DDYYYY |
 | TimeClkt | CLKT | Time / 26-7 | Time Display | ✓ v2.x | 38 | `XEQ "CLKT"` | Toggle clock display mode on the LCD |
 | TimeClktd | CLKTD | Time / 26-8 | Time Display | ✓ v2.x | 38 | `XEQ "CLKTD"` | Toggle clock-and-date display mode on the LCD |
@@ -41,7 +41,7 @@
 | TimeStopsw | STOPSW | Time / 26-21 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "STOPSW"` | Stop the stopwatch |
 | TimeStpw | STPW | Time / 26-26 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "STPW"` | Record current elapsed time as split point (stopwatch continues running) |
 | TimeSw | SW | Time / 26-24 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "SW"` | Interactive stopwatch display mode with live LCD updates |
-| TimeSwpt | SWPT | Time / 26-25 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "SWPT"` | Stopwatch split/lap time: recall elapsed without stopping |
+| TimeSwpt | SWPT | Time / 26-25 | Time Stopwatch | ✓ v2.x | 38 | `XEQ "SWPT"` | Recall split-point time recorded by STPW into X as HH.MMSScc |
 
 ## v3.x Deferred (Module Pacs)
 
