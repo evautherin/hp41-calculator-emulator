@@ -495,18 +495,22 @@ function App() {
       return;
     }
 
-    // Esc precedence (D-26.8 + D-26.4 + D-31.2):
-    //   1. Help overlay first (closes on Esc; doesn't clear modal/shift).
-    //   2. pendingInput second (closes the modal, clears shiftActive).
-    //   3. [NEW Phase 31 Plan 05 — D-31.2] modal_program_active → cancel_modal
-    //      (cancels the active Math Pac I modal workflow).
-    //   4. [NEW Phase 31 Plan 05 — D-31.2] is_running → request_cancel
-    //      (cancels a long-running op like INTG/SOLVE/DIFEQ).
+    // Esc precedence (D-26.8 + D-26.4 + D-31.2 + D-39.4):
+    //   0. Stopwatch keyboard mode (exits sw mode via sw_exit dispatch).
+    //   1. Help overlay (closes on Esc; doesn't clear modal/shift).
+    //   2. pendingInput (closes the modal, clears shiftActive).
+    //   3. modal_program_active → cancel_modal.
+    //   4. is_running → request_cancel.
     //   5. shiftActive last (clears the one-shot SHIFT prefix).
-    // This precedence keeps each layer independently dismissable: opening
-    // help doesn't lose an in-progress modal; canceling help leaves the
-    // modal intact.
     if (e.key === 'Escape') {
+      if (calcState?.stopwatch_keyboard_mode) {
+        busyRef.current = true;
+        invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)))
+          .finally(() => { busyRef.current = false; });
+        return;
+      }
       if (helpOpen) {
         setHelpOpen(false);
         return;
@@ -562,14 +566,6 @@ function App() {
     // Key IDs use xeq_ prefix for XROM resolution (key_map.rs xeq_ path).
     if (calcState?.stopwatch_keyboard_mode) {
       e.preventDefault();
-      if (e.key === 'Escape') {
-        busyRef.current = true;
-        invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
-          .then(view => { setCalcState(view); setErrorMessage(null); })
-          .catch(err => showToast(extractErrMessage(err)))
-          .finally(() => { busyRef.current = false; });
-        return;
-      }
       if (busyRef.current) return;
       let swKeyId: string | null = null;
       if (e.key === ' ' || e.key === 'Enter') {
