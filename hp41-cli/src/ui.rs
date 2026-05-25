@@ -15,6 +15,8 @@ use ratatui::Frame;
 use crate::help_data;
 use crate::programs;
 
+use hp41_core::ops::time::clock::get_clock_display_str;
+use hp41_core::ops::time::stopwatch::get_stopwatch_display_str;
 use hp41_core::{format_alpha, format_hpnum, AngleMode};
 
 use crate::app::App;
@@ -127,9 +129,16 @@ fn render_display(app: &App, frame: &mut Frame, area: Rect) {
 }
 
 /// Get the string to show in the HP-41 display area.
-/// Priority: entry_buf > prgm step > alpha > formatted X.
+/// Priority: clock_active > stopwatch_keyboard_mode > entry_buf > prgm step > alpha > formatted X.
 fn get_display_string(app: &App) -> String {
     let st = &app.state;
+    // D-39.1: clock and stopwatch displays take priority over all other display modes.
+    if let Some(s) = get_clock_display_str(st) {
+        return s;
+    }
+    if let Some(s) = get_stopwatch_display_str(st) {
+        return s;
+    }
     if !st.entry_buf.is_empty() {
         // Phase 9 D-01..D-04: when entry_buf is in exponent-entry mode, render
         // placeholder slots for unfilled exponent digits. Plain numeric entry
