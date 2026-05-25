@@ -118,7 +118,19 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
   3. `XEQ "FROOT"` computes roots of a polynomial using Laguerre's method; `XEQ "FINTG"` integrates a user callback via Romberg; both fire the user-program callback via existing `run_loop` re-entrancy
   4. `XEQ "TVM"` modal prompts for N, I, PV, PMT, FV; `XEQ "*I"` converges via Newton iteration; v3.2 save files load without error (xrom_modules migrated 0b0111 → 0b11111)
   5. All new Op variants compile without errors in `dispatch()` and `execute_op()` (4-way invariant items 1+2 satisfied); `hp41-cli` and `hp41-gui` emit only expected `non-exhaustive patterns` compile breaks (items 3+4 deferred to Phase 44/46)
-**Plans**: TBD
+**Plans:** 10 plans
+
+Plans:
+- [ ] 43-01-PLAN.md — XROM framework + advantage/ module skeleton + all Op stubs + dispatch wiring
+- [ ] 43-02-PLAN.md — ADV CONV: 12 base conversion + bitwise logic ops (36-bit word size)
+- [ ] 43-03-PLAN.md — ADV MTRX element access + lifecycle + reductions (33 ops)
+- [ ] 43-04-PLAN.md — ADV MTRX linear algebra: LU decomposition + MDET/MINV/MSYS/M*M (10 ops)
+- [ ] 43-05-PLAN.md — Complex extensions (18 ops) + complex matrix ops (5 ops)
+- [ ] 43-06-PLAN.md — Curve fitting (7 ops) + vectors/coordinate transform (14 ops)
+- [ ] 43-07-PLAN.md — Solvers: FSOLVE/FINTG/FDIFEQ/FROOT + PLY/RTS (6 ops, run_loop re-entrancy)
+- [ ] 43-08-PLAN.md — Matrix modal workflows: MATRX/MTR/MEDIT/CMEDIT + submit_step wiring
+- [ ] 43-09-PLAN.md — TVM: TVM/N/PV/PMT/FV/*I (6 ops, Newton iteration)
+- [ ] 43-10-PLAN.md — Integration verification: stub audit, test suite, contamination guard
 
 ### Phase 44: hp41-cli — CLI Integration
 **Goal**: All Advantage Pac functions are discoverable and executable from the CLI: `XEQ "FROOT"` etc. work end-to-end, the `?` overlay shows "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)" sections, and the JSON canonical pipeline is extended to the fifth pool
@@ -172,7 +184,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 0/TBD | Not started | - |
+| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 0/10 | Planning complete | - |
 | 44. hp41-cli — CLI Integration | 0/TBD | Not started | - |
 | 45. Documentation & ADRs | 0/TBD | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
@@ -180,4 +192,4 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 
 ---
 
-*Last updated: 2026-05-25 — v3.3 Advantage Pac Emulation roadmap created.*
+*Last updated: 2026-05-25 — Phase 43 planned (10 plans in 5 waves).*
