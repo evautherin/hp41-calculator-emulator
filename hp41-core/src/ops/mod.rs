@@ -2112,9 +2112,13 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::AdvFintg => crate::ops::advantage::solvers::op_adv_fintg(state),
         Op::AdvFdifeq => crate::ops::advantage::solvers::op_adv_fdifeq(state),
         Op::AdvFroot => crate::ops::advantage::solvers::op_adv_froot(state),
-        Op::AdvFsolveRunLoop => crate::ops::advantage::solvers::op_adv_fsolve_run_loop(state),
-        Op::AdvFintgRunLoop => crate::ops::advantage::solvers::op_adv_fintg_run_loop(state),
-        Op::AdvFdifeqRunLoop => crate::ops::advantage::solvers::op_adv_fdifeq_run_loop(state),
+        // AdvFsolveRunLoop / AdvFintgRunLoop / AdvFdifeqRunLoop must only run inside
+        // run_loop (not dispatch) to allow re-entrant user-program callbacks (D-43.7).
+        // The dispatch arm returns InvalidOp; the run_loop arm in program.rs calls
+        // op_adv_fsolve_run_loop(state, program) with the program slice.
+        Op::AdvFsolveRunLoop => Err(crate::error::HpError::InvalidOp),
+        Op::AdvFintgRunLoop => Err(crate::error::HpError::InvalidOp),
+        Op::AdvFdifeqRunLoop => Err(crate::error::HpError::InvalidOp),
         // ADV MATH curve fitting (XROM 24)
         Op::AdvCfit => crate::ops::advantage::curve_fit::op_adv_cfit(state),
         Op::AdvAs => crate::ops::advantage::curve_fit::op_adv_as(state),
