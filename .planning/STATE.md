@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Time Pac Emulation
-status: executing
-last_updated: "2026-05-25T10:52:16.874Z"
-last_activity: 2026-05-25 -- Phase 42 execution started
+status: Awaiting next milestone
+last_updated: "2026-05-25T12:20:02.299Z"
+last_activity: 2026-05-25 — Milestone v3.2 completed and archived
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 19
-  completed_plans: 15
-  percent: 79
+  completed_plans: 19
+  percent: 100
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -41,12 +41,10 @@ See: .planning/PROJECT.md (updated 2026-05-24 after v3.2 milestone start)
 
 ## Current Position
 
-Phase: 42 (test-hardening-quality-gates) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 42
-Last activity: 2026-05-25 -- Phase 42 execution started
-
-Progress: [..........] 0%
+Phase: Milestone v3.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-25 — Milestone v3.2 completed and archived
 
 ## Performance Metrics (v3.1 ship)
 
@@ -79,5 +77,26 @@ None.
 
 ---
 
+## Deferred Items
+
+Items acknowledged and deferred at v3.2 milestone close on 2026-05-25:
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 41: 41-HUMAN-UAT.md — 3 pending visual verification scenarios | partial |
+| verification_gap | Phase 41: 41-VERIFICATION.md — human-needed visual confirmation | human_needed |
+| quick_task | 260506-a1g-add-gitignore | missing |
+| quick_task | 260508-06h-fix-sci-eng-digit-input | missing |
+| quick_task | 260508-y30-eex-chs-exponent-sign-toggle | missing |
+| quick_task | 260516-c1p-fix-gui-clp-binding-and-modal-letter-clicks | missing |
+| quick_task | 260522-g7s-add-yellow-keyboard-frame-matching-vorgabe | missing |
+| quick_task | 260522-gud-honor-shift-on-physical-keyboard | missing |
+
+---
+
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-24 -- v3.2 roadmap created*
+*Last updated: 2026-05-25 -- v3.2 milestone close*
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

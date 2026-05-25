@@ -1,18 +1,18 @@
 # HP-41 Calculator Emulator
 
-## Current Milestone: v3.2 Time Pac Emulation
+## Current State
 
-**Goal:** Behavioral emulation of the HP-41CX Time Module (OM 00041-90035) as the third XROM application module — date/time arithmetic backed by the host system clock, full alarm catalog with interrupt-driven triggering, and live-updating stopwatch with real-time LCD display.
+**Latest shipped:** v3.2 Time Pac Emulation (2026-05-25)
+**Next milestone:** TBD — start with `/gsd-new-milestone`
 
-**Target features:**
-- System-clock-backed TIME and DATE (host OS time)
-- Date arithmetic: DATE+, DDAYS, DOW
-- Time/date display in ALPHA: ADATE, ATIME, ATIME24
-- Time/date setting modals: SETTIME, SETDATE
-- Clock display mode: CLKT, CLKTD
-- Full alarm system: XYZALM (set), RCLAF (recall), ALMCAT (catalog), alarm acknowledgment
-- Live stopwatch: SETSW, SW, STPW with real-time LCD updates
-- CLI + GUI integration mirroring the v3.0/v3.1 module footprint
+<details>
+<summary>v3.2 Time Pac Emulation (shipped 2026-05-25 — see <code>milestones/v3.2-ROADMAP.md</code>)</summary>
+
+**Goal:** Behavioral emulation of the HP-41CX Time Module (OM 00041-90035) as the third XROM application module — date/time arithmetic backed by the host system clock, full alarm catalog with past-due detection, and live-updating stopwatch/clock with real-time LCD display.
+
+**Delivered:** 5 phases (38–42), 19 plans, 81 requirements, 35 new Op variants, ~4650 LOC in `hp41-core/src/ops/time/`, pure-Rust Gregorian calendar arithmetic (Fliegel-Van Flandern JDN), full CLI + GUI integration with live clock/stopwatch display, 2397 hp41-core tests, 96.01% region coverage, README hard-claim graduated.
+
+</details>
 
 <details>
 <summary>v3.1 Stat 1 Pac Emulation (shipped 2026-05-24 — see <code>milestones/v3.1-ROADMAP.md</code>)</summary>
@@ -70,6 +70,7 @@
   - Phase 31 GUI Integration (2026-05-18) — `hp41-gui` only; 5 plans; CATALOG 2 XROM enumeration + Math Pac I help overlay + LCD-alternation modal prompts + R/S 3-way + Esc cascade + request_cancel channel
   - Phase 32 Test Hardening & Quality Gates (2026-05-18) — `tests/` + `scripts/` + `.github/` + `justfile` only; 10 plans (3 original + 7 gap-closure); meta-gate graduation (`math1_op_test_count` + `xrom_shadowing` actively cross-check 45 Op variants × 14 test files + 52 MATH_1.ops × 18-entry allowlist); `lint_math1_assertions.rs` Pitfall 14 + 17 discipline; `numerical_accuracy.rs` 566 → 763 cases (99.3 % pass); E2E smoke extended (`sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu); `scripts/check-free42-contamination.sh` D-32.7 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job (D-32.8). Gap-closure run (Plans 32-04..32-10) added ~70 error-branch tests across 9 new files, closing the coverage gate from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions; README v3.0 line graduated to the OM-cited hard claim per D-32.5.
 - v3.1 Stat 1 Pac Emulation (2026-05-24) — Phases 33–37, 23 plans; second XROM application module (13 programs, 26 XEQ entry points, RAND/SEED extension, distribution primitives, ANOVA family, multiple + polynomial regression, hypothesis tests); 95.84 % region coverage; 98.86 % numerical accuracy (791 cases); tag `v3.1`
+- v3.2 Time Pac Emulation (2026-05-25) — Phases 38–42, 19 plans; third XROM application module (HP 82182A Time Module, XROM 26, 35 XEQ entry points across clock/date/alarm/stopwatch); first real-time behavior in the emulator; pure-Rust JDN calendar arithmetic; 96.01 % region coverage; 2397 hp41-core tests; tag `v3.2`
   - Phase 33 hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops (2026-05-22) — `hp41-core` only; 9 plans; 39 STAT-* requirements; ~26 new Op variants; 3 hand-coded distribution primitives (Acklam/AS 241 + Cody AS 239 + Lentz AS 63); 5 architectural locks captured as ADR-v3.1-001..005; `xrom_modules` default updated 0b01 → 0b11 with `migrate_after_load()` for v3.0 save-file forward-compat; 95.39 % line / 94.26 % region coverage preserved; Free42 contamination guard extended 12 → 18 tokens covering both `math1/` and `stat1/` trees.
   - Phase 34 hp41-cli — CLI Integration (2026-05-23) — `hp41-cli` only; 2 plans; 5 STAT-CLI requirements; 26 new `op_display_name` arms (4-way invariant item 3 complete); third `OnceLock<Vec<HelpEntry>>` in `help_data.rs` for `docs/hp41-stat1-functions.json` (26 entries, 7-category convention per D-34.1); 3-pool JSON parity test cross-checks Op ↔ JSON across cv + math1 + stat1; `?` overlay "Stat 1 Pac (XROM 2)" section parallel-loads alongside Math 1 Pac; modal-prompt routing reuses v3.0 infrastructure with no new transient CalcState fields beyond `rand_seed`; `xrom_shadowing.rs` extended to `STAT_1.ops` (Pitfall 22 verified across both XROM modules).
   - Phase 35 Documentation & ADRs (2026-05-23) — `docs/` + `.planning/` + repo-root markdown only; 4 plans; 6 STAT-DOC requirements; `scripts/docs-matrix` three-input extension (4-line basename dispatch; binary signature 1-in/1-out preserved per D-30.1 carry-forward); `docs/hp41-stat1-function-matrix.md` regenerated (26 entries); `docs/hp41-stat1-divergences.md` three-bucket catalog with 12 D-35-NN entries (6 oracle-drift bucket-3 reconciliations cross-referencing `33-SPEC-AMENDMENT.md` + 2 emulator extensions + 4 additional behavioral policies); `33-SPEC-AMENDMENT.md` history-preserving SPEC supplement (6-row drift reconciliation table); 5 new ADRs (v3.1-001..005, long-form per D-30.6); README v3.1 soft-claim per D-35.3; CLAUDE.md FIRST-EVER `### v3.x additions` block (v3.1 only, no v3.0 back-fill per D-35.5) + math1/ freeze carve-out amendment gated by ADR-v3.1-004; `docs/architecture-history.md` v3.1 narrative parallel to v3.0; `.planning/MILESTONES.md` v3.1 stub.
@@ -222,6 +223,20 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **STAT-DOC-01..06**: Documentation (divergences, function matrix, 5 ADRs, README/CLAUDE.md) — v3.1 Phase 35
 - ✓ **STAT-GUI-01..05**: GUI integration (CATALOG 2, help overlay, modal prompts, bounded-iter waiver) — v3.1 Phases 36–37
 - ✓ **STAT-QUAL-01..11**: Quality gates (coverage, accuracy, meta-gates, backward-compat, E2E smoke) — v3.1 Phase 37
+
+### Validated (v3.2 — Time Pac Emulation, shipped 2026-05-25)
+
+- ✓ **TIME-FW-01..06**: XROM framework activation (TIME_MODULE XROM ID 26, 35 ops, `xrom_resolve` bit-2 arm, `default_xrom_modules` → `0b0000_0111`, `migrate_after_load()` v3.1→v3.2) — v3.2 Phase 38
+- ✓ **TIME-CLK-01..06**: Clock ops (TIME/DATE/SETIME/SETDATE/T+X/CORRECT with `SystemTime::now()` + `time_offset_secs` delta) — v3.2 Phase 38
+- ✓ **TIME-DAT-01..06**: Date arithmetic (DATE+/DDAYS/DOW via Fliegel-Van Flandern JDN, DMY/MDY format, Gregorian calendar) — v3.2 Phase 38
+- ✓ **TIME-DSP-01..05**: Clock display mode (CLKT/CLKTD/CLOCK, 12h/24h, pull-on-redraw live display) — v3.2 Phases 38–39
+- ✓ **TIME-FMT-01..05**: Time format ops (CLK12/CLK24/SETAF/RCLAF) — v3.2 Phase 38
+- ✓ **TIME-SW-01..09**: Stopwatch (RUNSW/STOPSW/RCLSW/SETSW/SWPT/STPW/SW with Instant monotonic timing, centisecond resolution) — v3.2 Phases 38–39
+- ✓ **TIME-ALM-01..12**: Alarm system (XYZALM/RCLALM/ALMCAT/CLALMA/CLALMX/CLRALMS/ALMNOW, 253-entry catalog, past-due detection, `check_alarms()` drain, repeat intervals) — v3.2 Phases 38–39
+- ✓ **TIME-CLI-01..08**: CLI integration (4th JSON pool, 35 `op_display_name` arms, live clock/stopwatch display, stopwatch keyboard mode, alarm event draining) — v3.2 Phase 39
+- ✓ **TIME-DOC-01..06**: Documentation (divergences catalog, function matrix, 3 ADRs, README soft-claim, CLAUDE.md/architecture-history.md) — v3.2 Phase 40
+- ✓ **TIME-GUI-01..07**: GUI integration (CATALOG 2, help overlay, `tick_time` conditional setInterval, alarm toast, LCD-alternation modal prompts) — v3.2 Phase 41
+- ✓ **TIME-QUAL-01..11**: Quality gates (96.01% region coverage, 30 date accuracy cases, stopwatch timing, alarm latency, unified meta-gates, backward compat, E2E DDAYS smoke, README hard-claim graduated) — v3.2 Phase 42
 
 ### Out of Scope
 
