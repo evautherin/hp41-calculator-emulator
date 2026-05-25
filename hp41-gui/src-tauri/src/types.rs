@@ -45,6 +45,8 @@ fn truncate_with_continuation(s: &str) -> String {
 }
 
 use crate::prgm_display;
+use hp41_core::ops::time::clock::get_clock_display_str;
+use hp41_core::ops::time::stopwatch::get_stopwatch_display_str;
 use hp41_core::{format_alpha, format_hpnum, AngleMode, CalcState, HpError};
 use serde::Serialize;
 
@@ -122,18 +124,17 @@ impl CalcStateView {
         print_lines: Vec<String>,
         event_lines: Vec<String>,
     ) -> Self {
-        // display_str priority chain (D-01 + Claude's Discretion + D-31.5):
-        //   0. [NEW Phase 31 Plan 05] modal_prompt truncated when modal is active
-        //      AND entry_buf is empty AND modal_prompt is set → LCD-alternation
-        //      (D-31.5 / D-31.6). Placed BEFORE entry_buf priority so the prompt
-        //      shows while waiting for user input; once the user starts typing,
-        //      entry_buf is non-empty and that branch wins instead (live feedback).
-        //      NOTE: display_override is RESERVED for Phase 21 VIEW/AVIEW/PROMPT/CLD
-        //      and must NOT be used here — see module-level doc comment.
-        //   1. entry_buf (when user is typing — overrides modal prompt)
-        //   2. alpha_reg via format_alpha (when alpha_mode is on)
+        // display_str priority chain (D-01 + D-31.5 + D-39.1):
+        //   -1. clock/stopwatch live display (highest priority, mirrors CLI ui.rs)
+        //   0. modal_prompt LCD-alternation (D-31.5 / D-31.6)
+        //   1. entry_buf (when user is typing)
+        //   2. alpha_reg via format_alpha
         //   3. format_hpnum(stack.x, display_mode) (default)
-        let display_str = if state.modal_program.is_some()
+        let display_str = if let Some(s) = get_clock_display_str(state) {
+            s
+        } else if let Some(s) = get_stopwatch_display_str(state) {
+            s
+        } else if state.modal_program.is_some()
             && state.entry_buf.is_empty()
             && state.modal_prompt.is_some()
         {
