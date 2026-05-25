@@ -454,6 +454,8 @@ mod tests {
         let result = secs_to_hpnum_time(3661.5).unwrap();
         // 1h=1, 01m=01, 01s=01, 50cs=50 → "1.010150"
         let expected = Decimal::from_str("1.010150").unwrap();
+        // LINT-EXEMPT: exact Decimal string equality via Decimal::from_str — no f64 bridge;
+        // secs_to_hpnum_time builds HH.MMSScc from integer arithmetic, no drift possible.
         assert_eq!(result.inner(), HpNum::from(expected).inner());
     }
 
@@ -468,6 +470,8 @@ mod tests {
         // 3600 seconds = 1h 0m 0s = 1.000000
         let result = secs_to_hpnum_time(3600.0).unwrap();
         let expected = Decimal::from_str("1.000000").unwrap();
+        // LINT-EXEMPT: exact Decimal string equality via Decimal::from_str — no f64 bridge;
+        // secs_to_hpnum_time builds HH.MMSScc from integer arithmetic, no drift possible.
         assert_eq!(result.inner(), HpNum::from(expected).inner());
     }
 
@@ -642,6 +646,8 @@ mod tests {
         state.stack.lift_enabled = true;
         op_date_plus(&mut state).unwrap();
         // After binary_result: new Y = old Z sentinel
+        // LINT-EXEMPT: exact Decimal string equality via from_str — no f64 bridge; date value built from
+        // string arithmetic with no float conversion; round-trip comparison of Decimal representations.
         assert_eq!(
             state.stack.y.inner(),
             HpNum::from(Decimal::from_str("7.042023").unwrap()).inner()

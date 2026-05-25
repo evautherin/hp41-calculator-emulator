@@ -1,76 +1,58 @@
-// Algorithm independently re-derived from HP Math Pac I Owner's Manual 00041-90034 (1979);
+// Algorithm independently re-derived from HP module Owner's Manuals;
 // Free42 source consulted only as sanity-check oracle, not copied.
 //
-//! Plan 32-01 / T-32-04 mitigation — assertion-discipline lint over `tests/math1_*.rs`.
+//! Phase 42 Plan 01 / D-42.1 — Unified assertion-discipline lint over all
+//! three XROM module test surfaces (Math 1, Stat 1, Time).
 //!
-//! Two `#[test]` gates enforce the Phase 32 tolerance discipline that Plans
-//! 28-02..28-10 left informal:
+//! **Replaces (D-42.14):**
+//! - `lint_math1_assertions.rs` (Phase 32 Plan 01 / T-32-04)
+//! - `lint_stat1_assertions.rs` (Phase 37 Wave 1 / STAT-QUAL-06 / D-37.8)
 //!
-//! 1. **`no_decimal_assert_eq_in_math1_tests`** (Pitfall 17): `assert_eq!`
+//! **Unification rationale (D-42.1):**
+//! With three XROM modules, per-module lint files proliferate. A single unified
+//! file enforces Pitfall 14/17 discipline across all module test trees and makes
+//! v3.3 Advantage Pac integration free.
+//!
+//! **Two `#[test]` gates (Pitfall 14/17 T-32-04 rationale):**
+//!
+//! 1. **`no_decimal_assert_eq_in_xrom_tests`** (Pitfall 17): `assert_eq!`
 //!    invocations comparing two BCD `HpNum` / `Decimal` / `f64` values are
 //!    forbidden — those flow paths can drift across x86 and ARM FPUs by the
 //!    last digit (the BCD layer hides the drift inside `hp41-core` but the
-//!    `to_f64()` bridge re-exposes it). Use `approx::assert_relative_eq!(actual, expected, max_relative = 1e-7)` instead.
+//!    `to_f64()` bridge re-exposes it). Use
+//!    `approx::assert_relative_eq!(actual, expected, max_relative = 1e-7)` instead.
 //!
-//! 2. **`no_manual_tolerance_pattern_in_math1_tests`** (Pitfall 14): manual
+//! 2. **`no_manual_tolerance_pattern_in_xrom_tests`** (Pitfall 14): manual
 //!    `(actual - expected).abs() < EPSILON` patterns undermine the
-//!    single-source-of-truth `max_relative = 1e-7` discipline established in
-//!    `hp41-core/tests/math1_complex.rs`. Use `approx::assert_relative_eq!`
-//!    so every relative-equality check lives under one canonical tolerance
-//!    knob — D-27.1 risk-weighted discipline applied to tolerance choice.
+//!    single-source-of-truth `max_relative = 1e-7` discipline. Use
+//!    `approx::assert_relative_eq!` so every relative-equality check lives
+//!    under one canonical tolerance knob (D-27.1).
 //!
-//! ## Heuristic
+//! **Scan scope (three-module collection):**
 //!
-//! The two lints are line-level greps with conservative recognition rules to
-//! distinguish acceptable from forbidden patterns. Per RESEARCH Open Q2:
+//! - **Math 1:** external `tests/math1_*.rs` files (full content — entire file
+//!   is test code). Does NOT include `tests/numerical_accuracy.rs` (the `case!`
+//!   macro has its own `AccuracyCase.tol` bookkeeping).
 //!
-//! - **Acceptable** (string / enum / integer equality — exact, cross-platform-safe):
-//!   ```text
-//!   assert_eq!(state.modal_prompt, Some("ORDER=?".to_string()))      // string
-//!   assert_eq!(result, Err(HpError::InvalidOp))                       // enum
-//!   assert_eq!(state.regs[0], hp41_core::HpValue::from(5i32))                      // int (LINT-EXEMPT)
-//!   ```
-//! - **Forbidden** (decimal / float equality — drift-prone):
-//!   ```text
-//!   assert_eq!(x_val, 0.5)                                            // float
-//!   assert_eq!(state.stack.x.inner().to_f64().unwrap(), 4.0)          // bridge
-//!   ```
+//! - **Stat 1:** external `tests/stat1_*.rs` files (Pass 1) AND inline
+//!   `#[cfg(test)]` blocks from `src/ops/stat1/*.rs` (Pass 2). The 6 exact
+//!   HpNum `assert_eq!` calls in `stat1_rand_determinism.rs` are pre-annotated
+//!   with `// LINT-EXEMPT:` — they use Decimal arithmetic, not f64 bridges.
 //!
-//! ## LINT-EXEMPT annotations
+//! - **Time:** external `tests/time_*.rs` files if any (Pass 1) AND inline
+//!   `#[cfg(test)]` blocks from `src/ops/time/*.rs` (Pass 2). Time has 209
+//!   inline tests as the primary test surface at Wave 1.
+//!
+//! **LINT-EXEMPT annotations:**
 //!
 //! A line containing `// LINT-EXEMPT: <reason>` is excluded from both lints.
 //! The annotation MUST give a specific rationale (T-32-04: reviewers spot
-//! drive-by allowlisting). Examples: integer-equality via `HpNum::from(<int>)`,
-//! coarse-tolerance triangulation / Fourier / integration cases where the
-//! algorithmic precision floor is intentionally above 1e-7.
+//! drive-by allowlisting). The `preceding_block_has_lint_exempt` helper uses
+//! an adjacent-comment lookback pattern.
 //!
-//! ## Scope
-//!
-//! Only `hp41-core/tests/math1_*.rs` files (Phase 32 Claude's Discretion
-//! option (a)). Does NOT scan `tests/numerical_accuracy.rs` (the `case!` macro
-//! has its own internal `AccuracyCase.tol` bookkeeping). Future widening
-//! (option (b) — all `tests/`) is a v3.1+ consideration when a gap surfaces.
-//!
-//! ## Multi-line assert_eq detection (WR-02, Plan 32-09)
-//!
-//! The `no_decimal_assert_eq_in_math1_tests` lint detects both single-line and
-//! multi-line `assert_eq!(decimal, decimal)` invocations. The lookahead window
-//! is the `assert_eq!` line plus up to 3 following lines. This closes the
-//! blind spot where a multi-line invocation like:
-//! ```rust
-//! assert_eq!(
-//!     s.stack.x.inner(),  // .inner() was invisible to the old single-line heuristic
-//!     x_before,
-//!     "..."
-//! );
-//! ```
-//! would not be detected by the prior single-line heuristic.
-//!
-//! **Known false-positive class:** `assert_eq!` calls whose COMPARISON ARGUMENTS
-//! are integer-typed (e.g., `HpNum::from(5i32)`, `.to_i32()`) but where the
-//! lookahead window happens to contain decimal tokens in SUBSEQUENT unrelated
-//! lines (e.g., setup code after the assertion). These are annotated with
-//! `// LINT-EXEMPT: integer-equality — <reason>` per the established pattern.
+//! **Multi-line assert_eq detection (WR-02):**
+//! Both single-line and multi-line `assert_eq!(decimal, decimal)` invocations
+//! are detected. Lookahead window = current line + 3 following lines.
 
 #![allow(clippy::unwrap_used)]
 
@@ -80,14 +62,52 @@ use std::path::{Path, PathBuf};
 /// rationale per T-32-04 (the threat is silent allowlisting in a future commit).
 const LINT_EXEMPT_TOKEN: &str = "LINT-EXEMPT:";
 
-/// Iterate `hp41-core/tests/math1_*.rs` files. Returns `Vec<(PathBuf, String)>`
-/// of (path, file-contents). Mirrors the directory-scan loop in
-/// `math1_op_test_count.rs::count_test_mentions` per the 32-PATTERNS.md analog.
-fn collect_math1_test_files(tests_dir: &Path) -> Vec<(PathBuf, String)> {
+// ── Unified test-content collector ────────────────────────────────────────────
+
+/// Collect all XROM module test content for linting via three-module strategy.
+///
+/// **Module 1 — Math 1:** external `tests/math1_*.rs` files (full file content).
+///
+/// **Module 2 — Stat 1:** external `tests/stat1_*.rs` files (Pass 1) AND inline
+/// `#[cfg(test)]` blocks from `src/ops/stat1/*.rs` (Pass 2).
+///
+/// **Module 3 — Time:** external `tests/time_*.rs` files if any (Pass 1) AND
+/// inline `#[cfg(test)]` blocks from `src/ops/time/*.rs` (Pass 2).
+///
+/// Returns `Vec<(PathBuf, String)>` of (path, scanned-content) pairs for all
+/// collected test surfaces.
+fn collect_xrom_test_content(
+    tests_dir: &Path,
+    manifest_dir: &Path,
+) -> Vec<(PathBuf, String)> {
     let mut files = Vec::new();
+    let src_ops_dir = manifest_dir.join("src").join("ops");
+
+    // ── Math 1: external tests/math1_*.rs (Pass 1 only) ─────────────────────
+    collect_external_files(tests_dir, "math1_", None, &mut files);
+
+    // ── Stat 1: external tests/stat1_*.rs (Pass 1) + inline src/ops/stat1/*.rs (Pass 2)
+    collect_external_files(tests_dir, "stat1_", None, &mut files);
+    collect_inline_cfg_test_blocks(&src_ops_dir.join("stat1"), &mut files);
+
+    // ── Time: external tests/time_*.rs (Pass 1) + inline src/ops/time/*.rs (Pass 2)
+    collect_external_files(tests_dir, "time_", None, &mut files);
+    collect_inline_cfg_test_blocks(&src_ops_dir.join("time"), &mut files);
+
+    files
+}
+
+/// Collect external test files with a given filename prefix.
+/// Full file content is collected (the whole file is test code in external tests/).
+fn collect_external_files(
+    tests_dir: &Path,
+    prefix: &str,
+    _extra_file: Option<&str>,
+    files: &mut Vec<(PathBuf, String)>,
+) {
     let entries = match std::fs::read_dir(tests_dir) {
         Ok(e) => e,
-        Err(_) => return files,
+        Err(_) => return,
     };
     for entry in entries.flatten() {
         let path = entry.path();
@@ -95,7 +115,7 @@ fn collect_math1_test_files(tests_dir: &Path) -> Vec<(PathBuf, String)> {
             continue;
         }
         let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if !filename.starts_with("math1_") {
+        if !filename.starts_with(prefix) {
             continue;
         }
         let content = match std::fs::read_to_string(&path) {
@@ -104,12 +124,39 @@ fn collect_math1_test_files(tests_dir: &Path) -> Vec<(PathBuf, String)> {
         };
         files.push((path, content));
     }
-    files
 }
 
+/// Collect inline `#[cfg(test)]` blocks from all `*.rs` files in a source directory.
+/// Only the test section content is collected (non-test prefix is skipped).
+fn collect_inline_cfg_test_blocks(src_dir: &Path, files: &mut Vec<(PathBuf, String)>) {
+    let entries = match std::fs::read_dir(src_dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        // Extract only the #[cfg(test)] sections (skip the non-test prefix).
+        // Multiple #[cfg(test)] blocks in a single file are each captured.
+        let test_sections: Vec<&str> = content.split("#[cfg(test)]").skip(1).collect();
+        if !test_sections.is_empty() {
+            // Rejoin sections — each is a test module; combined content is the
+            // full test surface for linting purposes.
+            let test_content = test_sections.join("\n#[cfg(test)]");
+            files.push((path, test_content));
+        }
+    }
+}
+
+// ── Lint helper functions (verbatim from lint_math1_assertions.rs, T-32-04) ───
+
 /// Format a single offender line as `"{filename}:{line_no}: {trimmed_source_line}"`.
-/// Pattern matches `math1_op_test_count.rs::each_math1_op_has_at_least_5_tests`
-/// failure-list formatting per the 32-PATTERNS.md analog.
 fn format_offender(path: &Path, line_no: usize, line: &str) -> String {
     let name = path
         .file_name()
@@ -121,9 +168,8 @@ fn format_offender(path: &Path, line_no: usize, line: &str) -> String {
 /// Check the preceding lines for a `LINT-EXEMPT:` annotation that applies
 /// to the assertion at `lines[idx]`. Walks upward, skipping continuation
 /// lines of the same `assert!(...)` macro (lines that look like part of a
-/// multi-line macro invocation — opening `assert!(` or trailing argument
-/// lines like `Op::Integ ... must be ..."` or commas/whitespace). Once a
-/// comment block is reached, the block is scanned for `LINT-EXEMPT:`.
+/// multi-line macro invocation). Once a comment block is reached, the block
+/// is scanned for `LINT-EXEMPT:`.
 ///
 /// The annotation MUST be adjacent to the offender's enclosing item (no
 /// blank line OR semicolon-terminated statement between), so future
@@ -178,20 +224,9 @@ fn preceding_block_has_lint_exempt(lines: &[&str], idx: usize) -> bool {
 /// **Multi-line detection (WR-02):** both single-line and multi-line
 /// `assert_eq!(decimal, decimal)` invocations are detected. The lookahead
 /// window is: current line + 3 following lines joined with `\n`.
-/// Example caught by lookahead:
-/// ```rust
-/// assert_eq!(          // line N   — contains assert_eq!
-///     s.stack.x.inner(), // line N+1 — contains .inner()
-///     x_before,
-///     "...",
-/// );
-/// ```
 ///
 /// Lines bearing `LINT-EXEMPT:` (inline) OR carrying a `LINT-EXEMPT:` in the
-/// preceding contiguous comment block are exempted (e.g., integer equality
-/// via `HpNum::from(5i32)` is exact and cross-platform-safe). Comment lines
-/// (`//` / `///` / `//!`) are exempted — they describe the code, not
-/// execute it; mirrors `math1_op_test_count.rs::count_test_mentions`.
+/// preceding contiguous comment block are exempted. Comment lines are exempted.
 fn line_is_forbidden_assert_eq(line: &str, lines: &[&str], idx: usize) -> bool {
     if line.contains(LINT_EXEMPT_TOKEN) {
         return false;
@@ -229,14 +264,10 @@ fn line_is_forbidden_assert_eq(line: &str, lines: &[&str], idx: usize) -> bool {
 /// per Pitfall 14.
 ///
 /// A line is forbidden iff it matches the textual pattern `).abs() <` AND
-/// contains a `-` inside parentheses on the same line. The regex-free
-/// approach keeps the lint dep-free; the false-positive rate against the
-/// current `math1_*.rs` corpus is zero (comment-lines and LINT-EXEMPT
-/// annotations are pre-filtered).
+/// contains a ` - ` inside parentheses on the same line.
 ///
 /// Lines bearing `LINT-EXEMPT:` (inline) OR carrying a `LINT-EXEMPT:` in the
-/// preceding contiguous comment block are exempted. Comment lines (`//` /
-/// `///` / `//!`) are exempted — they describe the code, not execute it.
+/// preceding contiguous comment block are exempted. Comment lines are exempted.
 fn line_is_forbidden_manual_tolerance(line: &str, lines: &[&str], idx: usize) -> bool {
     if line.contains(LINT_EXEMPT_TOKEN) {
         return false;
@@ -267,15 +298,22 @@ fn line_is_forbidden_manual_tolerance(line: &str, lines: &[&str], idx: usize) ->
     true
 }
 
+// ── Lint gate tests ───────────────────────────────────────────────────────────
+
 /// Catches: Pitfall 17 — `assert_eq!(decimal, decimal)` on iterated results
 /// can drift across x86 and ARM FPUs by the last digit. The BCD layer hides
 /// the drift inside `hp41-core`, but `to_f64()` bridges re-expose it. T-32-04:
 /// the offender list is reported in full so a reviewer can spot weakening.
+///
+/// Scans ALL three XROM module test surfaces (D-42.1 unification):
+/// - Math 1: `tests/math1_*.rs` (external)
+/// - Stat 1: `tests/stat1_*.rs` (external) + `src/ops/stat1/*.rs` inline cfg(test)
+/// - Time:   `tests/time_*.rs` (external) + `src/ops/time/*.rs` inline cfg(test)
 #[test]
-fn no_decimal_assert_eq_in_math1_tests() {
+fn no_decimal_assert_eq_in_xrom_tests() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let tests_dir = manifest_dir.join("tests");
-    let files = collect_math1_test_files(&tests_dir);
+    let files = collect_xrom_test_content(&tests_dir, &manifest_dir);
 
     let mut offenders: Vec<String> = Vec::new();
     for (path, content) in &files {
@@ -299,11 +337,16 @@ fn no_decimal_assert_eq_in_math1_tests() {
 /// Catches: Pitfall 14 — manual `(a - b).abs() < EPSILON` patterns undermine
 /// the single-source-of-truth `max_relative = 1e-7` discipline. T-32-04: the
 /// offender list is reported in full so a reviewer can spot weakening.
+///
+/// Scans ALL three XROM module test surfaces (D-42.1 unification):
+/// - Math 1: `tests/math1_*.rs` (external)
+/// - Stat 1: `tests/stat1_*.rs` (external) + `src/ops/stat1/*.rs` inline cfg(test)
+/// - Time:   `tests/time_*.rs` (external) + `src/ops/time/*.rs` inline cfg(test)
 #[test]
-fn no_manual_tolerance_pattern_in_math1_tests() {
+fn no_manual_tolerance_pattern_in_xrom_tests() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let tests_dir = manifest_dir.join("tests");
-    let files = collect_math1_test_files(&tests_dir);
+    let files = collect_xrom_test_content(&tests_dir, &manifest_dir);
 
     let mut offenders: Vec<String> = Vec::new();
     for (path, content) in &files {

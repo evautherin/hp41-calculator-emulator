@@ -675,6 +675,7 @@ mod tests {
         let mut state = CalcState::new();
         state.stack.x = HpNum::from(rust_decimal::Decimal::from(2));
         op_setaf(&mut state).unwrap();
+        // LINT-EXEMPT: exact integer equality — Decimal::from(2) is an integer, no f64 bridge or drift
         assert_eq!(
             state.accuracy_factor,
             HpNum::from(rust_decimal::Decimal::from(2))
@@ -686,6 +687,7 @@ mod tests {
         let mut state = CalcState::new();
         state.accuracy_factor = HpNum::from(rust_decimal::Decimal::from(5));
         op_rclaf(&mut state).unwrap();
+        // LINT-EXEMPT: exact integer equality — Decimal::from(5) is an integer, no f64 bridge or drift
         assert_eq!(state.stack.x, HpNum::from(rust_decimal::Decimal::from(5)));
     }
 

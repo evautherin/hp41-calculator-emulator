@@ -386,6 +386,7 @@ mod tests {
         state.stack.x = crate::num::HpNum::from(42i32);
         op_atime(&mut state).unwrap();
         // Stack X should be unchanged (Neutral lift effect)
+        // LINT-EXEMPT: exact integer equality — HpNum::from(42i32) uses Decimal, no f64 bridge or drift
         assert_eq!(state.stack.x, crate::num::HpNum::from(42i32));
     }
 

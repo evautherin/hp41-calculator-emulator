@@ -893,6 +893,7 @@ mod tests {
         assert!(y_str.starts_with("5.24"), "Date Y: {}", y_str);
 
         // Z should be 0 (no repeat).
+        // LINT-EXEMPT: exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge or drift
         assert_eq!(state.stack.z, HpNum::zero());
 
         // ALPHA should be "Hello".

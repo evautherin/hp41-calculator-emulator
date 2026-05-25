@@ -346,6 +346,7 @@ mod tests {
         state.stack.x = HpNum::from(Decimal::from_str("1.300000").unwrap());
         op_setsw(&mut state).unwrap();
         // 1h 30m = 5400 seconds
+        // LINT-EXEMPT: f64 stopwatch accumulated seconds — not HpNum; tolerance required for float arithmetic
         assert!((state.stopwatch_accumulated - 5400.0).abs() < 0.01);
         assert_eq!(state.stopwatch_mode, StopwatchMode::Stopped);
         assert!(state.stopwatch_start.is_none());
@@ -360,6 +361,7 @@ mod tests {
         state.stack.x = HpNum::from(Decimal::from_str("0.000550").unwrap());
         op_setsw(&mut state).unwrap();
         // 5 seconds + 50 centiseconds = 5.50 seconds
+        // LINT-EXEMPT: f64 stopwatch accumulated seconds — not HpNum; tolerance required for float arithmetic
         assert!((state.stopwatch_accumulated - 5.50).abs() < 0.01);
         assert_eq!(state.stopwatch_mode, StopwatchMode::Stopped);
     }
@@ -425,6 +427,7 @@ mod tests {
         state.stopwatch_accumulated = 42.5;
         op_stpw(&mut state).unwrap();
         // When stopped, split = accumulated
+        // LINT-EXEMPT: f64 stopwatch split seconds — not HpNum; tolerance required for float arithmetic
         assert!((state.stopwatch_split - 42.5).abs() < 0.001);
     }
 
@@ -445,6 +448,7 @@ mod tests {
         let mut state = CalcState::new();
         state.stopwatch_split = 0.0;
         op_swpt(&mut state).unwrap();
+        // LINT-EXEMPT: exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge or drift
         assert_eq!(state.stack.x, HpNum::zero());
     }
 
@@ -524,6 +528,7 @@ mod tests {
     fn secs_to_hpnum_time_zero() {
         let n = secs_to_hpnum_time(0.0).unwrap();
         // 0 seconds → 0.000000
+        // LINT-EXEMPT: exact integer equality — Decimal::ZERO is exact zero, no f64 bridge or drift
         assert_eq!(n, HpNum::from(rust_decimal::Decimal::ZERO));
     }
 
@@ -587,6 +592,7 @@ mod tests {
         // Record split
         op_stpw(&mut state).unwrap();
         let recorded_split = state.stopwatch_split;
+        // LINT-EXEMPT: f64 stopwatch split seconds — not HpNum; tolerance required for float arithmetic
         assert!((recorded_split - 3723.45).abs() < 0.01);
 
         // Recall split to X
