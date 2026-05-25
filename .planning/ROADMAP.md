@@ -85,7 +85,7 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
 **Milestone Goal:** Behavioral emulation of the HP-41CX Time Module (HP 82182A, XROM 26, OM 00041-90035) as the third XROM application module -- date/time arithmetic backed by the host system clock, full alarm catalog with past-due detection, and live-updating stopwatch/clock display. This is the FIRST module introducing real-time behavior into the previously event-driven emulator.
 
 - [x] **Phase 38: hp41-core -- XROM Framework + Clock/Date/Stopwatch/Alarm Core** - All ~33 Op variants in dispatch()/execute_op(); XROM 26 registration; JDN date arithmetic; stopwatch state machine; alarm catalog; clock display mode; live display architecture decision (completed 2026-05-24)
-- [ ] **Phase 39: hp41-cli -- CLI Integration + Live Display** - 4-way invariant item 3; fourth JSON source-of-truth; live-updating clock/stopwatch in TUI; alarm notifications; stopwatch keyboard mode
+- [x] **Phase 39: hp41-cli -- CLI Integration + Live Display** - 4-way invariant item 3; fourth JSON source-of-truth; live-updating clock/stopwatch in TUI; alarm notifications; stopwatch keyboard mode (completed 2026-05-25)
 - [x] **Phase 40: Documentation & ADRs** - Divergences catalog; function matrix; ADRs for clock access, live display, alarm design; README soft-claim; CLAUDE.md/architecture-history.md updates (completed 2026-05-25)
 - [x] **Phase 41: hp41-gui -- GUI Integration + Live Display** - 4-way invariant item 4; tick_time Tauri command with conditional setInterval (D-11 exception); alarm toast; CATALOG 2 + help overlay (completed 2026-05-25)
 - [x] **Phase 42: Test Hardening & Quality Gates** - Coverage gate; date arithmetic accuracy suite; per-Op meta-gate; backward-compat; E2E smoke; Free42 contamination re-verification; README hard-claim graduation (completed 2026-05-25)
@@ -135,7 +135,7 @@ Plans:
   3. User can enter interactive stopwatch mode (XEQ "SW") and see centisecond-resolution elapsed time updating in the TUI at 10+ Hz, with dedicated key bindings for start/stop/split/reset
   4. When an alarm comes due, the user sees a status-bar notification without having to execute any command
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -144,8 +144,8 @@ Plans:
  
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 39-02-PLAN.md — Live display priority in TUI + stopwatch keyboard mode + alarm event draining
-- [ ] 39-03-PLAN.md — Integration tests: help data smoke tests + key-ref exclusion tests
+- [x] 39-02-PLAN.md — Live display priority in TUI + stopwatch keyboard mode + alarm event draining
+- [x] 39-03-PLAN.md — Integration tests: help data smoke tests + key-ref exclusion tests
 
 ### Phase 40: Documentation & ADRs
 
@@ -231,7 +231,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
-| 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
+| 39. hp41-cli -- CLI Integration + Live Display | 3/3 | Complete   | 2026-05-25 |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
 | 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete    | 2026-05-25 |
 | 42. Test Hardening & Quality Gates | 4/4 | Complete   | 2026-05-25 |
