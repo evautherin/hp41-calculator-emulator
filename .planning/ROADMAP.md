@@ -121,7 +121,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
   4. `XEQ "TVM"` modal prompts for N, I, PV, PMT, FV; `XEQ "*I"` converges via Newton iteration; v3.2 save files load without error (xrom_modules migrated 0b0111 → 0b11111)
   5. All new Op variants compile without errors in `dispatch()` and `execute_op()` (4-way invariant items 1+2 satisfied); `hp41-cli` and `hp41-gui` emit only expected `non-exhaustive patterns` compile breaks (items 3+4 deferred to Phase 44/46)
 
-**Plans:** 7/10 plans executed
+**Plans:** 9/10 plans executed
 
 Plans:
 **Wave 1**
@@ -135,14 +135,14 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 43-04-PLAN.md — ADV MTRX linear algebra: LU decomposition + MDET/MINV/MSYS/M*M (10 ops)
+- [x] 43-04-PLAN.md — ADV MTRX linear algebra: LU decomposition + MDET/MINV/MSYS/M*M (10 ops)
 - [x] 43-05-PLAN.md — Complex extensions (18 ops) + complex matrix ops (5 ops)
 - [x] 43-06-PLAN.md — Curve fitting (7 ops) + vectors/coordinate transform (14 ops)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 43-07-PLAN.md — Solvers: FSOLVE/FINTG/FDIFEQ/FROOT + PLY/RTS (6 ops, run_loop re-entrancy)
-- [ ] 43-08-PLAN.md — Matrix modal workflows: MATRX/MTR/MEDIT/CMEDIT + submit_step wiring
+- [x] 43-08-PLAN.md — Matrix modal workflows: MATRX/MTR/MEDIT/CMEDIT + submit_step wiring
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -213,7 +213,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 7/10 | In Progress|  |
+| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 9/10 | In Progress|  |
 | 44. hp41-cli — CLI Integration | 0/TBD | Not started | - |
 | 45. Documentation & ADRs | 0/TBD | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
