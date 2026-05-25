@@ -110,6 +110,9 @@ pub struct CalcStateView {
     // Both fields are #[serde(default, skip)] in CalcState (transient — not persisted).
     pub clock_active: bool,
     pub stopwatch_keyboard_mode: bool,
+    // stopwatch_running: true when stopwatch_mode == Running; frontend uses this to
+    // decide Space → RUNSW (start) vs STOPSW (stop) in stopwatch keyboard mode.
+    pub stopwatch_running: bool,
 }
 
 impl CalcStateView {
@@ -211,6 +214,8 @@ impl CalcStateView {
         // Frontend uses these to start/stop the 100ms setInterval for clock/stopwatch display.
         let clock_active = state.clock_active;
         let stopwatch_keyboard_mode = state.stopwatch_keyboard_mode;
+        let stopwatch_running =
+            state.stopwatch_mode == hp41_core::ops::time::stopwatch::StopwatchMode::Running;
 
         CalcStateView {
             display_str,
@@ -234,6 +239,7 @@ impl CalcStateView {
             modal_prompt,
             clock_active,
             stopwatch_keyboard_mode,
+            stopwatch_running,
         }
     }
 }
@@ -275,10 +281,10 @@ mod tests {
         let view = CalcStateView::from_state(&state, vec![], vec![]);
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured baseline: 337 bytes. Phase 31 adds ~100 bytes for modal fields.
-        // Phase 41 adds ~52 bytes for clock_active + stopwatch_keyboard_mode boolean fields.
-        // Combined budget: <= 500 bytes (headroom maintained; measure ~489 bytes after Phase 41).
+        // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
+        // Combined budget: <= 525 bytes (headroom maintained).
         assert!(
-            json.len() <= 500,
+            json.len() <= 525,
             "CalcStateView JSON (empty program + empty assignments + no flags) must be ≤500 bytes, got {} bytes: {}",
             json.len(),
             json
@@ -303,10 +309,10 @@ mod tests {
         let view = CalcStateView::from_state(&state, vec![], vec![]);
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured load: 401 bytes; Phase 31 adds ~103 bytes → ~504 bytes.
-        // Phase 41 adds ~52 bytes for clock_active + stopwatch_keyboard_mode → ~556 bytes.
-        // Budget set to 600 bytes with headroom for future fields.
+        // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
+        // Budget set to 625 bytes with headroom for future fields.
         assert!(
-            json.len() <= 600,
+            json.len() <= 625,
             "CalcStateView JSON (realistic ASN+flag load) must be ≤600 bytes, got {} bytes: {}",
             json.len(),
             json

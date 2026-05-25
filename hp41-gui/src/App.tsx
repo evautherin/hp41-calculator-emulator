@@ -47,6 +47,7 @@ interface CalcStateView {
   // Frontend starts setInterval(100ms) when either is true; clears when both are false (D-41.8).
   clock_active: boolean;
   stopwatch_keyboard_mode: boolean;
+  stopwatch_running: boolean;
 }
 
 // Tauri rejects with GuiError { message: string } — String(err) yields
@@ -555,6 +556,38 @@ function App() {
     // calculator state in the background. Esc and '?' are already
     // handled above; this is the third gate layer.
     if (helpOpen) return;
+
+    // D-39.4/D-39.5 mirror: stopwatch keyboard mode intercepts all keys.
+    // Space/Enter → RUNSW/STOPSW toggle, 's' → split, 'r' → reset, Esc → exit.
+    if (calcState?.stopwatch_keyboard_mode) {
+      e.preventDefault();
+      if (e.key === 'Escape') {
+        busyRef.current = true;
+        invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)))
+          .finally(() => { busyRef.current = false; });
+        return;
+      }
+      if (busyRef.current) return;
+      let swKeyId: string | null = null;
+      if (e.key === ' ' || e.key === 'Enter') {
+        swKeyId = calcState.stopwatch_running ? 'time_stopsw' : 'time_runsw';
+      } else if (e.key === 's') {
+        swKeyId = 'time_swpt';
+      } else if (e.key === 'r') {
+        swKeyId = 'time_stpw';
+      }
+      if (swKeyId) {
+        busyRef.current = true;
+        invoke<CalcStateView>('dispatch_op', { keyId: swKeyId })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)))
+          .finally(() => { busyRef.current = false; });
+      }
+      return; // all keys consumed in stopwatch mode
+    }
+
     if (busyRef.current) return; // debounce: ignore while invoke pending
 
     // Phase 26 D-26.4: if a modal is open, route the key through handleModalKey

@@ -128,6 +128,18 @@ pub fn handle_op_prepare(
     calc: &mut CalcState,
     key_id: &str,
 ) -> Result<Option<cards::PreparedCardOp>, GuiError> {
+    // D-39.3 mirror: any dispatch exits clock display mode (CLI: app.rs:464).
+    if calc.clock_active {
+        calc.clock_active = false;
+    }
+
+    // D-39.4 mirror: "sw_exit" is a GUI-only key_id that clears stopwatch keyboard
+    // mode (Esc in the CLI's handle_stopwatch_mode_key). No Op is dispatched.
+    if key_id == "sw_exit" {
+        calc.stopwatch_keyboard_mode = false;
+        return Ok(None);
+    }
+
     // ── Digit keys 0..=9 — bypass dispatch, append to entry_buf ───────────────
     if matches!(
         key_id,

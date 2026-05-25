@@ -67,6 +67,7 @@ interface CalcStateView {
   // Phase 41 D-41.3: live-display trigger fields
   clock_active: boolean;
   stopwatch_keyboard_mode: boolean;
+  stopwatch_running: boolean;
 }
 
 function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
@@ -100,6 +101,7 @@ function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
     // Phase 41 D-41.3: live-display trigger defaults
     clock_active: false,
     stopwatch_keyboard_mode: false,
+    stopwatch_running: false,
     ...overrides,
   };
 }
