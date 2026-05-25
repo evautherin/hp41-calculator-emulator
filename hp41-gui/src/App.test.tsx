@@ -64,6 +64,9 @@ interface CalcStateView {
   modal_program_active: boolean;
   modal_requires_alpha_label: boolean;
   modal_prompt: string | null;
+  // Phase 41 D-41.3: live-display trigger fields
+  clock_active: boolean;
+  stopwatch_keyboard_mode: boolean;
 }
 
 function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
@@ -94,6 +97,9 @@ function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
     modal_program_active: false,
     modal_requires_alpha_label: false,
     modal_prompt: null,
+    // Phase 41 D-41.3: live-display trigger defaults
+    clock_active: false,
+    stopwatch_keyboard_mode: false,
     ...overrides,
   };
 }
@@ -329,6 +335,40 @@ describe('CR-04 — display_override and event_buffer are consumed by React', ()
       const toast = container.querySelector('.toast');
       expect(toast).not.toBeNull();
       expect(toast?.textContent).toContain('BEEP');
+    });
+  });
+
+  // Phase 41 D-41.6 / TIME-GUI-06: alarm event parsing assertions.
+  // D4 verifies prefix-stripping for "alarm:message:" events.
+  it('D4: event_buffer "alarm:message:ALARM!" surfaces alarm text in toast (not raw prefix)', async () => {
+    const { container } = await renderAppAndWait();
+    mockInvoke.mockResolvedValueOnce(
+      makeEmptyView({ event_buffer: ['alarm:message:ALARM!'] }),
+    );
+    await clickKey(container, '1');
+    await waitFor(() => {
+      const toast = container.querySelector('.toast');
+      expect(toast).not.toBeNull();
+      // Alarm text must appear (prefix stripped).
+      expect(toast?.textContent).toContain('ALARM!');
+      // Raw prefix must NOT appear in the toast.
+      expect(toast?.textContent).not.toContain('alarm:message:');
+    });
+  });
+
+  // D5 verifies alarm:xeq routing — control alarm triggers dispatch_op with xeq_{label}.
+  it('D5: event_buffer "alarm:xeq:TESTLBL" dispatches dispatch_op with xeq_TESTLBL', async () => {
+    const { container } = await renderAppAndWait();
+    // First call: dispatch_op for the key click, returns alarm event.
+    mockInvoke.mockResolvedValueOnce(
+      makeEmptyView({ event_buffer: ['alarm:xeq:TESTLBL'] }),
+    );
+    // Second call: dispatch_op for the alarm:xeq dispatch (invoked by the useEffect).
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(container, '1');
+    await waitFor(() => {
+      // The alarm:xeq useEffect must have dispatched dispatch_op with xeq_TESTLBL.
+      expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TESTLBL' });
     });
   });
 });
