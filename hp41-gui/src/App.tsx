@@ -495,7 +495,8 @@ function App() {
       return;
     }
 
-    // Esc precedence (D-26.8 + D-26.4 + D-31.2 + D-39.4):
+    // Esc precedence (D-26.8 + D-26.4 + D-31.2 + D-39.3 + D-39.4):
+    //   -1. Clock display (D-39.3: any key exits — clear and fall through).
     //   0. Stopwatch keyboard mode (exits sw mode via sw_exit dispatch).
     //   1. Help overlay (closes on Esc; doesn't clear modal/shift).
     //   2. pendingInput (closes the modal, clears shiftActive).
@@ -503,6 +504,13 @@ function App() {
     //   4. is_running → request_cancel.
     //   5. shiftActive last (clears the one-shot SHIFT prefix).
     if (e.key === 'Escape') {
+      // D-39.3: clock display exits on any key, including Esc. Non-blocking
+      // fire-and-forget — Esc continues to the normal precedence chain below.
+      if (calcState?.clock_active) {
+        invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(() => {});
+      }
       if (calcState?.stopwatch_keyboard_mode) {
         busyRef.current = true;
         invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
