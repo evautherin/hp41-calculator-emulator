@@ -326,9 +326,7 @@ pub fn op_almcat(state: &mut CalcState) -> Result<(), HpError> {
             AlarmType::Message(m) => m.clone(),
             AlarmType::Control { label, .. } => label.clone(),
         };
-        let line = format!(
-            "{day:02}.{month:02}.{year:04} {hour:02}:{minute:02}:{second:02} {msg}"
-        );
+        let line = format!("{day:02}.{month:02}.{year:04} {hour:02}:{minute:02}:{second:02} {msg}");
         state.print_buffer.push(line);
     }
     apply_lift_effect(state, LiftEffect::Neutral);
