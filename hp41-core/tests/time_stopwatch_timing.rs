@@ -23,8 +23,6 @@ use hp41_core::ops::time::stopwatch::{op_rclsw, op_runsw, op_stopsw, op_stpw, op
 use hp41_core::ops::{dispatch, Op};
 use hp41_core::state::CalcState;
 use hp41_core::HpNum;
-use rust_decimal::Decimal;
-use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 

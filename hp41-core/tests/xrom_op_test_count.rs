@@ -155,8 +155,8 @@ fn stat1_variant_to_fn_name(variant: &str) -> String {
 /// - `TimeTplusx`    → `op_tplusx`
 fn time_variant_to_fn_name(variant: &str) -> String {
     // Strip the leading "Time" module prefix
-    let stripped = if variant.starts_with("Time") {
-        &variant[4..] // strip "Time"
+    let stripped = if let Some(s) = variant.strip_prefix("Time") {
+        s
     } else {
         variant
     };
@@ -333,8 +333,7 @@ fn count_xrom_test_mentions_dual(
                 continue;
             }
             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            let include =
-                filename.starts_with(prefix) || extra_file.map_or(false, |ef| filename == ef);
+            let include = filename.starts_with(prefix) || extra_file == Some(filename);
             if !include {
                 continue;
             }
