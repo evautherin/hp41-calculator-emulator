@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Time Pac Emulation
-status: Awaiting next milestone
-last_updated: "2026-05-25T12:20:02.299Z"
-last_activity: 2026-05-25 — Milestone v3.2 completed and archived
+milestone: v3.3
+milestone_name: Advantage Pac Emulation
+status: planning
+last_updated: "2026-05-25T16:02:13.158Z"
+last_activity: 2026-05-25
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -41,10 +41,10 @@ See: .planning/PROJECT.md (updated 2026-05-24 after v3.2 milestone start)
 
 ## Current Position
 
-Phase: Milestone v3.2 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-25 — Milestone v3.2 completed and archived
+Status: Defining requirements
+Last activity: 2026-05-25 — Milestone v3.3 started
 
 ## Performance Metrics (v3.1 ship)
 
