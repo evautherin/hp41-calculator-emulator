@@ -87,7 +87,7 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
 - [x] **Phase 38: hp41-core -- XROM Framework + Clock/Date/Stopwatch/Alarm Core** - All ~33 Op variants in dispatch()/execute_op(); XROM 26 registration; JDN date arithmetic; stopwatch state machine; alarm catalog; clock display mode; live display architecture decision (completed 2026-05-24)
 - [ ] **Phase 39: hp41-cli -- CLI Integration + Live Display** - 4-way invariant item 3; fourth JSON source-of-truth; live-updating clock/stopwatch in TUI; alarm notifications; stopwatch keyboard mode
 - [x] **Phase 40: Documentation & ADRs** - Divergences catalog; function matrix; ADRs for clock access, live display, alarm design; README soft-claim; CLAUDE.md/architecture-history.md updates (completed 2026-05-25)
-- [ ] **Phase 41: hp41-gui -- GUI Integration + Live Display** - 4-way invariant item 4; tick_time Tauri command with conditional setInterval (D-11 exception); alarm toast; CATALOG 2 + help overlay
+- [x] **Phase 41: hp41-gui -- GUI Integration + Live Display** - 4-way invariant item 4; tick_time Tauri command with conditional setInterval (D-11 exception); alarm toast; CATALOG 2 + help overlay (completed 2026-05-25)
 - [ ] **Phase 42: Test Hardening & Quality Gates** - Coverage gate; date arithmetic accuracy suite; per-Op meta-gate; backward-compat; E2E smoke; Free42 contamination re-verification; README hard-claim graduation
 
 ## Phase Details
@@ -179,7 +179,7 @@ Plans:
   3. When an alarm fires, the user sees a toast notification in the GUI with the alarm message
   4. User can browse CATALOG 2 and see the "TIME 2C" section listing all Time Pac functions; help overlay shows "Time Pac (XROM 26)" section
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -189,7 +189,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 41-03-PLAN.md — Frontend live display: App.tsx setInterval management + alarm event parsing + LCD-alternation modal prompt integration tests
+- [x] 41-03-PLAN.md — Frontend live display: App.tsx setInterval management + alarm event parsing + LCD-alternation modal prompt integration tests
 
 ### Phase 42: Test Hardening & Quality Gates
 
@@ -214,7 +214,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
 | 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
-| 41. hp41-gui -- GUI Integration + Live Display | 2/3 | In Progress|  |
+| 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete   | 2026-05-25 |
 | 42. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---
