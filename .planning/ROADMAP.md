@@ -88,7 +88,7 @@ See [milestones/v3.1-ROADMAP.md](milestones/v3.1-ROADMAP.md) for full phase deta
 - [ ] **Phase 39: hp41-cli -- CLI Integration + Live Display** - 4-way invariant item 3; fourth JSON source-of-truth; live-updating clock/stopwatch in TUI; alarm notifications; stopwatch keyboard mode
 - [x] **Phase 40: Documentation & ADRs** - Divergences catalog; function matrix; ADRs for clock access, live display, alarm design; README soft-claim; CLAUDE.md/architecture-history.md updates (completed 2026-05-25)
 - [x] **Phase 41: hp41-gui -- GUI Integration + Live Display** - 4-way invariant item 4; tick_time Tauri command with conditional setInterval (D-11 exception); alarm toast; CATALOG 2 + help overlay (completed 2026-05-25)
-- [ ] **Phase 42: Test Hardening & Quality Gates** - Coverage gate; date arithmetic accuracy suite; per-Op meta-gate; backward-compat; E2E smoke; Free42 contamination re-verification; README hard-claim graduation
+- [x] **Phase 42: Test Hardening & Quality Gates** - Coverage gate; date arithmetic accuracy suite; per-Op meta-gate; backward-compat; E2E smoke; Free42 contamination re-verification; README hard-claim graduation (completed 2026-05-25)
 
 ## Phase Details
 
@@ -204,7 +204,7 @@ Plans:
   4. E2E smoke test executes at least one Time Pac workflow (e.g., DATE+ or DDAYS) end-to-end in the GUI on Ubuntu
   5. README v3.2 line graduated to OM-cited hard-claim "feature-complete per Owner's Manual 00041-90035" after all quality gates pass
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -221,7 +221,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 42-04-PLAN.md — Backward-compat v3.1 migration test + E2E smoke DDAYS workflow + README hard-claim graduation + final quality-gate verification
+- [x] 42-04-PLAN.md — Backward-compat v3.1 migration test + E2E smoke DDAYS workflow + README hard-claim graduation + final quality-gate verification
 
 ## Progress
 
@@ -234,7 +234,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
 | 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete    | 2026-05-25 |
-| 42. Test Hardening & Quality Gates | 3/4 | In Progress|  |
+| 42. Test Hardening & Quality Gates | 4/4 | Complete   | 2026-05-25 |
 
 ---
 
