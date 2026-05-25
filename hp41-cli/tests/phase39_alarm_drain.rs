@@ -25,8 +25,8 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::{dispatch, Op};
 use hp41_core::ops::time::{AlarmEntry, AlarmType};
+use hp41_core::ops::{dispatch, Op};
 use hp41_core::state::CalcState;
 
 /// Test 1: dispatching Op::TimeAlmnow with a past-due Message alarm populates
@@ -118,10 +118,7 @@ fn check_alarms_with_past_due_alarm_populates_buffer() {
         "event_buffer must be non-empty after check_alarms() fires a past-due alarm; \
          check that time_offset_secs=0 and trigger_unix=0 makes the alarm past-due"
     );
-    let has_alarm_prefix = state
-        .event_buffer
-        .iter()
-        .any(|s| s.starts_with("alarm:"));
+    let has_alarm_prefix = state.event_buffer.iter().any(|s| s.starts_with("alarm:"));
     assert!(
         has_alarm_prefix,
         "event_buffer must contain an 'alarm:' prefixed string after check_alarms; \
@@ -140,7 +137,9 @@ fn event_buffer_drain_clears_buffer() {
     let mut state = CalcState::new();
 
     // Manually populate the buffer (simulating what dispatch_alarm_event does).
-    state.event_buffer.push("alarm:message:Test message".to_string());
+    state
+        .event_buffer
+        .push("alarm:message:Test message".to_string());
     state.event_buffer.push("alarm:xeq:MYPRG".to_string());
 
     assert_eq!(

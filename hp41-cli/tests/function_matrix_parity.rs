@@ -12,7 +12,9 @@
 
 use std::collections::HashSet;
 
-use hp41_cli::help_data::{help_entries, help_entries_math1, help_entries_stat1, help_entries_time};
+use hp41_cli::help_data::{
+    help_entries, help_entries_math1, help_entries_stat1, help_entries_time,
+};
 
 /// Hand-curated inventory of all `hp41_core::ops::Op` variants. Drift
 /// between this list and the enum is caught by `test_op_inventory_count_matches_enum`.
