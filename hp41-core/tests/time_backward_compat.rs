@@ -37,8 +37,8 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::state::CalcState;
 use hp41_core::ops::time::StopwatchMode;
+use hp41_core::state::CalcState;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 

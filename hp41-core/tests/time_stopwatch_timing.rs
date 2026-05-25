@@ -18,8 +18,8 @@
 //! - `stopwatch_reset_zeros_accumulated`: STPW+STOPSW then reset via SETSW.
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::time::stopwatch::{op_rclsw, op_runsw, op_stopsw, op_stpw, op_swpt};
 use hp41_core::ops::time::date_arith::parse_time_hpnum;
+use hp41_core::ops::time::stopwatch::{op_rclsw, op_runsw, op_stopsw, op_stpw, op_swpt};
 use hp41_core::ops::{dispatch, Op};
 use hp41_core::state::CalcState;
 use hp41_core::HpNum;
@@ -77,7 +77,7 @@ fn stopwatch_timing_1s_within_5cs() {
         (95..=105).contains(&total_cs),
         "Stopwatch 1s timing: expected 100cs ±5cs, got {}cs ({}ms)",
         total_cs,
-        total_cs * 10  // centiseconds → milliseconds
+        total_cs * 10 // centiseconds → milliseconds
     );
 }
 

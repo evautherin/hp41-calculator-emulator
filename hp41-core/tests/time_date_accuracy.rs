@@ -75,7 +75,11 @@ fn date_accuracy_01_date_plus_feb28_2000_plus1_leap() {
     let mut state = setup_date_state("2.282000", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2000, 2, 29), "Year 2000 is a leap year; Feb 28 + 1 = Feb 29");
+    assert_eq!(
+        (year, month, day),
+        (2000, 2, 29),
+        "Year 2000 is a leap year; Feb 28 + 1 = Feb 29"
+    );
 }
 
 /// DATE+: Feb 29 2000 + 1 = Mar 1 2000 (day after leap day in year 2000)
@@ -84,7 +88,11 @@ fn date_accuracy_02_date_plus_feb29_2000_plus1() {
     let mut state = setup_date_state("2.292000", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2000, 3, 1), "Feb 29 2000 + 1 = Mar 1 2000");
+    assert_eq!(
+        (year, month, day),
+        (2000, 3, 1),
+        "Feb 29 2000 + 1 = Mar 1 2000"
+    );
 }
 
 /// DOW: Feb 29 2000 = Tuesday = 2
@@ -94,7 +102,11 @@ fn date_accuracy_03_dow_feb29_2000_tuesday() {
     let mut state = setup_dow_state("2.292000", false);
     dispatch(&mut state, Op::TimeDow).unwrap();
     // Python: datetime(2000,2,29).isoweekday() = 2 (Tue); HP: Tue=2
-    assert_eq!(hpnum_to_i64(&state.stack.x), 2, "Feb 29 2000 is Tuesday (DOW=2)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        2,
+        "Feb 29 2000 is Tuesday (DOW=2)"
+    );
 }
 
 /// DDAYS: across leap day 2000 (Feb 28 to Mar 1 = 2 days because Feb 29 exists)
@@ -103,7 +115,11 @@ fn date_accuracy_04_ddays_across_leap_day_2000() {
     // Y = Mar 1 2000, X = Feb 28 2000 → Y - X = 2
     let mut state = setup_ddays_state("3.012000", "2.282000", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 2, "Mar 1 2000 - Feb 28 2000 = 2 days (leap year)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        2,
+        "Mar 1 2000 - Feb 28 2000 = 2 days (leap year)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -117,7 +133,11 @@ fn date_accuracy_05_date_plus_feb28_2100_not_leap() {
     let mut state = setup_date_state("2.282100", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2100, 3, 1), "Year 2100 is NOT a leap year; Feb 28 + 1 = Mar 1");
+    assert_eq!(
+        (year, month, day),
+        (2100, 3, 1),
+        "Year 2100 is NOT a leap year; Feb 28 + 1 = Mar 1"
+    );
 }
 
 /// DDAYS: across Feb 28/Mar 1 in 2100 = 1 day (no Feb 29)
@@ -126,7 +146,11 @@ fn date_accuracy_06_ddays_2100_no_leap_day() {
     // Y = Mar 1 2100, X = Feb 28 2100 → Y - X = 1 (no leap day)
     let mut state = setup_ddays_state("3.012100", "2.282100", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 1, "Mar 1 2100 - Feb 28 2100 = 1 day (non-leap century)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        1,
+        "Mar 1 2100 - Feb 28 2100 = 1 day (non-leap century)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -140,7 +164,11 @@ fn date_accuracy_07_date_plus_feb28_2400_leap_century() {
     let mut state = setup_date_state("2.282400", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2400, 2, 29), "Year 2400 IS a leap year; Feb 28 + 1 = Feb 29");
+    assert_eq!(
+        (year, month, day),
+        (2400, 2, 29),
+        "Year 2400 IS a leap year; Feb 28 + 1 = Feb 29"
+    );
 }
 
 /// DDAYS: across leap day 2400 (Feb 28 to Mar 1 = 2 days)
@@ -148,7 +176,11 @@ fn date_accuracy_07_date_plus_feb28_2400_leap_century() {
 fn date_accuracy_08_ddays_across_leap_day_2400() {
     let mut state = setup_ddays_state("3.012400", "2.282400", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 2, "Mar 1 2400 - Feb 28 2400 = 2 (leap century)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        2,
+        "Mar 1 2400 - Feb 28 2400 = 2 (leap century)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -171,7 +203,11 @@ fn date_accuracy_09_dow_gregorian_start_oct15_1582_friday() {
 fn date_accuracy_10_jdn_roundtrip_gregorian_start_1582() {
     let jdn = date_to_jdn(1582, 10, 15);
     let (year, month, day) = jdn_to_date(jdn);
-    assert_eq!((year, month, day), (1582, 10, 15), "JDN roundtrip for Gregorian start date");
+    assert_eq!(
+        (year, month, day),
+        (1582, 10, 15),
+        "JDN roundtrip for Gregorian start date"
+    );
 }
 
 /// DATE+: Oct 15 1582 + 1 = Oct 16 1582 (next valid Gregorian date)
@@ -181,7 +217,11 @@ fn date_accuracy_11_date_plus_gregorian_start_forward() {
     let mut state = setup_date_state("10.151582", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (1582, 10, 16), "Oct 15 1582 + 1 = Oct 16 1582");
+    assert_eq!(
+        (year, month, day),
+        (1582, 10, 16),
+        "Oct 15 1582 + 1 = Oct 16 1582"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -195,7 +235,11 @@ fn date_accuracy_12_ddays_y2k_boundary_1_day() {
     // Y = Jan 1 2000, X = Dec 31 1999 → Y - X = 1
     let mut state = setup_ddays_state("1.012000", "12.311999", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 1, "Jan 1 2000 - Dec 31 1999 = 1 day");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        1,
+        "Jan 1 2000 - Dec 31 1999 = 1 day"
+    );
 }
 
 /// DATE+: Dec 31 1999 + 1 = Jan 1 2000
@@ -204,7 +248,11 @@ fn date_accuracy_13_date_plus_y2k_crossing() {
     let mut state = setup_date_state("12.311999", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2000, 1, 1), "Dec 31 1999 + 1 = Jan 1 2000");
+    assert_eq!(
+        (year, month, day),
+        (2000, 1, 1),
+        "Dec 31 1999 + 1 = Jan 1 2000"
+    );
 }
 
 /// DOW: Jan 1 2000 = Saturday = 6
@@ -213,7 +261,11 @@ fn date_accuracy_13_date_plus_y2k_crossing() {
 fn date_accuracy_14_dow_jan1_2000_saturday() {
     let mut state = setup_dow_state("1.012000", false);
     dispatch(&mut state, Op::TimeDow).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 6, "Jan 1 2000 is Saturday (DOW=6)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        6,
+        "Jan 1 2000 is Saturday (DOW=6)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -232,7 +284,11 @@ fn date_accuracy_15_ddays_100_years_2000_to_2100() {
     // Y = Jan 1 2100, X = Jan 1 2000
     let mut state = setup_ddays_state("1.012100", "1.012000", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 36525, "Jan 1 2100 - Jan 1 2000 = 36525 days");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        36525,
+        "Jan 1 2100 - Jan 1 2000 = 36525 days"
+    );
 }
 
 /// DATE+: Jan 1 2000 + 36525 = Jan 1 2100
@@ -241,7 +297,11 @@ fn date_accuracy_16_date_plus_large_offset_100_years() {
     let mut state = setup_date_state("1.012000", "36525", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2100, 1, 1), "Jan 1 2000 + 36525 days = Jan 1 2100");
+    assert_eq!(
+        (year, month, day),
+        (2100, 1, 1),
+        "Jan 1 2000 + 36525 days = Jan 1 2100"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -256,7 +316,11 @@ fn date_accuracy_16_date_plus_large_offset_100_years() {
 fn date_accuracy_17_dow_july4_1776_thursday() {
     let mut state = setup_dow_state("7.041776", false);
     dispatch(&mut state, Op::TimeDow).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 4, "July 4 1776 is Thursday (DOW=4)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        4,
+        "July 4 1776 is Thursday (DOW=4)"
+    );
 }
 
 /// DOW: Sep 11, 2001 = Tuesday = 2
@@ -265,7 +329,11 @@ fn date_accuracy_17_dow_july4_1776_thursday() {
 fn date_accuracy_18_dow_sep11_2001_tuesday() {
     let mut state = setup_dow_state("9.112001", false);
     dispatch(&mut state, Op::TimeDow).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 2, "Sep 11 2001 is Tuesday (DOW=2)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        2,
+        "Sep 11 2001 is Tuesday (DOW=2)"
+    );
 }
 
 /// DOW: May 25, 1977 (Star Wars opening) = Wednesday = 3
@@ -274,7 +342,11 @@ fn date_accuracy_18_dow_sep11_2001_tuesday() {
 fn date_accuracy_19_dow_may25_1977_wednesday() {
     let mut state = setup_dow_state("5.251977", false);
     dispatch(&mut state, Op::TimeDow).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 3, "May 25 1977 is Wednesday (DOW=3)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        3,
+        "May 25 1977 is Wednesday (DOW=3)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -288,7 +360,11 @@ fn date_accuracy_20_date_plus_dmy_mode_jan_to_feb() {
     let mut state = setup_date_state("1.012026", "31", true);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, true).unwrap();
-    assert_eq!((year, month, day), (2026, 2, 1), "DMY: Jan 1 2026 + 31 = Feb 1 2026");
+    assert_eq!(
+        (year, month, day),
+        (2026, 2, 1),
+        "DMY: Jan 1 2026 + 31 = Feb 1 2026"
+    );
 }
 
 /// DMY mode — DDAYS: Feb 28 2000 to Mar 1 2000 = 2 days (leap year)
@@ -297,7 +373,11 @@ fn date_accuracy_20_date_plus_dmy_mode_jan_to_feb() {
 fn date_accuracy_21_ddays_dmy_mode_across_leap_2000() {
     let mut state = setup_ddays_state("1.032000", "28.022000", true);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 2, "DMY: Mar 1 2000 - Feb 28 2000 = 2 (leap)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        2,
+        "DMY: Mar 1 2000 - Feb 28 2000 = 2 (leap)"
+    );
 }
 
 /// DMY mode — DOW: Jan 1 2000 = Saturday (same date, different notation)
@@ -306,7 +386,11 @@ fn date_accuracy_21_ddays_dmy_mode_across_leap_2000() {
 fn date_accuracy_22_dow_dmy_mode_jan1_2000() {
     let mut state = setup_dow_state("1.012000", true);
     dispatch(&mut state, Op::TimeDow).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 6, "DMY: Jan 1 2000 is Saturday (DOW=6)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        6,
+        "DMY: Jan 1 2000 is Saturday (DOW=6)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -327,7 +411,11 @@ fn date_accuracy_23_ddays_same_date_zero() {
 fn date_accuracy_24_ddays_negative_x_later_than_y() {
     let mut state = setup_ddays_state("1.012026", "12.312026", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), -364, "Jan 1 - Dec 31 = -364 (negative DDAYS)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        -364,
+        "Jan 1 - Dec 31 = -364 (negative DDAYS)"
+    );
 }
 
 /// DATE+ with negative days: Jan 1 2026 + (-1) = Dec 31 2025 (going backward)
@@ -336,7 +424,11 @@ fn date_accuracy_25_date_plus_negative_days_backward() {
     let mut state = setup_date_state("1.012026", "-1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2025, 12, 31), "Jan 1 2026 + (-1) = Dec 31 2025");
+    assert_eq!(
+        (year, month, day),
+        (2025, 12, 31),
+        "Jan 1 2026 + (-1) = Dec 31 2025"
+    );
 }
 
 /// DATE+ with large negative days: Jan 1 2000 + (-365) = Jan 1 1999
@@ -345,7 +437,11 @@ fn date_accuracy_26_date_plus_large_negative_backward() {
     let mut state = setup_date_state("1.012000", "-365", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (1999, 1, 1), "Jan 1 2000 + (-365) = Jan 1 1999");
+    assert_eq!(
+        (year, month, day),
+        (1999, 1, 1),
+        "Jan 1 2000 + (-365) = Jan 1 1999"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -358,7 +454,11 @@ fn date_accuracy_27_date_plus_end_of_month_rollover() {
     let mut state = setup_date_state("1.312026", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2026, 2, 1), "Jan 31 2026 + 1 = Feb 1 2026");
+    assert_eq!(
+        (year, month, day),
+        (2026, 2, 1),
+        "Jan 31 2026 + 1 = Feb 1 2026"
+    );
 }
 
 /// DATE+: year rollover (Dec 31 2025 + 1 = Jan 1 2026)
@@ -367,7 +467,11 @@ fn date_accuracy_28_date_plus_year_rollover() {
     let mut state = setup_date_state("12.312025", "1", false);
     dispatch(&mut state, Op::TimeDatePlus).unwrap();
     let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-    assert_eq!((year, month, day), (2026, 1, 1), "Dec 31 2025 + 1 = Jan 1 2026");
+    assert_eq!(
+        (year, month, day),
+        (2026, 1, 1),
+        "Dec 31 2025 + 1 = Jan 1 2026"
+    );
 }
 
 /// DDAYS: large positive span — Jan 1 1900 to Jan 1 2000 = 36524 days
@@ -377,7 +481,11 @@ fn date_accuracy_28_date_plus_year_rollover() {
 fn date_accuracy_29_ddays_century_1900_to_2000() {
     let mut state = setup_ddays_state("1.012000", "1.011900", false);
     dispatch(&mut state, Op::TimeDdays).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 36524, "Jan 1 2000 - Jan 1 1900 = 36524 days");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        36524,
+        "Jan 1 2000 - Jan 1 1900 = 36524 days"
+    );
 }
 
 /// DOW: Monday sentinel — Jan 2 2006 = Monday = 1
@@ -386,5 +494,9 @@ fn date_accuracy_29_ddays_century_1900_to_2000() {
 fn date_accuracy_30_dow_monday_sentinel_jan2_2006() {
     let mut state = setup_dow_state("1.022006", false);
     dispatch(&mut state, Op::TimeDow).unwrap();
-    assert_eq!(hpnum_to_i64(&state.stack.x), 1, "Jan 2 2006 is Monday (DOW=1)");
+    assert_eq!(
+        hpnum_to_i64(&state.stack.x),
+        1,
+        "Jan 2 2006 is Monday (DOW=1)"
+    );
 }

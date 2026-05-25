@@ -448,7 +448,11 @@ fn op_atime_12h_mode_appends_am_or_pm() {
     dispatch(&mut s, Op::TimeAtime).unwrap();
     // 12h mode string contains either AM or PM.
     let alpha = &s.alpha_reg;
-    assert!(alpha.contains("AM") || alpha.contains("PM"), "Expected AM/PM in: {}", alpha);
+    assert!(
+        alpha.contains("AM") || alpha.contains("PM"),
+        "Expected AM/PM in: {}",
+        alpha
+    );
 }
 
 #[test]
@@ -457,7 +461,11 @@ fn op_atime_24h_mode_no_am_pm() {
     s.clock_12h = false;
     dispatch(&mut s, Op::TimeAtime).unwrap();
     let alpha = &s.alpha_reg;
-    assert!(!alpha.contains("AM") && !alpha.contains("PM"), "Unexpected AM/PM in: {}", alpha);
+    assert!(
+        !alpha.contains("AM") && !alpha.contains("PM"),
+        "Unexpected AM/PM in: {}",
+        alpha
+    );
 }
 
 // ── op_atime24 ───────────────────────────────────────────────────────────────
@@ -468,7 +476,11 @@ fn op_atime24_always_24h_regardless_of_clock_12h_flag() {
     s.clock_12h = true; // Even in 12h mode, ATIME24 should produce 24h.
     dispatch(&mut s, Op::TimeAtime24).unwrap();
     let alpha = &s.alpha_reg;
-    assert!(!alpha.contains("AM") && !alpha.contains("PM"), "ATIME24 must not produce AM/PM: {}", alpha);
+    assert!(
+        !alpha.contains("AM") && !alpha.contains("PM"),
+        "ATIME24 must not produce AM/PM: {}",
+        alpha
+    );
 }
 
 #[test]
@@ -477,7 +489,12 @@ fn op_atime24_appends_hh_colon_mm_colon_ss_format() {
     dispatch(&mut s, Op::TimeAtime24).unwrap();
     let alpha = &s.alpha_reg;
     // Format is "HH:MM:SS" — two colons separating three pairs.
-    assert_eq!(alpha.matches(':').count(), 2, "Expected 2 colons in: {}", alpha);
+    assert_eq!(
+        alpha.matches(':').count(),
+        2,
+        "Expected 2 colons in: {}",
+        alpha
+    );
 }
 
 // ── op_adate ─────────────────────────────────────────────────────────────────
@@ -818,7 +835,7 @@ fn alarm_rclalm_dmy_mode_formats_date_correctly() {
     // Covers make_date_hpnum with dmy=true (flag 31 set).
     let mut s = CalcState::new();
     s.flags |= 1u64 << 31; // DMY mode
-    // Add an alarm for 2026-05-24 08:30:00
+                           // Add an alarm for 2026-05-24 08:30:00
     let trigger = {
         // Compute 2026-05-24 08:30:00 Unix timestamp.
         // JDN(2026-05-24) = 2461185, JDN(1970-01-01) = 2440588
@@ -835,7 +852,11 @@ fn alarm_rclalm_dmy_mode_formats_date_correctly() {
     dispatch(&mut s, Op::TimeRclalm).unwrap();
     // In DMY mode: Y should be DD.MMYYYY, so day=24, month=5, year=2026 → "24.052026"
     let y_str = s.stack.y.inner().to_string();
-    assert!(y_str.starts_with("24."), "DMY Y should start with day 24: {}", y_str);
+    assert!(
+        y_str.starts_with("24."),
+        "DMY Y should start with day 24: {}",
+        y_str
+    );
 }
 
 #[test]

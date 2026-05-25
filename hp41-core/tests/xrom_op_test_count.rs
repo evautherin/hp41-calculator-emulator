@@ -91,8 +91,7 @@ fn collect_variants_in_fn(src: &str, fn_sig: &str) -> Vec<String> {
         if !in_fn {
             if trimmed.contains(fn_sig) {
                 in_fn = true;
-                brace_depth =
-                    line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                brace_depth = line.matches('{').count() as i32 - line.matches('}').count() as i32;
             }
             continue;
         }
@@ -278,7 +277,14 @@ fn count_stat1_test_mentions(
     tests_dir: &Path,
     src_stat1_dir: &Path,
 ) -> usize {
-    count_xrom_test_mentions_dual(variant_name, fn_name, tests_dir, "stat1_", Some("numerical_accuracy.rs"), src_stat1_dir)
+    count_xrom_test_mentions_dual(
+        variant_name,
+        fn_name,
+        tests_dir,
+        "stat1_",
+        Some("numerical_accuracy.rs"),
+        src_stat1_dir,
+    )
 }
 
 /// Count how many distinct `#[test]` function blocks across BOTH passes contain
@@ -293,7 +299,14 @@ fn count_time_test_mentions(
     tests_dir: &Path,
     src_time_dir: &Path,
 ) -> usize {
-    count_xrom_test_mentions_dual(variant_name, fn_name, tests_dir, "time_", None, src_time_dir)
+    count_xrom_test_mentions_dual(
+        variant_name,
+        fn_name,
+        tests_dir,
+        "time_",
+        None,
+        src_time_dir,
+    )
 }
 
 /// Generic dual-scan (external files + inline cfg(test)) for XROM modules.
@@ -320,8 +333,8 @@ fn count_xrom_test_mentions_dual(
                 continue;
             }
             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            let include = filename.starts_with(prefix)
-                || extra_file.map_or(false, |ef| filename == ef);
+            let include =
+                filename.starts_with(prefix) || extra_file.map_or(false, |ef| filename == ef);
             if !include {
                 continue;
             }
@@ -355,8 +368,7 @@ fn count_xrom_test_mentions_dual(
                 Err(_) => continue,
             };
             // Each split on `#[cfg(test)]` yields one non-test prefix + test sections.
-            let cfg_test_sections: Vec<&str> =
-                content.split("#[cfg(test)]").skip(1).collect();
+            let cfg_test_sections: Vec<&str> = content.split("#[cfg(test)]").skip(1).collect();
             for section in cfg_test_sections {
                 let test_slices: Vec<&str> = section.split("#[test]").skip(1).collect();
                 for slice in test_slices {
@@ -434,8 +446,7 @@ fn each_xrom_op_has_at_least_5_tests() {
     let src_stat1_dir = src_ops_dir.join("stat1");
     for variant_name in &stat1_variants {
         let fn_name = stat1_variant_to_fn_name(variant_name);
-        let count =
-            count_stat1_test_mentions(variant_name, &fn_name, &tests_dir, &src_stat1_dir);
+        let count = count_stat1_test_mentions(variant_name, &fn_name, &tests_dir, &src_stat1_dir);
         if count < 5 {
             failures.push(format!(
                 "[Stat1] Op::{variant_name} (fn {fn_name}): only {count} test mention(s) \
@@ -457,8 +468,7 @@ fn each_xrom_op_has_at_least_5_tests() {
     let src_time_dir = src_ops_dir.join("time");
     for variant_name in &time_variants {
         let fn_name = time_variant_to_fn_name(variant_name);
-        let count =
-            count_time_test_mentions(variant_name, &fn_name, &tests_dir, &src_time_dir);
+        let count = count_time_test_mentions(variant_name, &fn_name, &tests_dir, &src_time_dir);
         if count < 5 {
             failures.push(format!(
                 "[Time] Op::{variant_name} (fn {fn_name}): only {count} test mention(s) \

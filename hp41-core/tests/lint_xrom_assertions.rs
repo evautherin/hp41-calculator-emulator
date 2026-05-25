@@ -76,10 +76,7 @@ const LINT_EXEMPT_TOKEN: &str = "LINT-EXEMPT:";
 ///
 /// Returns `Vec<(PathBuf, String)>` of (path, scanned-content) pairs for all
 /// collected test surfaces.
-fn collect_xrom_test_content(
-    tests_dir: &Path,
-    manifest_dir: &Path,
-) -> Vec<(PathBuf, String)> {
+fn collect_xrom_test_content(tests_dir: &Path, manifest_dir: &Path) -> Vec<(PathBuf, String)> {
     let mut files = Vec::new();
     let src_ops_dir = manifest_dir.join("src").join("ops");
 

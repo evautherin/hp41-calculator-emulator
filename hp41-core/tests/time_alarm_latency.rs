@@ -60,7 +60,9 @@ fn alarm_latency_past_due_fires_in_one_cycle() {
         "Alarm must be marked past_due after one check_alarms call"
     );
     assert!(
-        state.event_buffer.contains(&"alarm:message:alert!".to_string()),
+        state
+            .event_buffer
+            .contains(&"alarm:message:alert!".to_string()),
         "event_buffer must contain alarm:message:alert! after one cycle; got: {:?}",
         state.event_buffer
     );
@@ -154,9 +156,15 @@ fn alarm_latency_multiple_past_due_all_fire_in_one_cycle() {
         assert!(alarm.past_due, "Alarm {} must be past_due", i);
     }
     // All three events in event_buffer
-    assert!(state.event_buffer.contains(&"alarm:message:first".to_string()));
-    assert!(state.event_buffer.contains(&"alarm:message:second".to_string()));
-    assert!(state.event_buffer.contains(&"alarm:message:third".to_string()));
+    assert!(state
+        .event_buffer
+        .contains(&"alarm:message:first".to_string()));
+    assert!(state
+        .event_buffer
+        .contains(&"alarm:message:second".to_string()));
+    assert!(state
+        .event_buffer
+        .contains(&"alarm:message:third".to_string()));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -194,7 +202,10 @@ fn alarm_latency_mixed_only_past_due_fires() {
     // Past alarm fired
     assert!(state.alarms[0].past_due, "Past alarm must be past_due");
     // Future alarm did not fire
-    assert!(!state.alarms[1].past_due, "Future alarm must NOT be past_due");
+    assert!(
+        !state.alarms[1].past_due,
+        "Future alarm must NOT be past_due"
+    );
     // Only one event in buffer
     assert_eq!(
         state.event_buffer.len(),
@@ -202,7 +213,9 @@ fn alarm_latency_mixed_only_past_due_fires() {
         "Only one event expected; got: {:?}",
         state.event_buffer
     );
-    assert!(state.event_buffer.contains(&"alarm:message:past".to_string()));
+    assert!(state
+        .event_buffer
+        .contains(&"alarm:message:past".to_string()));
 }
 
 /// Empty catalog: check_alarms is a no-op (no panic, no events).
@@ -254,12 +267,17 @@ fn alarm_latency_almnow_fires_past_due_immediately() {
     dispatch(&mut state, Op::TimeAlmnow).unwrap();
 
     assert!(
-        state.event_buffer.contains(&"alarm:message:urgent".to_string()),
+        state
+            .event_buffer
+            .contains(&"alarm:message:urgent".to_string()),
         "ALMNOW must push event immediately; got: {:?}",
         state.event_buffer
     );
     // One-shot alarm must be removed after ALMNOW dispatch
-    assert!(state.alarms.is_empty(), "One-shot alarm must be removed after ALMNOW");
+    assert!(
+        state.alarms.is_empty(),
+        "One-shot alarm must be removed after ALMNOW"
+    );
 }
 
 /// ALMNOW on a future alarm (non-past-due) triggers it immediately.
@@ -274,7 +292,9 @@ fn alarm_latency_almnow_triggers_upcoming_alarm() {
 
     // The upcoming alarm should have been triggered
     assert!(
-        state.event_buffer.contains(&"alarm:message:upcoming".to_string()),
+        state
+            .event_buffer
+            .contains(&"alarm:message:upcoming".to_string()),
         "ALMNOW must trigger first upcoming alarm; got: {:?}",
         state.event_buffer
     );
