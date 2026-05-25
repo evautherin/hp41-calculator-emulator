@@ -121,12 +121,12 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
   4. `XEQ "TVM"` modal prompts for N, I, PV, PMT, FV; `XEQ "*I"` converges via Newton iteration; v3.2 save files load without error (xrom_modules migrated 0b0111 → 0b11111)
   5. All new Op variants compile without errors in `dispatch()` and `execute_op()` (4-way invariant items 1+2 satisfied); `hp41-cli` and `hp41-gui` emit only expected `non-exhaustive patterns` compile breaks (items 3+4 deferred to Phase 44/46)
 
-**Plans:** 10 plans
+**Plans:** 1/10 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 43-01-PLAN.md — XROM framework + advantage/ module skeleton + all Op stubs + dispatch wiring
+- [x] 43-01-PLAN.md — XROM framework + advantage/ module skeleton + all Op stubs + dispatch wiring
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -213,7 +213,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 0/10 | Planning complete | - |
+| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 1/10 | In Progress|  |
 | 44. hp41-cli — CLI Integration | 0/TBD | Not started | - |
 | 45. Documentation & ADRs | 0/TBD | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
