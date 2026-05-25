@@ -12,6 +12,7 @@
     "allow-request-cancel",
     "allow-submit-modal",
     "allow-cancel-modal",
-    "allow-submit-modal-with-label"
+    "allow-submit-modal-with-label",
+    "allow-tick-time"
   ]
 }

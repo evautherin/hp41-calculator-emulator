@@ -43,7 +43,7 @@ pub fn format_all_steps(state: &CalcState) -> Vec<String> {
 /// Map an Op variant to its HP-41 display name.
 /// Uses String return type (not &'static str) because variants like Lbl(String),
 /// PushNum(HpNum), FmtFix(u8) require dynamic content.
-/// Covers all Op variants exhaustively (v2.2 built-ins + Math Pac I + Stat 1 Pac).
+/// Covers all Op variants exhaustively (v2.2 built-ins + Math Pac I + Stat 1 Pac + Time Module).
 fn op_display_name(op: &Op) -> String {
     match op {
         // Phase 1: arithmetic

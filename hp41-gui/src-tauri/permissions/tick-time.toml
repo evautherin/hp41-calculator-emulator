@@ -1,0 +1,6 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-tick-time"
+description = "Allows the tick_time command."
+commands.allow = ["tick_time"]

@@ -95,6 +95,7 @@ pub fn run() {
             commands::submit_modal,             // Phase 31 Plan 31-03 — R/S submit modal step
             commands::cancel_modal,             // Phase 31 Plan 31-03 — Esc cancel modal
             commands::submit_modal_with_label,  // Phase 31 Plan 31-03 — XEQ-by-name FUNCTION NAME? step
+            commands::tick_time,               // Phase 41 D-41.1 — 100ms periodic tick for live display
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
