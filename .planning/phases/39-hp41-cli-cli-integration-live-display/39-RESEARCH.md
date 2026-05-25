@@ -324,7 +324,7 @@ fn drain_event_buffer(&mut self) {
     "display_name": "TIME",
     "category": "Time Clock",
     "status": "implemented",
-    "phase": "39",
+    "phase": "38",
     "key_path": "XEQ \"TIME\"",
     "description": "Recall current time to X as HH.MMSSss",
     "xrom": { "module": "Time", "module_id": 26, "function_id": 1 }
@@ -541,22 +541,25 @@ fn time_const_fields() {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Stopwatch keyboard mode key bindings (Claude's Discretion)**
    - What we know: D-39.4 specifies R/S → start/stop toggle, one key for split, one key for reset, Esc to exit
    - What's unclear: Which physical keys map to start/stop toggle, split, and reset
    - Recommendation: Use Space/Enter for R/S equivalent, `s` for split, `r` for reset — all are mnemonic and unused in stopwatch mode context. Document in help overlay.
+   - **RESOLVED:** Space/Enter for start/stop, `s` for split, `r` for reset, Esc to exit. Implemented in Plan 39-02 Task 2.
 
 2. **drain_event_buffer position relative to drain_pending_card_op**
    - What we know: `call_dispatch_and_drain()` at line 1783 currently drains card ops then print_buffer
    - What's unclear: Whether `drain_event_buffer()` should go before or after `maybe_auto_open_collect_for_modal()`
    - Recommendation: After `print_buffer` drain, before `maybe_auto_open_collect_for_modal()`. Alarm messages should be set before the modal auto-opener runs.
+   - **RESOLVED:** After `maybe_auto_open_collect_for_modal()` in both dispatch methods. Implemented in Plan 39-02 Task 2.
 
 3. **function_matrix_parity.rs ALL_OP_VARIANT_NAMES count update**
    - What we know: Current assertion is `== 130`; Phase 38 added 35 Time variants
    - What's unclear: Has `ALL_OP_VARIANT_NAMES` already been updated to 165 in any prior commit?
    - Recommendation: Planner should check `ALL_OP_VARIANT_NAMES.len()` assertion value before deciding whether this is a new task or already done. Current grep shows the test asserts 130 exactly.
+   - **RESOLVED:** Not yet updated; Plan 39-01 Task 2 updates to 165.
 
 ---
 
