@@ -406,6 +406,21 @@ pub struct CalcState {
     /// Transient — `#[serde(default, skip)]`.
     #[serde(default, skip)]
     pub adv_fdifeq_state: Option<crate::ops::advantage::AdvFdifeqState>,
+
+    /// Transient: matrix name captured during multi-step MATRX/MTR/MEDIT/CMEDIT workflow.
+    ///
+    /// Set by MatrixNamePrompt / MtrNamePrompt submit; cleared on workflow completion.
+    /// Follows the `pending_chisqd_nu` pattern (D-43 / T-43-14 — modal input validation).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub pending_adv_matrix_name: Option<String>,
+
+    /// Transient: row count captured during multi-step MATRX/MTR dimension entry.
+    ///
+    /// Set by MatrixDimRowPrompt submit; cleared when MatrixDimColPrompt is submitted
+    /// and op_adv_matdim is called. Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub pending_adv_matrix_rows: Option<u8>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
@@ -494,6 +509,8 @@ impl CalcState {
             adv_fintg_state: None,
             adv_fsolve_state: None,
             adv_fdifeq_state: None,
+            pending_adv_matrix_name: None,
+            pending_adv_matrix_rows: None,
         }
     }
 }
