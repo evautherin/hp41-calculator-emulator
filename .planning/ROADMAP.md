@@ -204,7 +204,7 @@ Plans:
   4. E2E smoke test executes at least one Time Pac workflow (e.g., DATE+ or DDAYS) end-to-end in the GUI on Ubuntu
   5. README v3.2 line graduated to OM-cited hard-claim "feature-complete per Owner's Manual 00041-90035" after all quality gates pass
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -217,7 +217,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 42-03-PLAN.md — Date accuracy suite (20+ oracle cases) + stopwatch timing accuracy + alarm past-due latency tests
+- [x] 42-03-PLAN.md — Date accuracy suite (20+ oracle cases) + stopwatch timing accuracy + alarm past-due latency tests
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -234,7 +234,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
 | 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete    | 2026-05-25 |
-| 42. Test Hardening & Quality Gates | 2/4 | In Progress|  |
+| 42. Test Hardening & Quality Gates | 3/4 | In Progress|  |
 
 ---
 
