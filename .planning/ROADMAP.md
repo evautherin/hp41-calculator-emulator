@@ -135,12 +135,12 @@ Plans:
   3. User can enter interactive stopwatch mode (XEQ "SW") and see centisecond-resolution elapsed time updating in the TUI at 10+ Hz, with dedicated key bindings for start/stop/split/reset
   4. When an alarm comes due, the user sees a status-bar notification without having to execute any command
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 39-01-PLAN.md — JSON canonical data (35-entry hp41-time-functions.json) + fourth OnceLock in help_data.rs + parity/shadowing test updates
+- [x] 39-01-PLAN.md — JSON canonical data (35-entry hp41-time-functions.json) + fourth OnceLock in help_data.rs + parity/shadowing test updates
  
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -196,7 +196,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
-| 39. hp41-cli -- CLI Integration + Live Display | 0/3 | Not started | - |
+| 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 0/TBD | Not started | - |
 | 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
 | 42. Test Hardening & Quality Gates | 0/TBD | Not started | - |
