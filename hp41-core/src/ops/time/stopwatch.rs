@@ -112,7 +112,7 @@ pub fn op_setsw(state: &mut CalcState) -> Result<(), HpError> {
     };
     let hours: u64 = int_part.parse().map_err(|_| HpError::InvalidOp)?;
     // LEFT-pad fractional part to 6 digits: MM(2) + SS(2) + cc(2)
-    let padded = format!("{:0>6}", frac_part);
+    let padded = format!("{frac_part:0>6}");
     let minutes: u64 = padded[0..2].parse().map_err(|_| HpError::InvalidOp)?;
     let seconds: u64 = padded[2..4].parse().map_err(|_| HpError::InvalidOp)?;
     let centiseconds: u64 = padded[4..6].parse().map_err(|_| HpError::InvalidOp)?;
@@ -205,8 +205,7 @@ pub fn get_stopwatch_display_str(state: &CalcState) -> Option<String> {
     let seconds = rem2 / 100;
     let centiseconds = rem2 % 100;
     Some(format!(
-        "{:02}:{:02}:{:02}.{:02}",
-        hours, minutes, seconds, centiseconds
+        "{hours:02}:{minutes:02}:{seconds:02}.{centiseconds:02}"
     ))
 }
 
@@ -230,8 +229,8 @@ pub fn secs_to_hpnum_time(secs: f64) -> Result<HpNum, HpError> {
     let centiseconds = rem2 % 100;
 
     // Build decimal: HH.MMSScc
-    let frac_str = format!("{:02}{:02}{:02}", minutes, seconds, centiseconds);
-    let hpnum_str = format!("{}.{}", hours, frac_str);
+    let frac_str = format!("{minutes:02}{seconds:02}{centiseconds:02}");
+    let hpnum_str = format!("{hours}.{frac_str}");
     use rust_decimal::Decimal;
     use std::str::FromStr;
     let d = Decimal::from_str(&hpnum_str).map_err(|_| HpError::InvalidOp)?;
@@ -521,8 +520,7 @@ mod tests {
         let elapsed = current_elapsed(&state);
         assert!(
             elapsed > 10.0,
-            "running elapsed should exceed accumulated (10.0), got {}",
-            elapsed
+            "running elapsed should exceed accumulated (10.0), got {elapsed}"
         );
     }
 
@@ -579,9 +577,7 @@ mod tests {
         // Total should exceed first stop
         assert!(
             after_second_stop > after_first_stop,
-            "second stop accumulated ({}) should exceed first ({})",
-            after_second_stop,
-            after_first_stop
+            "second stop accumulated ({after_second_stop}) should exceed first ({after_first_stop})"
         );
     }
 

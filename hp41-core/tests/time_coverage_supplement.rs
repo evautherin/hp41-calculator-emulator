@@ -450,8 +450,7 @@ fn op_atime_12h_mode_appends_am_or_pm() {
     let alpha = &s.alpha_reg;
     assert!(
         alpha.contains("AM") || alpha.contains("PM"),
-        "Expected AM/PM in: {}",
-        alpha
+        "Expected AM/PM in: {alpha}"
     );
 }
 
@@ -463,8 +462,7 @@ fn op_atime_24h_mode_no_am_pm() {
     let alpha = &s.alpha_reg;
     assert!(
         !alpha.contains("AM") && !alpha.contains("PM"),
-        "Unexpected AM/PM in: {}",
-        alpha
+        "Unexpected AM/PM in: {alpha}"
     );
 }
 
@@ -478,8 +476,7 @@ fn op_atime24_always_24h_regardless_of_clock_12h_flag() {
     let alpha = &s.alpha_reg;
     assert!(
         !alpha.contains("AM") && !alpha.contains("PM"),
-        "ATIME24 must not produce AM/PM: {}",
-        alpha
+        "ATIME24 must not produce AM/PM: {alpha}"
     );
 }
 
@@ -492,8 +489,7 @@ fn op_atime24_appends_hh_colon_mm_colon_ss_format() {
     assert_eq!(
         alpha.matches(':').count(),
         2,
-        "Expected 2 colons in: {}",
-        alpha
+        "Expected 2 colons in: {alpha}"
     );
 }
 
@@ -506,7 +502,7 @@ fn op_adate_dmy_mode_produces_day_slash_month_format() {
     dispatch(&mut s, Op::TimeAdate).unwrap();
     let alpha = &s.alpha_reg;
     // DMY "DD/ M/YYYY" or " D/ M/YYYY" — at least 2 slashes.
-    assert!(alpha.contains('/'), "Expected slash in DMY date: {}", alpha);
+    assert!(alpha.contains('/'), "Expected slash in DMY date: {alpha}");
 }
 
 // ── op_rclsw ─────────────────────────────────────────────────────────────────
@@ -537,7 +533,7 @@ fn op_rclsw_after_setsw_recalls_preset_value() {
     dispatch(&mut s, Op::TimeRclsw).unwrap();
     let x = s.stack.x.inner();
     // Should be 1.000000 = 1 hour (allowing small floating point drift)
-    assert!(x > Decimal::ZERO, "Expected positive elapsed: {}", x);
+    assert!(x > Decimal::ZERO, "Expected positive elapsed: {x}");
 }
 
 // ── op_setsw ─────────────────────────────────────────────────────────────────
@@ -616,7 +612,7 @@ fn op_swpt_after_stpw_recalls_elapsed() {
     // Result should be the 90-second elapsed expressed as HH.MMSScc
     // 90 sec = 0.013000 (0 hours, 1 min, 30 sec)
     let x = s.stack.x.inner();
-    assert!(x > Decimal::ZERO, "Expected non-zero split: {}", x);
+    assert!(x > Decimal::ZERO, "Expected non-zero split: {x}");
 }
 
 // ── op_stpw ───────────────────────────────────────────────────────────────────
@@ -854,8 +850,7 @@ fn alarm_rclalm_dmy_mode_formats_date_correctly() {
     let y_str = s.stack.y.inner().to_string();
     assert!(
         y_str.starts_with("24."),
-        "DMY Y should start with day 24: {}",
-        y_str
+        "DMY Y should start with day 24: {y_str}"
     );
 }
 

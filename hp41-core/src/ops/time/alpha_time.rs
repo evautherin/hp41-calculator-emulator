@@ -47,7 +47,7 @@ pub(crate) fn get_local_time(offset_secs: i64) -> (i32, u8, u8, u8, u8, u8) {
 
 /// Format hour, minute, second into a 24-hour time string "HH:MM:SS".
 fn format_24h(hour: u8, minute: u8, second: u8) -> String {
-    format!("{:02}:{:02}:{:02}", hour, minute, second)
+    format!("{hour:02}:{minute:02}:{second:02}")
 }
 
 /// Format hour, minute, second into a 12-hour time string " H:MM:SS AM/PM".
@@ -65,9 +65,9 @@ fn format_12h(hour: u8, minute: u8, second: u8) -> String {
         _ => (hour - 12, "PM"),
     };
     if display_hour < 10 {
-        format!(" {}:{:02}:{:02} {}", display_hour, minute, second, suffix)
+        format!(" {display_hour}:{minute:02}:{second:02} {suffix}")
     } else {
-        format!("{:02}:{:02}:{:02} {}", display_hour, minute, second, suffix)
+        format!("{display_hour:02}:{minute:02}:{second:02} {suffix}")
     }
 }
 
@@ -114,10 +114,10 @@ pub fn op_adate(state: &mut CalcState) -> Result<(), HpError> {
     let dmy = state.flags & (1u64 << 31) != 0;
     let text = if dmy {
         // DMY: "DD/ M/YYYY"
-        format!("{:02}/{:2}/{}", day, month, year)
+        format!("{day:02}/{month:2}/{year}")
     } else {
         // MDY: " M/DD/YYYY"
-        format!("{:2}/{:02}/{}", month, day, year)
+        format!("{month:2}/{day:02}/{year}")
     };
     alpha_append(state, &text);
     apply_lift_effect(state, LiftEffect::Neutral);
@@ -420,7 +420,7 @@ mod tests {
         let month: u8 = 1;
         let day: u8 = 24;
         let year: i32 = 2026;
-        let text = format!("{:2}/{:02}/{}", month, day, year);
+        let text = format!("{month:2}/{day:02}/{year}");
         assert_eq!(text, " 1/24/2026");
     }
 
@@ -430,7 +430,7 @@ mod tests {
         let month: u8 = 1;
         let day: u8 = 24;
         let year: i32 = 2026;
-        let text = format!("{:02}/{:2}/{}", day, month, year);
+        let text = format!("{day:02}/{month:2}/{year}");
         assert_eq!(text, "24/ 1/2026");
     }
 }

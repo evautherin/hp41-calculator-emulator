@@ -100,14 +100,12 @@ fn stopwatch_timing_via_dispatch_1s() {
     let total_cs = hpnum_to_total_cs(&state.stack.x);
     assert!(
         total_cs >= 40,
-        "Stopwatch 500ms via dispatch: expected >= 40cs, got {}cs",
-        total_cs
+        "Stopwatch 500ms via dispatch: expected >= 40cs, got {total_cs}cs"
     );
     // Also upper-bound: should not exceed 100cs for a 500ms sleep
     assert!(
         total_cs <= 100,
-        "Stopwatch 500ms via dispatch: expected <= 100cs, got {}cs",
-        total_cs
+        "Stopwatch 500ms via dispatch: expected <= 100cs, got {total_cs}cs"
     );
 }
 
@@ -132,8 +130,7 @@ fn stopwatch_timing_60s_within_10ms() {
     // 60 seconds = 6000 centiseconds; allow +/-1cs (10ms)
     assert!(
         (5999..=6001).contains(&total_cs),
-        "60s timing: expected 6000cs ±1cs, got {}cs",
-        total_cs
+        "60s timing: expected 6000cs ±1cs, got {total_cs}cs"
     );
 }
 
@@ -185,9 +182,7 @@ fn stopwatch_split_records_while_running() {
     // Split must be less than total
     assert!(
         split_cs < total_cs,
-        "Split ({cs_split}cs) must be less than total ({cs_total}cs)",
-        cs_split = split_cs,
-        cs_total = total_cs
+        "Split ({split_cs}cs) must be less than total ({total_cs}cs)"
     );
     // Both must be positive
     assert!(split_cs > 0, "Split must be > 0 after 200ms");

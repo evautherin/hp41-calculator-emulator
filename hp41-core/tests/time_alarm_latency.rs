@@ -153,7 +153,7 @@ fn alarm_latency_multiple_past_due_all_fire_in_one_cycle() {
 
     // All three must be marked past_due
     for (i, alarm) in state.alarms.iter().enumerate() {
-        assert!(alarm.past_due, "Alarm {} must be past_due", i);
+        assert!(alarm.past_due, "Alarm {i} must be past_due");
     }
     // All three events in event_buffer
     assert!(state

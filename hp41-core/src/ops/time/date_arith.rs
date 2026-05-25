@@ -96,7 +96,7 @@ pub fn parse_date_hpnum(hpnum: &HpNum, dmy: bool) -> Result<(i32, i32, i32), HpE
     };
     // LEFT-pad fractional part to exactly 6 digits (preserves leading zeros for year).
     // NOTE: parse_counter uses right-pad ("{:0<5}"); dates use LEFT-pad ("{:0>6}").
-    let padded = format!("{:0>6}", frac_part);
+    let padded = format!("{frac_part:0>6}");
     let first: i32 = int_part.parse().map_err(|_| HpError::InvalidInput)?;
     let second: i32 = padded[0..2].parse().map_err(|_| HpError::InvalidInput)?;
     let year: i32 = padded[2..6].parse().map_err(|_| HpError::InvalidInput)?;
@@ -142,7 +142,7 @@ pub fn parse_time_hpnum(hpnum: &HpNum) -> Result<(u8, u8, u8, u8), HpError> {
     };
     let hours: u8 = int_part.parse().map_err(|_| HpError::InvalidInput)?;
     // LEFT-pad fractional part to exactly 6 digits: MMSScc
-    let padded = format!("{:0>6}", frac_part);
+    let padded = format!("{frac_part:0>6}");
     let minutes: u8 = padded[0..2].parse().map_err(|_| HpError::InvalidInput)?;
     let seconds: u8 = padded[2..4].parse().map_err(|_| HpError::InvalidInput)?;
     let centiseconds: u8 = padded[4..6].parse().map_err(|_| HpError::InvalidInput)?;
@@ -162,10 +162,10 @@ pub fn parse_time_hpnum(hpnum: &HpNum) -> Result<(u8, u8, u8, u8), HpError> {
 fn date_to_hpnum(year: i32, month: i32, day: i32, dmy: bool) -> Result<HpNum, HpError> {
     let s = if dmy {
         // DD.MMYYYY
-        format!("{}.{:02}{:04}", day, month, year)
+        format!("{day}.{month:02}{year:04}")
     } else {
         // MM.DDYYYY
-        format!("{}.{:02}{:04}", month, day, year)
+        format!("{month}.{day:02}{year:04}")
     };
     let d = Decimal::from_str(&s).map_err(|_| HpError::Overflow)?;
     Ok(HpNum::from(d))
@@ -464,7 +464,7 @@ mod tests {
         let result = secs_to_hpnum_time(90.99).unwrap();
         let s = result.inner().to_string();
         // Should represent 0.013099
-        assert!(s.starts_with("0.0130") || s.contains("3099"), "got: {}", s);
+        assert!(s.starts_with("0.0130") || s.contains("3099"), "got: {s}");
     }
 
     // ── op_dmy / op_mdy Tests ─────────────────────────────────────────────────
@@ -523,7 +523,7 @@ mod tests {
         state.stack.lift_enabled = true;
         op_dow(&mut state).unwrap();
         let dow = state.stack.x.inner().to_string();
-        assert_eq!(dow, "0", "2026-05-24 should be Sunday (0), got {}", dow);
+        assert_eq!(dow, "0", "2026-05-24 should be Sunday (0), got {dow}");
     }
 
     #[test]
@@ -535,7 +535,7 @@ mod tests {
         state.stack.lift_enabled = true;
         op_dow(&mut state).unwrap();
         let dow = state.stack.x.inner().to_string();
-        assert_eq!(dow, "0", "2026-05-31 should be Sunday (0), got {}", dow);
+        assert_eq!(dow, "0", "2026-05-31 should be Sunday (0), got {dow}");
     }
 
     #[test]

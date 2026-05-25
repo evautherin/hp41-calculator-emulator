@@ -76,7 +76,7 @@ fn normalize_pm_shorthand(x: &HpNum) -> Option<HpNum> {
     // Convert: -N → (12 + N) hours, 0 minutes, 0 seconds.
     let hour = (12 + n.abs()) as u32; // n is negative, so n.abs() is 1..11 → hour = 13..23
                                       // Format as HH.000000 (HH.MMSScc).
-    let s = format!("{}.000000", hour);
+    let s = format!("{hour}.000000");
     let d = Decimal::from_str(&s).ok()?;
     Some(HpNum::from(d))
 }

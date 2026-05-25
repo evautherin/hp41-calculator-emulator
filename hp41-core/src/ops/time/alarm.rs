@@ -116,7 +116,7 @@ fn epoch_secs_to_date(epoch_secs: i64) -> (i32, i32, i32) {
 /// `centiseconds` is always 0 when reconstructing from Unix seconds (1-second
 /// resolution). Uses Decimal string construction per P35 invariant.
 fn make_time_hpnum(hours: u8, minutes: u8, seconds: u8) -> Result<HpNum, HpError> {
-    let s = format!("{}.{:02}{:02}00", hours, minutes, seconds);
+    let s = format!("{hours}.{minutes:02}{seconds:02}00");
     let d = Decimal::from_str(&s).map_err(|_| HpError::Overflow)?;
     Ok(HpNum::from(d))
 }
@@ -127,9 +127,9 @@ fn make_time_hpnum(hours: u8, minutes: u8, seconds: u8) -> Result<HpNum, HpError
 /// DMY (Flag 31 set):   DD.MMYYYY
 fn make_date_hpnum(year: i32, month: i32, day: i32, dmy: bool) -> Result<HpNum, HpError> {
     let s = if dmy {
-        format!("{}.{:02}{:04}", day, month, year)
+        format!("{day}.{month:02}{year:04}")
     } else {
-        format!("{}.{:02}{:04}", month, day, year)
+        format!("{month}.{day:02}{year:04}")
     };
     let d = Decimal::from_str(&s).map_err(|_| HpError::Overflow)?;
     Ok(HpNum::from(d))
@@ -147,7 +147,7 @@ fn repeat_hpnum_to_secs(hpnum: &HpNum) -> Result<i64, HpError> {
         (s.as_str(), "")
     };
     let hours: i64 = int_part.parse().map_err(|_| HpError::InvalidInput)?;
-    let padded = format!("{:0>6}", frac_part);
+    let padded = format!("{frac_part:0>6}");
     let minutes: i64 = padded[0..2].parse().map_err(|_| HpError::InvalidInput)?;
     let seconds: i64 = padded[2..4].parse().map_err(|_| HpError::InvalidInput)?;
     if minutes > 59 || seconds > 59 {
@@ -277,7 +277,7 @@ pub fn op_rclalm(state: &mut CalcState) -> Result<(), HpError> {
         let h = total / 3600;
         let m = (total % 3600) / 60;
         let s = total % 60;
-        let s_str = format!("{}.{:02}{:02}00", h, m, s);
+        let s_str = format!("{h}.{m:02}{s:02}00");
         let d = Decimal::from_str(&s_str).map_err(|_| HpError::Overflow)?;
         HpNum::from(d)
     };
@@ -301,9 +301,9 @@ pub fn op_rclalm(state: &mut CalcState) -> Result<(), HpError> {
             interrupting,
         } => {
             if *interrupting {
-                format!(">>{}", label)
+                format!(">>{label}")
             } else {
-                format!(">{}", label)
+                format!(">{label}")
             }
         }
     };
@@ -327,8 +327,7 @@ pub fn op_almcat(state: &mut CalcState) -> Result<(), HpError> {
             AlarmType::Control { label, .. } => label.clone(),
         };
         let line = format!(
-            "{:02}.{:02}.{:04} {:02}:{:02}:{:02} {}",
-            day, month, year, hour, minute, second, msg
+            "{day:02}.{month:02}.{year:04} {hour:02}:{minute:02}:{second:02} {msg}"
         );
         state.print_buffer.push(line);
     }
@@ -496,7 +495,7 @@ pub fn acknowledge_alarm(state: &mut CalcState, index: usize) -> Result<(), HpEr
 fn dispatch_alarm_event(state: &mut CalcState, alarm: &AlarmEntry) {
     match &alarm.alarm_type {
         AlarmType::Message(msg) => {
-            state.event_buffer.push(format!("alarm:message:{}", msg));
+            state.event_buffer.push(format!("alarm:message:{msg}"));
             state.print_buffer.push(msg.clone());
         }
         AlarmType::Control {
@@ -508,7 +507,7 @@ fn dispatch_alarm_event(state: &mut CalcState, alarm: &AlarmEntry) {
                     .event_buffer
                     .push("alarm:interrupting:deferred".to_string());
             } else {
-                state.event_buffer.push(format!("alarm:xeq:{}", label));
+                state.event_buffer.push(format!("alarm:xeq:{label}"));
             }
         }
     }
@@ -526,9 +525,9 @@ fn alarm_matches_alpha(alarm_type: &AlarmType, alpha: &str) -> bool {
             interrupting,
         } => {
             let expected = if *interrupting {
-                format!(">>{}", label)
+                format!(">>{label}")
             } else {
-                format!(">{}", label)
+                format!(">{label}")
             };
             expected == alpha
         }
@@ -859,11 +858,11 @@ mod tests {
         // X should be time: 8.303000 (8h30m0s centisecs=0) → "8.303000"
         // Actually: HH.MMSScc → 8.300000
         let x_str = state.stack.x.inner().to_string();
-        assert!(x_str.starts_with("8.3"), "Time X: {}", x_str);
+        assert!(x_str.starts_with("8.3"), "Time X: {x_str}");
 
         // Y should be date: 5.242026 (MDY: month=5, day=24, year=2026)
         let y_str = state.stack.y.inner().to_string();
-        assert!(y_str.starts_with("5.24"), "Date Y: {}", y_str);
+        assert!(y_str.starts_with("5.24"), "Date Y: {y_str}");
 
         // Z should be 0 (no repeat).
         // LINT-EXEMPT: exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge or drift
@@ -923,7 +922,7 @@ mod tests {
         op_rclalm(&mut state).unwrap();
         // Z should be repeat: 1.000000 (1h 0m 0s)
         let z_str = state.stack.z.inner().to_string();
-        assert!(z_str.starts_with("1"), "Repeat Z: {}", z_str);
+        assert!(z_str.starts_with("1"), "Repeat Z: {z_str}");
     }
 
     #[test]

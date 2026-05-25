@@ -106,7 +106,7 @@ pub fn op_time(state: &mut CalcState) -> Result<(), HpError> {
     let epoch = adjusted_epoch_secs(state.time_offset_secs);
     let (_year, _month, _day, hour, minute, second) = decompose_epoch_secs(epoch);
     // Format as HH.MMSScc — centiseconds are 0 (1-second resolution).
-    let hpnum_str = format!("{}.{:02}{:02}00", hour, minute, second);
+    let hpnum_str = format!("{hour}.{minute:02}{second:02}00");
     let d = Decimal::from_str(&hpnum_str).map_err(|_| HpError::InvalidOp)?;
     enter_number(state, HpNum::from(d));
     apply_lift_effect(state, LiftEffect::Enable);
@@ -125,9 +125,9 @@ pub fn op_date(state: &mut CalcState) -> Result<(), HpError> {
     //   MDY: MM.DDYYYY  e.g. month=5, day=24, year=2026 → "5.242026"
     //   DMY: DD.MMYYYY  e.g. day=24, month=5, year=2026 → "24.052026"
     let hpnum_str = if dmy {
-        format!("{}.{:02}{:04}", day, month, year)
+        format!("{day}.{month:02}{year:04}")
     } else {
-        format!("{}.{:02}{:04}", month, day, year)
+        format!("{month}.{day:02}{year:04}")
     };
     let d = Decimal::from_str(&hpnum_str).map_err(|_| HpError::InvalidOp)?;
     enter_number(state, HpNum::from(d));
@@ -327,18 +327,18 @@ fn format_time_str(hour: u8, minute: u8, second: u8, clock_12h: bool) -> String 
         } else {
             (hour - 12, "PM")
         };
-        format!("{:02}:{:02}:{:02} {}", display_hour, minute, second, ampm)
+        format!("{display_hour:02}:{minute:02}:{second:02} {ampm}")
     } else {
-        format!("{:02}:{:02}:{:02}", hour, minute, second)
+        format!("{hour:02}:{minute:02}:{second:02}")
     }
 }
 
 /// Format date as `MM/DD/YYYY` (MDY) or `DD/MM/YYYY` (DMY).
 fn format_date_str(year: i32, month: u8, day: u8, dmy: bool) -> String {
     if dmy {
-        format!("{:02}/{:02}/{:04}", day, month, year)
+        format!("{day:02}/{month:02}/{year:04}")
     } else {
-        format!("{:02}/{:02}/{:04}", month, day, year)
+        format!("{month:02}/{day:02}/{year:04}")
     }
 }
 
