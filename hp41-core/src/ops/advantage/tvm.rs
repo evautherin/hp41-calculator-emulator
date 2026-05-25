@@ -23,7 +23,7 @@ pub const TVM_CONVERGENCE_THRESHOLD: f64 = 1e-9;
 /// Stored on `CalcState` with `#[serde(default)]` but WITHOUT `#[serde(skip)]`
 /// so TVM register values survive save/load (same pattern as `rand_seed` per ADR-v3.1-001).
 /// All fields default to `HpNum::zero()` / `false` per `Default`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct TvmState {
     /// Number of periods (N).
     pub n: HpNum,
@@ -37,19 +37,6 @@ pub struct TvmState {
     pub fv: HpNum,
     /// Payment timing: `true` = BEGIN (annuity due), `false` = END (ordinary annuity).
     pub begin_mode: bool,
-}
-
-impl Default for TvmState {
-    fn default() -> Self {
-        Self {
-            n: HpNum::zero(),
-            i: HpNum::zero(),
-            pv: HpNum::zero(),
-            pmt: HpNum::zero(),
-            fv: HpNum::zero(),
-            begin_mode: false,
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
