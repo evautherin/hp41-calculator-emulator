@@ -204,12 +204,12 @@ Plans:
   4. E2E smoke test executes at least one Time Pac workflow (e.g., DATE+ or DDAYS) end-to-end in the GUI on Ubuntu
   5. README v3.2 line graduated to OM-cited hard-claim "feature-complete per Owner's Manual 00041-90035" after all quality gates pass
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 42-01-PLAN.md — Unified meta-gates: xrom_op_test_count.rs + lint_xrom_assertions.rs (3-module scan), delete 4 old per-module files, re-verify XROM shadowing + Free42 contamination
+- [x] 42-01-PLAN.md — Unified meta-gates: xrom_op_test_count.rs + lint_xrom_assertions.rs (3-module scan), delete 4 old per-module files, re-verify XROM shadowing + Free42 contamination
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -234,7 +234,7 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
 | 41. hp41-gui -- GUI Integration + Live Display | 3/3 | Complete    | 2026-05-25 |
-| 42. Test Hardening & Quality Gates | 0/4 | Not started | - |
+| 42. Test Hardening & Quality Gates | 1/4 | In Progress|  |
 
 ---
 
