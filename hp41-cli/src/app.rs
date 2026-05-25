@@ -274,6 +274,11 @@ impl App {
             }
             // PERS-02: 30-second auto-save via extracted method (D-05)
             self.check_autosave();
+            // D-39.7: check alarms on every 16ms tick (not just on keypress),
+            // then drain any resulting events. This is what makes alarms fire
+            // in real-time without user interaction.
+            hp41_core::ops::time::alarm::check_alarms(&mut self.state);
+            self.drain_event_buffer();
         }
         // D-05: save on graceful exit before ratatui::restore()
         if let Err(e) = persistence::save_state(&self.state_path, &self.state) {
@@ -451,6 +456,18 @@ impl App {
         // In ALPHA mode, 'a' must append 'a', not dispatch Asin.
         if self.state.alpha_mode {
             self.handle_alpha_mode_key(key);
+            return;
+        }
+
+        // D-39.3: any key exits clock display — clear flag, key still processed normally.
+        // This is a mutation-only block, not a routing block; the key falls through.
+        if self.state.clock_active {
+            self.state.clock_active = false;
+        }
+
+        // D-39.4: stopwatch keyboard mode intercept — all keys are consumed by the handler.
+        if self.state.stopwatch_keyboard_mode {
+            self.handle_stopwatch_mode_key(key);
             return;
         }
 
@@ -1647,6 +1664,68 @@ impl App {
         }
     }
 
+    /// Handle key events while state.stopwatch_keyboard_mode is true (D-39.4, D-39.5).
+    ///
+    /// Key bindings:
+    ///   Esc         → exit stopwatch keyboard mode
+    ///   Space/Enter → toggle start/stop (TimeRunsw if Stopped/Idle, TimeStopsw if Running)
+    ///   's'         → split/lap (TimeSwpt)
+    ///   'r'         → reset stopwatch (TimeStpw)
+    ///   _           → all other keys consumed silently in stopwatch mode
+    ///
+    /// Release filter already applied in handle_key() before this is called.
+    fn handle_stopwatch_mode_key(&mut self, key: KeyEvent) {
+        use hp41_core::ops::time::StopwatchMode;
+        match key.code {
+            KeyCode::Esc => {
+                // Exit stopwatch keyboard mode.
+                self.state.stopwatch_keyboard_mode = false;
+            }
+            KeyCode::Char(' ') | KeyCode::Enter => {
+                // Toggle start/stop.
+                if self.state.stopwatch_mode == StopwatchMode::Running {
+                    self.call_dispatch(Op::TimeStopsw);
+                } else {
+                    self.call_dispatch(Op::TimeRunsw);
+                }
+            }
+            KeyCode::Char('s') => {
+                // Split/lap.
+                self.call_dispatch(Op::TimeSwpt);
+            }
+            KeyCode::Char('r') => {
+                // Reset stopwatch.
+                self.call_dispatch(Op::TimeStpw);
+            }
+            _ => {
+                // All other keys consumed silently in stopwatch mode.
+            }
+        }
+    }
+
+    /// Drain all events from state.event_buffer and process them (D-39.6).
+    ///
+    /// Routing:
+    ///   "alarm:message:{text}"      → set self.message = Some(text)
+    ///   "alarm:xeq:{label}"         → call run_program(state, label); on error set self.message
+    ///   "alarm:interrupting:..."    → ignored (deferred per D-38.4)
+    ///   anything else               → ignored (BEEP, TONE, future events)
+    fn drain_event_buffer(&mut self) {
+        let events: Vec<String> = self.state.event_buffer.drain(..).collect();
+        for event in events {
+            if let Some(text) = event.strip_prefix("alarm:message:") {
+                self.message = Some(text.to_string());
+            } else if let Some(label) = event.strip_prefix("alarm:xeq:") {
+                let label = label.to_string();
+                match hp41_core::run_program(&mut self.state, &label) {
+                    Ok(()) => {}
+                    Err(e) => self.message = Some(format!("Alarm XEQ {label}: {e}")),
+                }
+            }
+            // "alarm:interrupting:..." and other events are silently ignored.
+        }
+    }
+
     /// USER mode dispatch: if user_mode is active and the key has an assignment,
     /// run the assigned program label and return true (key consumed).
     /// Returns false if user_mode is off or no assignment exists for this key.
@@ -1774,6 +1853,8 @@ impl App {
         // Phase 29 (D-29.9): post-dispatch auto-open CollectForModal modal
         // when modal needs alpha label.
         self.maybe_auto_open_collect_for_modal();
+        // D-39.6: process any alarm events triggered by this dispatch.
+        self.drain_event_buffer();
     }
 
     /// Call hp41_core::ops::dispatch, then drain card op and print_buffer.
@@ -1814,6 +1895,8 @@ impl App {
         // Phase 29 (D-29.9): post-dispatch auto-open CollectForModal modal
         // when modal needs alpha label.
         self.maybe_auto_open_collect_for_modal();
+        // D-39.6: process any alarm events triggered by this dispatch.
+        self.drain_event_buffer();
     }
 
     /// Phase 29 (D-29.9): post-dispatch auto-open CollectForModal modal.
