@@ -111,6 +111,12 @@ export const SEGMENT_PATHS: string[] = [
 // was visually hidden for almost every digit.
 export const DECIMAL_DOT_PATH = 'M 22 37 L 25 37 L 25 40 L 22 40 Z';
 
+// Colon overlay paths — two 3×3 dots positioned in the inter-cell gap.
+// Upper dot sits at roughly 1/3 cell height, lower dot at 2/3.
+// Same x-position as DECIMAL_DOT_PATH (inter-cell gap center).
+const COLON_UPPER_PATH = 'M 22 11 L 25 11 L 25 14 L 22 14 Z';
+const COLON_LOWER_PATH = 'M 22 26 L 25 26 L 25 29 L 22 29 Z';
+
 // Character-to-segment-indices map (W4 pinned).
 //
 // Canonical glyph data follows the public-domain Wikipedia "Fourteen-segment
@@ -177,7 +183,7 @@ export const SEGMENT_MAP: Record<string, number[]> = {
     '=': [6, 7, 3],                            // middle bar + bottom (two horizontals)
     '\u{2261}': [0, 6, 7, 3],                  // ≡ HP-41 continuation marker: top + middle + bottom (three-bar shape)
     '/': [10, 13],                             // NE + SW diagonals
-    ':': [9, 12],                              // two center verticals (compromise — 14-seg has no dots)
+    ':': [],                                    // colon folds into previous cell via COLON overlay paths (Phase 41)
     ' ': [],                                   // space — all segments off
     '_': [3],                                  // underscore = bottom segment only (D-26.3 modal cursor)
     '?': [0, 1, 7, 12],                        // upper hook + center bottom vertical
@@ -202,16 +208,18 @@ export default function Display14Seg({ text }: Display14SegProps) {
     // and pass them as "decimal-after-this-cell" flags. Slice to fit 12 cells of
     // non-period chars. Longer input is truncated; shorter input is right-padded
     // with space so the display always renders a stable 12-cell grid.
-    const cells: { char: string; hasDecimal: boolean }[] = [];
+    const cells: { char: string; hasDecimal: boolean; hasColon: boolean }[] = [];
     for (let i = 0; i < text.length && cells.length < 12; i++) {
         const ch = text[i];
         if (ch === '.' && cells.length > 0) {
             cells[cells.length - 1].hasDecimal = true;
+        } else if (ch === ':' && cells.length > 0) {
+            cells[cells.length - 1].hasColon = true;
         } else {
-            cells.push({ char: ch, hasDecimal: false });
+            cells.push({ char: ch, hasDecimal: false, hasColon: false });
         }
     }
-    while (cells.length < 12) cells.push({ char: ' ', hasDecimal: false });
+    while (cells.length < 12) cells.push({ char: ' ', hasDecimal: false, hasColon: false });
 
     const totalWidth = CELL_WIDTH * 12;
     return (
@@ -249,6 +257,19 @@ export default function Display14Seg({ text }: Display14SegProps) {
                             d={DECIMAL_DOT_PATH}
                             fill={LIT_COLOR}
                             opacity={cell.hasDecimal ? ON_OPACITY : OFF_OPACITY}
+                        />
+                        {/* Phase 41: colon overlay — two dots in the inter-cell gap. */}
+                        <path
+                            key="colon-upper"
+                            d={COLON_UPPER_PATH}
+                            fill={LIT_COLOR}
+                            opacity={cell.hasColon ? ON_OPACITY : OFF_OPACITY}
+                        />
+                        <path
+                            key="colon-lower"
+                            d={COLON_LOWER_PATH}
+                            fill={LIT_COLOR}
+                            opacity={cell.hasColon ? ON_OPACITY : OFF_OPACITY}
                         />
                     </g>
                 );
