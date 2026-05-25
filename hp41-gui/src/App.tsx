@@ -257,22 +257,14 @@ function App() {
   // Phase 41 D-41.2/D-41.3/D-41.8: start/stop the 100ms live-display interval.
   //
   // Starts when calcState.clock_active || calcState.stopwatch_keyboard_mode is true.
-  // Clears when both are false. This is the ONLY plan introducing live-updating
-  // display behavior in the GUI (TIME-GUI-04, TIME-GUI-05).
-  //
-  // busyRef guard (Pitfall 2 from RESEARCH.md): tick_time skips if dispatch_op
-  // is already in flight — prevents concurrent Mutex access pileup.
-  // tick_time callback does NOT set busyRef.current = true: it is a read-only
-  // query that must never block user input.
-  //
-  // Cleanup on unmount/dep-change: prevents dangling interval in React StrictMode
-  // (Pitfall 3 from RESEARCH.md).
+  // CR-01 fix: derive needsTick as a stable boolean so the interval useEffect
+  // does not depend on the full calcState object (which changes every tick).
+  const needsTick = Boolean(calcState?.clock_active || calcState?.stopwatch_keyboard_mode);
+
   useEffect(() => {
-    if (!calcState) return;
-    const needsTick = calcState.clock_active || calcState.stopwatch_keyboard_mode;
     if (needsTick && liveTickRef.current === null) {
       liveTickRef.current = setInterval(() => {
-        if (busyRef.current) return; // skip tick while dispatch_op is in flight (Pitfall 2)
+        if (busyRef.current) return;
         invoke<CalcStateView>('tick_time')
           .then(view => { setCalcState(view); setErrorMessage(null); })
           .catch(err => showToast(extractErrMessage(err)));
@@ -281,14 +273,13 @@ function App() {
       clearInterval(liveTickRef.current);
       liveTickRef.current = null;
     }
-    // Cleanup on unmount — prevents dangling interval in React StrictMode (Pitfall 3).
     return () => {
       if (liveTickRef.current !== null) {
         clearInterval(liveTickRef.current);
         liveTickRef.current = null;
       }
     };
-  }, [calcState, showToast]);
+  }, [needsTick, showToast]);
 
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
@@ -651,13 +642,16 @@ function App() {
           // Strip "alarm:message:" prefix — show only the alarm message text.
           showToast(line.slice('alarm:message:'.length));
         } else if (line.startsWith('alarm:xeq:')) {
-          // Extract label and dispatch XEQ through existing infrastructure.
           const label = line.slice('alarm:xeq:'.length);
+          if (busyRef.current) return;
+          busyRef.current = true;
           invoke<CalcStateView>('dispatch_op', { keyId: `xeq_${label}` })
-            .then(view => setCalcState(view))
-            .catch(err => showToast(extractErrMessage(err)));
+            .then(view => { setCalcState(view); setErrorMessage(null); })
+            .catch(err => showToast(extractErrMessage(err)))
+            .finally(() => { busyRef.current = false; });
+        } else if (line.startsWith('alarm:interrupting:')) {
+          // D-38.4: interrupting control alarms deferred — silently ignore.
         } else {
-          // BEEP, TONE, or other non-alarm events — surface via toast.
           showToast(line);
         }
       }
