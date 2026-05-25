@@ -361,32 +361,32 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         const display = await $('[data-testid="lcd-display"]');
         await display.waitForExist({ timeout: 10000 });
 
+        // Pure-backend test path: avoid mixing clickKey (async DOM events) with
+        // invokeBackend (direct IPC) to prevent race conditions on CI.
+
         // Ensure MDY mode (clear Flag 31) so dates parse as MM.DDYYYY.
         await invokeBackend('dispatch_op', { keyId: 'xeq_MDY' });
 
         // Enter first date: Jan 1 2000 = 1.012000 in MDY format.
-        // Real clicks: 1, decimal, 0, 1, 2, 0, 0, 0
-        await clickKey('1');
-        await clickKey('.');
-        await clickKey('0');
-        await clickKey('1');
-        await clickKey('2');
-        await clickKey('0');
-        await clickKey('0');
-        await clickKey('0');
-        // ENTER lifts to Y so the second date can be entered into X.
-        await clickKey('enter');
+        await invokeBackend('dispatch_op', { keyId: '1' });
+        await invokeBackend('dispatch_op', { keyId: '.' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: '1' });
+        await invokeBackend('dispatch_op', { keyId: '2' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: 'enter' });
 
         // Enter second date: Feb 1 2000 = 2.012000 in MDY format.
-        // Real clicks: 2, decimal, 0, 1, 2, 0, 0, 0
-        await clickKey('2');
-        await clickKey('.');
-        await clickKey('0');
-        await clickKey('1');
-        await clickKey('2');
-        await clickKey('0');
-        await clickKey('0');
-        await clickKey('0');
+        await invokeBackend('dispatch_op', { keyId: '2' });
+        await invokeBackend('dispatch_op', { keyId: '.' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: '1' });
+        await invokeBackend('dispatch_op', { keyId: '2' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
+        await invokeBackend('dispatch_op', { keyId: '0' });
 
         // Stack state: Y = 1.012000 (Jan 1 2000), X = 2.012000 (Feb 1 2000).
         // DDAYS = JDN(Y) - JDN(X) = JDN(Jan 1 2000) - JDN(Feb 1 2000) = -31.
@@ -415,21 +415,24 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         const display = await $('[data-testid="lcd-display"]');
         await display.waitForExist({ timeout: 10000 });
 
-        // Push z-score 1.96 via real clicks, then ENTER to lift to Y.
-        await clickKey('1');
-        await clickKey('.');
-        await clickKey('9');
-        await clickKey('6');
-        await clickKey('enter');
+        // Pure-backend test path: clickKey fires async DOM events that race
+        // with invokeBackend IPC calls (the DOM click triggers a React handler
+        // which makes its own IPC call; ordering is not guaranteed). Use
+        // invokeBackend throughout to ensure strict sequential execution.
+
+        // Push z-score 1.96: digit entry via dispatch_op, then ENTER to lift to Y.
+        await invokeBackend('dispatch_op', { keyId: '1' });
+        await invokeBackend('dispatch_op', { keyId: '.' });
+        await invokeBackend('dispatch_op', { keyId: '9' });
+        await invokeBackend('dispatch_op', { keyId: '6' });
+        await invokeBackend('dispatch_op', { keyId: 'enter' });
 
         // Dispatch ΣNORMD via xrom_resolve. Opens NormdModeChoice modal.
-        // The z-score 1.96 is now in stack Y.
         await invokeBackend('dispatch_op', { keyId: 'xeq_ΣNORMD' });
 
-        // Enter mode 1 (CDF = upper-tail Q) and submit via R/S.
-        // With modal_program_active, R/S routes to submit_modal (not dispatch_op).
-        // invokeBackend bypasses the frontend 3-way routing, so call submit_modal directly.
-        await clickKey('1');
+        // Enter mode 1 (CDF = upper-tail Q) and submit via submit_modal.
+        // (R/S with modal_program_active routes to submit_modal in the frontend.)
+        await invokeBackend('dispatch_op', { keyId: '1' });
         const view = await invokeBackend('submit_modal');
 
         if (!view.display_str.startsWith('0.0250')) {
