@@ -687,6 +687,21 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             Op::Sol => {
                 crate::ops::math1::solve::op_sol_run_loop(state, program)?;
             }
+            // ── Phase 43: ADV FSOLVE / FINTG / FDIFEQ run_loop arms ──────────
+            // These solver ops must run inside run_loop (not dispatch) to allow
+            // re-entrant user-program callbacks (D-43.7 cross-solver nesting).
+            // The dispatch arms return InvalidOp; the run_loop arms call the real
+            // implementations with the program slice (same pattern as Op::Integ /
+            // Op::Solve / Op::Difeq from Plans 28-07/08/09).
+            Op::AdvFsolveRunLoop => {
+                crate::ops::advantage::solvers::op_adv_fsolve_run_loop(state, program)?;
+            }
+            Op::AdvFintgRunLoop => {
+                crate::ops::advantage::solvers::op_adv_fintg_run_loop(state, program)?;
+            }
+            Op::AdvFdifeqRunLoop => {
+                crate::ops::advantage::solvers::op_adv_fdifeq_run_loop(state, program)?;
+            }
             other => {
                 // All other ops execute without flush_entry_buf (no digit entry mid-program)
                 // and without prgm_mode check (RESEARCH Pitfall 2)
