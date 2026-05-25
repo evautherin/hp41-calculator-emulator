@@ -346,8 +346,8 @@ pub fn op_catalog(state: &mut CalcState, n: u8) -> Result<(), HpError> {
             // print_buffer — NO PSE-step, NO per-line yield (v2.2 CAT 1 shape;
             // D-31.12/D-31.14 PSE-step deferred per RESEARCH Open Q2).
             let xrom_registry: &[(&XromModule, u8)] = &[
-                (&MATH_1, 0b0000_0001),    // bit 0 — Math Pac I (XROM 7)
-                (&STAT_1, 0b0000_0010),    // bit 1 — Stat 1 Pac (XROM 2)
+                (&MATH_1, 0b0000_0001),      // bit 0 — Math Pac I (XROM 7)
+                (&STAT_1, 0b0000_0010),      // bit 1 — Stat 1 Pac (XROM 2)
                 (&TIME_MODULE, 0b0000_0100), // bit 2 — Time Module (XROM 26)
             ];
             let any_module = xrom_registry
