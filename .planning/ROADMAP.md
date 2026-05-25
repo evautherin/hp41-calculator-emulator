@@ -179,8 +179,17 @@ Plans:
   3. When an alarm fires, the user sees a toast notification in the GUI with the alarm message
   4. User can browse CATALOG 2 and see the "TIME 2C" section listing all Time Pac functions; help overlay shows "Time Pac (XROM 26)" section
 
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 41-01-PLAN.md — Rust backend: verify prgm_display.rs, op_catalog generic 3-module loop refactor (D-41.5), CalcStateView projections, tick_time command + Tauri permission
+- [ ] 41-02-PLAN.md — Frontend data layer: help_data.ts 4th Vite import, HelpOverlay 4th section, vitest extensions
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 41-03-PLAN.md — Frontend live display: App.tsx setInterval management + alarm event parsing + LCD-alternation modal prompt integration tests
 
 ### Phase 42: Test Hardening & Quality Gates
 
@@ -205,9 +214,9 @@ Phases execute in numeric order: 38 -> 39 -> 40 -> 41 -> 42
 | 38. hp41-core -- XROM + Clock/Date/Stopwatch/Alarm | 6/6 | Complete    | 2026-05-24 |
 | 39. hp41-cli -- CLI Integration + Live Display | 1/3 | In Progress|  |
 | 40. Documentation & ADRs | 3/3 | Complete   | 2026-05-25 |
-| 41. hp41-gui -- GUI Integration + Live Display | 0/TBD | Not started | - |
+| 41. hp41-gui -- GUI Integration + Live Display | 0/3 | Not started | - |
 | 42. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---
 
-*Last updated: 2026-05-25 -- Phase 40 planned (3 plans, 1 wave).*
+*Last updated: 2026-05-25 -- Phase 41 planned (3 plans, 2 waves).*
