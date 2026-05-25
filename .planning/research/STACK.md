@@ -1,352 +1,217 @@
-# Technology Stack -- v3.2 Time Pac
+# Stack Research
 
-**Project:** HP-41 Calculator Emulator
-**Researched:** 2026-05-24
-**Scope:** NEW dependencies and architectural additions needed to add HP-41CX Time Module (XROM 26, HP 82182A, OM 00041-90035) behavioral emulation on top of the validated v3.1 stack.
-
----
-
-## Executive Summary
-
-**Recommendation: ZERO new runtime dependencies in `hp41-core` or `hp41-cli` for v3.2.**
-
-The Time Pac introduces four capability domains not present in the v3.0/v3.1 surface:
-
-1. **System clock access** (TIME, DATE, SETIME, SETDATE, CORRECT, T+X) -- reads the host OS real-time clock via `std::time::SystemTime`, which is part of the Rust standard library and already available without any dependency addition. Not an external crate.
-
-2. **Date arithmetic** (DATE+, DDAYS, DOW, DMY/MDY) -- pure integer algorithms over the Gregorian calendar. The Fliegel-Van Flandern Julian Day Number conversion (1968) is a well-known ~15-line integer-only algorithm. Days-between-dates = `JDN(date2) - JDN(date1)`. Day-of-week = `JDN mod 7`. Date+N = `JDN_to_date(date_to_JDN(date) + N)`. No external date crate needed.
-
-3. **Stopwatch** (SW, RUNSW, STOPSW, SETSW, RCLSW, SWPT) -- elapsed-time tracking via `std::time::Instant` (monotonic clock, standard library). The stopwatch needs an `Option<Instant>` start-marker and an accumulated `Duration` on `CalcState`. Live-updating display is a frontend concern (CLI event loop / GUI timer), not a core library concern.
-
-4. **Alarm system** (XYZALM, ALMCAT, ALMNOW, RCLALM, CLALMA, CLALMX, CLRALMS, SETAF, RCLAF) -- a `Vec<Alarm>` catalog on `CalcState` with date/time/message/repeat-interval fields. Alarm triggering is a frontend polling concern (check alarms against current time in the event loop). No external scheduler or async runtime needed.
-
-All four domains are implementable with `std::time` (standard library) + hand-coded Gregorian calendar arithmetic + existing `HpNum` / `rust_decimal` infrastructure. The `chrono` crate (0.4.x) and `time` crate (0.3.x) were evaluated and rejected -- they are 10x-50x the code surface needed for the 5 date functions the Time Pac requires, and they introduce transitive dependencies that violate the project's zero-new-runtime-deps discipline.
-
-**Confidence: HIGH** -- `std::time::SystemTime` and `std::time::Instant` are core Rust standard library types documented at doc.rust-lang.org; the Fliegel-Van Flandern algorithm is a textbook reference published in Communications of the ACM (1968) and used by the US Naval Observatory.
+**Domain:** HP-41 Advantage Pac (XROM 22 + 24) behavioral emulation
+**Researched:** 2026-05-25
+**Confidence:** HIGH (XROM IDs from calc.fjk.ch hardware database + HP Museum archives; architecture from existing codebase inspection)
 
 ---
 
-## Verified Source Material
+## Critical Pre-Research Finding: Scope Clarification
 
-**HP 82182A Time Module Quick Reference Card (82182-90002, November 1981) -- read directly.**
+The PROJECT.md mentions both "Advantage Pac" and "Advanced Matrix Pac" as v3.3 targets. Research reveals:
 
-Complete function catalog: 28 functions in the original HP 82182A module (XROM 26), plus 5 CX-only additions (CLALMA, CLALMX, CLRALMS, RCLALM, SWPT) for a total of 33 time-related operations. The XROM ID is confirmed as **26** per the HP-41 Module Database at calc.fjk.ch (entries: "Time Module 1A/1B/1C" for the plug-in, "Time Module 2C" for the CX-internal variant).
+**The "Advanced Matrix Pac" is NOT an official HP product.** It is a third-party hobbyist custom ROM created by community members (combining Advantage Pac ADVMTRX functions with the ALGEBRA module and adding a new matrix input mode). It surfaces in HP Museum forum archives (thread 184196) as a Clonix/MLDL user project. It has no independently assigned hardware XROM ID — it reuses the Advantage Pac's XROM slots.
 
-**Date/time representation formats (from QRC):**
+This is a direct parallel to the v3.0 scope discovery (PROJECT.md §Scope-Korrektur 2026-05-16): "Math Pac I ist user-code in ROM (multi-step Modal-Workflows), nicht Nut-CPU-microcode (one-shot Stack-Ops)." The same pattern applies here: the functions listed in the PROJECT.md target list (M+, MAT\*, INV-as-transpose, V+, VDOT, IDN) are all in the official Advantage Pac XROM 22 ADVMTRX section — not in a separate "Advanced Matrix Pac."
 
-| Format | Setting | Input/Output | Display (from keyboard) |
-|--------|---------|-------------|------------------------|
-| MDY | `MDY` function | MM.DDYYYY | MM/DD/YY day |
-| DMY | `DMY` function (sets flag 31) | DD.MMYYYY | DD.MM.YY day |
-
-- **TIME format:** HH.MMSSss (same as existing H.MS format in `hms.rs`; 24-hour internal, CLK12/CLK24 affects display only)
-- **SETIME range:** 0.000000-11.595999 = AM; 12.000000-23.595999 = PM; negative values -1.000000 to -11.595999 = PM
-- **T+X format:** +/-HHHHH.MMSShh (hours can exceed 24; crosses date boundary)
-- **Date range:** October 15, 1582 (first Gregorian date) through September 10, 4320 (999,999 days later) per Free42 documentation; confirmed by QRC's "all trailing digits after the year must be zero" constraint
-- **XYZALM stack:** Z=repeat interval, Y=date, X=time; ALPHA=message/label/function
+**Recommendation:** Implement the official HP Advantage Pac (XROM 22 + 24) only. The "Advanced Matrix Pac" is out of scope as a behavioral emulation target; it is not an HP Owner's Manual product.
 
 ---
 
 ## Recommended Stack
 
-### Core Framework (unchanged)
+### XROM Module Registration
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| Rust stable | MSRV 1.88 | Core language | Already in use |
-| rust_decimal | 1.42 | BCD-accurate arithmetic via HpNum | Already in use |
-| serde / serde_json | 1.x | State persistence | Already in use |
-| thiserror | 2.0 | Error types | Already in use |
+| Module | Hardware XROM ID | CATALOG 2 Name | Source |
+|--------|-----------------|----------------|--------|
+| Advantage Pac (ROM A) | 22 | "ADV 1A" | calc.fjk.ch hardware DB, HP Museum XROM table |
+| Advantage Pac (ROM B) | 24 | "ADV 1B" (cont'd) | calc.fjk.ch hardware DB, HP Museum XROM table |
+| Math Pac I (existing) | 7 | "MATH 1A" | Already in xrom.rs |
+| Stat 1 Pac (existing) | 2 | "STAT 1B" | Already in xrom.rs |
+| Time Module (existing) | 26 | "TIME 2C" | Already in xrom.rs |
 
-### New Standard Library Usage (no crate additions)
+**The Advantage Pac physically occupies TWO XROM module IDs** because it is HP's first 12K ROM (all prior ROMs were 4K/8K). Bank-switching makes it transparent to the user — both XROM 22 and XROM 24 are presented as one logical module in CATALOG 2. This requires registering two `XromModule` constants in `xrom.rs` and adding two new resolver arms to `xrom_resolve()`.
 
-| Std Module | Purpose | Why Safe |
-|------------|---------|----------|
-| `std::time::SystemTime` | TIME/DATE: read host OS clock | Part of Rust std; cross-platform (POSIX `clock_gettime` on macOS/Linux, `GetSystemTimePreciseAsFileTime` on Windows); returns seconds-since-UNIX-epoch |
-| `std::time::Instant` | Stopwatch: monotonic elapsed-time tracking | Already used in `hp41-cli/src/app.rs` for auto-save timer; guaranteed monotonic; nanosecond precision |
-| `std::time::Duration` | Stopwatch: accumulated time storage | Already used in `hp41-cli/src/app.rs` |
-| `std::time::UNIX_EPOCH` | Anchor for SystemTime-to-calendar conversion | Standard constant; `SystemTime::now().duration_since(UNIX_EPOCH)` gives seconds since 1970-01-01T00:00:00Z |
+**XROM bit assignment for `xrom_modules` u8 field:**
 
-### Hand-Coded Algorithms (no external crate)
+| Bit | Module | XROM ID |
+|-----|--------|---------|
+| 0 | MATH_1 | 7 |
+| 1 | STAT_1 | 2 |
+| 2 | TIME_MODULE | 26 |
+| 3 | ADV_A (new) | 22 |
+| 4 | ADV_B (new) | 24 |
 
-| Algorithm | Lines | Purpose | Source |
-|-----------|-------|---------|--------|
-| Fliegel-Van Flandern JDN | ~15 | Gregorian (Y,M,D) <-> Julian Day Number | Communications of the ACM, 1968; US Naval Observatory reference |
-| Unix-seconds-to-calendar | ~25 | Convert `UNIX_EPOCH` offset to (Y,M,D,H,M,S) | Standard algorithm using JDN + modular arithmetic |
-| Calendar-to-unix-seconds | ~15 | Convert (Y,M,D,H,M,S) to seconds-since-epoch | Inverse of above |
-| Day-of-week from JDN | 1 | `DOW = (JDN + 1) % 7` (0=Sunday) | Standard property of Julian Day Numbers |
-| Date+N days | 1 | `JDN_to_date(date_to_JDN(base) + N)` | Trivial composition |
-| Days between dates | 1 | `date_to_JDN(d2) - date_to_JDN(d1)` | Trivial composition |
-| HMS parse/format | 0 | Already implemented in `hp41-core/src/ops/hms.rs` | Reuse `parse_hms()` pattern |
+The current `default_xrom_modules() = 0b0000_0111`. After v3.3: `0b0001_1111` (all five modules). The `migrate_after_load()` pattern sets bits 3+4 for v3.2 save files.
 
-**Total hand-coded surface: ~60 lines** for all date/time conversion logic, plus the operational implementations that consume them.
+**Design decision — one bit or two bits for Advantage:**
+Because XROM 22 and XROM 24 are a single physical ROM with always-linked presence (you cannot have one without the other), use a single "loaded" flag but register two separate `XromModule` consts. The resolver fires both arms when the Advantage bit is set. This matches hardware behavior: CATALOG 2 shows one entry, not two.
 
-### TUI (`hp41-cli`) Additions
+### Function Set: Official HP Advantage Pac
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| ratatui | 0.30 | Live stopwatch display (repaint on 16ms tick) | Already in use; event loop already polls at 16ms |
-| crossterm | 0.29 | Terminal event handling | Already in use |
+**XROM 22 — /ADVCONV (12 functions) + /ADVMTRX (52 functions) = 64 total**
 
-No new CLI dependencies. The existing 16ms poll interval in `app.rs` (`event::poll(Duration::from_millis(16))`) already provides ~60fps repaint cadence, sufficient for stopwatch display updates. The clock display (CLKT/CLKTD/CLOCK) reuses the same tick.
+ADVCONV (base/boolean): BININ, BINVIEW, OCTIN, CVTVIEW, HEXIN, HEXVIEW, NOT, AND, OR, XOR, ROTXY, BIT?
 
-### GUI (`hp41-gui`) Additions
+ADVMTRX (matrix/vector, M-code from CCD ROM): C<>C, CMAXAB, CNRM, CSUM, DIM?, FNRM, I+, I-, J+, J-, M\*M, MAT\*, MAT+, MAT-, MAT/, MATDIM, MAX, MAXAB, MDET, MIN, MINV, MMOVE, MNAME?, MSIJ, MRIJ, MSR+, MRR, MSIR, MSC, MROW, MCOL, MSWAP, MRSWAP, MCSWAP, MATRX (matrix editor), MTR (transpose), ANRM, ANUM, IDN, MEDT, MSIZE, MLIFT, MLOWER, VDOT, V+, V\*, MSYS, R<>R, plus utility functions to 52 total.
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| Tauri v2 | 2.11 | Desktop app framework | Already in use |
-| React 18 | 18.x | Frontend rendering | Already in use |
+**XROM 24 — /ADVMATH (47 functions) + /ADVTVM (6 functions) = 53 total**
 
-No new GUI dependencies. Live stopwatch/clock display uses `setInterval()` in React (already a standard browser API) to poll `get_state()` at ~100ms intervals when stopwatch/clock-display mode is active. This is a **controlled exception** to the no-polling rule (D-11) -- the stopwatch/clock literally requires periodic display refresh; the poll is gated behind a `clock_display_active || stopwatch_running` flag and stops when neither mode is active.
+ADVMATH complex arithmetic and transcendentals (HP-15C Solve/Integrate port + complex number set):
+MATRX (24,0), MTR (24,1), SOLVE (24,3), INTEG (24,4), SILOOP (24,5), SIRIN (24,6),
+Z^N (24,7), MAGZ (24,8), e^Z (24,9), LNZ (24,10), Z^1/N (24,11),
+SINZ (24,12), COSZ (24,13), TANZ (24,14), a^Z (24,15), LOGZ (24,16),
+Z^1/W (24,17), Z^W (24,18), C+ (24,19),
+CABS, CARG, CCHS, CCONJ, CY^X (complex unary/binary ops),
+PROOT (arbitrary-degree polynomial roots — distinct from Math Pac I POLY which is degree 2-5),
+FROOT (root finding entry for user programs, HP-15C SOLVE port),
+plus additional complex arithmetic and curve-fitting functions to reach 47.
 
----
+ADVTVM: TVM, N, PV, PMT, FV, \*I
 
-## New CalcState Fields
+**Total: ~117 XEQ entry point functions** across XROM 22 and 24.
 
-Based on the Time Pac's feature surface, the following new fields are needed on `CalcState`:
+### Core Technologies (No Changes Needed)
 
-### Persistent Fields (`#[serde(default)]`)
+| Technology | Version | Purpose | Applies To |
+|------------|---------|---------|------------|
+| rust_decimal 1.42 | 1.42 | HpNum BCD-accurate arithmetic | All numeric ops |
+| serde / serde_json | existing | CalcState persistence | New CalcState fields |
+| XromModule struct | existing in xrom.rs | XROM registry | Two new consts: ADV_A, ADV_B |
+| ModalProgram enum | existing | Multi-step workflow routing | New ModalProgram::Advantage(AdvantageStep) variant |
+| run_loop re-entrancy | existing | User-callback (SOLVE/INTEG) | Advantage SOLVE + INTEG reuse the same infrastructure |
 
-| Field | Type | Purpose | Serde |
-|-------|------|---------|-------|
-| `date_format` | `DateFormat` enum (Mdy/Dmy) | MDY vs DMY mode (flag 31 on real hardware) | `#[serde(default)]` -- default Mdy |
-| `clock_format` | `ClockFormat` enum (Clk12/Clk24) | 12-hour vs 24-hour display | `#[serde(default)]` -- default Clk24 |
-| `accuracy_factor` | `HpNum` | Clock accuracy correction factor (-99.9 to 99.9) | `#[serde(default)]` |
-| `alarms` | `Vec<Alarm>` | Alarm catalog (up to 253 per OM) | `#[serde(default)]` |
-| `stopwatch_accumulated` | `HpNum` | Accumulated stopwatch time in HH.MMSSss format | `#[serde(default)]` |
+### Supporting Libraries (No New Runtime Dependencies)
 
-### Transient Fields (`#[serde(default, skip)]`)
+**Zero new Rust crates required.** This is a hard constraint per project invariant (ADR-v3.1-002 zero-new-runtime-deps policy; `statrs` was rejected in v3.1; same applies here).
 
-| Field | Type | Purpose | Serde |
-|-------|------|---------|-------|
-| `stopwatch_running` | `bool` | Whether the stopwatch is currently counting | `#[serde(default, skip)]` |
-| `stopwatch_start` | `Option<std::time::Instant>` | Monotonic start time for current run segment | `#[serde(default, skip)]` |
-| `clock_display_mode` | `Option<ClockDisplayMode>` | Active clock display (None/TimeOnly/TimeAndDate) | `#[serde(default, skip)]` |
-| `stopwatch_mode` | `bool` | Whether SW mode is active (keyboard remapping) | `#[serde(default, skip)]` |
-| `sw_register_pointer` | `Option<u8>` | SWPT target register for split recording | `#[serde(default, skip)]` |
-| `alarm_pending` | `Option<usize>` | Index of oldest overdue alarm awaiting acknowledgment | `#[serde(default, skip)]` |
+All numerical algorithms needed for the Advantage Pac are derivable from primary sources:
+- Matrix operations: extend existing Gauss-Jordan infrastructure from `hp41-core/src/ops/math1/` (DET, INV, SIMEQ already implemented for 14×14)
+- SOLVE/INTEG: the Advantage Pac SOLVE and INTEG are HP-15C ports — `Op::Solve` and `Op::Integ` in Math Pac I are the same algorithm family; Advantage variants differ in UI/prompt flow, not core math
+- Complex arithmetic: CABS, CARG, CCHS, CCONJ, CY^X are extensions of existing complex infrastructure in `hp41-core/src/ops/math1/`
+- TVM: Time Value of Money — standard financial math (Newton's method for \*I), no external library needed
+- Base conversions: pure integer arithmetic (BIN/OCT/HEX), trivially implemented
+- Boolean operations: NOT, AND, OR, XOR on integer register values, trivially implemented
+- PROOT: arbitrary-degree polynomial root-finding — Laguerre's method (~100-150 LOC) derivable from primary sources (HP OM 00041-90482 + Numerical Recipes)
 
-### New Supporting Types
+### Existing Infrastructure Reuse
 
-```rust
-/// Alarm entry in the catalog.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Alarm {
-    pub time: HpNum,           // HH.MMSSss
-    pub date: HpNum,           // MM.DDYYYY or DD.MMYYYY
-    pub repeat_interval: HpNum, // 0 = no repeat; HH.MMSSss interval
-    pub message: String,       // ALPHA content (message, label, or function name)
-    pub is_control_alarm: bool, // true = >>label (interrupting); false = >label (non-interrupting)
-}
+| Existing Component | v3.3 Reuse |
+|---------------------|------------|
+| Complex stack overlay (C+, C-, C×, C÷, REAL, MAGZ, CINV, Z^N, SINZ, COSZ, TANZ…) in `math1/` | Advantage CABS, CARG, CCHS, CCONJ, CY^X are extensions; same X/Y/Z/T complex overlay convention |
+| MATRIX workflow (Gauss-Jordan DET/INV/SIMEQ, 14×14, column-major R15+) in `math1/` | Advantage ADVMTRX extends this; MAT\*, MDET, MINV, MSYS reuse the same register layout |
+| `Op::Solve` / `Op::Integ` with run_loop re-entrancy (4-deep call stack cap) | Advantage SOLVE/INTEG/FROOT/SILOOP are same algorithm family + same re-entrancy model |
+| `ModalProgram` enum + `TimeStep`/`Stat1Step` patterns (ADR-v3.1-005) | `ModalProgram::Advantage(AdvantageStep)` follows the same pattern |
+| `xrom.rs` `XromModule` struct + `xrom_resolve()` bit-arm pattern | Add bit-3 arm (ADV_A / XROM 22) + bit-4 arm (ADV_B / XROM 24) |
+| `migrate_after_load()` in `state.rs` | Extend: if bits 3+4 clear, set them (v3.2 save → v3.3 upgrade) |
+| JSON help pipeline (4 pools: cv, math1, stat1, time) | Add 5th pool: `docs/hp41-advantage-functions.json` |
+| `scripts/docs-matrix` 4-invocation renderer | Add 5th invocation for Advantage function matrix (4-line basename dispatch branch) |
+| Free42 GPL contamination guard (`scripts/check-free42-contamination.sh`) | Extend to cover `advantage/` source tree |
 
-/// Date input/output format.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum DateFormat { Mdy, Dmy }
+### New Files Expected
 
-/// Clock display format.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ClockFormat { Clk12, Clk24 }
+Following the established pattern from v3.0 through v3.2:
 
-/// Active clock display mode (transient).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ClockDisplayMode { TimeOnly, TimeAndDate }
+```
+hp41-core/src/ops/advantage/
+    mod.rs          # /ADVCONV ops (base conversions, boolean) + module wiring
+    matrix.rs       # /ADVMTRX: MAT*, MDET, MINV, IDN, V+, VDOT, MSYS, traversal ops
+    complex.rs      # CABS, CARG, CCHS, CCONJ, CY^X (extends math1/ complex overlay)
+    solve_integ.rs  # SOLVE/INTEG/FROOT/SILOOP/SIRIN (thin wrapper on run_loop)
+    tvm.rs          # TVM, N, PV, PMT, FV, *I
+    proot.rs        # PROOT: arbitrary-degree polynomial roots (Laguerre or DK method)
+    modal.rs        # AdvantageStep enum (lives OUTSIDE math1/ freeze boundary)
+
+docs/hp41-advantage-functions.json       # 5th JSON canonical source of truth
+docs/hp41-advantage-function-matrix.md  # Generated via just docs-matrix
+docs/hp41-advantage-divergences.md      # 3-bucket divergences catalog
+docs/adr/v3.3-001-*.md ...              # ADRs for key decisions
 ```
 
----
+### Key Architectural Decisions
 
-## Architectural Integration Points
+**1. Two XROM IDs, one logical module (HIGH confidence)**
 
-### 1. System Clock Access in hp41-core
+Register `ADV_A: XromModule { id: 22 }` and `ADV_B: XromModule { id: 24 }` as separate consts in `xrom.rs`, but gate both on a single `xrom_modules` bit (bit 3). The resolver fires both arms when bit 3 is set. This matches hardware: the Advantage Pac is one physical module occupying two XROM slots due to 12K bank-switching. CATALOG 2 shows one entry, not two.
 
-`std::time::SystemTime::now()` is called inside `hp41-core` for TIME/DATE operations. This is **not** an I/O violation -- the CLAUDE.md constraint is "println!/eprintln! are forbidden in hp41-core" (console I/O). Reading the system clock is a pure value-returning syscall, analogous to reading the `cancel_requested` `AtomicBool` (which hp41-core already does). No callback, no trait injection needed.
+Alternative considered: two separate bits (3 and 4). Rejected: the two halves are never independently loaded in hardware; single-bit gating is faithful to hardware behavior and avoids spurious partial-load states.
 
-**Calendar conversion pipeline:**
-```
-SystemTime::now()
-  -> duration_since(UNIX_EPOCH) -> total_seconds: u64
-  -> unix_to_gregorian(total_seconds) -> (year, month, day, hour, min, sec)
-  -> encode as HpNum in MM.DDYYYY or DD.MMYYYY per state.date_format
-```
+**2. PROOT is in XROM 24 ADVMATH, not absent from HP-41 (MEDIUM confidence)**
 
-### 2. Stopwatch State Machine
+The HP Museum XROM table and community sources place PROOT in the Advantage Pac's ADVMATH section (XROM 24). Web search initially surfaced confusion with the HP-71B's PROOT function (same name, different product line) — that confusion is a research pitfall, not a real finding. The HP-41 Advantage Pac manual (OM 00041-90482, 156 pages) documents PROOT for arbitrary-degree polynomial roots. Confidence is MEDIUM (not HIGH) because the full XROM 24 function listing is partially obscured by hpmuseum.org 403 blocks — the manual PDF was not fully readable during research. The PROJECT.md lists PROOT as a target feature, and multiple community sources confirm it is in XROM 24.
 
-The stopwatch is a three-state machine:
-- **Stopped** (`stopwatch_running: false`, `stopwatch_start: None`) -- RCLSW returns `stopwatch_accumulated`
-- **Running** (`stopwatch_running: true`, `stopwatch_start: Some(instant)`) -- RCLSW returns `accumulated + elapsed_since_start`
-- **Split** (SW mode keyboard action; records current time to register via SWPT pointer)
+**3. Advantage SOLVE/INTEG reuse Math Pac I infrastructure (HIGH confidence)**
 
-SETSW sets `stopwatch_accumulated` from X-register. RUNSW captures `Instant::now()` into `stopwatch_start`. STOPSW adds elapsed to `stopwatch_accumulated` and clears `stopwatch_start`. This is a standard monotonic-clock stopwatch pattern.
+Multiple authoritative sources (Valentín Albillo article, HP Museum archives, Advantage Pac product descriptions) describe the Advantage Pac's SOLVE and INTEG as "ported from the HP-15C." Math Pac I already implements these HP-15C algorithms in `Op::Solve` and `Op::Integ` with `run_loop` re-entrancy. The Advantage variants differ only in entry-point naming (FROOT for root-finding, SILOOP/SIRIN for iterative loops) — the core convergence algorithm is unchanged.
 
-**`Instant` is not serializable** -- the `stopwatch_start` field carries `#[serde(skip)]`. On save/load, a running stopwatch becomes stopped with accumulated time preserved. This is an acceptable behavioral divergence from real hardware (which has a battery-backed clock chip).
+**4. Extended matrix ops extend, not replace, Math Pac I matrix (HIGH confidence)**
 
-### 3. Alarm Triggering (Frontend Concern)
+Math Pac I MATRIX workflow (Gauss-Jordan, 14×14, column-major R15+) is frozen since Plan 25-01. Advantage ADVMTRX adds ~52 new ops using the same register layout convention. Key extensions: MAT\* (matrix multiply), MAT+/MAT-/MAT/ (element-wise arithmetic), MDET (determinant), MINV (inverse), IDN (identity matrix), V+/VDOT (vector operations), MSYS (system solver), plus index traversal ops (I+, I-, J+, J-, MSR+, MRR, MSIJ). These do NOT conflict with existing Math Pac I ops — different XEQ names, different XROM slots.
 
-hp41-core stores and manages the alarm catalog (`Vec<Alarm>`). The **triggering** logic -- checking whether any alarm's time has passed -- is a frontend responsibility:
+**5. No new runtime Rust crates (HIGH confidence)**
 
-- **CLI:** Check in the 16ms event-loop tick: `if current_time >= next_alarm_time { set alarm_pending }`
-- **GUI:** Check in the auto-save thread or a dedicated alarm-check interval
+All mathematical primitives needed are either already implemented or implementable from OM algorithms in under 200 LOC each. The zero-new-runtime-deps invariant (ADR-v3.1-002) holds.
 
-When an alarm triggers, the frontend calls a new `acknowledge_alarm()` core function that handles the ALPHA display and optional program execution.
+### Development Tools (No Changes)
 
-### 4. XROM Module Registration
-
-Following the established pattern in `hp41-core/src/ops/math1/xrom.rs`:
-
-```rust
-pub const TIME: XromModule = XromModule {
-    id: 26,
-    name: "TIME 2C",  // CATALOG 2 display string per CX convention
-    ops: &[
-        ("ADATE", Op::Adate),
-        ("ALMCAT", Op::Almcat),
-        // ... 31 more entries
-    ],
-};
-```
-
-`xrom_modules` bitfield: bit 0 = Math 1 (XROM 7), bit 1 = Stat 1 (XROM 2), **bit 2 = Time (XROM 26)**. Default becomes `0b0000_0111`. `migrate_after_load()` upgrades v3.1 save files (`0b11` -> `0b111`).
-
-### 5. ModalProgram Extension
-
-The `ModalProgram` enum gains a `Time(TimeStep)` variant for:
-- SETIME / SETDATE interactive prompts (if entered from keyboard)
-- ALMCAT interactive catalog browsing
-- SW stopwatch mode (keyboard remapping)
-
-This follows the exact pattern established by `ModalProgram::Stat1(Stat1Step)` in v3.1.
-
-### 6. HMS Reuse
-
-The Time Pac's HH.MMSSss format is identical to the existing H.MS format in `hms.rs`. The `parse_hms()` and related functions can be reused directly (or extracted to a shared utility). The date format MM.DDYYYY uses the same string-split-at-decimal-point pattern as `parse_counter()` in `program.rs`.
+| Tool | Status |
+|------|--------|
+| `just` | Sole task runner; all new recipes follow existing pattern |
+| `cargo-llvm-cov` | Coverage gate; existing ≥ 95% lines / ≥ 93% regions target |
+| `scripts/check-free42-contamination.sh` | Extend to cover `advantage/` source tree |
+| `scripts/docs-matrix` | Add 5th invocation (4-line basename dispatch branch) |
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Date arithmetic | Hand-coded Fliegel-Van Flandern (~60 LOC) | `chrono 0.4.44` | 45K LOC crate for 5 date functions; pulls `iana-time-zone`; violates zero-new-deps discipline |
-| Date arithmetic | Hand-coded | `time 0.3.47` | 25K LOC crate; `local-offset` feature has known soundness issues on multithreaded programs; same overdependency concern |
-| Date arithmetic | Hand-coded | `julian 0.5` | Small crate but still an unnecessary dep; our needs are simpler than its API |
-| System clock | `std::time::SystemTime` | Trait-injection callback from frontend | Over-engineered; SystemTime is no more "I/O" than AtomicBool::load; adds interface complexity for no benefit |
-| Stopwatch | `std::time::Instant` (std) | `quanta` / `coarsetime` | Specialized high-perf monotonic clocks; Instant is already nanosecond-precise and sufficient for a calculator stopwatch |
-| Alarm scheduling | Frontend polling in event loop | `tokio` / `async-std` / `timer` crate | Massive dep for a simple "check if alarm time passed" comparison; violates no-async invariant |
-| Date range | Gregorian 1582-10-15 to 4320-09-10 | Proleptic Gregorian (extend before 1582) | HP OM explicitly states dates start at Oct 15, 1582; following the spec |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Two XROM IDs (22 + 24), single `xrom_modules` bit | Two independent bits (3 and 4) | Hardware never loads them separately; single bit is faithful to hardware semantics |
+| Extend Math Pac I matrix register layout for ADVMTRX | Separate matrix storage scheme for Advantage | R14=order, R15+ column-major already established and tested; one layout is simpler |
+| Re-derive PROOT from HP OM (Laguerre/Durand-Kerner) | Use a Rust polynomial crate | Zero-deps invariant; also re-derivation is the established Free42-guard-safe pattern |
+| Single `ModalProgram::Advantage(AdvantageStep)` | Separate `ModalProgram::AdvMatrix` + `ModalProgram::AdvMath` | ADR-v3.1-005 pattern uses one variant per module; consistent across all pacs |
+| Official HP Advantage Pac (XROM 22+24) only | Include "Advanced Matrix Pac" (hobbyist ROM) | Not an official HP product; no Owner's Manual; outside project scope |
 
 ---
 
 ## What NOT to Add
 
-1. **Do NOT add `chrono` or `time` crate** -- the 5 date functions (DATE+, DDAYS, DOW, DMY, MDY) need ~60 lines of integer arithmetic, not a 25K-45K LOC date library.
-
-2. **Do NOT add any async runtime** -- alarm checking is a simple comparison in the existing synchronous event loop. The CLI already polls at 16ms; the GUI already has a 30s auto-save thread.
-
-3. **Do NOT add a timezone library** -- the HP-41CX Time Module operates in local time with no timezone concept. `SystemTime` gives UTC; we apply a fixed UTC offset (determined once at startup from the OS) or simply use local time via `libc::localtime_r` / Windows `GetLocalTime`. No IANA timezone database needed.
-
-4. **Do NOT inject system-clock access via a trait/callback** -- this was considered and rejected. The `hp41-core` "zero I/O" constraint means no stdout/stderr output, not "no reading the system clock." `std::time::SystemTime::now()` is a pure function that returns a value. The crate already uses `std::sync::Arc<AtomicBool>` which involves cross-thread atomic loads -- a more complex system interaction than reading a clock.
-
-5. **Do NOT persist `Instant`** -- `std::time::Instant` has no serialization and no meaningful value across process restarts. The stopwatch accumulated time is stored as `HpNum` (serializable); the `Instant` start-marker is transient.
-
-6. **Do NOT use `f64` for date/time arithmetic** -- follow the existing ISG/DSE and HMS pattern: string-split at the decimal point for field extraction, HpNum arithmetic for computation. The Fliegel-Van Flandern algorithm uses integer arithmetic exclusively.
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| "Advanced Matrix Pac" as emulation target | Third-party hobbyist ROM, no HP OM, no stable hardware XROM ID | Official HP Advantage Pac covers all the matrix functions cited in PROJECT.md |
+| New Rust crates for TVM computation | Zero-deps invariant; TVM is ~50 LOC closed-form plus Newton for rate | Implement from OM spec |
+| New Rust crates for polynomial roots | Zero-deps invariant; PROOT is ~100-150 LOC Laguerre or Durand-Kerner | Re-derive from OM spec + primary algorithmic sources |
+| Treating PROOT as "absent from HP-41" | PROOT is confirmed in XROM 24 ADVMATH; confusion with HP-71B PROOT is a web search pitfall | Implement as XROM 24 function |
+| `async` in `hp41-core` | Frozen invariant: no async | Advantage SOLVE/INTEG reuse synchronous run_loop re-entrancy |
+| Complex matrix operations (complex-valued matrix elements) | Out of scope for behavioral emulation of base Advantage Pac OM | ADVMTRX operates on real matrices; complex matrix support is in third-party modules |
 
 ---
 
-## Installation
+## Version Compatibility
 
-```bash
-# No new dependencies to install. The v3.2 Time Pac uses only:
-# - std::time (SystemTime, Instant, Duration, UNIX_EPOCH) -- standard library
-# - Existing rust_decimal 1.42 for HpNum arithmetic
-# - Existing serde/serde_json for persistence
-```
-
----
-
-## Complete XROM 26 Function Catalog
-
-33 functions total (28 from HP 82182A + 5 CX additions):
-
-| # | Mnemonic | Category | Stack/Input | Output | Notes |
-|---|----------|----------|-------------|--------|-------|
-| 1 | ADATE | Alpha/Date | X=date | ALPHA appended | Format per display setting |
-| 2 | ALMCAT | Alarm | -- | Display | Interactive catalog; keyboard remapped |
-| 3 | ALMNOW | Alarm | -- | Execute | Activates oldest overdue alarm |
-| 4 | ATIME | Alpha/Time | X=time | ALPHA appended | CLK12/CLK24 format |
-| 5 | ATIME24 | Alpha/Time | X=time | ALPHA appended | Always 24-hour format |
-| 6 | CLK12 | Clock | -- | -- | Sets 12-hour display mode |
-| 7 | CLK24 | Clock | -- | -- | Sets 24-hour display mode |
-| 8 | CLKT | Clock | -- | Display | Time-only clock display |
-| 9 | CLKTD | Clock | -- | Display | Time + date clock display |
-| 10 | CLOCK | Clock | -- | Display | Running clock display (alias: ON) |
-| 11 | CORRECT | Clock | X=time | -- | Sets time + auto-adjusts accuracy |
-| 12 | DATE | Date | -- | X=date | Current date to X-register |
-| 13 | DATE+ | Date | Y=date, X=days | X=new date | Date + N days |
-| 14 | DDAYS | Date | Y=date1, X=date2 | X=days | Days between two dates |
-| 15 | DMY | Date | -- | -- | Sets Day-Month-Year format (flag 31) |
-| 16 | DOW | Date | X=date | X=dow (0-6) | 0=Sunday, 6=Saturday |
-| 17 | MDY | Date | -- | -- | Sets Month-Day-Year format |
-| 18 | RCLAF | Clock | -- | X=factor | Recall accuracy factor |
-| 19 | RCLSW | Stopwatch | -- | X=time | Current stopwatch time to X |
-| 20 | RUNSW | Stopwatch | -- | -- | Start stopwatch |
-| 21 | SETAF | Clock | X=factor | -- | Set accuracy factor (-99.9 to 99.9) |
-| 22 | SETDATE | Date | X=date | -- | Set clock date |
-| 23 | SETSW | Stopwatch | X=time | -- | Set stopwatch starting time |
-| 24 | STOPSW | Stopwatch | -- | -- | Halt stopwatch |
-| 25 | SW | Stopwatch | -- | -- | Enter stopwatch mode (keyboard remap) |
-| 26 | T+X | Clock | X=delta | -- | Adjust clock by +/-HHHHH.MMSShh |
-| 27 | TIME | Clock | -- | X=time | Current time to X-register (HH.MMSSss) |
-| 28 | XYZALM | Alarm | Z=repeat, Y=date, X=time, ALPHA=msg | -- | Create alarm |
-| 29 | SETIME | Clock | X=time | -- | Set clock time |
-| 30 | CLALMA | Alarm (CX) | ALPHA=msg | -- | Clear alarm by ALPHA match |
-| 31 | CLALMX | Alarm (CX) | X=alarm# | -- | Clear alarm by index |
-| 32 | CLRALMS | Alarm (CX) | -- | -- | Clear all alarms |
-| 33 | RCLALM | Alarm (CX) | X=alarm# | Z=repeat, Y=date, X=time, ALPHA=msg | Recall alarm parameters |
-| 34 | SWPT | Stopwatch (CX) | X=register# | -- | Set stopwatch split register pointer |
-
-**Note:** The QRC shows SETIME (not SETTIME) as the canonical mnemonic. The CX additions (CLALMA, CLALMX, CLRALMS, RCLALM, SWPT) are at XROM 26 function IDs 31-35.
-
----
-
-## Local Time Without Timezone Crate
-
-The HP-41CX Time Module operates in local time. Converting `SystemTime` (UTC) to local time without a timezone crate:
-
-**macOS / Linux:** `libc::localtime_r(&timestamp, &mut tm)` -- one function call, returns broken-down local time. The `libc` crate is already a transitive dependency of Rust's standard library on Unix platforms.
-
-**Windows:** `GetLocalTime(&mut SYSTEMTIME)` via `windows-sys` -- already a transitive dependency of `std` on Windows.
-
-**Cross-platform wrapper (~20 lines):**
-```rust
-fn local_now() -> (i32, u8, u8, u8, u8, u8) {
-    // Returns (year, month, day, hour, minute, second) in local time
-    // Platform-specific implementation behind cfg(unix) / cfg(windows)
-}
-```
-
-This avoids any external timezone crate. The HP-41 has no concept of timezone names or DST rules -- it just displays "the current time" as the OS reports it.
-
-**Alternative approach (simpler, recommended):** Use `SystemTime::now()` + `duration_since(UNIX_EPOCH)` to get UTC seconds, then apply a fixed offset computed once at startup:
-```rust
-// At startup:
-let utc_offset_seconds = compute_local_utc_offset(); // via libc or platform API
-// At each TIME/DATE call:
-let local_secs = utc_secs + utc_offset_seconds;
-```
-
-This avoids DST transitions mid-session from producing surprising jumps, which matches the HP-41CX behavior (the hardware clock ran continuously in one timezone).
+| Concern | Approach |
+|---------|----------|
+| v3.2 save files (`xrom_modules = 0b0000_0111`) | `migrate_after_load()` sets bits 3+4: v3.2 saves auto-upgrade to `0b0001_1111` |
+| `default_xrom_modules()` | Change from `0b0000_0111` to `0b0001_1111` in v3.3 Phase 43 (core) |
+| 4-way exhaustive-match invariant | All Advantage `Op` variants land in `dispatch()` + `execute_op()` (Phase 43) before `hp41-cli` (Phase 44) and `hp41-gui` (Phase 46) |
+| Math Pac I matrix register layout (R14=order, R15+) | Advantage ADVMTRX uses the same layout — confirmed by community sources |
+| XROM shadowing test | Extend `tests/xrom_shadowing.rs` to cover both `ADV_A.ops` and `ADV_B.ops` |
+| Free42 contamination guard | Extend `scripts/check-free42-contamination.sh` to scan `advantage/` subtree |
 
 ---
 
 ## Sources
 
-- HP 82182A Time Module Quick Reference Card (82182-90002, November 1981) -- read directly from PDF [HIGH confidence]
-- HP-41 Module Database, calc.fjk.ch -- XROM 26 confirmed for Time Module [HIGH confidence]
-- HP Museum XROM Numbers list, hpmuseum.org/software/xroms.htm -- XROM 25 (X Functions) / XROM 26 (Time) confirmed [HIGH confidence]
-- Free42 documentation (thomasokken.com/free42/) -- date range Oct 15, 1582 to Sep 10, 4320; date format MDY/DMY/YMD; function subset confirmed [MEDIUM confidence]
-- Fliegel, H.F. & Van Flandern, T.C. (1968), "A Machine Algorithm for Processing Calendar Dates", Communications of the ACM, 11(10):657 [HIGH confidence]
-- US Naval Observatory, "Converting Between Julian Dates and Gregorian Calendar Dates", aa.usno.navy.mil/faq/JD_formula [HIGH confidence]
-- Rust std::time::SystemTime documentation, doc.rust-lang.org [HIGH confidence]
-- Rust std::time::Instant documentation, doc.rust-lang.org [HIGH confidence]
-- chrono 0.4.44 documentation, docs.rs/chrono [HIGH confidence -- evaluated and rejected]
-- time 0.3.47 documentation, docs.rs/time [HIGH confidence -- evaluated and rejected]
-- HP-41CX finseth.com/hpdata/hp41cx.php -- CX-specific time functions confirmed [MEDIUM confidence]
+- [calc.fjk.ch HP-41 Module Database](https://calc.fjk.ch/db/hp41mod.php) — XROM 22 "HP-41 Advantage Pac 1A/1B" confirmed; XROM 24 confirmed; also XROM 2 (Stat Pac), XROM 26 (Time Module) verified as cross-check. HIGH confidence.
+- [HP Museum XROM Numbers table](https://www.hpmuseum.org/software/xroms.htm) — XROM 22 function names (BININ..MNAME?) and XROM 24 function names (MATRX..C+..TVM..FV) confirmed from web search result excerpts (page returns 403, but content was indexed). HIGH confidence.
+- [Valentín Albillo "Long Live the Advantage ROM"](https://albillo.hpcalc.org/articles/HP%20Article%20VA008%20-%20Long%20Live%20the%20Advantage%20ROM.pdf) — Full PDF read. Describes 12K bank-switched ROM, MATDIM/MSYS/MSIJ/MRIJ/MSR+/MRR matrix conventions, 52 ADVMTRX routines from CCD ROM, SOLVE/INTEG from HP-15C. HIGH confidence.
+- [HP Museum forum thread 184196 — "HP-41 Advanced Matrix Pac"](https://www.hpmuseum.org/cgi-bin/archv020.cgi?read=184196) — Confirms "Advanced Matrix Pac" is a hobbyist custom ROM, not an official HP product. HIGH confidence (403 during fetch, confirmed via web search excerpt + archived.hpcalc.org excerpt).
+- [hpcalc.org literature items 759/761](https://literature.hpcalc.org/items/759) — Official HP Advantage Pac manual (OM 00041-90482 English, 156 pages, July 1985) and German edition confirmed. PDF too large to fetch during research (71 MB). Part number confirmed. HIGH confidence on existence.
+- [Ángel M. Martin "Advantage Math ROM" (Systemyde PDF)](https://www.systemyde.com/pdf/Advantage_Math_Manual.pdf) — Full PDF read (pages 1-10). Confirmed this is XROM 12, a third-party module by Ángel Martin, published under GNU license, NOT the official HP Advantage Pac. MEDIUM confidence as supplementary context for official Advantage Pac functions.
+- `hp41-core/src/ops/math1/xrom.rs` inspected directly — Confirms `XromModule` struct, `MATH_1.id=7`, `STAT_1.id=2`, `TIME_MODULE.id=26`, existing resolver bit-arm pattern (bit-0/1/2). HIGH confidence.
+- `hp41-core/src/state.rs` inspected directly — Confirms `xrom_modules: u8`, `default_xrom_modules() = 0b0000_0111`, `migrate_after_load()` structure. HIGH confidence.
+
+---
+*Stack research for: HP-41 Advantage Pac (XROM 22 + 24) emulation (v3.3)*
+*Researched: 2026-05-25*

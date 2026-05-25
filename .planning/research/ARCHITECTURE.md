@@ -1,437 +1,520 @@
-# Architecture Patterns: HP-41CX Time Module Emulation (v3.2)
+# Architecture Patterns: HP-41 Advantage Pac + Advanced Matrix Pac Emulation (v3.3)
 
-**Domain:** HP-41CX Time Module (HP 82182A, XROM 26) -- real-time clock, alarm catalog, live stopwatch
-**Researched:** 2026-05-24
-**Confidence:** HIGH (codebase fully read; XROM 26 confirmed from calc.fjk.ch + qrg41.fjk.ch)
+**Domain:** HP-41 Advantage Pac (HP 00041-90546, XROM 22+24) and community "Advanced Matrix Pac" extension
+**Researched:** 2026-05-25
+**Confidence:** MEDIUM-HIGH (codebase read in full; Advantage Pac XROM IDs confirmed from calc.fjk.ch; function categories confirmed from multiple community sources; exact per-function XROM number sub-assignments MEDIUM confidence — OM PDF not fully parsed)
 
-## The Central Challenge
+---
 
-The existing emulator is **purely event-driven**: `hp41-core` owns `CalcState` (no threads, no timers, no async), the CLI polls `crossterm::event::poll(16ms)` and redraws, and the GUI holds `CalcState` behind a single `Mutex<CalcState>` with IPC via Tauri commands. The Time Pac introduces three categories of behavior that do NOT fit the existing dispatch-and-return model:
+## Critical Context: What These Modules Actually Are
 
-1. **System clock reads** (TIME, DATE) -- simple one-shot reads; fits existing model perfectly.
-2. **Live clock display** (CLKT, CLKTD, CLOCK) -- requires periodic LCD refresh WITHOUT user input.
-3. **Stopwatch with sub-second display** (SW, RUNSW, STOPSW, RCLSW, SETSW, SWPT) -- running timer with live LCD updates and lap timing.
-4. **Alarm scheduling and triggering** (XYZALM, ALMCAT, RCLAF, ALMNOW, CLALMA, CLALMX, CLRALMS, RCLALM) -- periodic alarm-check to fire interrupts/programs.
+### HP Advantage Pac (official HP product, HP 00041-90546)
 
-Category 1 is trivial. Categories 2-4 require architectural decisions.
+The Advantage Pac spans TWO hardware ROM pages: XROM 22 and XROM 24. It contains ~117 functions under four section headers:
+
+| Section Header | Count | Contents |
+|---|---|---|
+| `-ADV CONV` | 12 | Base conversion (BIN/OCT/HEX input/view/convert) + Boolean (NOT, AND, OR, XOR, ROTXY, BIT?) |
+| `-ADV MTRX` | 52 | Matrix operations (M-code, based on CCD ROM): M*M, MAT*, MAT+, MAT-, MAT/, MATDIM, MDET, MINV, MMOVE, MNAME?, MR, MRC+, MRC-, MRIJ, MRR+, MRR-, MS, MSC+, MSIJ, MSR+, MSWAP, MSYS, and ~30 more row/col/vector ops including I+, I-, J+, J-, V+, VDOT, IDN, FNRM, CNRM, CSUM, DIM?, CMAXAB, MAX, MAXAB, MIN, C<>C |
+| `-ADV MATH` | 47 | Complex ops (CABS, CARG, CCHS, CCONJ, CY^X, + complex stack from HP-15C heritage), FROOT (arbitrary-degree polynomial roots, Romberg-based), FINTG (enhanced numerical integration), SOLVE, INTEG plus complex function stack overlay similar to Math Pac I |
+| `-ADV TVM` | 6 | Time Value of Money (N, I%YR, PV, PMT, FV, CMPD) |
+
+XROM 22 holds the ADV CONV + ADV MTRX functions. XROM 24 holds ADV MATH + ADV TVM functions. The Advantage Pac "inherits" the Math Pac I complex stack approach but adds more complex number ops (CABS, CARG, CCHS, CCONJ, CY^X) and uses a Romberg algorithm for FROOT (arbitrary-degree polynomial roots, unlike Math Pac I's POLY which is degree 2-5 only).
+
+### "Advanced Matrix Pac" (community extension, NOT an official HP product)
+
+Based on research: the "Advanced Matrix Pac" referenced in PROJECT.md is a community-created ROM extension (associated with Ángel Martin and the hp41.org community) that extends the Advantage Pac's matrix capabilities. It is NOT a separate official HP module with its own XROM ID. The community description states it includes "all the ADV MATRIX functions from the Advantage Pac, all Matrix Functions and Programs from the ALGEBRA module, a new Matrix Input mode for fast data entry, all Binary Conversion Functions, and keeps SOLVE and INTEG."
+
+**Architectural implication:** "Advanced Matrix Pac" functions most likely share XROM 22/24 space (same module IDs as Advantage Pac) or represent a superset of the Advantage Pac's matrix section. For the emulator, both are best treated as ONE module milestone with XROM 22 + XROM 24 as the canonical IDs.
+
+---
+
+## The Central Architectural Challenge
+
+The Advantage Pac creates THREE distinct integration concerns relative to the existing codebase:
+
+1. **Complex ops overlap with Math Pac I** — CABS, CARG, CCHS, CCONJ, CY^X operate on the same complex stack overlay (`complex_mode: bool`, X+iY = ζ, Z+iT = τ) that Math Pac I already owns. These are ADDITIVE functions on the existing complex stack, not a new complex system.
+
+2. **FROOT vs POLY: different algorithms, same output convention** — FROOT in the Advantage Pac supports arbitrary-degree polynomial roots (not just degree 2-5 like Math Pac I's POLY) using a Romberg-based algorithm. It uses the same `U=u / V=v` print-buffer output convention. The existing `math1/poly.rs` Bairstow implementation is FROZEN — FROOT goes in the new `advantage/` directory, NOT in `math1/`.
+
+3. **ADV MTRX matrix ops are M-code (machine code), one-shot stack ops** — unlike Math Pac I's MATRIX which is a modal multi-step workflow. The ADV MTRX ops (MAT*, MSYS, etc.) are one-shot: arguments on stack/registers, result returned immediately. No new `ModalProgram` variant needed for these. FROOT/FINTG still need modals for their prompt sequences.
+
+4. **ADV TVM requires user-callback-style iteration** — FINTG's enhanced integration and FROOT's Romberg solver both invoke user-defined function labels (same pattern as Math Pac I's INTG/SOLVE/DIFEQ re-entrancy infrastructure).
 
 ---
 
 ## Recommended Architecture
 
-### Strategy: "Pull on redraw" -- NO new background threads in hp41-core
+### New Directory Structure
 
-**Decision:** hp41-core remains thread-free, timer-free, and async-free. Time-dependent state is computed on-demand when the frontend asks for display state, not maintained by a background ticker.
+```
+hp41-core/src/ops/
+├── math1/          # FROZEN (XROM 7) — except xrom.rs + modal.rs carve-outs
+├── stat1/          # (XROM 2, v3.1)
+├── time/           # (XROM 26, v3.2)
+└── advantage/      # NEW (XROM 22 + XROM 24, v3.3)
+    ├── mod.rs      # Module root + named consts (register layout, output format)
+    ├── xrom.rs     # ADV_CONV + ADV_MTRX + ADV_MATH + ADV_TVM module registries
+    ├── modal.rs    # AdvantageStep enum for FROOT/FINTG prompt sequences
+    ├── conv.rs     # ADV CONV: base conversion + boolean (12 ops)
+    ├── matrix.rs   # ADV MTRX: one-shot matrix ops (52 ops)
+    ├── complex.rs  # ADV MATH complex ops: CABS, CARG, CCHS, CCONJ, CY^X (5 ops)
+    ├── froot.rs    # FROOT: Romberg arbitrary-degree polynomial root finder
+    ├── fintg.rs    # FINTG: enhanced numerical integration (re-uses user-callback infra)
+    ├── tvm.rs      # ADV TVM: N, I%YR, PV, PMT, FV, CMPD (6 ops)
+    └── solve_intg.rs # ADV SOLVE + ADV INTEG stubs (re-use math1 infra if possible)
+```
 
-**Rationale:** The emulator does NOT need cycle-accurate HP-41CX hardware timing. It needs _behavioral fidelity_ -- the user sees a running clock, the stopwatch counts correctly, alarms fire when due. The existing 16ms poll loop (CLI) and IPC-on-demand model (GUI) both provide sufficient refresh frequency. We leverage these existing refresh cycles rather than adding concurrency.
+**Why separate `advantage/` directory, not extending `math1/`:**
+- `math1/` is FROZEN since Plan 25-01 (with two sanctioned carve-outs: `xrom.rs` + `modal.rs`)
+- Advantage Pac is a distinct HP product with separate XROM IDs (22/24 vs 7)
+- Following the established pattern: `stat1/` is separate from `math1/`, `time/` is separate from both
+- The `advantage/` directory carries the same Free42 disclaim header verbatim on every file
 
 ### Component Boundaries
 
 | Component | Responsibility | Communicates With |
 |-----------|---------------|-------------------|
-| `hp41-core/src/ops/time/` | Time Pac ops; pure functions reading `std::time::SystemTime` / `std::time::Instant`; alarm state machine; stopwatch arithmetic | `CalcState` (owned), `std::time` (read-only) |
-| `hp41-core/src/state.rs` | New persistent + transient `CalcState` fields for clock config, alarms, stopwatch | All ops via `&mut CalcState` |
-| `hp41-core/src/ops/math1/xrom.rs` | `TIME_1` module registry (XROM 26, bit 2); `time_resolve()` function | `xrom_resolve()` caller chain |
-| `hp41-core/src/ops/math1/modal.rs` | `ModalProgram::Time(TimeStep)` variant for SETTIME, SETDATE, SETSW, XYZALM prompts | `modal_prompt` / `modal_program` channel |
-| `hp41-cli/src/app.rs` | Clock-display redraw on every poll tick; stopwatch LCD live-update; alarm-check on every poll tick | `CalcState` directly |
-| `hp41-gui/src-tauri/src/commands.rs` | `tick_time` command for periodic frontend refresh when clock/stopwatch active | `AppState` Mutex |
-| `hp41-gui/src/App.tsx` | Conditional `setInterval(tick_time, 500)` when clock-display or stopwatch is active | Tauri IPC |
+| `hp41-core/src/ops/advantage/` | All ~117 Advantage Pac + Advanced Matrix Pac ops; pure functions | `CalcState` (owned), user-callback re-entrancy via `run_loop` |
+| `hp41-core/src/ops/math1/xrom.rs` | `ADV_MATH_A` (XROM 22) + `ADV_MATH_B` (XROM 24) module registries; `advantage_resolve()` + bits 3+4 in `xrom_resolve()` | `xrom_resolve()` caller chain |
+| `hp41-core/src/ops/math1/modal.rs` | `ModalProgram::Advantage(AdvantageStep)` variant — fourth carve-out of frozen modal.rs | `modal_prompt` / `modal_program` channel |
+| `hp41-core/src/state.rs` | 2-3 new persistent CalcState fields (xrom_modules bits 3+4, TVM solver state) | All ops via `&mut CalcState` |
 
-### Data Flow
+---
 
+## XROM Registration: Bits 3 and 4
+
+### Bitmask Extension
+
+```rust
+// In state.rs:
+fn default_xrom_modules() -> u8 {
+    0b0001_1111  // bits 0-4: Math1(0) + Stat1(1) + Time(2) + AdvConv/Mtrx(3) + AdvMath/Tvm(4)
+}
 ```
-                                 hp41-core (pure, no threads)
-                                 +--------------------------+
-                                 | CalcState                |
-                                 |   .clock_display_mode    |  <-- CLKT/CLKTD sets (transient)
-                                 |   .date_format           |  <-- DMY/MDY sets (persistent)
-                                 |   .clock_format_24h      |  <-- CLK12/CLK24 sets (persistent)
-                                 |   .accuracy_factor       |  <-- SETAF/RCLAF (persistent)
-                                 |   .stopwatch_state       |  <-- SETSW/RUNSW/STOPSW (transient)
-                                 |   .alarm_catalog         |  <-- XYZALM/CLALMA/etc. (persistent)
-                                 +--------------------------+
 
-  CLI (app.rs event loop):                   GUI (React + Tauri):
-  +---------------------------+              +----------------------------------+
-  | poll(16ms) {              |              | useEffect(() => {                |
-  |   if clock_display_active |              |   if (clockActive || swRunning)  |
-  |     -> format live clock  |              |     interval = setInterval(      |
-  |     -> render in LCD area |              |       invoke("tick_time"), 500)  |
-  |   if sw_running           |              | }, [clockActive, swRunning])     |
-  |     -> elapsed from start |              |                                 |
-  |     -> render in LCD area |              | tick_time command:               |
-  |   check_alarms(&mut state)|              |   lock state, check_alarms(),   |
-  |     -> fire if due        |              |   return CalcStateView with      |
-  |   handle_key(...)         |              |   live clock/sw display strings  |
-  | }                         |              +----------------------------------+
-  +---------------------------+
+The Advantage Pac spans two hardware ROM pages (XROM 22 and XROM 24). These map to two bitmask bits:
+- **Bit 3** = XROM 22 (`ADV_MATH_A`): ADV CONV + ADV MTRX section (12 + 52 ops)
+- **Bit 4** = XROM 24 (`ADV_MATH_B`): ADV MATH + ADV TVM section (47 + 6 ops)
+
+In practice, both bits are always set or always clear together (the Advantage Pac is one physical module). The split mirrors the hardware reality that XROM 22 and XROM 24 are two ROM pages of the same physical module. On the HP-41, plugging the module loads both pages simultaneously.
+
+### Migration in `migrate_after_load()`
+
+```rust
+// v3.2 → v3.3: set bits 3+4 (Advantage Pac pages A+B)
+if self.xrom_modules & 0b0000_1000 == 0 {
+    self.xrom_modules |= 0b0000_1000;
+}
+if self.xrom_modules & 0b0001_0000 == 0 {
+    self.xrom_modules |= 0b0001_0000;
+}
 ```
+
+### XromModule Registry Additions in `math1/xrom.rs`
+
+Following the established carve-out pattern (ADR-v3.1-004, D-33.3, D-38.X), two new module constants go in `math1/xrom.rs` and two new resolver arms go in `xrom_resolve()`:
+
+```rust
+// Fourth freeze exception — Advantage Pac page A (XROM 22)
+pub const ADV_MATH_A: XromModule = XromModule {
+    id: 22,
+    name: "ADV CONV A",  // CATALOG 2 display string — to verify against OM
+    ops: &[
+        // ADV CONV (12 ops): base conversion + boolean
+        ("BININ", Op::AdvBinin), ("BINVIEW", Op::AdvBinview),
+        ("OCTIN", Op::AdvOctin), ("HEXIN", Op::AdvHexin),
+        ("HEXVIEW", Op::AdvHexview), ("CVTVIEW", Op::AdvCvtview),
+        ("NOT", Op::AdvNot), ("AND", Op::AdvAnd),
+        ("OR", Op::AdvOr), ("XOR", Op::AdvXor),
+        ("ROTXY", Op::AdvRotxy), ("BIT?", Op::AdvBitQ),
+        // ADV MTRX (52 ops): matrix + vector ops
+        ("M*M", Op::AdvMtimesM), ("MAT*", Op::AdvMatTimes),
+        ("MAT+", Op::AdvMatPlus), ("MAT-", Op::AdvMatMinus),
+        ("MAT/", Op::AdvMatDiv), ("MATDIM", Op::AdvMatdim),
+        ("MDET", Op::AdvMdet), ("MINV", Op::AdvMinv),
+        ("MMOVE", Op::AdvMmove), ("MNAME?", Op::AdvMnameQ),
+        ("MSYS", Op::AdvMsys), ("IDN", Op::AdvIdn),
+        ("V+", Op::AdvVplus), ("VDOT", Op::AdvVdot),
+        ("FNRM", Op::AdvFnrm), ("CNRM", Op::AdvCnrm),
+        ("CSUM", Op::AdvCsum), ("DIM?", Op::AdvDimQ),
+        ("CMAXAB", Op::AdvCmaxab), ("MAX", Op::AdvMax),
+        ("MAXAB", Op::AdvMaxab), ("MIN", Op::AdvMin),
+        ("C<>C", Op::AdvCswapC), ("I+", Op::AdvIplus),
+        ("I-", Op::AdvIminus), ("J+", Op::AdvJplus),
+        ("J-", Op::AdvJminus),
+        // ... remaining ~23 matrix row/col ops
+    ],
+};
+
+// Fifth freeze exception — Advantage Pac page B (XROM 24)
+pub const ADV_MATH_B: XromModule = XromModule {
+    id: 24,
+    name: "ADV MATH B",  // CATALOG 2 display string — to verify against OM
+    ops: &[
+        // ADV MATH complex ops (5 new complex ops)
+        ("CABS", Op::AdvCabs), ("CARG", Op::AdvCarg),
+        ("CCHS", Op::AdvCchs), ("CCONJ", Op::AdvCconj),
+        ("CY^X", Op::AdvCpowYX),
+        // ADV MATH numeric solvers
+        ("FROOT", Op::AdvFrootWorkflow),
+        ("FINTG", Op::AdvFintgWorkflow),
+        ("SOLVE", Op::AdvSolve),   // possibly reuse Math1 SOLVE or separate
+        ("INTEG", Op::AdvInteg),   // possibly reuse Math1 INTG or separate
+        // ADV TVM (6 ops)
+        ("N", Op::AdvTvmN), ("I%YR", Op::AdvTvmI),
+        ("PV", Op::AdvTvmPV), ("PMT", Op::AdvTvmPMT),
+        ("FV", Op::AdvTvmFV), ("CMPD", Op::AdvTvmCmpd),
+    ],
+};
+```
+
+**Op naming convention:** `Adv` prefix on all new Op variants prevents shadowing with existing builtins and with the math1/stat1/time variants. Example: `Op::AdvCabs` not `Op::Cabs` (which would conflict if Math Pac I ever added CABS).
+
+### `xrom_resolve()` Extension
+
+```rust
+// Phase 43 (v3.3): ADV_MATH_A bit-3 arm
+if modules & 0b0000_1000 != 0 {
+    if let Some(op) = adv_math_a_resolve(name) {
+        return Some(op);
+    }
+}
+// Phase 43 (v3.3): ADV_MATH_B bit-4 arm
+if modules & 0b0001_0000 != 0 {
+    if let Some(op) = adv_math_b_resolve(name) {
+        return Some(op);
+    }
+}
+```
+
+---
+
+## Complex Ops Integration: CABS, CARG, CCHS, CCONJ, CY^X
+
+These five functions operate on the EXISTING complex stack overlay (`state.complex_mode`, X+iY = ζ).
+
+### Integration with Existing `math1/complex.rs` Infrastructure
+
+The Advantage Pac complex ops are NOT in `math1/` (which is frozen). They live in `advantage/complex.rs`. However they depend on the same stack model:
+
+- All five read from `state.stack.x` (real part of ζ) and `state.stack.y` (imag part of ζ)
+- `CABS`: pushes `sqrt(x^2 + y^2)` to X, exits complex mode (returns real scalar)
+- `CARG`: pushes `atan2(y, x)` to X in current angle mode, exits complex mode
+- `CCHS`: negates both X and Y (`ζ' = -ζ`), stays in complex mode
+- `CCONJ`: negates Y only (`ζ' = conj(ζ) = X - iY`), stays in complex mode
+- `CY^X`: computes complex power `τ^ζ` using the existing complex arithmetic infrastructure
+
+The `complex_atan2()` helper in `math1/complex.rs` is declared `pub(super)` — it needs to be promoted to `pub(crate)` so `advantage/complex.rs` can reuse it without duplication.
+
+**CalcState fields consumed:** Only the existing `complex_mode: bool` and the standard stack. No new CalcState fields needed for these five ops.
+
+### Stack-Lift Semantics
+
+- CABS/CARG: `LiftEffect::Disable` (consume ζ from X+Y, push one real result to X; stack drops)
+- CCHS/CCONJ: `LiftEffect::Neutral` (modify in place)
+- CY^X: `LiftEffect::Disable` (consume both ζ and τ, push result to ζ; T-replicate)
+
+---
+
+## FROOT Integration: Romberg Polynomial Root Finder
+
+FROOT in the Advantage Pac supports arbitrary-degree polynomials (not just degree 2-5). The algorithm is Romberg-based (Laguerre's method or similar iterative deflation extended beyond degree 5).
+
+### How FROOT Differs from Existing `math1/poly.rs`
+
+| Aspect | Math Pac I POLY (frozen) | Advantage FROOT (new) |
+|--------|--------------------------|----------------------|
+| Degree limit | 2–5 only | Arbitrary (hardware: up to register space) |
+| Algorithm | Bairstow iterative deflation | Romberg / Laguerre method |
+| Coefficient storage | R00–R05 (A–F prompt modal) | Coefficients pre-loaded in registers by user |
+| Entry point | `XEQ "POLY"` opens modal workflow | `XEQ "FROOT"` — degree in X, coeff in registers |
+| Output | U=u/V=v to print_buffer | Same U=u/V=v convention (MEDIUM confidence) |
+| Mutual exclusion | Separate Op variants | Separate Op variants — `Op::AdvFrootWorkflow` |
+
+**The POLY modal workflow in `math1/poly.rs` is NOT reused.** FROOT has different calling conventions and a different algorithm. The print-buffer output convention (`U=u / V=v`) is likely the same (hardware-faithful), but this must be confirmed against the Advantage Pac OM.
+
+### ModalProgram Extension for FROOT
+
+FROOT needs a prompt sequence: degree in X, then the root computation. If FROOT takes its degree from X directly (no modal prompt), it may not need a `ModalProgram` variant at all — confirm against OM. If it prompts interactively, `AdvantageStep::FrootDegreePrompt` follows the same pattern as `PolyInputStep::DegreePrompt`.
+
+### User-Callback Re-entrancy
+
+FROOT does NOT call a user-provided function label — it operates entirely on pre-loaded register data. FINTG does call a user function (the integrand). FINTG's integration uses the existing `run_loop` re-entrancy infrastructure already built for Math Pac I's INTG/SOLVE/DIFEQ. The `USER_CALLBACK_MAX_STEPS` constant in `math1/mod.rs` is already exported `pub(super)` and should be promoted to `pub(crate)` for reuse.
+
+---
+
+## ADV MTRX Integration: One-Shot Matrix Ops
+
+The 52 ADV MTRX ops are M-code (machine code) one-shot operations. They are NOT modal workflows. They read matrix data from registers and return results immediately. This is a fundamentally different model than Math Pac I's MATRIX (which prompts for dimensions and elements interactively).
+
+### Interaction with Existing `math1/matrix.rs` (frozen)
+
+The existing `math1/matrix.rs` implements `MATRIX` workflow with Gauss-Jordan inversion. ADV MTRX adds:
+- `MSYS`: solve Ax=b (uses MATRIX-like Gauss elimination, but one-shot — reads pre-loaded matrix from registers)
+- `M*M` / `MAT*`: matrix multiplication (no equivalent in Math Pac I)
+- `MINV`: matrix inversion — same operation as Math Pac I's `MatInv` but different calling convention (one-shot vs modal)
+- `IDN`: identity matrix generation
+- `V+`, `VDOT`: vector addition and dot product (not in Math Pac I at all)
+
+**Name shadowing check required:** `MINV` and `INV` — Math Pac I claims `INV` → `Op::MatInv`. The Advantage Pac uses `MINV` (different mnemonic). The `xrom_shadowing.rs` CI gate must be extended to include both `ADV_MATH_A.ops` and `ADV_MATH_B.ops` against the MATH_1/STAT_1/TIME_MODULE allowlists.
+
+**Critical: `NOT`, `AND`, `OR`, `XOR` shadowing** — These are common mnemonics. The existing `builtin_card_op` must be audited to ensure none of them appear there. If they do, the Advantage Pac mnemonic wins in `xrom_resolve` (fires last, after `builtin_card_op`), but this must be explicitly verified and documented.
+
+### Register Layout
+
+ADV MTRX operates on HP-41 matrix registers. Matrices are stored in named "matrix files" in HP-41 extended memory (XM), not in the numbered registers R00–R99. The matrix file format has:
+- Header register: stores dimensions (rows, cols) and data-file pointer
+- Data registers: column-major element storage
+
+**CalcState impact:** The existing `matrix_dim: Option<(u8, u8)>` and `matrix_active_reg: Option<u8>` fields in CalcState (from Math Pac I) support a DIFFERENT matrix model (numbered registers R15...). ADV MTRX uses named matrix files. This likely requires new CalcState fields for the "current matrix" pointer/name.
 
 ---
 
 ## New CalcState Fields
 
-### Persistent Fields (`#[serde(default)]` without `#[serde(skip)]`)
+### Required for Advantage Pac
 
-| Field | Type | Default | Purpose |
-|-------|------|---------|---------|
-| `date_format` | `DateFormat` (enum: Mdy, Dmy) | `Mdy` | Date display order per DMY/MDY ops |
-| `clock_format_24h` | `bool` | `false` | 12h vs 24h time display per CLK12/CLK24 |
-| `accuracy_factor` | `HpNum` | `zero()` | Clock accuracy correction factor (-99.9..99.9) |
-| `alarm_catalog` | `Vec<AlarmEntry>` | `vec![]` | Ordered list of pending + past-due alarms |
-| `next_alarm_id` | `u64` | `0` | Monotonic ID counter for CLALMX (clear by ID) |
+| Field | Type | Serde | Purpose |
+|-------|------|-------|---------|
+| None for complex ops | — | — | Reuses `complex_mode: bool` |
+| `adv_matrix_name: String` | `String` | `#[serde(default)]` | Name of currently active matrix file for ADV MTRX ops (`DIM?`, `MNAME?`, etc.) |
+| `adv_tvm_state: Option<TvmState>` | `Option<TvmState>` | `#[serde(default)]` | TVM solver iteration state (persistent — user sets N, I, PV, PMT, FV and solves for missing) |
 
-### Transient Fields (`#[serde(default, skip)]`)
+### Potentially Required (MEDIUM confidence — OM research needed)
 
-| Field | Type | Default | Purpose |
-|-------|------|---------|---------|
-| `clock_display_mode` | `Option<ClockDisplayMode>` | `None` | TimeOnly / TimeAndDate -- volatile display mode |
-| `stopwatch_state` | `Option<StopwatchState>` | `None` | Running/stopped/lap state |
-| `pending_alarm_event` | `Option<AlarmEvent>` | `None` | Fired alarm waiting for frontend drain |
+| Field | Type | Serde | Trigger |
+|-------|------|-------|---------|
+| `froot_degree: Option<u8>` | `Option<u8>` | `#[serde(default, skip)]` | Transient degree context for FROOT if multi-step |
+| `adv_fintg_state: Option<AdvFintgState>` | `Option<...>` | `#[serde(default, skip)]` | Enhanced integration state (separate from `integ_state`) |
 
-**Rationale for transient `clock_display_mode`:** On real HP-41CX hardware, clock display is a volatile mode that turns off when power is lost. Skipping serialization is hardware-faithful.
-
-**Rationale for transient `stopwatch_state`:** `StopwatchState` contains `std::time::Instant` which CANNOT be serialized (no epoch reference). The real hardware also loses stopwatch state on power loss. `#[serde(skip)]` is both technically required and hardware-faithful.
-
-**Total new CalcState fields: 8** (5 persistent, 3 transient). This is more than Stat 1 (2 fields: `rand_seed` persistent, `pending_chisqd_nu` transient) because Time Pac introduces genuinely new state categories (alarms, stopwatch) that have no analog in the existing engine.
+**Minimize new fields** — the pattern from v3.1 (stat1) and v3.2 (time) shows that most ops can reuse the print_buffer/modal_program channels without new CalcState additions.
 
 ---
 
-## Key Data Structures
+## ModalProgram Extension: Fourth Carve-Out
 
-### ClockDisplayMode
+Following ADR-v3.1-004 and ADR-v3.1-005 pattern:
 
 ```rust
-#[derive(Debug, Clone, PartialEq)]
-pub enum ClockDisplayMode {
-    TimeOnly,     // CLKT -- show HH:MM:SS or HH:MM:SS AM/PM
-    TimeAndDate,  // CLKTD -- alternating time and date display
-}
+// In math1/modal.rs — fourth freeze carve-out
+/// Advantage Pac workflows (Phase 43/44 — FROOT / FINTG prompt sequences)
+///
+/// math1/ freeze exception: this single additive variant + dispatch arms
+/// is the FOURTH freeze carve-out for `math1/modal.rs`. All Advantage Pac
+/// semantics live in `hp41-core/src/ops/advantage/modal.rs`.
+Advantage(crate::ops::advantage::modal::AdvantageStep),
 ```
 
-### DateFormat
+`AdvantageStep` enum lives in `advantage/modal.rs` (outside freeze boundary), parallel to `Stat1Step` in `stat1/modal.rs` and `TimeStep` in `time/modal.rs`.
+
+### Required AdvantageStep Variants (MEDIUM confidence — depends on OM prompt sequences)
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum DateFormat {
-    Mdy,  // Month.Day Year -- HP-41 cold-start default
-    Dmy,  // Day.Month Year -- European convention
-}
-impl Default for DateFormat { fn default() -> Self { DateFormat::Mdy } }
-```
-
-### StopwatchState
-
-```rust
-#[derive(Debug, Clone)]
-pub struct StopwatchState {
-    pub running: bool,
-    pub accumulated: std::time::Duration,     // elapsed from prior run segments
-    pub last_start: Option<std::time::Instant>, // monotonic start point
-    pub split_time: Option<std::time::Duration>, // SWPT lap display
-}
-
-impl StopwatchState {
-    pub fn elapsed(&self) -> Duration {
-        let running_delta = match (self.running, self.last_start) {
-            (true, Some(start)) => start.elapsed(),
-            _ => Duration::ZERO,
-        };
-        self.accumulated + running_delta
-    }
-}
-```
-
-**Critical design:** `Instant` for stopwatch (monotonic, never goes backward). `SystemTime` for wall-clock date/time ops (TIME, DATE, alarm comparison). Never mix them.
-
-### AlarmEntry
-
-```rust
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AlarmEntry {
-    pub time: HpNum,       // HH.MMSSss format
-    pub date: HpNum,       // MM.DDYYYY or DD.MMYYYY format
-    pub message: String,   // from ALPHA at XYZALM time
-    pub alarm_type: u8,    // 0 = message, 1-4 = execute program
-    pub past_due: bool,    // already fired
-    pub id: u64,           // monotonic ID for CLALMX
-}
-```
-
-### AlarmEvent (drain payload)
-
-```rust
-#[derive(Debug, Clone)]
-pub struct AlarmEvent {
-    pub message: String,
-    pub alarm_type: u8,
-    pub program_label: Option<String>, // for type 1-4 alarm
+pub enum AdvantageStep {
+    // FROOT prompt sequence (if interactive — confirm vs OM)
+    FrootDegreePrompt,   // "DEGREE=?" — may not exist if degree comes from X
+    FrootReady,
+    // FINTG prompt sequence
+    FintgFunctionNamePrompt,  // "FUNCTION NAME?"
+    FintgIntervalPrompt,      // "(A,B)=?"
+    FintgReady,
+    // TVM — may not need modal (could be all immediate-solve style)
 }
 ```
 
 ---
 
-## Integration Strategy: Clock Display (CLKT / CLKTD / CLOCK)
+## 4-Way Exhaustive Match Invariant
 
-### Problem
-The existing `display_str` in `CalcStateView` is computed once per dispatch. Clock display needs to update every second WITHOUT user interaction.
+Every new `Op::Adv*` variant must land in all four sites before any caller compiles:
 
-### Solution: Extend the existing poll-based redraw
+1. `dispatch()` in `hp41-core/src/ops/mod.rs`
+2. `execute_op()` in `hp41-core/src/ops/program.rs`
+3. `op_display_name()` in `hp41-cli/src/prgm_display.rs`
+4. `op_display_name()` in `hp41-gui/src-tauri/src/prgm_display.rs`
 
-**CLI:** The `App::run()` loop already redraws every ~16ms via `event::poll(Duration::from_millis(16))`. When `state.clock_display_mode.is_some()`, the display-string computation in `ui::render_ui()` calls a new `format_clock_display()` function that reads `SystemTime::now()` and formats the current time. No new thread needed -- the existing 16ms tick is 60 FPS, more than enough for a 1-second clock update.
-
-**GUI:** Add a new Tauri command `tick_time` that the React frontend calls via `setInterval` ONLY when `clock_display_mode` is active or stopwatch is running. This is a purpose-built time-tick command, NOT a general poll of `get_state()`.
-
-**D-11 compliance:** The "no polling" invariant (D-11) prohibits polling `get_state()` in a loop. `tick_time` is a separate, purpose-built command that only runs when the user has explicitly entered a time-display mode (CLKT/CLKTD/CLOCK/SW). When no time display is active, no timer fires, no polling occurs.
-
-### Display Priority Chain Extension
-
-The existing `CalcStateView::from_state()` display_str priority chain (types.rs lines 130-146) gains a new top-priority branch:
-
-```
-Priority 0 (NEW): clock_display_mode active AND entry_buf empty -> format_clock_display()
-Priority 0b (NEW): stopwatch running AND entry_buf empty -> format_stopwatch_display()
-Priority 1 (existing): modal_prompt active AND entry_buf empty -> truncate(modal_prompt)
-Priority 2 (existing): entry_buf non-empty -> entry_buf verbatim
-Priority 3 (existing): alpha_mode -> format_alpha()
-Priority 4 (existing): format_hpnum(stack.x)
-```
-
-Clock and stopwatch display take highest priority because they represent an active hardware display mode that overrides everything else (matching HP-41CX behavior). Once the user starts typing (entry_buf non-empty), the typed digits take precedence (live feedback), and the clock resumes when entry_buf is flushed.
+Items 3+4 are sanctioned-deferred to the CLI/GUI phases (same pattern as every previous XROM module). The intentional `non-exhaustive patterns` CI break in hp41-cli/hp41-gui during the core phase is expected and documented.
 
 ---
 
-## Integration Strategy: Stopwatch (SW / RUNSW / STOPSW / RCLSW / SETSW / SWPT)
+## JSON-Canonical Help Pipeline Extension
 
-### Live Display
-Elapsed time is computed on-demand using `Instant::elapsed()`:
+A fifth JSON file `docs/hp41-advantage-functions.json` becomes the source of truth for:
+- `?` overlay section "Advantage Pac (XROM 22+24)"
+- Right-panel exclusion via `entry.xrom.is_none()` (already excludes all XROM functions)
+- `just docs-matrix` fifth invocation → `docs/hp41-advantage-function-matrix.md`
 
-```rust
-// Called in the display path -- every 16ms CLI, every 500ms GUI
-fn format_stopwatch_display(sw: &StopwatchState) -> String {
-    let elapsed = sw.elapsed(); // no state mutation
-    let secs = elapsed.as_secs();
-    let tenths = elapsed.subsec_millis() / 100;
-    format!("{:02}:{:02}:{:02}.{}", secs / 3600, (secs % 3600) / 60, secs % 60, tenths)
-}
+In `hp41-cli/src/help_data.rs`: fifth `OnceLock<Vec<HelpEntry>>` (`ADV_HELP_ENTRIES`) + 5-pool `help_entries_all()` chain.
+
+---
+
+## Suggested Build Order (Dependency-Aware)
+
+The dependency chain determines phase ordering:
+
+```
+Phase 43: hp41-core (advantage/) — XROM framework + all ~117 Op variants
+           ↓ (intentional CI break in cli/gui)
+Phase 44: hp41-cli — JSON, op_display_name, ? overlay
+           ↓
+Phase 45: Documentation — divergences, function matrix, ADRs, README
+           ↓
+Phase 46: hp41-gui — CATALOG 2 extension, help overlay, modal routing
+           ↓
+Phase 47: Test Hardening — coverage, accuracy, backward compat, E2E
 ```
 
-### SW Interactive Mode
-On real HP-41CX hardware, the `SW` command enters a special keyboard mode where specific keys map to START/STOP/SPLIT/RESET. This maps to a new `PendingInput::StopwatchMode` variant in the CLI and a new modal state in the GUI. The existing `PendingInput` / modal infrastructure handles this.
+### Phase 43: hp41-core
 
-**Key mapping in SW mode:**
-- R/S -> toggle RUNSW/STOPSW
-- ENTER -> SWPT (split/lap time)
-- CLX -> SETSW 0 (reset)
-- BST/SST -> RCLSW
-- Any other key -> exit SW mode
+**Prerequisites met:** `xrom.rs` carve-out for `ADV_MATH_A`/`ADV_MATH_B` constants + resolver arms; `modal.rs` carve-out for `ModalProgram::Advantage(AdvantageStep)`; promote `complex_atan2()` and `USER_CALLBACK_MAX_STEPS` to `pub(crate)`.
 
----
+**Execution order within phase:**
+1. `advantage/xrom.rs` — module registries (empty ops slices initially)
+2. `advantage/conv.rs` — ADV CONV 12 ops (simple, no dependencies)
+3. `advantage/complex.rs` — CABS/CARG/CCHS/CCONJ/CY^X (depends on complex_atan2 promotion)
+4. `advantage/matrix.rs` — ADV MTRX 52 ops (largest, most complex; one-shot ops)
+5. `advantage/froot.rs` — FROOT Romberg solver (depends on user-callback infra)
+6. `advantage/fintg.rs` — FINTG enhanced integration (depends on INTG re-entrancy pattern)
+7. `advantage/tvm.rs` — ADV TVM 6 ops (financial math, self-contained)
+8. Wire all Op variants to `dispatch()` + `execute_op()` + `xrom.rs` ops slices
 
-## Integration Strategy: Alarms (XYZALM / ALMCAT / ALMNOW / etc.)
+**Estimated new Op variants:** ~117 total across XROM 22+24 (subject to exact OM verification)
 
-### Alarm Check Scheduling
-Alarms are checked on every event-loop iteration. The check is a simple O(n) scan:
+### Phase 44: hp41-cli
 
-```rust
-pub fn check_alarms(state: &mut CalcState) -> Option<AlarmEvent> {
-    let now = SystemTime::now();
-    let (now_date, now_time) = system_time_to_hp41(&now, &state.date_format);
-    for alarm in &mut state.alarm_catalog {
-        if !alarm.past_due && alarm_is_due(alarm, now_date, now_time) {
-            alarm.past_due = true;
-            return Some(AlarmEvent {
-                message: alarm.message.clone(),
-                alarm_type: alarm.alarm_type,
-                program_label: if alarm.alarm_type > 0 {
-                    Some(alarm.message.clone())
-                } else { None },
-            });
-        }
-    }
-    None
-}
-```
+Wire `docs/hp41-advantage-functions.json` → fifth OnceLock; `op_display_name()` ~117 arms; `?` overlay "Advantage Pac (XROM 22+24)" section; `xrom_shadowing.rs` extended to cover ADV_MATH_A.ops + ADV_MATH_B.ops.
 
-### Alarm Triggering
-When an alarm fires:
-- **Message alarm (type 0):** Write message to `display_override` + push "BEEP" to `event_buffer`. Both channels are already drained by CLI and GUI.
-- **Program alarm (type 1-4):** Push `AlarmEvent` into `pending_alarm_event` field. Frontend drains and executes `XEQ <label>`. This mirrors the `pending_card_op` drain pattern.
+### Phase 45: Documentation
 
-### ALMCAT
-Outputs to `print_buffer` (same channel as CATALOG 1/2, PRX, PRSTK). Each pending alarm produces one formatted line.
+`docs/hp41-advantage-function-matrix.md` (generated); `docs/hp41-advantage-divergences.md` (three-bucket catalog); 3-5 new ADRs; README v3.3 soft-claim.
+
+### Phase 46: hp41-gui
+
+`prgm_display.rs` ~117 arms; CATALOG 2 extension (two new XROM entries: 22 + 24); help overlay 5th section; modal prompt routing for FROOT/FINTG.
+
+### Phase 47: Test Hardening
+
+Meta-gates (per-Op test count ≥ 5); backward-compat (`v32-autosave.json` fixture: bits 3+4 migration); numerical accuracy (complex ops, matrix ops, polynomial roots); E2E smoke (FROOT or MSYS workflow); README hard-claim graduation.
 
 ---
 
-## Integration Strategy: Date Arithmetic (DATE+ / DDAYS / DOW)
-
-Pure functions -- no system clock, no timers. Operate on HP-41 date format (MM.DDYYYY or DD.MMYYYY).
-
-**Implementation:** Hand-coded Julian Day Number (JDN) conversion, ~40 LOC total. NO `chrono` dependency.
-
-**Rationale for no chrono:** Zero new runtime deps policy (ADR-v3.1-002). The algorithms needed are well-known:
-1. `gregorian_to_jdn(y, m, d) -> i32` -- standard formula
-2. `jdn_to_gregorian(jdn) -> (i32, u8, u8)` -- inverse
-3. `day_of_week(y, m, d) -> u8` -- JDN mod 7 (or Zeller's congruence)
-4. `days_between(d1, d2) -> i32` -- JDN difference
-
----
-
-## XROM Registration
-
-### Bitfield Extension
-
-```rust
-fn default_xrom_modules() -> u8 {
-    0b0000_0111 // bit 0 = Math 1, bit 1 = Stat 1, bit 2 = Time
-}
-```
-
-Migration in `migrate_after_load()`:
-```rust
-// v3.1 -> v3.2: set bit 2 (Time module)
-if self.xrom_modules & 0b0000_0100 == 0 {
-    self.xrom_modules |= 0b0000_0100;
-}
-```
-
-### TIME_1 Module Registry
-
-```rust
-pub const TIME_1: XromModule = XromModule {
-    id: 26,
-    name: "TIME 2C", // HP-41CX internal Time Module version
-    ops: &[
-        // Clock (15 ops)
-        ("TIME", Op::Time), ("DATE", Op::Date),
-        ("CLK12", Op::Clk12), ("CLK24", Op::Clk24),
-        ("CLKT", Op::Clkt), ("CLKTD", Op::Clktd), ("CLOCK", Op::Clock),
-        ("CORRECT", Op::Correct), ("SETIME", Op::SetTime), ("SETDATE", Op::SetDate),
-        ("T+X", Op::TplusX), ("SETAF", Op::SetAf), ("RCLAF", Op::RclAf),
-        ("DMY", Op::Dmy), ("MDY", Op::Mdy),
-        // Date arithmetic (3 ops)
-        ("DATE+", Op::DatePlus), ("DDAYS", Op::Ddays), ("DOW", Op::Dow),
-        // ALPHA display (3 ops)
-        ("ADATE", Op::Adate), ("ATIME", Op::Atime), ("ATIME24", Op::Atime24),
-        // Alarm (7 ops)
-        ("XYZALM", Op::Xyzalm), ("ALMCAT", Op::Almcat),
-        ("ALMNOW", Op::AlmNow), ("RCLALM", Op::RclAlm),
-        ("CLALMA", Op::ClAlmA), ("CLALMX", Op::ClAlmX), ("CLRALMS", Op::ClrAlms),
-        // Stopwatch (6 ops)
-        ("SW", Op::Sw), ("SETSW", Op::SetSw), ("RUNSW", Op::RunSw),
-        ("STOPSW", Op::StopSw), ("RCLSW", Op::RclSw), ("SWPT", Op::Swpt),
-    ],
-};
-```
-
-**Total: ~34 Op variants.** Plus `time_resolve()` match block and bit-2 arm in `xrom_resolve()`.
-
----
-
-## Patterns to Follow
-
-### Pattern 1: Event Buffer Drain (established v2.0+)
-**What:** hp41-core pushes structured event strings; frontend drains after each dispatch.
-**When:** Alarm BEEP events, clock-mode-change notifications.
-**Precedent:** `Op::Beep` pushes "BEEP" to `event_buffer`; `Op::Pse` pushes "PAUSE 1000".
-
-### Pattern 2: Modal Program State Machine (established v3.0)
-**What:** `ModalProgram` enum with per-program step enums.
-**When:** SETTIME, SETDATE, SETSW prompt sequences; XYZALM multi-field entry.
-**Extension:** `ModalProgram::Time(TimeStep)` parallels `ModalProgram::Stat1(Stat1Step)`.
-
-### Pattern 3: XROM Module Registry (established v3.0, extended v3.1)
-**What:** `XromModule` struct + bitfield.
-**When:** TIME_1 at bit 2.
-
-### Pattern 4: Pull-on-Redraw for Time-Dependent Display (NEW)
-**What:** Display path reads `SystemTime::now()` / `Instant::elapsed()` on every redraw.
-**When:** Clock display (CLKT/CLKTD) and running stopwatch.
-**Why new:** No existing op needs periodic display refresh. Additive -- runs in the existing poll/redraw path without new threads.
-
-### Pattern 5: Separate Clock Sources
-**What:** `SystemTime::now()` for wall-clock; `Instant::now()` for stopwatch.
-**When:** TIME/DATE/alarm-check vs RUNSW/STOPSW/RCLSW.
-**Why:** `SystemTime` gives wall-clock correctness; `Instant` gives monotonic guarantees.
-
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Background Timer Thread in hp41-core
-**Why bad:** Violates "no async, no threads in hp41-core" invariant. Non-deterministic tests.
-**Instead:** Pull on redraw.
-
-### Anti-Pattern 2: Storing Wall-Clock Timestamps as Instant
-**Why bad:** `Instant` has no epoch, cannot be serialized, cannot represent alarm times.
-**Instead:** Alarms stored as HP-41 formatted `HpNum` values; compared against `SystemTime::now()`.
-
-### Anti-Pattern 3: Polling get_state() from GUI for Live Display
-**Why bad:** Violates D-11 "no polling" invariant.
-**Instead:** Purpose-built `tick_time` command, conditional on `clockActive || swRunning`.
-
-### Anti-Pattern 4: Persisting StopwatchState
-**Why bad:** `Instant` cannot be serialized; elapsed gap across save/load is unaccountable.
-**Instead:** `#[serde(default, skip)]`. User re-initializes via SETSW.
-
-### Anti-Pattern 5: Using chrono for Date Arithmetic
-**Why bad:** Violates zero-new-runtime-deps policy (ADR-v3.1-002). 35k LOC for 40 LOC of use.
-**Instead:** Hand-coded Julian Day Number functions.
-
----
-
-## File Tree (New + Modified)
+## Key Integration Points: New vs Modified Files
 
 ### New Files
 
 | File | Purpose |
 |------|---------|
-| `hp41-core/src/ops/time/mod.rs` | Module root; AlarmEntry, StopwatchState, ClockDisplayMode, DateFormat, named consts |
-| `hp41-core/src/ops/time/clock.rs` | TIME, DATE, CLK12, CLK24, CLKT, CLKTD, CLOCK, CORRECT, SETIME, SETDATE, T+X, SETAF, RCLAF, DMY, MDY |
-| `hp41-core/src/ops/time/date_arith.rs` | DATE+, DDAYS, DOW -- Julian Day Number algorithms (~40 LOC) |
-| `hp41-core/src/ops/time/alpha_time.rs` | ADATE, ATIME, ATIME24 -- append formatted date/time to ALPHA |
-| `hp41-core/src/ops/time/alarm.rs` | XYZALM, ALMCAT, ALMNOW, RCLALM, CLALMA, CLALMX, CLRALMS, check_alarms() |
-| `hp41-core/src/ops/time/stopwatch.rs` | SW, SETSW, RUNSW, STOPSW, RCLSW, SWPT, format_stopwatch_display() |
-| `hp41-core/src/ops/time/modal.rs` | TimeStep enum + submit_step dispatch for SETTIME, SETDATE, SETSW, XYZALM |
-| `docs/hp41-time-functions.json` | Fourth JSON source-of-truth (~34 entries) |
-| `docs/hp41-time-function-matrix.md` | Generated via `just docs-matrix` (fourth invocation) |
-| `docs/hp41-time-divergences.md` | Divergence catalog |
+| `hp41-core/src/ops/advantage/mod.rs` | Module root; `AdvantageStep` from modal.rs; named consts for register layout |
+| `hp41-core/src/ops/advantage/xrom.rs` | `ADV_MATH_A` + `ADV_MATH_B` + resolver fns |
+| `hp41-core/src/ops/advantage/modal.rs` | `AdvantageStep` enum + `submit_step()` + `current_prompt()` |
+| `hp41-core/src/ops/advantage/conv.rs` | 12 ADV CONV ops |
+| `hp41-core/src/ops/advantage/complex.rs` | 5 ADV MATH complex ops |
+| `hp41-core/src/ops/advantage/matrix.rs` | 52 ADV MTRX ops |
+| `hp41-core/src/ops/advantage/froot.rs` | FROOT Romberg root finder |
+| `hp41-core/src/ops/advantage/fintg.rs` | FINTG enhanced integration |
+| `hp41-core/src/ops/advantage/tvm.rs` | 6 ADV TVM ops |
+| `docs/hp41-advantage-functions.json` | Fifth JSON source-of-truth |
+| `docs/hp41-advantage-function-matrix.md` | Generated via `just docs-matrix` |
+| `docs/hp41-advantage-divergences.md` | Divergence catalog (three-bucket, D-NN numbering) |
 
-### Modified Files
+### Modified Files (Minimal Surface)
 
-| File | Change |
-|------|--------|
-| `hp41-core/src/state.rs` | 8 new CalcState fields; `migrate_after_load()` v3.1->v3.2; new type definitions |
-| `hp41-core/src/ops/mod.rs` | `pub mod time;` + ~34 new Op variants + dispatch arms |
-| `hp41-core/src/ops/math1/xrom.rs` | `TIME_1` const + `time_resolve()` + bit-2 arm in `xrom_resolve()` |
-| `hp41-core/src/ops/math1/modal.rs` | `ModalProgram::Time(TimeStep)` variant |
-| `hp41-core/src/ops/program.rs` | `execute_op()` arms for ~34 Time ops |
-| `hp41-cli/src/app.rs` | `check_alarms()` + clock/SW display in draw; `PendingInput::StopwatchMode`; alarm drain |
-| `hp41-cli/src/prgm_display.rs` | ~34 new `op_display_name` arms |
-| `hp41-cli/src/help_data.rs` | Fourth `OnceLock` + 4-pool `help_entries_all()` |
-| `hp41-gui/src-tauri/src/commands.rs` | `tick_time` command; alarm-check in finalize |
-| `hp41-gui/src-tauri/src/types.rs` | CalcStateView gains `clock_display_str`, `sw_running`, `clock_active` |
-| `hp41-gui/src-tauri/src/prgm_display.rs` | ~34 new `op_display_name` arms |
-| `hp41-gui/src/App.tsx` | Conditional `setInterval` for `tick_time` |
+| File | Change | Invariant |
+|------|--------|-----------|
+| `hp41-core/src/ops/math1/xrom.rs` | Add `ADV_MATH_A` + `ADV_MATH_B` consts + two resolver fns + bits 3+4 in `xrom_resolve()` | 5th/6th freeze carve-out, doc comment required |
+| `hp41-core/src/ops/math1/modal.rs` | Add `ModalProgram::Advantage(AdvantageStep)` variant + dispatch arms | 4th freeze carve-out, doc comment required |
+| `hp41-core/src/ops/math1/complex.rs` | Promote `complex_atan2()` from `pub(super)` to `pub(crate)` | Additive only; frozen file otherwise unchanged |
+| `hp41-core/src/ops/math1/mod.rs` | Promote `USER_CALLBACK_MAX_STEPS` to `pub(crate)` | Additive only |
+| `hp41-core/src/state.rs` | 2-3 new CalcState fields; `default_xrom_modules() → 0b0001_1111`; `migrate_after_load()` bits 3+4 | Pattern: `#[serde(default)]` |
+| `hp41-core/src/ops/mod.rs` | `pub mod advantage;` + ~117 new Op variants + dispatch arms | 4-way invariant item 1 |
+| `hp41-core/src/ops/program.rs` | `execute_op()` arms for ~117 Advantage ops | 4-way invariant item 2 |
+| `hp41-cli/src/prgm_display.rs` | ~117 new `op_display_name` arms | 4-way invariant item 3 |
+| `hp41-cli/src/help_data.rs` | Fifth OnceLock + 5-pool `help_entries_all()` | JSON-canonical pipeline |
+| `hp41-gui/src-tauri/src/prgm_display.rs` | ~117 new `op_display_name` arms | 4-way invariant item 4 |
+| `hp41-cli/tests/xrom_shadowing.rs` | Extend to cover ADV_MATH_A.ops + ADV_MATH_B.ops | Pitfall 22 CI gate |
+| `scripts/docs-matrix/src/main.rs` | 5th `else if` branch for `hp41-advantage-functions.json` | D-30.1 1-in/1-out pattern |
+| `justfile` | Fifth `docs-matrix` + `docs-matrix-check` invocation | |
+| `scripts/check-free42-contamination.sh` | Extend scan to `advantage/` directory | Free42 contamination guard |
 
 ---
 
-## Suggested Build Order
+## Anti-Patterns to Avoid
 
-1. **Phase N: hp41-core** -- XROM framework + all ~34 Time ops + date arithmetic + alarm catalog + stopwatch state + clock display mode. Intentional CI break in hp41-cli/hp41-gui.
-2. **Phase N+1: hp41-cli** -- JSON help, `?` overlay, op_display_name, clock/SW display rendering, alarm-check in poll loop, SW interactive mode.
-3. **Phase N+2: Documentation** -- Function matrix, divergence catalog, ADRs, README.
-4. **Phase N+3: hp41-gui** -- tick_time command, CalcStateView extensions, alarm toast, help overlay, CATALOG 2.
-5. **Phase N+4: Test Hardening** -- Coverage, date-arithmetic accuracy, backward-compat, E2E smoke.
+### Anti-Pattern 1: Putting Advantage Pac Code in `math1/`
+**What:** Adding `advantage/complex.rs` functions or `FROOT` into the frozen `math1/` directory.
+**Why bad:** `math1/` freeze invariant. Even though these ops use the complex stack (which originated in `math1/`), they belong in `advantage/` because they come from a different HP product with different XROM IDs.
+**Instead:** `advantage/complex.rs` imports `complex_atan2` via `pub(crate)` from `math1/complex.rs`.
 
-**Phase ordering rationale:** Core first (4-way match). CLI before GUI (simpler validation). Docs after CLI (needs complete Op set). GUI after docs (mechanical wiring). Tests last (end-to-end required).
+### Anti-Pattern 2: Creating Separate `ModalProgram` Enum for Advantage
+**What:** Defining a new `AdvantageModalProgram` enum separate from the existing `ModalProgram`.
+**Why bad:** The submit_modal / cancel_modal / submit_modal_with_label functions in `math1/mod.rs` all dispatch on `ModalProgram`. A parallel enum requires duplicating all dispatch infrastructure.
+**Instead:** Add `ModalProgram::Advantage(AdvantageStep)` as the fourth variant in the existing `ModalProgram` enum (fourth carve-out of `modal.rs`, consistent with v3.1 and v3.2 patterns).
+
+### Anti-Pattern 3: Reusing `Op::MatInv` for Advantage MINV
+**What:** Pointing the `"MINV"` mnemonic in ADV_MATH_A to the existing `Op::MatInv`.
+**Why bad:** `Op::MatInv` triggers the Math Pac I modal matrix workflow (requires pre-entered matrix via ORDER=? prompt). ADV MTRX's `MINV` is a one-shot op reading from named matrix files.
+**Instead:** New `Op::AdvMinv` with separate implementation in `advantage/matrix.rs`.
+
+### Anti-Pattern 4: Persisting FROOT/FINTG Iteration State
+**What:** Adding `froot_state: Option<FrootState>` with `#[serde(default)]` (no skip).
+**Why bad:** Iteration state is transient by nature (mid-computation). Persisting partial iteration state across save/load creates unsound continuation semantics.
+**Instead:** `#[serde(default, skip)]` for all solver mid-iteration state — same as `integ_state`, `solve_state`, `difeq_state`.
+
+### Anti-Pattern 5: Shadowing `NOT`, `AND`, `OR`, `XOR` Without Audit
+**What:** Adding these boolean ops to ADV_MATH_A.ops without first verifying they don't appear in `builtin_card_op`.
+**Why bad:** The resolver chain fires `builtin_card_op` BEFORE `xrom_resolve`. If `builtin_card_op` claims "NOT", `xrom_resolve` never sees it.
+**Instead:** Run `grep -n '"NOT"\|"AND"\|"OR"\|"XOR"' hp41-core/src/ops/program.rs` before Phase 43. If any of them appear in `builtin_card_op`, document the conflict in the divergences file.
+
+### Anti-Pattern 6: Treating "Advanced Matrix Pac" as a Separate XROM Module
+**What:** Assigning a fifth/sixth XROM ID and separate bitmask bits for "Advanced Matrix Pac" as if it were a distinct physical module.
+**Why bad:** Research confirms "Advanced Matrix Pac" is a community extension that reuses the Advantage Pac's XROM 22+24 function space. It is not a separate HP-published module with a distinct XROM ID.
+**Instead:** Treat all Advantage Pac + Advanced Matrix Pac functions as one combined module under XROM 22+24. If the community matrix extension adds functions beyond the HP Advantage Pac OM, document them as emulator extensions in the divergences file (same discipline as RAND/SEED in v3.1).
+
+---
+
+## Scalability Considerations
+
+This is a local calculator emulator — scalability means "number of registered Op variants" not users:
+
+| Concern | Current (v3.2) | After v3.3 |
+|---------|---------------|-------------|
+| Op enum variants | ~200+ | +~117 = ~317+ |
+| xrom_modules bitmask | 3 bits used (0b0000_0111) | 5 bits used (0b0001_1111) |
+| help_entries_all() pools | 4 | 5 |
+| docs-matrix invocations | 4 | 5 |
+| JSON source files | 4 | 5 |
+| Free42 scan directories | math1/, stat1/, time/ | + advantage/ |
+
+The `u8` bitmask has 8 bits — 5 used after v3.3, 3 remain free for hypothetical future modules.
+
+---
+
+## Open Questions Requiring Phase-Specific Research
+
+These MUST be resolved before or during Phase 43, not assumed:
+
+1. **FROOT calling convention:** Does FROOT read degree from X register directly, or does it open an interactive modal prompt? This determines whether `AdvantageStep::FrootDegreePrompt` is needed.
+
+2. **ADV MATH SOLVE/INTEG vs Math Pac I SOLVE/INTEG:** Are the Advantage Pac's SOLVE and INTEG the same algorithms as Math Pac I with the same mnemonics, or different algorithms with identical names? If same, mnemonic collision with XROM 7 must be resolved (XROM 24 fires AFTER XROM 7 in the resolver chain, so XROM 7 wins — this may be wrong for users who only have Advantage Pac loaded).
+
+3. **`"NOT"`, `"AND"`, `"OR"`, `"XOR"` in `builtin_card_op`:** Must audit before adding to ADV_MATH_A.ops.
+
+4. **CATALOG 2 display strings for XROM 22+24:** The `name` field in `ADV_MATH_A` and `ADV_MATH_B` should match what the real HP-41 CATALOG 2 displays. "ADV CONV A" and "ADV MATH B" are placeholders — verify against OM.
+
+5. **`ADV_MATH_A.ops` completeness:** The 52 ADV MTRX ops are only partially known from community sources. The full list must be verified against the OM PDF before implementing. Do not stub-implement ops whose names are uncertain.
+
+6. **TVM solver semantics:** Does CMPD trigger an iterative solve (like INTG/SOLVE user-callbacks), or is it a closed-form expression? If iterative, it needs the same `cancel_requested` arc and `run_loop` guard as INTG/SOLVE.
 
 ---
 
 ## Sources
 
-- [HP 82182A Time Module QREF](https://qrg41.fjk.ch/hp82182a.html) -- complete function listing with descriptions (HIGH confidence)
-- [HP-41CX function listing](https://www.finseth.com/hpdata/hp41cx.php) -- function descriptions including CLALMA/CLALMX/CLRALMS/RCLALM/SWPT (HIGH confidence)
-- [HP-41 Module Database](https://calc.fjk.ch/db/hp41mod.php) -- XROM 26 = Time Module (HIGH confidence)
-- [HP-41C XROM Numbers](https://www.hpmuseum.org/software/xroms.htm) -- XROM numbering reference
-- Existing codebase: `state.rs`, `xrom.rs`, `modal.rs`, `app.rs`, `commands.rs`, `lib.rs`, `types.rs` (all directly read)
+- [HP-41 Module Database](https://calc.fjk.ch/db/hp41mod.php) — XROM 22+24 = Advantage Pac 1A/1B (HIGH confidence)
+- [HP-41C XROM Numbers database](https://www.hpmuseum.org/software/xroms.htm) — XROM 22 ADV MTRX partial function list including M*M, MAT*, MSYS, IDN, V+, VDOT, C<>C, CMAXAB, CNRM (MEDIUM confidence — list from community parsing, not OM)
+- [HP-41 Modules list PDF](https://lastin.dti.supsi.ch/VET/sys/HPXX/HP41CV/HP-41C-CV-CX_Modules.pdf) — Advantage Pac 1A/1B XROM 22+24 confirmed (HIGH confidence)
+- [HP Museum forum: Advantage module functions](https://www.hpmuseum.org/cgi-bin/archv016.cgi?read=100494) — 117 functions, four headers, ADV MATH includes HP-15C complex ops (MEDIUM confidence)
+- [HP Museum forum: Advanced Matrix Pac](https://www.hpmuseum.org/cgi-bin/archv020.cgi?read=184196) — community extension, not official HP (research note: 403 on fetch, confirmed community origin from search snippets)
+- [Advantage Math ROM Manual (Ángel Martin, 2020)](https://www.systemyde.com/pdf/Advantage_Math_Manual.pdf) — community XROM 12 extension, NOT the official HP Advantage Pac; useful as reference for matrix op semantics (ADV MTRX functions referenced in application examples)
+- [HP-41 Advantage Pac manual](https://literature.hpcalc.org/community/hp41-pac-advantage-en.pdf) — official HP OM, 156pp; PDF too large to parse fully in research; function table pages not retrieved (LOW confidence on per-function details — requires Phase 43 pre-work)
+- Existing codebase: `state.rs`, `ops/math1/xrom.rs`, `ops/math1/modal.rs`, `ops/math1/complex.rs`, `ops/math1/mod.rs`, `ops/math1/poly.rs` (all directly read — HIGH confidence on integration points)
