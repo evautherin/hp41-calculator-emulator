@@ -23,7 +23,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::math1::xrom::{xrom_resolve, MATH_1, STAT_1};
+use hp41_core::ops::math1::xrom::{xrom_resolve, MATH_1, STAT_1, TIME_MODULE};
 
 /// All mnemonic strings recognized by `builtin_card_op` in `hp41-core/src/ops/program.rs`.
 ///
@@ -157,4 +157,82 @@ fn stat1_const_fields() {
         "STAT_1.id must be 2 (HP Stat 1 Pac hardware module ID per calc.fjk.ch)"
     );
     assert_eq!(STAT_1.name, "STAT 1B", "STAT_1.name must be 'STAT 1B'");
+}
+
+// ── Phase 39 Plan 01 Task 2: TIME_MODULE disjointness + consistency gates ────
+
+/// CI gate: no Time Pac mnemonic may collide with a v2.2 builtin name.
+///
+/// Catches: Pitfall 1 — a Time mnemonic accidentally matching a v2.2 builtin
+/// would make the XROM op permanently unreachable via XEQ (resolver fires LAST).
+#[test]
+fn time_names_do_not_shadow_builtins() {
+    for (name, _op) in TIME_MODULE.ops {
+        assert!(
+            !BUILTIN_CARD_OP_NAMES.contains(name),
+            "Time Pac mnemonic {name:?} shadows a builtin_card_op entry. \
+             The XROM resolver fires LAST (C-28.4), so the builtin would silently \
+             win and the Time Pac op would be permanently unreachable via XEQ. \
+             Rename the Time Pac mnemonic to avoid the collision."
+        );
+    }
+}
+
+/// CI gate: TIME_MODULE.ops mnemonic strings must be disjoint from MATH_1.ops and STAT_1.ops.
+///
+/// Catches: a future plan accidentally moves a mnemonic from one module to
+/// the other without removing the original — both modules would resolve the
+/// same name and `xrom_resolve` order would silently hide the new Time entry.
+#[test]
+fn time_ops_disjoint_from_math1_and_stat1() {
+    use std::collections::HashSet;
+    let math1_names: HashSet<&str> = MATH_1.ops.iter().map(|(n, _)| *n).collect();
+    let stat1_names: HashSet<&str> = STAT_1.ops.iter().map(|(n, _)| *n).collect();
+    for (name, _op) in TIME_MODULE.ops {
+        assert!(
+            !math1_names.contains(name),
+            "Time Pac mnemonic {name:?} also appears in MATH_1.ops. \
+             A mnemonic must belong to exactly one XROM module so xrom_resolve \
+             has a deterministic single-source mapping (resolver-LAST + bit-isolation \
+             invariants per CLAUDE.md \"Resolver chain + never-discard\")."
+        );
+        assert!(
+            !stat1_names.contains(name),
+            "Time Pac mnemonic {name:?} also appears in STAT_1.ops. \
+             A mnemonic must belong to exactly one XROM module so xrom_resolve \
+             has a deterministic single-source mapping."
+        );
+    }
+}
+
+/// CI gate: every TIME_MODULE.ops mnemonic resolves to its declared Op via
+/// `xrom_resolve` when all three module bits are set — proves bidirectional
+/// consistency between the slice and the `time_resolve` match arms (drift in
+/// either direction surfaces here).
+#[test]
+fn time_ops_resolve_via_xrom_resolve() {
+    for (name, expected_op) in TIME_MODULE.ops {
+        let resolved = xrom_resolve(name, 0b0000_0111);
+        assert_eq!(
+            resolved.as_ref(),
+            Some(expected_op),
+            "TIME_MODULE.ops mnemonic {name:?} must resolve to {expected_op:?} via \
+             xrom_resolve(name, 0b0000_0111) — drift between TIME_MODULE.ops slice and \
+             time_resolve match arms is a Pitfall 22 / resolver-never-discard violation."
+        );
+    }
+}
+
+/// Smoke: TIME_MODULE const fields are present and correct.
+/// Catches: const field regression during Phase 38 TIME_MODULE.ops growth.
+#[test]
+fn time_const_fields() {
+    assert_eq!(
+        TIME_MODULE.id, 26,
+        "TIME_MODULE.id must be 26 (HP Time Module hardware XROM ID)"
+    );
+    assert_eq!(
+        TIME_MODULE.name, "TIME 2C",
+        "TIME_MODULE.name must be 'TIME 2C'"
+    );
 }

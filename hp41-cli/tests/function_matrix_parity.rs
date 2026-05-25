@@ -12,7 +12,7 @@
 
 use std::collections::HashSet;
 
-use hp41_cli::help_data::{help_entries, help_entries_math1, help_entries_stat1};
+use hp41_cli::help_data::{help_entries, help_entries_math1, help_entries_stat1, help_entries_time};
 
 /// Hand-curated inventory of all `hp41_core::ops::Op` variants. Drift
 /// between this list and the enum is caught by `test_op_inventory_count_matches_enum`.
@@ -195,10 +195,12 @@ const XEQ_ALIAS_OP_VARIANTS: &[&str] = &[
 #[test]
 fn test_op_inventory_count_matches_enum() {
     // Maintenance gate per RESEARCH §"CI parity test": the hand-curated
-    // inventory must hold exactly 130 ROM-named Op variants. If the Op enum
-    // grows past 130 in a future phase without this list growing, this
-    // assertion fires and forces the developer to append the new variant
-    // here AND add a matching JSON entry.
+    // inventory must hold exactly 130 ROM-named Op variants (v2.2 built-ins only).
+    // XROM module variants (Math Pac I, Stat 1 Pac, Time Pac) have their own
+    // per-module inventory constants (MATH1_OP_VARIANT_NAMES, STAT1_OP_VARIANT_NAMES,
+    // TIME_OP_VARIANT_NAMES). If the Op enum grows past 130 built-in variants in
+    // a future phase without this list growing, this assertion fires and forces
+    // the developer to append the new variant here AND add a matching JSON entry.
     assert_eq!(
         ALL_OP_VARIANT_NAMES.len(),
         130,
@@ -509,31 +511,33 @@ fn test_every_stat1_json_entry_has_xrom_resolver_match() {
 
 #[test]
 fn test_pool_partition_is_exhaustive() {
-    // Partition help_entries_all() by xrom.module_id. The three buckets
+    // Partition help_entries_all() by xrom.module_id. The four buckets
     // are: None (built-ins, >= 130), Some(7) (Math Pac I, == 45), Some(2)
-    // (Stat 1 Pac, == 26). Any other value is rogue and fails the test.
+    // (Stat 1 Pac, == 26), Some(26) (Time Pac, == 35). Any other value is
+    // rogue and fails the test.
     //
-    // This guards future v3.2+ Time / Advantage / Stat 2 Pac additions:
-    // before they merge, this test fires (because Some(<new_id>) is not
-    // in the recognized set), forcing the new pool to be registered in
-    // the partition.
+    // This guards future v3.3+ Advantage Pac additions: before they merge,
+    // this test fires (because Some(<new_id>) is not in the recognized set),
+    // forcing the new pool to be registered in the partition.
     use hp41_cli::help_data::help_entries_all;
     let mut builtin_count = 0usize;
     let mut math1_count = 0usize;
     let mut stat1_count = 0usize;
+    let mut time_count = 0usize;
     let mut rogue: Vec<(String, u8)> = Vec::new();
     for entry in help_entries_all() {
         match entry.xrom.as_ref().map(|x| x.module_id) {
             None => builtin_count += 1,
             Some(7) => math1_count += 1,
             Some(2) => stat1_count += 1,
+            Some(26) => time_count += 1,
             Some(other) => rogue.push((entry.op_variant.clone(), other)),
         }
     }
     assert!(
         rogue.is_empty(),
         "Unknown xrom.module_id values in help_entries_all(): {rogue:?}. \
-         v3.1 supports only module_id in {{None (built-ins), 7 (Math 1), 2 (Stat 1)}}. \
+         v3.2 supports only module_id in {{None (built-ins), 7 (Math 1), 2 (Stat 1), 26 (Time)}}. \
          Adding a new XROM module requires updating function_matrix_parity.rs partition."
     );
     assert!(
@@ -542,4 +546,114 @@ fn test_pool_partition_is_exhaustive() {
     );
     assert_eq!(math1_count, 45, "Math 1 pool count drift: {math1_count}");
     assert_eq!(stat1_count, 26, "Stat 1 pool count drift: {stat1_count}");
+    assert_eq!(time_count, 35, "Time pool count drift: {time_count}");
+}
+
+// ── Phase 39 Plan 01 Task 2: Time Pac bidirectional parity tests (TIME-CLI-02) ──
+//
+// Three tests guarding the hp41-time-functions.json ↔ TIME_MODULE.ops ↔ Op::* chain:
+// 1. Inventory drift sentinel (TIME_OP_VARIANT_NAMES length == 35)
+// 2. Forward parity: every TIME_OP_VARIANT_NAMES entry has a JSON row
+// 3. Reverse parity: every JSON display_name resolves via xrom_resolve
+
+/// Hand-curated inventory of all Time Pac `Op` variants shipped in Phase 38.
+/// Drift between this list and the `TIME_MODULE.ops` table in `hp41-core/src/ops/math1/xrom.rs`
+/// is caught by `test_time_op_inventory_count`.
+///
+/// Maintenance gate: if future plans add new Time Pac `Op` variants, append here
+/// AND add matching JSON rows to `docs/hp41-time-functions.json`.
+const TIME_OP_VARIANT_NAMES: &[&str] = &[
+    // Phase 38 Time Module (XROM 26) — 35 entries
+    "TimeTime",
+    "TimeDate",
+    "TimeSetime",
+    "TimeSetdate",
+    "TimeClk12",
+    "TimeClk24",
+    "TimeClkt",
+    "TimeClktd",
+    "TimeClock",
+    "TimeCorrect",
+    "TimeTplusx",
+    "TimeDatePlus",
+    "TimeDdays",
+    "TimeDow",
+    "TimeDmy",
+    "TimeMdy",
+    "TimeAtime",
+    "TimeAtime24",
+    "TimeAdate",
+    "TimeRunsw",
+    "TimeStopsw",
+    "TimeRclsw",
+    "TimeSetsw",
+    "TimeSw",
+    "TimeSwpt",
+    "TimeStpw",
+    "TimeXyzalm",
+    "TimeAlmcat",
+    "TimeAlmnow",
+    "TimeRclalm",
+    "TimeRclaf",
+    "TimeSetaf",
+    "TimeClalma",
+    "TimeClalmx",
+    "TimeClralms",
+];
+
+#[test]
+fn test_time_op_inventory_count() {
+    // Catches: drift between this hand-curated list and TIME_MODULE.ops in xrom.rs.
+    // If a new Time Pac Op variant is added without updating this list,
+    // this assertion fires forcing the developer to also add a JSON entry.
+    assert_eq!(
+        TIME_OP_VARIANT_NAMES.len(),
+        35,
+        "TIME_OP_VARIANT_NAMES inventory drift — expected 35 Time Pac Op variants per Phase 38 ship. \
+         Did a future plan add Op variants without updating this inventory and docs/hp41-time-functions.json?"
+    );
+}
+
+#[test]
+fn test_every_time_rom_op_has_time_json_entry() {
+    // Catches: forward parity gap — a Time Pac Op variant without a JSON entry.
+    // Uses help_entries_time() (narrow accessor) to assert against only the Time pool.
+    // Failure message lists missing variants by name for easy diagnosis.
+    let json_variants: HashSet<&str> = help_entries_time()
+        .iter()
+        .map(|e| e.op_variant.as_str())
+        .collect();
+
+    let mut missing: Vec<&str> = Vec::new();
+    for name in TIME_OP_VARIANT_NAMES {
+        if !json_variants.contains(name) {
+            missing.push(name);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "Time Pac Op::* variants missing from docs/hp41-time-functions.json: {missing:?}"
+    );
+}
+
+#[test]
+fn test_every_time_json_entry_has_xrom_resolver_match() {
+    // Catches: reverse parity gap — a JSON entry whose display_name cannot be
+    // resolved by xrom_resolve (C-28.4). Uses 0b0000_0111 (Math 1 + Stat 1 + Time all loaded)
+    // so the bidirectional invariant holds for the production bitfield state.
+    let mut orphans: Vec<String> = Vec::new();
+    for entry in help_entries_time() {
+        let resolved =
+            hp41_core::ops::math1::xrom::xrom_resolve(entry.display_name.as_str(), 0b0000_0111);
+        if resolved.is_none() {
+            orphans.push(format!(
+                "'{}' (display_name='{}') — not found in TIME_MODULE.ops / xrom_resolve",
+                entry.op_variant, entry.display_name
+            ));
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "Time JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0000_0111): {orphans:?}"
+    );
 }

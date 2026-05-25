@@ -146,26 +146,52 @@ pub fn help_entries_stat1() -> &'static [HelpEntry] {
     })
 }
 
-/// Merged accessor: chains all three JSON pools (v2.2 built-ins + Math Pac I + Stat 1 Pac)
-/// in order per D-34.6 (fixed insertion order — built-ins → Math 1 → Stat 1). This is the
+/// Compile-time-embedded canonical data file for Time Pac (D-39.12 / D-29.2 fourth-pool extension).
+/// The relative path is from `hp41-cli/src/help_data.rs` to
+/// `docs/hp41-time-functions.json` at the repo root.
+const TIME_FUNCTIONS_JSON: &str = include_str!("../../docs/hp41-time-functions.json");
+
+static TIME_HELP_ENTRIES: OnceLock<Vec<HelpEntry>> = OnceLock::new();
+
+/// Access the parsed Time Pac help entries (lazily initialized, thread-safe via OnceLock).
+///
+/// **Panics** on first invocation if `docs/hp41-time-functions.json` is
+/// malformed — this is the **intentional** D-25.17 / D-29.2 hard-build-blocker
+/// behavior (fourth-file copy). The per-file panic message `"hp41-time-functions.json
+/// is malformed — fix the JSON"` routes failures to the correct source-of-truth file.
+/// Subsequent calls return the cached slice.
+///
+/// Narrow accessor — returns ONLY the Time Pac pool. Use [`help_entries_all`]
+/// for the merged pool (v2.2 + Math Pac I + Stat 1 Pac + Time Pac) in UI rendering paths.
+/// This narrow accessor exists for per-pool surgical tests ONLY.
+pub fn help_entries_time() -> &'static [HelpEntry] {
+    TIME_HELP_ENTRIES.get_or_init(|| {
+        serde_json::from_str(TIME_FUNCTIONS_JSON)
+            .expect("hp41-time-functions.json is malformed — fix the JSON")
+    })
+}
+
+/// Merged accessor: chains all four JSON pools (v2.2 built-ins + Math Pac I + Stat 1 Pac + Time Pac)
+/// in order per D-39.12 (fixed insertion order — built-ins → Math 1 → Stat 1 → Time). This is the
 /// **single source of truth** for:
 /// - The `?` help overlay (`ui::render_help_overlay` via `help_overlay_rows`)
 /// - The right-panel discoverability listing (`keys::key_ref_entries`)
 /// - The `function_matrix_parity.rs` full-pool sweep
 ///
-/// **D-34.6 ordering rationale:** the chain order is the natural render order for the
-/// `?` overlay sections (Built-ins → Math 1 Pac → Stat 1 Pac). Future XROM modules
-/// (Time Pac, Advantage Pac) extend by appending a fourth `.chain()` arm; the order
-/// is fixed by convention, NOT alphabetical, to preserve users' learned mental model.
+/// **D-34.6 / D-39.12 ordering rationale:** the chain order is the natural render order for the
+/// `?` overlay sections (Built-ins → Math 1 Pac → Stat 1 Pac → Time Pac). Future XROM modules
+/// (Advantage Pac) extend by appending a fifth `.chain()` arm; the order is fixed by convention,
+/// NOT alphabetical, to preserve users' learned mental model.
 ///
-/// The narrow accessors [`help_entries`], [`help_entries_math1`], and [`help_entries_stat1`]
-/// are retained for per-pool surgical tests (130-target, 45-target, 26-target smoke tests)
-/// and MUST NOT be removed.
+/// The narrow accessors [`help_entries`], [`help_entries_math1`], [`help_entries_stat1`], and
+/// [`help_entries_time`] are retained for per-pool surgical tests (130-target, 45-target,
+/// 26-target, 35-target smoke tests) and MUST NOT be removed.
 pub fn help_entries_all() -> impl Iterator<Item = &'static HelpEntry> {
     help_entries()
         .iter()
         .chain(help_entries_math1().iter())
         .chain(help_entries_stat1().iter())
+        .chain(help_entries_time().iter())
 }
 
 /// Render a list of `(key, op, desc)` 3-tuples in the legacy `HELP_DATA`
