@@ -45,6 +45,8 @@ fn truncate_with_continuation(s: &str) -> String {
 }
 
 use crate::prgm_display;
+use hp41_core::ops::time::clock::get_clock_display_str;
+use hp41_core::ops::time::stopwatch::get_stopwatch_display_str;
 use hp41_core::{format_alpha, format_hpnum, AngleMode, CalcState, HpError};
 use serde::Serialize;
 
@@ -102,6 +104,15 @@ pub struct CalcStateView {
     // modal_prompt: cloned from CalcState.modal_prompt for debug + accessibility.
     // Also used by Display14Seg LCD-alternation routing (D-31.5) in Phase 31 Plan 05.
     pub modal_prompt: Option<String>,
+    // Phase 41 D-41.3: live-display trigger fields projected from CalcState transient booleans.
+    // Frontend starts setInterval(100ms) when clock_active || stopwatch_keyboard_mode is true,
+    // clears the interval when both are false (D-41.8).
+    // Both fields are #[serde(default, skip)] in CalcState (transient — not persisted).
+    pub clock_active: bool,
+    pub stopwatch_keyboard_mode: bool,
+    // stopwatch_running: true when stopwatch_mode == Running; frontend uses this to
+    // decide Space → RUNSW (start) vs STOPSW (stop) in stopwatch keyboard mode.
+    pub stopwatch_running: bool,
 }
 
 impl CalcStateView {
@@ -116,18 +127,17 @@ impl CalcStateView {
         print_lines: Vec<String>,
         event_lines: Vec<String>,
     ) -> Self {
-        // display_str priority chain (D-01 + Claude's Discretion + D-31.5):
-        //   0. [NEW Phase 31 Plan 05] modal_prompt truncated when modal is active
-        //      AND entry_buf is empty AND modal_prompt is set → LCD-alternation
-        //      (D-31.5 / D-31.6). Placed BEFORE entry_buf priority so the prompt
-        //      shows while waiting for user input; once the user starts typing,
-        //      entry_buf is non-empty and that branch wins instead (live feedback).
-        //      NOTE: display_override is RESERVED for Phase 21 VIEW/AVIEW/PROMPT/CLD
-        //      and must NOT be used here — see module-level doc comment.
-        //   1. entry_buf (when user is typing — overrides modal prompt)
-        //   2. alpha_reg via format_alpha (when alpha_mode is on)
+        // display_str priority chain (D-01 + D-31.5 + D-39.1):
+        //   -1. clock/stopwatch live display (highest priority, mirrors CLI ui.rs)
+        //   0. modal_prompt LCD-alternation (D-31.5 / D-31.6)
+        //   1. entry_buf (when user is typing)
+        //   2. alpha_reg via format_alpha
         //   3. format_hpnum(stack.x, display_mode) (default)
-        let display_str = if state.modal_program.is_some()
+        let display_str = if let Some(s) = get_clock_display_str(state) {
+            s
+        } else if let Some(s) = get_stopwatch_display_str(state) {
+            s
+        } else if state.modal_program.is_some()
             && state.entry_buf.is_empty()
             && state.modal_prompt.is_some()
         {
@@ -200,6 +210,13 @@ impl CalcStateView {
             .unwrap_or(false);
         let modal_prompt = state.modal_prompt.clone();
 
+        // Phase 41 D-41.3: live-display trigger booleans projected from transient CalcState fields.
+        // Frontend uses these to start/stop the 100ms setInterval for clock/stopwatch display.
+        let clock_active = state.clock_active;
+        let stopwatch_keyboard_mode = state.stopwatch_keyboard_mode;
+        let stopwatch_running =
+            state.stopwatch_mode == hp41_core::ops::time::stopwatch::StopwatchMode::Running;
+
         CalcStateView {
             display_str,
             x_str,
@@ -220,6 +237,9 @@ impl CalcStateView {
             modal_program_active,
             modal_requires_alpha_label,
             modal_prompt,
+            clock_active,
+            stopwatch_keyboard_mode,
+            stopwatch_running,
         }
     }
 }
@@ -261,9 +281,10 @@ mod tests {
         let view = CalcStateView::from_state(&state, vec![], vec![]);
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured baseline: 337 bytes. Phase 31 adds ~100 bytes for modal fields.
-        // Combined budget: <= 500 bytes (63-byte headroom at ~437 bytes).
+        // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
+        // Combined budget: <= 525 bytes (headroom maintained).
         assert!(
-            json.len() <= 500,
+            json.len() <= 525,
             "CalcStateView JSON (empty program + empty assignments + no flags) must be ≤500 bytes, got {} bytes: {}",
             json.len(),
             json
@@ -288,9 +309,10 @@ mod tests {
         let view = CalcStateView::from_state(&state, vec![], vec![]);
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured load: 401 bytes; Phase 31 adds ~103 bytes → ~504 bytes.
-        // Budget set to 600 bytes with headroom for future fields.
+        // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
+        // Budget set to 625 bytes with headroom for future fields.
         assert!(
-            json.len() <= 600,
+            json.len() <= 625,
             "CalcStateView JSON (realistic ASN+flag load) must be ≤600 bytes, got {} bytes: {}",
             json.len(),
             json

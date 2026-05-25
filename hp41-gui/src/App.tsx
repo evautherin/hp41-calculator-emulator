@@ -43,6 +43,11 @@ interface CalcStateView {
   modal_program_active: boolean;           // mirrors state.modal_program.is_some()
   modal_requires_alpha_label: boolean;     // true when FUNCTION NAME? prompt step is active
   modal_prompt: string | null;             // mirrors Option<String> (null when no modal)
+  // Phase 41 D-41.3: live-display trigger fields (mirrors CalcState transient booleans).
+  // Frontend starts setInterval(100ms) when either is true; clears when both are false (D-41.8).
+  clock_active: boolean;
+  stopwatch_keyboard_mode: boolean;
+  stopwatch_running: boolean;
 }
 
 // Tauri rejects with GuiError { message: string } — String(err) yields
@@ -209,6 +214,9 @@ function App() {
   // From<HpError> ends up at console.error and the user sees stale state.
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const busyRef = useRef(false);
+  // Phase 41 D-41.2/D-41.8: live-display interval reference.
+  // Holds the setInterval ID when clock_active || stopwatch_keyboard_mode is true.
+  const liveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [printLog, setPrintLog] = useState<string[]>([]);
   const [printPanelOpen, setPrintPanelOpen] = useState(false);
   const printEndRef = useRef<HTMLDivElement>(null);
@@ -246,6 +254,33 @@ function App() {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Phase 41 D-41.2/D-41.3/D-41.8: start/stop the 100ms live-display interval.
+  //
+  // Starts when calcState.clock_active || calcState.stopwatch_keyboard_mode is true.
+  // CR-01 fix: derive needsTick as a stable boolean so the interval useEffect
+  // does not depend on the full calcState object (which changes every tick).
+  const needsTick = Boolean(calcState?.clock_active || calcState?.stopwatch_keyboard_mode);
+
+  useEffect(() => {
+    if (needsTick && liveTickRef.current === null) {
+      liveTickRef.current = setInterval(() => {
+        if (busyRef.current) return;
+        invoke<CalcStateView>('tick_time')
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)));
+      }, 100);
+    } else if (!needsTick && liveTickRef.current !== null) {
+      clearInterval(liveTickRef.current);
+      liveTickRef.current = null;
+    }
+    return () => {
+      if (liveTickRef.current !== null) {
+        clearInterval(liveTickRef.current);
+        liveTickRef.current = null;
+      }
+    };
+  }, [needsTick, showToast]);
 
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
@@ -460,18 +495,25 @@ function App() {
       return;
     }
 
-    // Esc precedence (D-26.8 + D-26.4 + D-31.2):
-    //   1. Help overlay first (closes on Esc; doesn't clear modal/shift).
-    //   2. pendingInput second (closes the modal, clears shiftActive).
-    //   3. [NEW Phase 31 Plan 05 — D-31.2] modal_program_active → cancel_modal
-    //      (cancels the active Math Pac I modal workflow).
-    //   4. [NEW Phase 31 Plan 05 — D-31.2] is_running → request_cancel
-    //      (cancels a long-running op like INTG/SOLVE/DIFEQ).
+    // Esc precedence (D-26.8 + D-26.4 + D-31.2 + D-39.3 + D-39.4):
+    //   -1. Clock display (D-39.3: any key exits — clear and fall through).
+    //   0. Stopwatch keyboard mode (exits sw mode via sw_exit dispatch).
+    //   1. Help overlay (closes on Esc; doesn't clear modal/shift).
+    //   2. pendingInput (closes the modal, clears shiftActive).
+    //   3. modal_program_active → cancel_modal.
+    //   4. is_running → request_cancel.
     //   5. shiftActive last (clears the one-shot SHIFT prefix).
-    // This precedence keeps each layer independently dismissable: opening
-    // help doesn't lose an in-progress modal; canceling help leaves the
-    // modal intact.
     if (e.key === 'Escape') {
+      if (calcState?.clock_active || calcState?.stopwatch_keyboard_mode) {
+        if (!busyRef.current) {
+          busyRef.current = true;
+          invoke<CalcStateView>('dispatch_op', { keyId: 'sw_exit' })
+            .then(view => { setCalcState(view); setErrorMessage(null); })
+            .catch(err => showToast(extractErrMessage(err)))
+            .finally(() => { busyRef.current = false; });
+        }
+        if (calcState?.stopwatch_keyboard_mode) return;
+      }
       if (helpOpen) {
         setHelpOpen(false);
         return;
@@ -521,6 +563,31 @@ function App() {
     // calculator state in the background. Esc and '?' are already
     // handled above; this is the third gate layer.
     if (helpOpen) return;
+
+    // D-39.4/D-39.5 mirror: stopwatch keyboard mode intercepts all keys.
+    // Space/Enter → RUNSW/STOPSW toggle, 's' → split, 'r' → reset, Esc → exit.
+    // Key IDs use xeq_ prefix for XROM resolution (key_map.rs xeq_ path).
+    if (calcState?.stopwatch_keyboard_mode) {
+      e.preventDefault();
+      if (busyRef.current) return;
+      let swKeyId: string | null = null;
+      if (e.key === ' ' || e.key === 'Enter') {
+        swKeyId = calcState.stopwatch_running ? 'xeq_STOPSW' : 'xeq_RUNSW';
+      } else if (e.key === 's') {
+        swKeyId = 'xeq_SWPT';
+      } else if (e.key === 'r') {
+        swKeyId = 'xeq_STPW';
+      }
+      if (swKeyId) {
+        busyRef.current = true;
+        invoke<CalcStateView>('dispatch_op', { keyId: swKeyId })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)))
+          .finally(() => { busyRef.current = false; });
+      }
+      return; // all keys consumed in stopwatch mode
+    }
+
     if (busyRef.current) return; // debounce: ignore while invoke pending
 
     // Phase 26 D-26.4: if a modal is open, route the key through handleModalKey
@@ -596,10 +663,30 @@ function App() {
   // policy; the seq counter inside showToast re-fires identical messages).
   // A future v3.x Web Audio API replacement plugs in here without changing
   // the projection contract; the event_buffer schema stays the same.
+  //
+  // Phase 41 D-41.6: extended to parse alarm event prefixes from hp41-core alarm.rs:
+  //   "alarm:message:{text}" → showToast with prefix stripped (shows only alarm text)
+  //   "alarm:xeq:{label}"   → invoke dispatch_op xeq_{label} (control alarm XEQ target)
+  //   other lines            → showToast as before (BEEP/TONE/etc.)
   useEffect(() => {
     if (calcState && calcState.event_buffer.length > 0) {
       for (const line of calcState.event_buffer) {
-        showToast(line);
+        if (line.startsWith('alarm:message:')) {
+          // Strip "alarm:message:" prefix — show only the alarm message text.
+          showToast(line.slice('alarm:message:'.length));
+        } else if (line.startsWith('alarm:xeq:')) {
+          const label = line.slice('alarm:xeq:'.length);
+          if (busyRef.current) continue;
+          busyRef.current = true;
+          invoke<CalcStateView>('dispatch_op', { keyId: `xeq_${label}` })
+            .then(view => { setCalcState(view); setErrorMessage(null); })
+            .catch(err => showToast(extractErrMessage(err)))
+            .finally(() => { busyRef.current = false; });
+        } else if (line.startsWith('alarm:interrupting:')) {
+          // D-38.4: interrupting control alarms deferred — silently ignore.
+        } else {
+          showToast(line);
+        }
       }
     }
   }, [calcState, showToast]);

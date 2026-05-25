@@ -210,7 +210,13 @@ fn key_coverage_implemented_entries_dispatch() {
                 // resolve correctly. The BL-04 Math1-specific sub-loop below
                 // retains 0b0000_0001 to test Math1-only isolation; the new
                 // Stat1 sub-loop uses 0b0000_0011 (the v3.1 default bitfield).
-                let cli_local = xeq_by_name_local_resolve(&name, 0b0000_0011);
+                //
+                // Plan 42-04 (Rule 1 fix): upgrade to 0b0000_0111 (v3.2
+                // default — Math 1 + Stat 1 + Time Module, all three loaded)
+                // so that Time Module XEQ-by-name entries from help_entries_all()
+                // (added in Phase 39) resolve correctly. The Time sub-loop below
+                // uses 0b0000_0111 (the v3.2 default bitfield).
+                let cli_local = xeq_by_name_local_resolve(&name, 0b0000_0111);
                 if cli_local.is_some() {
                     // Direct fast-path hit — accept and move on.
                     continue;
@@ -245,12 +251,13 @@ fn key_coverage_implemented_entries_dispatch() {
     // probe loop pass vacuously. BL-04 fix: now that we iterate the MERGED
     // pool (v2.2 + Math Pac I + Stat 1 Pac), the floor goes from 95 → 120 to
     // absorb the ~26 new Stat1 XEQ-by-name entries added in Phase 34.
-    // As-shipped pools: v2.2 has 62 implemented rows with non-null key_path,
-    // Math1 adds ~45, Stat1 adds ~26 → total ~133. The 120 threshold leaves
-    // headroom for minor JSON-authoring churn but catches any regression where
-    // the Stat1 entries are silently filtered out.
+    // Plan 42-04 fix: raised to 155 to absorb the ~35 new Time Pac entries
+    // added in Phase 39. As-shipped pools: v2.2 ~62 + Math1 ~45 + Stat1 ~26
+    // + Time ~35 → total ~168. The 155 threshold leaves headroom for minor
+    // JSON-authoring churn but catches any regression where the Time entries
+    // are silently filtered out.
     assert!(
-        probed >= 120,
+        probed >= 155,
         "key_coverage probed only {probed} entries — JSON pool is empty, \
          a file failed to load, the filter is wrong, or \
          parse_key_path is over-eager about skipping"
@@ -347,6 +354,53 @@ fn key_coverage_implemented_entries_dispatch() {
         stat1_probed >= 20,
         "Stat1 sub-loop probed only {stat1_probed} entries — \
          help_entries_all is missing the Stat1 pool, or every Stat1 \
+         entry lost its xrom field"
+    );
+
+    // Plan 42-04 (Rule 1 fix): sub-loop for Time Pac entries
+    // (xrom.module_id == 26). Mirrors the BL-04 Math1 and Stat1 sub-loops
+    // but uses 0b0000_0111 (the v3.2 default — Math 1 + Stat 1 + Time Module
+    // all loaded). TIME_MODULE hardware ID = 26 (HP 82182A CATALOG 2).
+    // The corresponding bit in xrom_modules is bit 2 (0b0000_0100).
+    // Using v3.2 default 0b0000_0111 so all three modules are loaded.
+    let mut time_probed = 0usize;
+    for entry in entries.iter() {
+        if entry.status != "implemented" {
+            continue;
+        }
+        let Some(xrom) = entry.xrom.as_ref() else {
+            continue;
+        };
+        // xrom.module_id == 26 is the HP Time Module (HP 82182A) hardware ID.
+        // Time Module bit is bit 2 in xrom_modules: 0b0000_0100.
+        // Using the v3.2 default 0b0000_0111 so all three modules are loaded.
+        if xrom.module_id != 26 {
+            continue;
+        }
+        let Some(key_path) = entry.key_path.as_deref() else {
+            continue;
+        };
+        let Some(rest) = key_path.strip_prefix("XEQ \"") else {
+            continue;
+        };
+        let Some(name) = rest.strip_suffix('"') else {
+            continue;
+        };
+        time_probed += 1;
+        let resolved = xeq_by_name_local_resolve(name, 0b0000_0111);
+        assert!(
+            resolved.is_some(),
+            "{} via XEQ \"{}\": xeq_by_name_local_resolve with v3.2 default \
+             modules loaded (0b0000_0111) returned None — JSON typo or \
+             missing TIME_MODULE.ops entry?",
+            entry.op_variant,
+            name
+        );
+    }
+    assert!(
+        time_probed >= 30,
+        "Time sub-loop probed only {time_probed} entries — \
+         help_entries_all is missing the Time pool, or every Time \
          entry lost its xrom field"
     );
 }

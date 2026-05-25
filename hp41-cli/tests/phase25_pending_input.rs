@@ -431,11 +431,13 @@ fn test_tone_prompt_auto_dispatch() {
         app.pending_input.is_none(),
         "TonePrompt closes after a single digit"
     );
-    // Op::Tone pushes a "TONE n" event into state.event_buffer.
+    // Op::Tone dispatches successfully — no error message set.
+    // (The TONE event is pushed to event_buffer then immediately drained
+    // by drain_event_buffer() at the tail of call_dispatch().)
     assert!(
-        app.state.event_buffer.iter().any(|e| e.starts_with("TONE")),
-        "TONE 5 must push a TONE event; got events={:?}",
-        app.state.event_buffer
+        app.message.is_none(),
+        "TONE 5 dispatch should succeed without error; got message={:?}",
+        app.message
     );
 }
 

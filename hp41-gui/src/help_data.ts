@@ -13,10 +13,16 @@
 // Phase 31-04: parallel-loads docs/hp41-math1-functions.json via Vite static
 // JSON-import (D-31.10 / C-28.3 / ADR-005). Mirrors hp41-cli/src/help_data.rs
 // Phase 29 D-29.2 second OnceLock + merged accessor pattern.
+//
+// Phase 41 Plan 41-02 D-carried.8: parallel-loads docs/hp41-time-functions.json
+// via Vite static JSON-import. Mirrors hp41-cli/src/help_data.rs Phase 39 D-39.12
+// fourth OnceLock + merged accessor pattern. Hard-build-blocker semantics per
+// D-25.17 (malformed JSON fails the Vite build — intentional).
 
 import functions from '../../docs/hp41cv-functions.json';
 import math1Functions from '../../docs/hp41-math1-functions.json';
 import stat1Functions from '../../docs/hp41-stat1-functions.json';
+import timeFunctions from '../../docs/hp41-time-functions.json';
 
 /// XROM module reference attached to Math Pac I (and future v3.1+ pac) entries.
 /// Matches the `xrom` object shape in docs/hp41-math1-functions.json (ADR-005 /
@@ -156,14 +162,25 @@ export function helpEntriesStat1(): readonly HelpEntry[] {
     return stat1Functions as readonly HelpEntry[];
 }
 
-/// Phase 36 Plan 36-02: Merged accessor returning built-in + Math Pac I + Stat 1 Pac entries.
+/// Phase 41 Plan 41-02 D-carried.8: Time Pac function entries from docs/hp41-time-functions.json.
 ///
-/// UPDATED from Phase 31-04 (2-pool) to 3-pool concatenation.
-/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 34 D-34.2 3-pool chain).
+/// Vite static JSON-import: baked into the production bundle at build time.
+/// Malformed JSON fails the Vite build — hard-build-blocker semantics per
+/// D-25.17 (parallel to hp41-cli/src/help_data.rs `.expect("...malformed")`).
+/// Mirrors Phase 39 D-39.12 fourth OnceLock + accessor pattern in Rust (hp41-cli).
+/// Source: docs/hp41-time-functions.json (35 entries, 7-category convention per D-39.9).
+export function helpEntriesTime(): readonly HelpEntry[] {
+    return timeFunctions as readonly HelpEntry[];
+}
+
+/// Phase 41 Plan 41-02: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac entries.
+///
+/// UPDATED from Phase 36 Plan 36-02 (3-pool) to 4-pool concatenation.
+/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 39 D-39.12 4-pool chain).
 /// Used by HelpOverlay.tsx to obtain the full entry pool; the overlay then partitions
-/// entries by `entry.xrom` into three sections (D-31.8 extended for Stat 1 Pac).
-/// Pitfall 5: do NOT create a parallel helpEntriesAll3() — update in-place so all
-/// existing callers (HelpOverlay.tsx) automatically pick up Stat 1 entries.
+/// entries by `entry.xrom` into four sections (D-31.8 extended for Time Pac).
+/// Pitfall 5: do NOT create a parallel helpEntriesAll4() — update in-place so all
+/// existing callers (HelpOverlay.tsx) automatically pick up Time entries.
 export function helpEntriesAll(): readonly HelpEntry[] {
-    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1()];
+    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime()];
 }

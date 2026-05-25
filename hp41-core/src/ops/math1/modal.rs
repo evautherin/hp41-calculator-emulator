@@ -49,6 +49,13 @@ pub enum ModalProgram {
     /// lines of pure dispatch wiring (no Stat 1 Pac semantics leak into
     /// the frozen module).
     Stat1(crate::ops::stat1::modal::Stat1Step),
+    /// Time Module workflows (Phase 38 — SETIME / SETDATE / XYZALM prompts).
+    ///
+    /// math1/ freeze exception per D-carried.4: this single additive variant +
+    /// three dispatch arms is the THIRD freeze-carve-out for `math1/modal.rs`,
+    /// alongside `math1/xrom.rs` (D-33.3) and `ModalProgram::Stat1` (D-33.3b).
+    /// All Time-specific semantics live in `hp41-core/src/ops/time/modal.rs`.
+    Time(crate::ops::time::modal::TimeStep),
 }
 
 impl ModalProgram {
@@ -73,6 +80,8 @@ impl ModalProgram {
             ModalProgram::Trans(step) => step.current_prompt(),
             // D-33.3b: Stat 1 Pac modal prompts delegate to stat1::modal.
             ModalProgram::Stat1(step) => crate::ops::stat1::modal::current_prompt(step),
+            // D-carried.4: Time Module modal prompts delegate to time::modal.
+            ModalProgram::Time(step) => crate::ops::time::modal::current_prompt(step),
         }
     }
 
@@ -99,6 +108,8 @@ impl ModalProgram {
             | ModalProgram::Solve(SolveInputStep::FunctionNamePrompt)
             | ModalProgram::Difeq(DifeqInputStep::FunctionNamePrompt) => true,
             ModalProgram::Stat1(step) => crate::ops::stat1::modal::requires_alpha_label(step),
+            // D-carried.4: Time Module alpha-label gate delegates to time::modal.
+            ModalProgram::Time(step) => crate::ops::time::modal::requires_alpha_label(step),
             _ => false,
         }
     }

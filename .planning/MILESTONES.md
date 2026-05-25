@@ -1,5 +1,34 @@
 # Milestones
 
+## v3.2 Time Pac Emulation (Shipped: 2026-05-25)
+
+**Phases completed:** 5 phases, 19 plans, 28 tasks
+
+**Key accomplishments:**
+
+- 1. [Rule 3 - Blocking] Missing `ModalProgram::Time` arm in `math1/mod.rs`
+- JDN Algorithms (Fliegel-Van Flandern 1968):
+- All 13 TIME module clock ops implemented with SystemTime::now() + i64 offset, pure-Rust
+
+Fliegel-Van Flandern Gregorian calendar arithmetic, and toggle-based display mode transitions
+
+- 1. [Rule 3 - Blocking] `get_local_time` not available from clock.rs (Plan 03 runs in parallel)
+- 1. [Rule 1 - Bug] HpError::Data does not exist in the codebase
+- TimeStep submit_step fully implemented: SETIME computes `time_offset_secs` delta from HH.MMSScc entry with PM shorthand support, SETDATE computes day delta via JDN arithmetic respecting Flag 31
+- 35-entry hp41-time-functions.json (XROM 26) authored and wired as the fourth OnceLock JSON pool in help_data.rs, with full bidirectional parity and XROM shadowing tests
+- ui.rs — `get_display_string()` priority chain (D-39.1):
+- 21 new integration tests across 3 files verify the Time Pac JSON pipeline end-to-end and the alarm event_buffer drain behavioral contract
+- Time Pac docs-matrix pipeline extended (4th invocation) and divergences catalog authored with 6 D-40-NN entries covering host-clock backing, stopwatch freeze-on-save, interrupting alarm deferral, accuracy-factor no-op, centisecond resolution, and SW emulator extension
+- 1. [Rule 1 - Bug] Quality Gate History table had pre-existing MSRV row missing the new v3.2 column
+- TIME-GUI-01 confirmed satisfied:
+- HelpOverlay.tsx:
+- A) CalcStateView TS interface
+- Unified XROM per-Op test-count meta-gate (106 variants across Math 1 + Stat 1 + Time) and assertion-discipline lint gate replacing 4 per-module files, with LINT-EXEMPT pre-annotations on 12 Time Pac inline test false positives
+- Oracle-verified date arithmetic suite (30 tests, exact-match), stopwatch timing accuracy (5 tests, 1s CI-safe window +/-5cs), and alarm past-due detection latency (12 tests, single check_alarms cycle). All 47 tests pass; TIME-QUAL-02, TIME-QUAL-10, TIME-QUAL-11 met.
+- v3.1 save-file migration test (xrom_modules 3→7, Time fields default, rand_seed preserved), DDAYS E2E smoke (5th test, -31 days confirmed), README hard-claim graduated to "feature-complete per Owner's Manual 00041-90035". All TIME-QUAL-04/06/07/09 requirements met.
+
+---
+
 ## v1.0 — HP-41 Calculator Emulator CLI
 
 **Status:** ✅ SHIPPED 2026-05-08
@@ -133,6 +162,7 @@ A pixel-perfect HP-41C desktop application built with Tauri v2 + React + TypeScr
 Two coherent feature areas shipped under the v2.1 banner without the formal GSD discuss/plan/execute pipeline. Both areas landed via PRs against `develop` with code-review feedback rounds.
 
 **1. Card Reader (PR #9)**
+
 - New `Op` variants `Wdta`, `Rdta`, `Wprgm`, `Rdprgm` in `hp41-core/src/ops/mod.rs`; each stages a `CardOpRequest` for the frontend to drain
 - `builtin_card_op()` XEQ-by-name resolver wired into `op_xeq`, `run_program`, and `run_loop`
 - `cards` modules mirrored in `hp41-cli` and `hp41-gui/src-tauri`: directory resolution, name sanitization (dot-prefix rejection), SHA-256 round-trip integration tests
@@ -141,6 +171,7 @@ Two coherent feature areas shipped under the v2.1 banner without the formal GSD 
 - User-facing manual verification procedure documented
 
 **2. Keyboard Authenticity (PR #10)**
+
 - 5-column × 8-row main grid + 4 top-row mode buttons (replacing the prior 8-col landscape layout); ENTER 2-wide; 39 key entries total
 - Three-label `KeyDef` model: primary `id`/`label`, optional `shifted: { id, label }` (orange), optional `alphaChar` (blue)
 - One-shot SHIFT prefix lives entirely frontend-side (`shiftActive: boolean` in `App.tsx`); never crosses IPC

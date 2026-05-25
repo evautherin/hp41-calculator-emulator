@@ -1,0 +1,356 @@
+[
+    {
+        "op_variant": "TimeTime",
+        "display_name": "TIME",
+        "category": "Time Clock",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"TIME\"",
+        "description": "Display current system time in X (HH.MMSSss)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 1 }
+    },
+    {
+        "op_variant": "TimeDate",
+        "display_name": "DATE",
+        "category": "Time Clock",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"DATE\"",
+        "description": "Display current date in X (MM.DDYYYY or DD.MMYYYY)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 2 }
+    },
+    {
+        "op_variant": "TimeSetime",
+        "display_name": "SETIME",
+        "category": "Time Display",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"SETIME\"",
+        "description": "Set the system time from X (HH.MMSSss)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 3 }
+    },
+    {
+        "op_variant": "TimeSetdate",
+        "display_name": "SETDATE",
+        "category": "Time Display",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"SETDATE\"",
+        "description": "Set the system date from X (MM.DDYYYY or DD.MMYYYY)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 4 }
+    },
+    {
+        "op_variant": "TimeClk12",
+        "display_name": "CLK12",
+        "category": "Time Format",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLK12\"",
+        "description": "Switch to 12-hour clock format (AM/PM)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 5 }
+    },
+    {
+        "op_variant": "TimeClk24",
+        "display_name": "CLK24",
+        "category": "Time Format",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLK24\"",
+        "description": "Switch to 24-hour clock format",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 6 }
+    },
+    {
+        "op_variant": "TimeClkt",
+        "display_name": "CLKT",
+        "category": "Time Display",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLKT\"",
+        "description": "Toggle clock display mode on the LCD",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 7 }
+    },
+    {
+        "op_variant": "TimeClktd",
+        "display_name": "CLKTD",
+        "category": "Time Display",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLKTD\"",
+        "description": "Toggle clock-and-date display mode on the LCD",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 8 }
+    },
+    {
+        "op_variant": "TimeClock",
+        "display_name": "CLOCK",
+        "category": "Time Clock",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLOCK\"",
+        "description": "Enter live clock display mode — press any key to exit",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 9 }
+    },
+    {
+        "op_variant": "TimeCorrect",
+        "display_name": "CORRECT",
+        "category": "Time Format",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CORRECT\"",
+        "description": "Apply crystal accuracy correction (no-op; host clock is authoritative)",
+        "divergences": ["No-op in emulation; system clock is authoritative"],
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 10 }
+    },
+    {
+        "op_variant": "TimeTplusx",
+        "display_name": "T+X",
+        "category": "Time Clock",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"T+X\"",
+        "description": "Add X seconds to the current time",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 11 }
+    },
+    {
+        "op_variant": "TimeDatePlus",
+        "display_name": "DATE+",
+        "category": "Time Date Arithmetic",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"DATE+\"",
+        "description": "Add X days to date in Y; result in X",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 12 }
+    },
+    {
+        "op_variant": "TimeDdays",
+        "display_name": "DDAYS",
+        "category": "Time Date Arithmetic",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"DDAYS\"",
+        "description": "Days between date in X and date in Y",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 13 }
+    },
+    {
+        "op_variant": "TimeDow",
+        "display_name": "DOW",
+        "category": "Time Date Arithmetic",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"DOW\"",
+        "description": "Day of week for date in X (0=Sun, 1=Mon … 6=Sat)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 14 }
+    },
+    {
+        "op_variant": "TimeDmy",
+        "display_name": "DMY",
+        "category": "Time Date Arithmetic",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"DMY\"",
+        "description": "Switch date format to DD.MMYYYY",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 15 }
+    },
+    {
+        "op_variant": "TimeMdy",
+        "display_name": "MDY",
+        "category": "Time Date Arithmetic",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"MDY\"",
+        "description": "Switch date format to MM.DDYYYY",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 16 }
+    },
+    {
+        "op_variant": "TimeAtime",
+        "display_name": "ATIME",
+        "category": "Time Alpha",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"ATIME\"",
+        "description": "Append current time as ALPHA string (respects CLK12/CLK24 setting)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 17 }
+    },
+    {
+        "op_variant": "TimeAtime24",
+        "display_name": "ATIME24",
+        "category": "Time Alpha",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"ATIME24\"",
+        "description": "Append current time as ALPHA string (24-hour format)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 18 }
+    },
+    {
+        "op_variant": "TimeAdate",
+        "display_name": "ADATE",
+        "category": "Time Alpha",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"ADATE\"",
+        "description": "Append current date as ALPHA string",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 19 }
+    },
+    {
+        "op_variant": "TimeRunsw",
+        "display_name": "RUNSW",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"RUNSW\"",
+        "description": "Start (run) the stopwatch",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 20 }
+    },
+    {
+        "op_variant": "TimeStopsw",
+        "display_name": "STOPSW",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"STOPSW\"",
+        "description": "Stop the stopwatch",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 21 }
+    },
+    {
+        "op_variant": "TimeRclsw",
+        "display_name": "RCLSW",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"RCLSW\"",
+        "description": "Recall stopwatch elapsed time into X",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 22 }
+    },
+    {
+        "op_variant": "TimeSetsw",
+        "display_name": "SETSW",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"SETSW\"",
+        "description": "Set stopwatch to value in X",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 23 }
+    },
+    {
+        "op_variant": "TimeSw",
+        "display_name": "SW",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"SW\"",
+        "description": "Interactive stopwatch display mode with live LCD updates",
+        "divergences": ["Extended interactive stopwatch keyboard mode -- emulator extension"],
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 24 }
+    },
+    {
+        "op_variant": "TimeSwpt",
+        "display_name": "SWPT",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"SWPT\"",
+        "description": "Recall split-point time recorded by STPW into X as HH.MMSScc",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 25 }
+    },
+    {
+        "op_variant": "TimeStpw",
+        "display_name": "STPW",
+        "category": "Time Stopwatch",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"STPW\"",
+        "description": "Record current elapsed time as split point (stopwatch continues running)",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 26 }
+    },
+    {
+        "op_variant": "TimeXyzalm",
+        "display_name": "XYZALM",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"XYZALM\"",
+        "description": "Set alarm: X=time, Y=date, Z=repeat interval",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 27 }
+    },
+    {
+        "op_variant": "TimeAlmcat",
+        "display_name": "ALMCAT",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"ALMCAT\"",
+        "description": "Catalog all pending alarms to the display",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 28 }
+    },
+    {
+        "op_variant": "TimeAlmnow",
+        "display_name": "ALMNOW",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"ALMNOW\"",
+        "description": "Trigger the next alarm immediately",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 29 }
+    },
+    {
+        "op_variant": "TimeRclalm",
+        "display_name": "RCLALM",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"RCLALM\"",
+        "description": "Recall alarm N from X into X/Y/Z registers",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 30 }
+    },
+    {
+        "op_variant": "TimeRclaf",
+        "display_name": "RCLAF",
+        "category": "Time Format",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"RCLAF\"",
+        "description": "Recall stored accuracy factor into X",
+        "divergences": ["Recalls stored accuracy factor; no crystal to adjust"],
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 31 }
+    },
+    {
+        "op_variant": "TimeSetaf",
+        "display_name": "SETAF",
+        "category": "Time Format",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"SETAF\"",
+        "description": "Set accuracy factor from X (crystal correction)",
+        "divergences": ["Accuracy factor stored but has no effect in emulation"],
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 32 }
+    },
+    {
+        "op_variant": "TimeClalma",
+        "display_name": "CLALMA",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLALMA\"",
+        "description": "Clear first alarm matching ALPHA register content from the catalog",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 33 }
+    },
+    {
+        "op_variant": "TimeClalmx",
+        "display_name": "CLALMX",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLALMX\"",
+        "description": "Clear alarm number X from the alarm catalog",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 34 }
+    },
+    {
+        "op_variant": "TimeClralms",
+        "display_name": "CLRALMS",
+        "category": "Time Alarm",
+        "status": "implemented",
+        "phase": "38",
+        "key_path": "XEQ \"CLRALMS\"",
+        "description": "Clear all alarms from the catalog",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 35 }
+    }
+]

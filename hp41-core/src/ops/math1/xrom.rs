@@ -185,6 +185,64 @@ pub const STAT_1: XromModule = XromModule {
     ],
 };
 
+/// Time Module registry (D-38.X freeze exception — third entry in this
+/// otherwise-frozen file, alongside the bit-2 arm in `xrom_resolve` below).
+///
+/// - `id = 26` — HP hardware Time Module XROM module ID (XROM 26, "TIME 2C").
+/// - `name = "TIME 2C"` — CATALOG 2 display string per HP Time Module Owner's Manual (HP 82182A).
+/// - `ops` — 35 Time Module mnemonics per HP 82182A OM function list.
+///   All entries confirmed non-shadowing against `MATH_1.ops`, `STAT_1.ops`,
+///   and `builtin_card_op` (CI-gated via `tests/xrom_shadowing.rs`).
+///
+/// **Phase 38 state:** all 35 entries point to stub `Op::Time*` variants.
+/// Full clock/date/stopwatch/alarm implementations land in Wave 2 plans.
+pub const TIME_MODULE: XromModule = XromModule {
+    id: 26,
+    name: "TIME 2C",
+    ops: &[
+        // ── Clock & Display ───────────────────────────────────────────────────
+        ("TIME", Op::TimeTime),
+        ("DATE", Op::TimeDate),
+        ("SETIME", Op::TimeSetime),
+        ("SETDATE", Op::TimeSetdate),
+        ("CLK12", Op::TimeClk12),
+        ("CLK24", Op::TimeClk24),
+        ("CLKT", Op::TimeClkt),
+        ("CLKTD", Op::TimeClktd),
+        ("CLOCK", Op::TimeClock),
+        ("CORRECT", Op::TimeCorrect),
+        ("T+X", Op::TimeTplusx),
+        // ── Date Arithmetic ───────────────────────────────────────────────────
+        ("DATE+", Op::TimeDatePlus),
+        ("DDAYS", Op::TimeDdays),
+        ("DOW", Op::TimeDow),
+        ("DMY", Op::TimeDmy),
+        ("MDY", Op::TimeMdy),
+        // ── Alpha Time/Date Display ───────────────────────────────────────────
+        ("ATIME", Op::TimeAtime),
+        ("ATIME24", Op::TimeAtime24),
+        ("ADATE", Op::TimeAdate),
+        // ── Stopwatch ─────────────────────────────────────────────────────────
+        ("RUNSW", Op::TimeRunsw),
+        ("STOPSW", Op::TimeStopsw),
+        ("RCLSW", Op::TimeRclsw),
+        ("SETSW", Op::TimeSetsw),
+        ("SW", Op::TimeSw),
+        ("SWPT", Op::TimeSwpt),
+        ("STPW", Op::TimeStpw),
+        // ── Alarm System ──────────────────────────────────────────────────────
+        ("XYZALM", Op::TimeXyzalm),
+        ("ALMCAT", Op::TimeAlmcat),
+        ("ALMNOW", Op::TimeAlmnow),
+        ("RCLALM", Op::TimeRclalm),
+        ("RCLAF", Op::TimeRclaf),
+        ("SETAF", Op::TimeSetaf),
+        ("CLALMA", Op::TimeClalma),
+        ("CLALMX", Op::TimeClalmx),
+        ("CLRALMS", Op::TimeClralms),
+    ],
+};
+
 /// Resolve an XEQ-by-name label against loaded XROM modules.
 ///
 /// Returns `Some(Op)` if `name` matches a Math Pac I mnemonic AND bit 0 of
@@ -205,6 +263,14 @@ pub fn xrom_resolve(name: &str, modules: u8) -> Option<Op> {
     // disjointness is CI-gated in `tests/xrom_shadowing.rs`).
     if modules & 0b0000_0010 != 0 {
         if let Some(op) = stat1_resolve(name) {
+            return Some(op);
+        }
+    }
+    // Phase 38 (v3.2): Time Module bit-2 arm — fires AFTER Stat 1 per
+    // Pitfall 1 + Pitfall 22. `TIME_MODULE.ops` x `MATH_1.ops` x `STAT_1.ops`
+    // disjointness CI-gated in `tests/xrom_shadowing.rs`.
+    if modules & 0b0000_0100 != 0 {
+        if let Some(op) = time_resolve(name) {
             return Some(op);
         }
     }
@@ -358,10 +424,61 @@ fn stat1_resolve(name: &str) -> Option<Op> {
     }
 }
 
+/// Time Module (bit 2) mnemonic resolver — Phase 38 freeze exception.
+///
+/// Bidirectional consistency with `TIME_MODULE.ops`: the
+/// `time_module_ops_mnemonics_resolve_consistently` test iterates the
+/// slice and asserts every mnemonic round-trips through this match.
+fn time_resolve(name: &str) -> Option<Op> {
+    match name {
+        // ── Clock & Display ───────────────────────────────────────────────────
+        "TIME" => Some(Op::TimeTime),
+        "DATE" => Some(Op::TimeDate),
+        "SETIME" => Some(Op::TimeSetime),
+        "SETDATE" => Some(Op::TimeSetdate),
+        "CLK12" => Some(Op::TimeClk12),
+        "CLK24" => Some(Op::TimeClk24),
+        "CLKT" => Some(Op::TimeClkt),
+        "CLKTD" => Some(Op::TimeClktd),
+        "CLOCK" => Some(Op::TimeClock),
+        "CORRECT" => Some(Op::TimeCorrect),
+        "T+X" => Some(Op::TimeTplusx),
+        // ── Date Arithmetic ───────────────────────────────────────────────────
+        "DATE+" => Some(Op::TimeDatePlus),
+        "DDAYS" => Some(Op::TimeDdays),
+        "DOW" => Some(Op::TimeDow),
+        "DMY" => Some(Op::TimeDmy),
+        "MDY" => Some(Op::TimeMdy),
+        // ── Alpha Time/Date Display ───────────────────────────────────────────
+        "ATIME" => Some(Op::TimeAtime),
+        "ATIME24" => Some(Op::TimeAtime24),
+        "ADATE" => Some(Op::TimeAdate),
+        // ── Stopwatch ─────────────────────────────────────────────────────────
+        "RUNSW" => Some(Op::TimeRunsw),
+        "STOPSW" => Some(Op::TimeStopsw),
+        "RCLSW" => Some(Op::TimeRclsw),
+        "SETSW" => Some(Op::TimeSetsw),
+        "SW" => Some(Op::TimeSw),
+        "SWPT" => Some(Op::TimeSwpt),
+        "STPW" => Some(Op::TimeStpw),
+        // ── Alarm System ──────────────────────────────────────────────────────
+        "XYZALM" => Some(Op::TimeXyzalm),
+        "ALMCAT" => Some(Op::TimeAlmcat),
+        "ALMNOW" => Some(Op::TimeAlmnow),
+        "RCLALM" => Some(Op::TimeRclalm),
+        "RCLAF" => Some(Op::TimeRclaf),
+        "SETAF" => Some(Op::TimeSetaf),
+        "CLALMA" => Some(Op::TimeClalma),
+        "CLALMX" => Some(Op::TimeClalmx),
+        "CLRALMS" => Some(Op::TimeClralms),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-    use super::{xrom_resolve, MATH_1, STAT_1};
+    use super::{xrom_resolve, MATH_1, STAT_1, TIME_MODULE};
     use crate::ops::Op;
 
     const NONEXISTENT_NAME: &str = "__MATH1_PROBE_NONEXISTENT__";
@@ -552,6 +669,60 @@ mod tests {
         assert!(
             neither.is_none(),
             "xrom_resolve must return None when neither bit is set"
+        );
+    }
+
+    // ── Phase 38 (v3.2): TIME_MODULE const + bit-2 arm tests ─────────────────
+
+    // Catches: TIME_MODULE const field regression (id or display name typo).
+    #[test]
+    fn time_module_const_id_and_name() {
+        assert_eq!(
+            TIME_MODULE.id, 26,
+            "TIME_MODULE.id must be 26 (HP Time Module hardware XROM ID per HP 82182A)"
+        );
+        assert_eq!(
+            TIME_MODULE.name, "TIME 2C",
+            "TIME_MODULE.name must be 'TIME 2C' (HP-41C CATALOG 2 display string per HP 82182A)"
+        );
+    }
+
+    // Catches: TIME_MODULE.ops slice growing/shrinking without intent.
+    // 35 entries: 11 clock/display + 6 date-arith + 3 alpha + 7 stopwatch + 8 alarm = 35.
+    #[test]
+    fn time_module_ops_has_correct_entry_count() {
+        assert_eq!(
+            TIME_MODULE.ops.len(),
+            35,
+            "TIME_MODULE.ops must have exactly 35 entries (11 clock + 6 date + 3 alpha + 7 stopwatch + 8 alarm)"
+        );
+    }
+
+    // Catches: bit-2 isolation regression — Time Module must resolve under bit 2 ONLY.
+    #[test]
+    fn resolve_uses_bit_2_for_time_module() {
+        // bit 2 set, bits 0+1 clear — Time Module IS loaded, Math 1 + Stat 1 are NOT.
+        let with_bit2 = xrom_resolve("TIME", 0b0000_0100);
+        assert_eq!(
+            with_bit2,
+            Some(Op::TimeTime),
+            "xrom_resolve('TIME', bit2=1) must route through time_resolve"
+        );
+
+        // bit 0+1 set, bit 2 clear — Math 1 + Stat 1 loaded, Time Module is NOT.
+        // 'TIME' is not a Math 1 or Stat 1 mnemonic → resolution returns None.
+        let without_bit2 = xrom_resolve("TIME", 0b0000_0011);
+        assert!(
+            without_bit2.is_none(),
+            "xrom_resolve('TIME', bit2=0) must return None (bit-2 isolation)"
+        );
+
+        // All three bits set — all modules loaded → 'TIME' resolves via bit-2 arm.
+        let all_bits = xrom_resolve("TIME", 0b0000_0111);
+        assert_eq!(
+            all_bits,
+            Some(Op::TimeTime),
+            "xrom_resolve('TIME', bits 0+1+2 set) must return Some(Op::TimeTime)"
         );
     }
 }

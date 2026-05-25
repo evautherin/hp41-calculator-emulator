@@ -71,15 +71,15 @@ fn loads_synthetic_v22_save_without_v3_fields() {
     let state: CalcState = serde_json::from_str(V22_JSON)
         .expect("v2.2-shape JSON must deserialize without error into v3.0 CalcState");
 
-    // Phase 28 fields must be at their documented defaults.
-    // NOTE: Phase 33 (v3.1) flipped `default_xrom_modules()` from `0b0000_0001`
-    // to `0b0000_0011` (Math 1 + Stat 1 pre-loaded) per D-33.2 / STAT-FW-02.
+    // Phase 28 + Phase 38 fields must be at their documented defaults.
+    // NOTE: Phase 38 (v3.2) flipped `default_xrom_modules()` to `0b0000_0111`
+    // (Math 1 + Stat 1 + Time Module pre-loaded) per TIME-FW-01.
     // A v2.2 save file containing NO `xrom_modules` field therefore now
-    // deserializes with the v3.1 default; v3.0 save files that explicitly
-    // persist `"xrom_modules": 1` are upgraded by `CalcState::migrate_after_load()`.
+    // deserializes with the v3.2 default; older save files that explicitly
+    // persist lower values are upgraded by `CalcState::migrate_after_load()`.
     assert_eq!(
-        state.xrom_modules, 0b0000_0011,
-        "v2.2 save must produce v3.1 default xrom_modules = 0b0000_0011 (Math 1 + Stat 1 pre-loaded)"
+        state.xrom_modules, 0b0000_0111,
+        "v2.2 save must produce v3.2 default xrom_modules = 0b0000_0111 (Math 1 + Stat 1 + Time pre-loaded)"
     );
     assert!(
         !state.complex_mode,

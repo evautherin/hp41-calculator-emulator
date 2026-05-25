@@ -15,7 +15,7 @@ use std::str::FromStr;
 
 use crate::error::HpError;
 use crate::num::HpNum;
-use crate::ops::math1::xrom::{MATH_1, STAT_1};
+use crate::ops::math1::xrom::{XromModule, MATH_1, STAT_1, TIME_MODULE};
 use crate::ops::{Op, TestKind};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
@@ -337,34 +337,38 @@ pub fn op_catalog(state: &mut CalcState, n: u8) -> Result<(), HpError> {
         }
         2 => {
             // CATALOG 2: XROM modules loaded in this emulator.
-            // Surgical Phase 31-04 exception (analogous to v2.2 Plan 25-03
-            // builtin_card_op 4→12 extension). Instant-scroll per W1 fix:
-            // single-pass synchronous push into print_buffer — NO PSE-step,
-            // NO per-line yield (v2.2 CAT 1 shape; D-31.12/D-31.14 PSE-step
-            // deferred to v3.1 polish per RESEARCH Open Q2).
-            if state.xrom_modules & 0b0000_0001 != 0 {
-                // Math Pac I (bit 0) is loaded.
-                state.print_buffer.push(format!(
-                    "{:<24}",
-                    format!("XROM {} {}", MATH_1.id, MATH_1.name)
-                ));
-                for (name, _op) in MATH_1.ops {
-                    state.print_buffer.push(format!("{name:<24}"));
-                }
-            }
-            if state.xrom_modules & 0b0000_0010 != 0 {
-                // Stat 1 Pac (bit 1) is loaded — D-36.1 parallel sibling block.
-                state.print_buffer.push(format!(
-                    "{:<24}",
-                    format!("XROM {} {}", STAT_1.id, STAT_1.name)
-                ));
-                for (name, _op) in STAT_1.ops {
-                    state.print_buffer.push(format!("{name:<24}"));
-                }
-            } else if state.xrom_modules & 0b0000_0001 == 0 {
-                // NO XROM: fires only when BOTH bit-0 (Math 1) AND bit-1 (Stat 1)
-                // are clear. Post-migrate_after_load this is defensive-only.
+            // Phase 41 D-41.5: generic 3-module loop replaces the previous
+            // parallel if-blocks (D-36.1 sibling block pattern). The loop
+            // correctly handles any combination of modules and eliminates the
+            // latent else-if bug from the 2-module era. Fourth module (Advantage
+            // Pac) will extend this array automatically.
+            // Instant-scroll per W1 fix: single-pass synchronous push into
+            // print_buffer — NO PSE-step, NO per-line yield (v2.2 CAT 1 shape;
+            // D-31.12/D-31.14 PSE-step deferred per RESEARCH Open Q2).
+            let xrom_registry: &[(&XromModule, u8)] = &[
+                (&MATH_1, 0b0000_0001),      // bit 0 — Math Pac I (XROM 7)
+                (&STAT_1, 0b0000_0010),      // bit 1 — Stat 1 Pac (XROM 2)
+                (&TIME_MODULE, 0b0000_0100), // bit 2 — Time Module (XROM 26)
+            ];
+            let any_module = xrom_registry
+                .iter()
+                .any(|(_, bit)| state.xrom_modules & bit != 0);
+            if !any_module {
+                // NO XROM: no modules loaded (defensive; post-migrate_after_load
+                // the default is 0b0000_0111 but save files may have xrom_modules=0).
                 state.print_buffer.push(format!("{:<24}", "NO XROM"));
+            } else {
+                for (module, bit) in xrom_registry {
+                    if state.xrom_modules & bit != 0 {
+                        state.print_buffer.push(format!(
+                            "{:<24}",
+                            format!("XROM {} {}", module.id, module.name)
+                        ));
+                        for (name, _op) in module.ops {
+                            state.print_buffer.push(format!("{name:<24}"));
+                        }
+                    }
+                }
             }
         }
         3..=4 => {
@@ -1060,6 +1064,44 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 33 Plan 33-08: RAND / SEED — emulator extension (D-33.4) ──
         Op::Rand => crate::ops::dispatch(state, Op::Rand),
         Op::Seed => crate::ops::dispatch(state, Op::Seed),
+        // ── Phase 38 (v3.2): Time Module (XROM 26) ──────────────────────────
+        // Phase 38 sanctioned CI break — Phase 39 closes item 3 (CLI), Phase 41 closes item 4 (GUI).
+        // All Time Module ops route through dispatch() (same pattern as Stat 1 ops).
+        Op::TimeTime => crate::ops::dispatch(state, Op::TimeTime),
+        Op::TimeDate => crate::ops::dispatch(state, Op::TimeDate),
+        Op::TimeSetime => crate::ops::dispatch(state, Op::TimeSetime),
+        Op::TimeSetdate => crate::ops::dispatch(state, Op::TimeSetdate),
+        Op::TimeClk12 => crate::ops::dispatch(state, Op::TimeClk12),
+        Op::TimeClk24 => crate::ops::dispatch(state, Op::TimeClk24),
+        Op::TimeClkt => crate::ops::dispatch(state, Op::TimeClkt),
+        Op::TimeClktd => crate::ops::dispatch(state, Op::TimeClktd),
+        Op::TimeClock => crate::ops::dispatch(state, Op::TimeClock),
+        Op::TimeCorrect => crate::ops::dispatch(state, Op::TimeCorrect),
+        Op::TimeTplusx => crate::ops::dispatch(state, Op::TimeTplusx),
+        Op::TimeDatePlus => crate::ops::dispatch(state, Op::TimeDatePlus),
+        Op::TimeDdays => crate::ops::dispatch(state, Op::TimeDdays),
+        Op::TimeDow => crate::ops::dispatch(state, Op::TimeDow),
+        Op::TimeDmy => crate::ops::dispatch(state, Op::TimeDmy),
+        Op::TimeMdy => crate::ops::dispatch(state, Op::TimeMdy),
+        Op::TimeAtime => crate::ops::dispatch(state, Op::TimeAtime),
+        Op::TimeAtime24 => crate::ops::dispatch(state, Op::TimeAtime24),
+        Op::TimeAdate => crate::ops::dispatch(state, Op::TimeAdate),
+        Op::TimeRunsw => crate::ops::dispatch(state, Op::TimeRunsw),
+        Op::TimeStopsw => crate::ops::dispatch(state, Op::TimeStopsw),
+        Op::TimeRclsw => crate::ops::dispatch(state, Op::TimeRclsw),
+        Op::TimeSetsw => crate::ops::dispatch(state, Op::TimeSetsw),
+        Op::TimeSw => crate::ops::dispatch(state, Op::TimeSw),
+        Op::TimeSwpt => crate::ops::dispatch(state, Op::TimeSwpt),
+        Op::TimeStpw => crate::ops::dispatch(state, Op::TimeStpw),
+        Op::TimeXyzalm => crate::ops::dispatch(state, Op::TimeXyzalm),
+        Op::TimeAlmcat => crate::ops::dispatch(state, Op::TimeAlmcat),
+        Op::TimeAlmnow => crate::ops::dispatch(state, Op::TimeAlmnow),
+        Op::TimeRclalm => crate::ops::dispatch(state, Op::TimeRclalm),
+        Op::TimeRclaf => crate::ops::dispatch(state, Op::TimeRclaf),
+        Op::TimeSetaf => crate::ops::dispatch(state, Op::TimeSetaf),
+        Op::TimeClalma => crate::ops::dispatch(state, Op::TimeClalma),
+        Op::TimeClalmx => crate::ops::dispatch(state, Op::TimeClalmx),
+        Op::TimeClralms => crate::ops::dispatch(state, Op::TimeClralms),
     }
 }
 

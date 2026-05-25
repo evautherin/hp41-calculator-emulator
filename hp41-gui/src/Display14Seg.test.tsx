@@ -79,10 +79,10 @@ describe('Display14Seg rendering', () => {
         expect(cells.length).toBe(12);
     });
 
-    it('renders 12 * 15 = 180 path elements per render (14 segments + 1 decimal dot per cell, W4)', () => {
+    it('renders 12 * 17 = 204 path elements per render (14 segments + 1 decimal dot + 2 colon dots per cell)', () => {
         const { container } = render(<Display14Seg text="2.0000" />);
         const paths = container.querySelectorAll('path');
-        expect(paths.length).toBe(180);
+        expect(paths.length).toBe(204);
     });
 
     it("renders modal preview 'STO _5' (Plan 26-01 D-26.3 register-modal cursor) without crashing", () => {
@@ -127,15 +127,17 @@ describe('Display14Seg rendering', () => {
         const firstCell = container.querySelector('g');
         expect(firstCell).not.toBeNull();
         const cellPaths = Array.from(firstCell!.querySelectorAll('path'));
-        // First 14 paths in the cell are the 14 segments; index 14 is the decimal dot (W4).
-        expect(cellPaths.length).toBe(15);
+        // 14 segments + decimal dot + 2 colon dots = 17 paths per cell.
+        expect(cellPaths.length).toBe(17);
         for (let segIdx = 0; segIdx < 14; segIdx++) {
             const opacity = parseFloat(cellPaths[segIdx].getAttribute('opacity') ?? '1');
             expect(opacity).toBeLessThan(0.5);
         }
-        // The decimal dot (15th path) is also off for a space.
-        const dotOpacity = parseFloat(cellPaths[14].getAttribute('opacity') ?? '1');
-        expect(dotOpacity).toBeLessThan(0.5);
+        // Decimal dot (15th) + colon dots (16th, 17th) are all off for a space.
+        for (let dotIdx = 14; dotIdx < 17; dotIdx++) {
+            const dotOpacity = parseFloat(cellPaths[dotIdx].getAttribute('opacity') ?? '1');
+            expect(dotOpacity).toBeLessThan(0.5);
+        }
     });
 
     it("on-segment opacity is >= 0.99 for digit '8' (all numeric segments lit)", () => {
@@ -229,7 +231,7 @@ describe('Display14Seg rendering', () => {
         // Cell at index 11 is the ≡ character. SEGMENT_MAP['\u{2261}'] = [0, 6, 7, 3]
         const lastCell = cells[11];
         const paths = Array.from(lastCell.querySelectorAll('path'));
-        expect(paths.length).toBe(15); // 14 segments + 1 decimal dot per cell
+        expect(paths.length).toBe(17); // 14 segments + 1 decimal dot + 2 colon dots per cell
 
         // Segments that MUST be lit: 0 (top), 3 (bottom), 6 (g1), 7 (g2).
         const litSegments = [0, 3, 6, 7];

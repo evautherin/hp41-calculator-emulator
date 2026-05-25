@@ -24,6 +24,7 @@
 //   - No f64 arithmetic on HP-41 register values anywhere in hp41-core.
 
 use crate::num::{HpNum, HpValue};
+use crate::ops::time::{alarm::AlarmEntry, ClockDisplayMode, StopwatchMode};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -285,19 +286,85 @@ pub struct CalcState {
     /// `modal_prompt`, `integ_state`, etc.) and were always permitted.
     #[serde(default, skip)]
     pub pending_chisqd_nu: Option<u32>,
+
+    // ── Phase 38 (v3.2): Time Module (XROM 26) ──────────────────────────────
+    /// Wall-clock offset in seconds (D-38.2).
+    /// SETIME computes `delta = entered_unix_secs - SystemTime::now()` and stores here.
+    /// Default: 0 (system time unmodified). Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub time_offset_secs: i64,
+
+    /// 12-hour clock display mode flag (D-38.2).
+    /// true = 12-hour format (with AM/PM); false = 24-hour format.
+    /// Default: false (24-hour). Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub clock_12h: bool,
+
+    /// Continuous clock display mode (D-38.2).
+    /// Off = no display; TimeOnly = CLKT; TimeAndDate = CLKTD.
+    /// Default: `ClockDisplayMode::Off`. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub clock_display_mode: ClockDisplayMode,
+
+    /// Clock accuracy correction factor (D-38.2).
+    /// Written by CORRECT from stack X. Default: HpNum::zero().
+    /// Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub accuracy_factor: HpNum,
+
+    /// Alarm list (D-38.8 / D-38.10).
+    /// Default: empty Vec (no alarms). Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub alarms: Vec<AlarmEntry>,
+
+    /// Stopwatch operating mode (D-38.7).
+    /// Default: `StopwatchMode::Idle`. Persistent — `#[serde(default)]`.
+    /// D-38.6: `migrate_after_load()` transitions Running → Stopped on load.
+    #[serde(default)]
+    pub stopwatch_mode: StopwatchMode,
+
+    /// Accumulated stopwatch time in seconds not in the current run (D-38.7).
+    /// Default: 0.0. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub stopwatch_accumulated: f64,
+
+    /// Split/lap reference time in seconds (D-38.7).
+    /// Written by SWPT. Default: 0.0. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub stopwatch_split: f64,
+
+    /// Transient: start instant of the current stopwatch run (D-38.6).
+    /// `None` when mode ≠ Running. Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub stopwatch_start: Option<std::time::Instant>,
+
+    /// Transient: true while CLKT/CLKTD continuous clock display is active (D-38.2).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub clock_active: bool,
+
+    /// Transient: true while the SW stopwatch keyboard mode is active (D-38.7).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub stopwatch_keyboard_mode: bool,
+
+    /// Transient: true while ALMCAT alarm catalog browsing is active (D-38.10).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub alarm_catalog_mode: bool,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
 
-/// Default value for `xrom_modules`: bit 0 = Math 1, bit 1 = Stat 1,
-/// both pre-loaded per v3.1 scope (D-33.2).
+/// Default value for `xrom_modules`: bit 0 = Math 1, bit 1 = Stat 1, bit 2 = Time Module,
+/// all pre-loaded per v3.2 scope (D-carried.5).
 ///
-/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flips bit 1 on
-/// because Stat 1 Pac is part of the same milestone deliverable
-/// (REQUIREMENTS.md STAT-FW-02). Migration of v3.0 save files lacking
-/// bit 1 happens in `CalcState::migrate_after_load()` (D-33.7).
+/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flipped bit 1 on (D-33.2).
+/// v3.2 flips bit 2 on because Time Module (XROM 26) is part of this milestone
+/// (TIME-FW-01). Migration of v3.1 save files lacking bit 2 happens in
+/// `CalcState::migrate_after_load()`.
 fn default_xrom_modules() -> u8 {
-    0b0000_0011
+    0b0000_0111
 }
 
 /// Default value for `cancel_requested`: a new Arc<AtomicBool> initialized to false.
@@ -349,6 +416,19 @@ impl CalcState {
             // Phase 33 (v3.1) review-fix: transient ΣCHISQD ν carrier
             // (REVIEW.md WR-03/WR-04 — replaces the stack-T side channel).
             pending_chisqd_nu: None,
+            // Phase 38 (v3.2): Time Module (XROM 26) fields
+            time_offset_secs: 0,
+            clock_12h: false,
+            clock_display_mode: ClockDisplayMode::default(),
+            accuracy_factor: HpNum::zero(),
+            alarms: Vec::new(),
+            stopwatch_mode: StopwatchMode::default(),
+            stopwatch_accumulated: 0.0,
+            stopwatch_split: 0.0,
+            stopwatch_start: None,
+            clock_active: false,
+            stopwatch_keyboard_mode: false,
+            alarm_catalog_mode: false,
         }
     }
 }
@@ -387,6 +467,21 @@ impl CalcState {
         // v3.0 → v3.1: ensure STAT_1 bit (bit 1) is set.
         if self.xrom_modules & 0b0000_0010 == 0 {
             self.xrom_modules |= 0b0000_0010;
+        }
+        // v3.1 → v3.2: ensure TIME_MODULE bit (bit 2) is set.
+        // v3.1 save files persist `"xrom_modules": 3` (bits 0+1 = Math 1 + Stat 1).
+        // Without this migration, v3.1 users opening a v3.2 binary would see
+        // Time Module silently disabled — `XEQ "TIME"` would return InvalidOp.
+        if self.xrom_modules & 0b0000_0100 == 0 {
+            self.xrom_modules |= 0b0000_0100;
+        }
+        // D-38.6: freeze a Running stopwatch on load.
+        // `stopwatch_start: Option<Instant>` is `#[serde(skip)]` and thus always
+        // `None` after deserialization. A Running stopwatch with no Instant is
+        // indeterminate — freeze to Stopped so RCLSW/STOPSW sees a stable state.
+        if self.stopwatch_mode == StopwatchMode::Running {
+            self.stopwatch_mode = StopwatchMode::Stopped;
+            self.stopwatch_start = None;
         }
     }
 }
@@ -437,15 +532,16 @@ mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
 
-    // Catches: default initializer regression for Phase 28 + Phase 33 fields.
+    // Catches: default initializer regression for Phase 28 + Phase 33 + Phase 38 fields.
     // Phase 33 (v3.1) flipped the default from `0b0000_0001` to `0b0000_0011`
-    // (D-33.2 / STAT-FW-02): both Math 1 (bit 0) and Stat 1 (bit 1) pre-loaded.
+    // (D-33.2 / STAT-FW-02). Phase 38 (v3.2) flips bit 2 on (TIME-FW-01):
+    // Math 1 (bit 0) + Stat 1 (bit 1) + Time Module (bit 2) all pre-loaded.
     #[test]
     fn default_construction_phase28_fields() {
         let state = CalcState::default();
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
-            "Math 1 + Stat 1 must be pre-loaded by default (v3.1 scope)"
+            state.xrom_modules, 0b0000_0111,
+            "Math 1 + Stat 1 + Time Module must be pre-loaded by default (v3.2 scope)"
         );
         assert!(!state.complex_mode, "complex_mode must default to false");
         assert_eq!(state.matrix_dim, None, "matrix_dim must default to None");
@@ -581,12 +677,12 @@ mod tests {
 
         let state: CalcState = serde_json::from_str(v22_json).unwrap();
 
-        // Phase 28 + Phase 33 fields must default cleanly.
-        // Note: v3.1 flipped default_xrom_modules() to 0b0000_0011 (D-33.2);
-        // a v2.2 save lacking the field therefore loads with both bits set.
+        // Phase 28 + Phase 33 + Phase 38 fields must default cleanly.
+        // Note: v3.2 flipped default_xrom_modules() to 0b0000_0111 (TIME-FW-01);
+        // a v2.2 save lacking the field therefore loads with all three bits set.
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
-            "v2.2 save must get v3.1 default xrom_modules = 0b0000_0011"
+            state.xrom_modules, 0b0000_0111,
+            "v2.2 save must get v3.2 default xrom_modules = 0b0000_0111"
         );
         assert!(
             !state.complex_mode,
@@ -617,13 +713,13 @@ mod tests {
 
     // ── Phase 33 (v3.1): default flip + migration + rand_seed serde ─────────
 
-    // Catches: default_xrom_modules() regression — must be 0b0000_0011 (D-33.2).
+    // Catches: default_xrom_modules() regression — must be 0b0000_0111 after Phase 38 (TIME-FW-01).
     #[test]
-    fn xrom_modules_default_is_three() {
+    fn xrom_modules_default_is_seven() {
         let state = CalcState::new();
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
-            "default_xrom_modules() must return 0b0000_0011 in v3.1 (Math 1 + Stat 1 pre-loaded per D-33.2)"
+            state.xrom_modules, 0b0000_0111,
+            "default_xrom_modules() must return 0b0000_0111 in v3.2 (Math 1 + Stat 1 + Time pre-loaded per TIME-FW-01)"
         );
     }
 
@@ -681,33 +777,33 @@ mod tests {
 
         state.migrate_after_load();
 
-        // Post-migration: bit 1 is now set (Stat 1 reachable).
+        // Post-migration: bits 1+2 are now set (Stat 1 + Time Module reachable).
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
-            "migrate_after_load() must set bit 1 on a v3.0 save (P24 trap mitigation)"
+            state.xrom_modules, 0b0000_0111,
+            "migrate_after_load() must set bits 1+2 on a v3.0 save (P24 trap + TIME-FW-02)"
         );
     }
 
     // Catches: migrate_after_load not being idempotent — repeated calls must
     // not corrupt already-migrated state (CLI/GUI both call it on every load,
-    // and a re-saved v3.1 file gets migrated again on the next session).
+    // and a re-saved v3.2 file gets migrated again on the next session).
     #[test]
     fn migrate_after_load_idempotent() {
         let mut state = CalcState::new();
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
-            "fresh CalcState::new() already has bit 1 set (v3.1 default)"
+            state.xrom_modules, 0b0000_0111,
+            "fresh CalcState::new() already has bits 0+1+2 set (v3.2 default)"
         );
 
         state.migrate_after_load();
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
+            state.xrom_modules, 0b0000_0111,
             "first migrate_after_load() on already-migrated state must be a no-op"
         );
 
         state.migrate_after_load();
         assert_eq!(
-            state.xrom_modules, 0b0000_0011,
+            state.xrom_modules, 0b0000_0111,
             "repeated migrate_after_load() must remain idempotent (no bit drift)"
         );
     }
@@ -738,5 +834,228 @@ mod tests {
             restored.rand_seed, seed_value,
             "rand_seed must round-trip through serde unchanged (P20 trap mitigation)"
         );
+    }
+
+    // ── Phase 38 (v3.2): Time Module CalcState serde + migration tests ────────
+
+    // Catches: persistent Time fields not surviving serde round-trip; transient
+    // fields (stopwatch_start, clock_active, etc.) leaking into/out of JSON.
+    #[test]
+    fn time_fields_serde_round_trip() {
+        use crate::ops::time::{
+            alarm::{AlarmEntry, AlarmType},
+            ClockDisplayMode, StopwatchMode,
+        };
+        use rust_decimal::Decimal;
+        use std::str::FromStr;
+
+        let mut state = CalcState::new();
+
+        // Set persistent Time fields.
+        state.time_offset_secs = 3600;
+        state.clock_12h = true;
+        state.clock_display_mode = ClockDisplayMode::TimeAndDate;
+        state.accuracy_factor = HpNum::from(Decimal::from_str("1.5").unwrap());
+        state.alarms.push(AlarmEntry {
+            trigger_unix: 1_700_000_000,
+            repeat_secs: 86400,
+            alarm_type: AlarmType::Message("Test alarm".to_string()),
+            past_due: false,
+        });
+        state.stopwatch_mode = StopwatchMode::Stopped;
+        state.stopwatch_accumulated = 123.45;
+        state.stopwatch_split = 10.5;
+
+        // Set transient fields (should NOT survive deserialization).
+        state.clock_active = true;
+        state.stopwatch_keyboard_mode = true;
+        state.alarm_catalog_mode = true;
+        state.stopwatch_start = Some(std::time::Instant::now());
+
+        let json = serde_json::to_string(&state).unwrap();
+
+        // Persistent fields must appear in JSON.
+        assert!(
+            json.contains("time_offset_secs"),
+            "time_offset_secs must be serialized"
+        );
+        assert!(json.contains("clock_12h"), "clock_12h must be serialized");
+        assert!(
+            json.contains("stopwatch_accumulated"),
+            "stopwatch_accumulated must be serialized"
+        );
+
+        let restored: CalcState = serde_json::from_str(&json).unwrap();
+
+        // Persistent fields must survive round-trip.
+        assert_eq!(restored.time_offset_secs, 3600);
+        assert!(restored.clock_12h);
+        assert_eq!(restored.clock_display_mode, ClockDisplayMode::TimeAndDate);
+        assert_eq!(restored.stopwatch_mode, StopwatchMode::Stopped);
+        assert!((restored.stopwatch_accumulated - 123.45).abs() < 1e-9);
+        assert!((restored.stopwatch_split - 10.5).abs() < 1e-9);
+        assert_eq!(restored.alarms.len(), 1);
+
+        // Transient fields must reset to defaults after deserialization.
+        assert!(
+            !restored.clock_active,
+            "clock_active is transient — must reset to false"
+        );
+        assert!(
+            !restored.stopwatch_keyboard_mode,
+            "stopwatch_keyboard_mode is transient — must reset to false"
+        );
+        assert!(
+            !restored.alarm_catalog_mode,
+            "alarm_catalog_mode is transient — must reset to false"
+        );
+        assert!(
+            restored.stopwatch_start.is_none(),
+            "stopwatch_start is transient — must reset to None"
+        );
+    }
+
+    // Catches: v3.1 save files (xrom_modules=3) not being migrated to 7 on load.
+    #[test]
+    fn time_v31_save_migration() {
+        // Synthetic v3.1 save: xrom_modules=3 (Math 1 + Stat 1, no Time), no time fields.
+        let v31_json = r#"{
+            "stack": {"x": "0", "y": "0", "z": "0", "t": "0", "lastx": "0", "lift_enabled": false},
+            "regs": ["0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0"],
+            "alpha_reg": "",
+            "alpha_mode": false,
+            "angle_mode": "Deg",
+            "display_mode": {"Fix": 4},
+            "entry_buf": "",
+            "program": [],
+            "prgm_mode": false,
+            "pc": 0,
+            "call_stack": [],
+            "is_running": false,
+            "user_mode": false,
+            "key_assignments": {},
+            "assignments": {},
+            "text_regs": {},
+            "last_key_code": 0,
+            "reg_m": "0",
+            "reg_n": "0",
+            "reg_o": "0",
+            "flags": 0,
+            "pending_card_op": null,
+            "xrom_modules": 3,
+            "complex_mode": false,
+            "matrix_dim": null,
+            "matrix_active_reg": null,
+            "rand_seed": "0"
+        }"#;
+
+        let mut state: CalcState = serde_json::from_str(v31_json).unwrap();
+
+        // Before migration: v3.1 value preserved exactly.
+        assert_eq!(
+            state.xrom_modules, 3,
+            "v3.1 save with xrom_modules:3 must deserialize as 3 BEFORE migration"
+        );
+
+        // Time fields should be at serde defaults (no time fields in the JSON).
+        assert_eq!(
+            state.time_offset_secs, 0,
+            "time_offset_secs must default to 0"
+        );
+        assert!(!state.clock_12h, "clock_12h must default to false");
+        assert_eq!(
+            state.stopwatch_mode,
+            crate::ops::time::StopwatchMode::Idle,
+            "stopwatch_mode must default to Idle"
+        );
+
+        state.migrate_after_load();
+
+        // After migration: bit 2 must be set (Time Module loaded).
+        assert_eq!(
+            state.xrom_modules, 0b0000_0111,
+            "migrate_after_load() must set bit 2 on a v3.1 save (TIME-FW-02)"
+        );
+    }
+
+    // Catches: D-38.6 — Running stopwatch must freeze to Stopped after load
+    // (stopwatch_start is #[serde(skip)] and thus None after deserialization).
+    #[test]
+    fn time_stopwatch_running_freeze_on_load() {
+        use crate::ops::time::StopwatchMode;
+
+        let mut state = CalcState::new();
+        state.stopwatch_mode = StopwatchMode::Running;
+        // stopwatch_start is transient — not serialized.
+
+        let json = serde_json::to_string(&state).unwrap();
+        assert!(
+            json.contains("\"Running\""),
+            "StopwatchMode::Running must serialize as 'Running'"
+        );
+
+        let mut restored: CalcState = serde_json::from_str(&json).unwrap();
+
+        // Before migration: Running mode was preserved in JSON.
+        assert_eq!(
+            restored.stopwatch_mode,
+            StopwatchMode::Running,
+            "StopwatchMode::Running must survive deserialization"
+        );
+        assert!(
+            restored.stopwatch_start.is_none(),
+            "stopwatch_start must be None after deserialization (transient field)"
+        );
+
+        restored.migrate_after_load();
+
+        // After migration: D-38.6 freeze semantics applied.
+        assert_eq!(
+            restored.stopwatch_mode,
+            StopwatchMode::Stopped,
+            "migrate_after_load() must freeze Running → Stopped (D-38.6)"
+        );
+        assert!(
+            restored.stopwatch_start.is_none(),
+            "stopwatch_start must remain None after D-38.6 freeze"
+        );
+    }
+
+    // Catches: default_xrom_modules() regression after Phase 38 default flip.
+    // Complements the updated `xrom_modules_default_is_seven` test above.
+    #[test]
+    fn default_xrom_modules_returns_0b111() {
+        use crate::ops::time::ClockDisplayMode;
+        use crate::ops::time::StopwatchMode;
+
+        let state = CalcState::new();
+
+        // xrom_modules must be 7 (all 3 module bits set).
+        assert_eq!(
+            state.xrom_modules, 0b0000_0111,
+            "CalcState::new() must have xrom_modules = 0b0000_0111 (Math 1 + Stat 1 + Time)"
+        );
+
+        // Time fields at correct defaults.
+        assert_eq!(state.time_offset_secs, 0);
+        assert!(!state.clock_12h);
+        assert_eq!(state.clock_display_mode, ClockDisplayMode::Off);
+        assert_eq!(state.stopwatch_mode, StopwatchMode::Idle);
+        assert_eq!(state.stopwatch_accumulated, 0.0);
+        assert_eq!(state.stopwatch_split, 0.0);
+        assert!(state.stopwatch_start.is_none());
+        assert!(!state.clock_active);
+        assert!(!state.stopwatch_keyboard_mode);
+        assert!(!state.alarm_catalog_mode);
+        assert!(state.alarms.is_empty());
     }
 }
