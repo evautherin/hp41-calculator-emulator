@@ -100,7 +100,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 
 ## Phases (v3.3)
 
-- [ ] **Phase 43: hp41-core — XROM Framework + All Advantage Pac Ops** - XROM 22 + XROM 24 registration, named-matrix CalcState model, AdvantageStep modal variant, and all ~117 Op variants (ADV CONV/MTRX/MATH/TVM) implemented in `ops/advantage/`
+- [x] **Phase 43: hp41-core — XROM Framework + All Advantage Pac Ops** - XROM 22 + XROM 24 registration, named-matrix CalcState model, AdvantageStep modal variant, and all ~117 Op variants (ADV CONV/MTRX/MATH/TVM) implemented in `ops/advantage/` (completed 2026-05-25)
 - [ ] **Phase 44: hp41-cli — CLI Integration** - Fifth JSON canonical source, op_display_name arms, help overlay sections, xrom_shadowing extension, modal-prompt routing
 - [ ] **Phase 45: Documentation & ADRs** - Divergences catalog, function matrix, ADRs for named-matrix model / FROOT algorithm / dual-XROM design / math1 visibility promotions, CLAUDE.md v3.3 block
 - [ ] **Phase 46: hp41-gui — GUI Integration** - GUI op_display_name arms (4-way invariant item 4), HelpOverlay sections, CATALOG 2 entries for XROM 22+24, modal LCD rendering
@@ -121,7 +121,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
   4. `XEQ "TVM"` modal prompts for N, I, PV, PMT, FV; `XEQ "*I"` converges via Newton iteration; v3.2 save files load without error (xrom_modules migrated 0b0111 → 0b11111)
   5. All new Op variants compile without errors in `dispatch()` and `execute_op()` (4-way invariant items 1+2 satisfied); `hp41-cli` and `hp41-gui` emit only expected `non-exhaustive patterns` compile breaks (items 3+4 deferred to Phase 44/46)
 
-**Plans:** 9/10 plans executed
+**Plans:** 10/10 plans complete
 
 Plans:
 **Wave 1**
@@ -147,7 +147,7 @@ Plans:
 **Wave 5** *(blocked on Wave 4 completion)*
 
 - [x] 43-09-PLAN.md — TVM: TVM/N/PV/PMT/FV/*I (6 ops, Newton iteration)
-- [ ] 43-10-PLAN.md — Integration verification: stub audit, test suite, contamination guard
+- [x] 43-10-PLAN.md — Integration verification: stub audit, test suite, contamination guard
 
 ### Phase 44: hp41-cli — CLI Integration
 
@@ -213,7 +213,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 9/10 | In Progress|  |
+| 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
 | 44. hp41-cli — CLI Integration | 0/TBD | Not started | - |
 | 45. Documentation & ADRs | 0/TBD | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
