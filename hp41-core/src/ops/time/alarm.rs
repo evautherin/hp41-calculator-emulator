@@ -106,14 +106,7 @@ fn current_unix_secs(offset: i64) -> i64 {
 ///
 /// Uses JDN arithmetic (Fliegel-Van Flandern 1968) to compute days since
 /// Unix epoch (JDN 2440588), then adds time-of-day in seconds.
-fn time_date_to_unix(
-    hours: u8,
-    minutes: u8,
-    seconds: u8,
-    year: i32,
-    month: i32,
-    day: i32,
-) -> i64 {
+fn time_date_to_unix(hours: u8, minutes: u8, seconds: u8, year: i32, month: i32, day: i32) -> i64 {
     let jdn = date_to_jdn(year, month, day);
     let days_since_epoch = jdn - UNIX_EPOCH_JDN;
     let time_of_day_secs = (hours as i64) * 3600 + (minutes as i64) * 60 + (seconds as i64);
@@ -331,13 +324,16 @@ pub fn op_rclalm(state: &mut CalcState) -> Result<(), HpError> {
     // Set ALPHA register.
     state.alpha_reg = match &alarm.alarm_type {
         AlarmType::Message(msg) => msg.clone(),
-        AlarmType::Control { label, interrupting } => {
+        AlarmType::Control {
+            label,
+            interrupting,
+        } => {
             if *interrupting {
                 format!(">>{}", label)
             } else {
                 format!(">{}", label)
             }
-        },
+        }
     };
 
     apply_lift_effect(state, LiftEffect::Enable);
@@ -353,8 +349,7 @@ pub fn op_rclalm(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_almcat(state: &mut CalcState) -> Result<(), HpError> {
     state.alarm_catalog_mode = true;
     if let Some(first) = state.alarms.first() {
-        let (year, month, day, hour, minute, second) =
-            decompose_alarm_unix(first.trigger_unix);
+        let (year, month, day, hour, minute, second) = decompose_alarm_unix(first.trigger_unix);
         let msg = match &first.alarm_type {
             AlarmType::Message(m) => m.clone(),
             AlarmType::Control { label, .. } => label.clone(),
@@ -411,7 +406,6 @@ pub fn op_almnow(state: &mut CalcState) -> Result<(), HpError> {
     Ok(())
 }
 
-
 /// CLALMA — Clear alarm matching ALPHA register content.
 ///
 /// Finds first alarm whose `alarm_type` matches `state.alpha_reg`:
@@ -422,7 +416,10 @@ pub fn op_almnow(state: &mut CalcState) -> Result<(), HpError> {
 /// LiftEffect: Neutral.
 pub fn op_clalma(state: &mut CalcState) -> Result<(), HpError> {
     let alpha = state.alpha_reg.clone();
-    let idx_opt = state.alarms.iter().position(|a| alarm_matches_alpha(&a.alarm_type, &alpha));
+    let idx_opt = state
+        .alarms
+        .iter()
+        .position(|a| alarm_matches_alpha(&a.alarm_type, &alpha));
     match idx_opt {
         Some(idx) => {
             state.alarms.remove(idx);
@@ -486,12 +483,15 @@ pub fn check_alarms(state: &mut CalcState) {
         if !state.alarms[i].past_due && state.alarms[i].trigger_unix <= now {
             state.alarms[i].past_due = true;
             let alarm_type = state.alarms[i].alarm_type.clone();
-            dispatch_alarm_event(state, &AlarmEntry {
-                trigger_unix: state.alarms[i].trigger_unix,
-                repeat_secs: state.alarms[i].repeat_secs,
-                alarm_type,
-                past_due: true,
-            });
+            dispatch_alarm_event(
+                state,
+                &AlarmEntry {
+                    trigger_unix: state.alarms[i].trigger_unix,
+                    repeat_secs: state.alarms[i].repeat_secs,
+                    alarm_type,
+                    past_due: true,
+                },
+            );
         }
     }
 }
@@ -523,20 +523,19 @@ pub fn acknowledge_alarm(state: &mut CalcState, index: usize) {
 fn dispatch_alarm_event(state: &mut CalcState, alarm: &AlarmEntry) {
     match &alarm.alarm_type {
         AlarmType::Message(msg) => {
-            state
-                .event_buffer
-                .push(format!("alarm:message:{}", msg));
+            state.event_buffer.push(format!("alarm:message:{}", msg));
             state.print_buffer.push(msg.clone());
         }
-        AlarmType::Control { label, interrupting } => {
+        AlarmType::Control {
+            label,
+            interrupting,
+        } => {
             if *interrupting {
                 state
                     .event_buffer
                     .push("alarm:interrupting:deferred".to_string());
             } else {
-                state
-                    .event_buffer
-                    .push(format!("alarm:xeq:{}", label));
+                state.event_buffer.push(format!("alarm:xeq:{}", label));
             }
         }
     }
@@ -549,7 +548,10 @@ fn dispatch_alarm_event(state: &mut CalcState, alarm: &AlarmEntry) {
 fn alarm_matches_alpha(alarm_type: &AlarmType, alpha: &str) -> bool {
     match alarm_type {
         AlarmType::Message(msg) => msg == alpha,
-        AlarmType::Control { label, interrupting } => {
+        AlarmType::Control {
+            label,
+            interrupting,
+        } => {
             let expected = if *interrupting {
                 format!(">>{}", label)
             } else {
@@ -602,7 +604,10 @@ mod tests {
         let json = serde_json::to_string(&at).unwrap();
         let restored: AlarmType = serde_json::from_str(&json).unwrap();
         match restored {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "MYPRG");
                 assert!(interrupting);
             }
@@ -622,7 +627,10 @@ mod tests {
     fn parse_alarm_type_non_interrupting_control() {
         let at = parse_alarm_type(">MYPRG");
         match at {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "MYPRG");
                 assert!(!interrupting);
             }
@@ -634,7 +642,10 @@ mod tests {
     fn parse_alarm_type_interrupting_control() {
         let at = parse_alarm_type(">>INTPRG");
         match at {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "INTPRG");
                 assert!(interrupting);
             }
@@ -647,7 +658,13 @@ mod tests {
         // ">>x" must parse as interrupting Control, not non-interrupting ">x"
         // (Pitfall 9 — longer match checked first)
         let at = parse_alarm_type(">>A");
-        assert!(matches!(at, AlarmType::Control { interrupting: true, .. }));
+        assert!(matches!(
+            at,
+            AlarmType::Control {
+                interrupting: true,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -655,7 +672,10 @@ mod tests {
         // ">" with nothing after → non-interrupting with empty label
         let at = parse_alarm_type(">");
         match at {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "");
                 assert!(!interrupting);
             }
@@ -668,7 +688,10 @@ mod tests {
         // ">>" with nothing after → interrupting with empty label
         let at = parse_alarm_type(">>");
         match at {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "");
                 assert!(interrupting);
             }
@@ -710,16 +733,11 @@ mod tests {
     }
 
     /// Set up stack X=time, Y=date, Z=repeat for XYZALM.
-    fn setup_xyzalm_stack(
-        state: &mut CalcState,
-        z_repeat: &str,
-        y_date: &str,
-        x_time: &str,
-    ) {
+    fn setup_xyzalm_stack(state: &mut CalcState, z_repeat: &str, y_date: &str, x_time: &str) {
         // Push in order: Z first, then Y, then X (so X is on top)
         push_x(state, z_repeat); // Z
-        push_x(state, y_date);   // Y
-        push_x(state, x_time);   // X
+        push_x(state, y_date); // Y
+        push_x(state, x_time); // X
     }
 
     #[test]
@@ -751,7 +769,10 @@ mod tests {
         op_xyzalm(&mut state).unwrap();
         assert_eq!(state.alarms.len(), 1);
         match &state.alarms[0].alarm_type {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "MYPROG");
                 assert!(!interrupting);
             }
@@ -766,7 +787,10 @@ mod tests {
         setup_xyzalm_stack(&mut state, "0", "5.242026", "9.000000");
         op_xyzalm(&mut state).unwrap();
         match &state.alarms[0].alarm_type {
-            AlarmType::Control { label, interrupting } => {
+            AlarmType::Control {
+                label,
+                interrupting,
+            } => {
                 assert_eq!(label, "INTPROG");
                 assert!(*interrupting);
             }
@@ -1174,7 +1198,9 @@ mod tests {
         check_alarms(&mut state);
         assert!(state.alarms[0].past_due, "Alarm should be marked past_due");
         assert!(
-            state.event_buffer.contains(&"alarm:message:alert!".to_string()),
+            state
+                .event_buffer
+                .contains(&"alarm:message:alert!".to_string()),
             "event_buffer: {:?}",
             state.event_buffer
         );
@@ -1245,7 +1271,10 @@ mod tests {
             past_due: false,
         });
         check_alarms(&mut state);
-        assert!(!state.alarms[0].past_due, "Future alarm should not be past-due");
+        assert!(
+            !state.alarms[0].past_due,
+            "Future alarm should not be past-due"
+        );
         assert!(state.event_buffer.is_empty());
     }
 
@@ -1260,7 +1289,10 @@ mod tests {
             past_due: true, // already acknowledged
         });
         check_alarms(&mut state);
-        assert!(state.event_buffer.is_empty(), "Already past-due alarm should not re-fire");
+        assert!(
+            state.event_buffer.is_empty(),
+            "Already past-due alarm should not re-fire"
+        );
     }
 
     // ── acknowledge_alarm ─────────────────────────────────────────────────────
@@ -1275,9 +1307,16 @@ mod tests {
             past_due: true,
         });
         acknowledge_alarm(&mut state, 0);
-        assert_eq!(state.alarms.len(), 1, "Repeating alarm should stay in catalog");
+        assert_eq!(
+            state.alarms.len(),
+            1,
+            "Repeating alarm should stay in catalog"
+        );
         assert_eq!(state.alarms[0].trigger_unix, 1000 + 3600);
-        assert!(!state.alarms[0].past_due, "past_due should be reset after reschedule");
+        assert!(
+            !state.alarms[0].past_due,
+            "past_due should be reset after reschedule"
+        );
     }
 
     #[test]
@@ -1290,7 +1329,10 @@ mod tests {
             past_due: true,
         });
         acknowledge_alarm(&mut state, 0);
-        assert!(state.alarms.is_empty(), "One-shot alarm should be removed after acknowledgment");
+        assert!(
+            state.alarms.is_empty(),
+            "One-shot alarm should be removed after acknowledgment"
+        );
     }
 
     #[test]
@@ -1314,7 +1356,9 @@ mod tests {
         });
         op_almnow(&mut state).unwrap();
         assert!(state.alarms.is_empty(), "One-shot alarm should be removed");
-        assert!(state.event_buffer.contains(&"alarm:message:urgent".to_string()));
+        assert!(state
+            .event_buffer
+            .contains(&"alarm:message:urgent".to_string()));
     }
 
     #[test]
@@ -1337,7 +1381,6 @@ mod tests {
         let mut state = CalcState::new();
         assert!(op_almnow(&mut state).is_ok());
     }
-
 
     // ── Previously existing tests preserved ──────────────────────────────────
 

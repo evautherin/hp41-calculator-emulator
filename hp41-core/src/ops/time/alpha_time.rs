@@ -314,7 +314,11 @@ mod tests {
         // MDY format: " M/DD/YYYY" or "MM/DD/YYYY"
         // Contains at least 2 slashes
         let slashes = state.alpha_reg.chars().filter(|&c| c == '/').count();
-        assert_eq!(slashes, 2, "MDY date must have 2 slashes, got: {:?}", state.alpha_reg);
+        assert_eq!(
+            slashes, 2,
+            "MDY date must have 2 slashes, got: {:?}",
+            state.alpha_reg
+        );
     }
 
     #[test]
@@ -324,7 +328,11 @@ mod tests {
         op_adate(&mut state).unwrap();
         // DMY format: "DD/ M/YYYY" or "DD/MM/YYYY"
         let slashes = state.alpha_reg.chars().filter(|&c| c == '/').count();
-        assert_eq!(slashes, 2, "DMY date must have 2 slashes, got: {:?}", state.alpha_reg);
+        assert_eq!(
+            slashes, 2,
+            "DMY date must have 2 slashes, got: {:?}",
+            state.alpha_reg
+        );
     }
 
     #[test]

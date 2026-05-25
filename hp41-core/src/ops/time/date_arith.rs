@@ -487,7 +487,11 @@ mod tests {
         let mut state = CalcState::new();
         state.flags = 0;
         op_dmy(&mut state).unwrap();
-        assert_ne!(state.flags & (1u64 << 31), 0, "Flag 31 must be set after DMY");
+        assert_ne!(
+            state.flags & (1u64 << 31),
+            0,
+            "Flag 31 must be set after DMY"
+        );
     }
 
     #[test]
@@ -495,7 +499,11 @@ mod tests {
         let mut state = CalcState::new();
         state.flags = 1u64 << 31;
         op_mdy(&mut state).unwrap();
-        assert_eq!(state.flags & (1u64 << 31), 0, "Flag 31 must be clear after MDY");
+        assert_eq!(
+            state.flags & (1u64 << 31),
+            0,
+            "Flag 31 must be clear after MDY"
+        );
     }
 
     #[test]
@@ -581,7 +589,11 @@ mod tests {
         state.stack.lift_enabled = true;
         op_date_plus(&mut state).unwrap();
         let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-        assert_eq!((year, month, day), (2000, 2, 29), "Year 2000 is a leap year");
+        assert_eq!(
+            (year, month, day),
+            (2000, 2, 29),
+            "Year 2000 is a leap year"
+        );
     }
 
     #[test]
@@ -594,7 +606,11 @@ mod tests {
         state.stack.lift_enabled = true;
         op_date_plus(&mut state).unwrap();
         let (year, month, day) = parse_date_hpnum(&state.stack.x, false).unwrap();
-        assert_eq!((year, month, day), (2100, 3, 1), "Year 2100 is not a leap year");
+        assert_eq!(
+            (year, month, day),
+            (2100, 3, 1),
+            "Year 2100 is not a leap year"
+        );
     }
 
     #[test]
@@ -608,7 +624,11 @@ mod tests {
         op_date_plus(&mut state).unwrap();
         // Result in DMY = Feb 1 2026 → (2026, 2, 1)
         let (year, month, day) = parse_date_hpnum(&state.stack.x, true).unwrap();
-        assert_eq!((year, month, day), (2026, 2, 1), "DMY mode: expected Feb 1 2026");
+        assert_eq!(
+            (year, month, day),
+            (2026, 2, 1),
+            "DMY mode: expected Feb 1 2026"
+        );
     }
 
     #[test]
@@ -681,6 +701,10 @@ mod tests {
         state.stack.x = HpNum::from(Decimal::from_str("2.282000").unwrap());
         state.stack.lift_enabled = true;
         op_ddays(&mut state).unwrap();
-        assert_eq!(hpnum_to_i64(&state.stack.x), 2, "Expected 2 days across Feb 29 2000");
+        assert_eq!(
+            hpnum_to_i64(&state.stack.x),
+            2,
+            "Expected 2 days across Feb 29 2000"
+        );
     }
 }

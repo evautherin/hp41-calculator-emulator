@@ -50,5 +50,5 @@ pub use clock::{
 pub use date_arith::{op_date_plus, op_ddays, op_dmy, op_dow, op_mdy};
 pub use modal::TimeStep;
 pub use stopwatch::{
-    op_runsw, op_rclsw, op_setsw, op_stopsw, op_sw, op_swpt, op_stpw, StopwatchMode,
+    op_rclsw, op_runsw, op_setsw, op_stopsw, op_stpw, op_sw, op_swpt, StopwatchMode,
 };

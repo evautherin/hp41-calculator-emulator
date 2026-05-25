@@ -97,7 +97,6 @@ fn adjusted_epoch_secs(offset_secs: i64) -> i64 {
     now.as_secs() as i64 + offset_secs
 }
 
-
 /// TIME — Read current time (adjusted by `time_offset_secs`) and push as
 /// HH.MMSScc HpNum onto stack X.
 ///
@@ -273,9 +272,7 @@ pub fn op_rclaf(state: &mut CalcState) -> Result<(), HpError> {
 /// Validates T+X input via `parse_time_hpnum` (T-38-09 mitigation).
 pub fn op_tplusx(state: &mut CalcState) -> Result<(), HpError> {
     let (hours, minutes, seconds, centiseconds) = parse_time_hpnum(&state.stack.x)?;
-    let delta_secs = i64::from(hours) * 3600
-        + i64::from(minutes) * 60
-        + i64::from(seconds);
+    let delta_secs = i64::from(hours) * 3600 + i64::from(minutes) * 60 + i64::from(seconds);
     // Centiseconds contribute fractional seconds — ignored since time_offset_secs is i64.
     // The centisecond component (0-99) does not round to a full second at HP-41 precision.
     let _ = centiseconds; // acknowledged: sub-second resolution not tracked in offset
@@ -451,7 +448,10 @@ mod tests {
         op_time(&mut state).unwrap();
         // Value should be non-negative.
         let val = state.stack.x.inner();
-        assert!(val >= rust_decimal::Decimal::ZERO, "TIME must be non-negative");
+        assert!(
+            val >= rust_decimal::Decimal::ZERO,
+            "TIME must be non-negative"
+        );
         // Integer part (hours) must be 0..=23.
         let hours = val.trunc();
         assert!(
@@ -532,8 +532,7 @@ mod tests {
         assert!(val >= rust_decimal::Decimal::ZERO);
         let day_part = val.trunc();
         assert!(
-            day_part >= rust_decimal::Decimal::ONE
-                && day_part <= rust_decimal::Decimal::from(31),
+            day_part >= rust_decimal::Decimal::ONE && day_part <= rust_decimal::Decimal::from(31),
             "DMY date integer part (day) must be 1..=31, got {day_part}"
         );
     }
@@ -676,7 +675,10 @@ mod tests {
         let mut state = CalcState::new();
         state.stack.x = HpNum::from(rust_decimal::Decimal::from(2));
         op_setaf(&mut state).unwrap();
-        assert_eq!(state.accuracy_factor, HpNum::from(rust_decimal::Decimal::from(2)));
+        assert_eq!(
+            state.accuracy_factor,
+            HpNum::from(rust_decimal::Decimal::from(2))
+        );
     }
 
     #[test]
@@ -786,7 +788,10 @@ mod tests {
         state.clock_active = true;
         state.clock_display_mode = ClockDisplayMode::TimeOnly;
         let result = get_clock_display_str(&state);
-        assert!(result.is_some(), "get_clock_display_str must return Some when clock_active=true");
+        assert!(
+            result.is_some(),
+            "get_clock_display_str must return Some when clock_active=true"
+        );
     }
 
     #[test]
@@ -797,10 +802,16 @@ mod tests {
         state.clock_display_mode = ClockDisplayMode::TimeOnly;
         let result = get_clock_display_str(&state).unwrap();
         // 24h format: "HH:MM:SS" — no AM/PM.
-        assert!(!result.contains("AM") && !result.contains("PM"),
-            "24h format must not contain AM/PM, got: {result}");
+        assert!(
+            !result.contains("AM") && !result.contains("PM"),
+            "24h format must not contain AM/PM, got: {result}"
+        );
         // Must have two colons.
-        assert_eq!(result.matches(':').count(), 2, "time string must have 2 colons: {result}");
+        assert_eq!(
+            result.matches(':').count(),
+            2,
+            "time string must have 2 colons: {result}"
+        );
     }
 
     #[test]
@@ -811,8 +822,10 @@ mod tests {
         state.clock_display_mode = ClockDisplayMode::TimeOnly;
         let result = get_clock_display_str(&state).unwrap();
         // 12h format: "HH:MM:SS AM" or "HH:MM:SS PM".
-        assert!(result.contains("AM") || result.contains("PM"),
-            "12h format must contain AM or PM, got: {result}");
+        assert!(
+            result.contains("AM") || result.contains("PM"),
+            "12h format must contain AM or PM, got: {result}"
+        );
     }
 
     #[test]

@@ -59,9 +59,7 @@ pub enum StopwatchMode {
 fn current_elapsed(state: &CalcState) -> f64 {
     match state.stopwatch_mode {
         StopwatchMode::Running => {
-            let start = state
-                .stopwatch_start
-                .unwrap_or_else(Instant::now);
+            let start = state.stopwatch_start.unwrap_or_else(Instant::now);
             state.stopwatch_accumulated + start.elapsed().as_secs_f64()
         }
         _ => state.stopwatch_accumulated,
@@ -122,8 +120,7 @@ pub fn op_setsw(state: &mut CalcState) -> Result<(), HpError> {
         return Err(HpError::InvalidOp);
     }
 
-    let total_secs = (hours * 3600 + minutes * 60 + seconds) as f64
-        + centiseconds as f64 * 0.01;
+    let total_secs = (hours * 3600 + minutes * 60 + seconds) as f64 + centiseconds as f64 * 0.01;
 
     // Stop any running lap before presetting
     state.stopwatch_start = None;
@@ -345,8 +342,7 @@ mod tests {
         // Set X to 1.300000 = 1h 30m 0s 0cs
         use rust_decimal::Decimal;
         use std::str::FromStr;
-        state.stack.x =
-            HpNum::from(Decimal::from_str("1.300000").unwrap());
+        state.stack.x = HpNum::from(Decimal::from_str("1.300000").unwrap());
         op_setsw(&mut state).unwrap();
         // 1h 30m = 5400 seconds
         assert!((state.stopwatch_accumulated - 5400.0).abs() < 0.01);
@@ -360,8 +356,7 @@ mod tests {
         // Set X to 0.000550 = 0h 0m 5s 50cs = 5.50 seconds
         use rust_decimal::Decimal;
         use std::str::FromStr;
-        state.stack.x =
-            HpNum::from(Decimal::from_str("0.000550").unwrap());
+        state.stack.x = HpNum::from(Decimal::from_str("0.000550").unwrap());
         op_setsw(&mut state).unwrap();
         // 5 seconds + 50 centiseconds = 5.50 seconds
         assert!((state.stopwatch_accumulated - 5.50).abs() < 0.01);

@@ -288,7 +288,6 @@ pub struct CalcState {
     pub pending_chisqd_nu: Option<u32>,
 
     // ── Phase 38 (v3.2): Time Module (XROM 26) ──────────────────────────────
-
     /// Wall-clock offset in seconds (D-38.2).
     /// SETIME computes `delta = entered_unix_secs - SystemTime::now()` and stores here.
     /// Default: 0 (system time unmodified). Persistent — `#[serde(default)]`.
@@ -843,7 +842,10 @@ mod tests {
     // fields (stopwatch_start, clock_active, etc.) leaking into/out of JSON.
     #[test]
     fn time_fields_serde_round_trip() {
-        use crate::ops::time::{ClockDisplayMode, StopwatchMode, alarm::{AlarmEntry, AlarmType}};
+        use crate::ops::time::{
+            alarm::{AlarmEntry, AlarmType},
+            ClockDisplayMode, StopwatchMode,
+        };
         use rust_decimal::Decimal;
         use std::str::FromStr;
 
@@ -873,9 +875,15 @@ mod tests {
         let json = serde_json::to_string(&state).unwrap();
 
         // Persistent fields must appear in JSON.
-        assert!(json.contains("time_offset_secs"), "time_offset_secs must be serialized");
+        assert!(
+            json.contains("time_offset_secs"),
+            "time_offset_secs must be serialized"
+        );
         assert!(json.contains("clock_12h"), "clock_12h must be serialized");
-        assert!(json.contains("stopwatch_accumulated"), "stopwatch_accumulated must be serialized");
+        assert!(
+            json.contains("stopwatch_accumulated"),
+            "stopwatch_accumulated must be serialized"
+        );
 
         let restored: CalcState = serde_json::from_str(&json).unwrap();
 
@@ -889,10 +897,22 @@ mod tests {
         assert_eq!(restored.alarms.len(), 1);
 
         // Transient fields must reset to defaults after deserialization.
-        assert!(!restored.clock_active, "clock_active is transient — must reset to false");
-        assert!(!restored.stopwatch_keyboard_mode, "stopwatch_keyboard_mode is transient — must reset to false");
-        assert!(!restored.alarm_catalog_mode, "alarm_catalog_mode is transient — must reset to false");
-        assert!(restored.stopwatch_start.is_none(), "stopwatch_start is transient — must reset to None");
+        assert!(
+            !restored.clock_active,
+            "clock_active is transient — must reset to false"
+        );
+        assert!(
+            !restored.stopwatch_keyboard_mode,
+            "stopwatch_keyboard_mode is transient — must reset to false"
+        );
+        assert!(
+            !restored.alarm_catalog_mode,
+            "alarm_catalog_mode is transient — must reset to false"
+        );
+        assert!(
+            restored.stopwatch_start.is_none(),
+            "stopwatch_start is transient — must reset to None"
+        );
     }
 
     // Catches: v3.1 save files (xrom_modules=3) not being migrated to 7 on load.
@@ -947,7 +967,10 @@ mod tests {
         );
 
         // Time fields should be at serde defaults (no time fields in the JSON).
-        assert_eq!(state.time_offset_secs, 0, "time_offset_secs must default to 0");
+        assert_eq!(
+            state.time_offset_secs, 0,
+            "time_offset_secs must default to 0"
+        );
         assert!(!state.clock_12h, "clock_12h must default to false");
         assert_eq!(
             state.stopwatch_mode,
@@ -975,13 +998,17 @@ mod tests {
         // stopwatch_start is transient — not serialized.
 
         let json = serde_json::to_string(&state).unwrap();
-        assert!(json.contains("\"Running\""), "StopwatchMode::Running must serialize as 'Running'");
+        assert!(
+            json.contains("\"Running\""),
+            "StopwatchMode::Running must serialize as 'Running'"
+        );
 
         let mut restored: CalcState = serde_json::from_str(&json).unwrap();
 
         // Before migration: Running mode was preserved in JSON.
         assert_eq!(
-            restored.stopwatch_mode, StopwatchMode::Running,
+            restored.stopwatch_mode,
+            StopwatchMode::Running,
             "StopwatchMode::Running must survive deserialization"
         );
         assert!(
@@ -993,7 +1020,8 @@ mod tests {
 
         // After migration: D-38.6 freeze semantics applied.
         assert_eq!(
-            restored.stopwatch_mode, StopwatchMode::Stopped,
+            restored.stopwatch_mode,
+            StopwatchMode::Stopped,
             "migrate_after_load() must freeze Running → Stopped (D-38.6)"
         );
         assert!(
@@ -1006,8 +1034,8 @@ mod tests {
     // Complements the updated `xrom_modules_default_is_seven` test above.
     #[test]
     fn default_xrom_modules_returns_0b111() {
-        use crate::ops::time::StopwatchMode;
         use crate::ops::time::ClockDisplayMode;
+        use crate::ops::time::StopwatchMode;
 
         let state = CalcState::new();
 

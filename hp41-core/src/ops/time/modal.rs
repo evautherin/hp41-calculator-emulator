@@ -74,7 +74,7 @@ fn normalize_pm_shorthand(x: &HpNum) -> Option<HpNum> {
     }
     // Convert: -N → (12 + N) hours, 0 minutes, 0 seconds.
     let hour = (12 + n.abs()) as u32; // n is negative, so n.abs() is 1..11 → hour = 13..23
-    // Format as HH.000000 (HH.MMSScc).
+                                      // Format as HH.000000 (HH.MMSScc).
     let s = format!("{}.000000", hour);
     let d = Decimal::from_str(&s).ok()?;
     Some(HpNum::from(d))
@@ -103,8 +103,7 @@ pub fn submit_step(state: &mut CalcState, step: TimeStep) -> Result<(), HpError>
 
             // 2. Read X register. Handle PM shorthand (T-38-16).
             let x_raw = state.stack.x.clone();
-            let x_normalized = normalize_pm_shorthand(&x_raw)
-                .ok_or(HpError::Domain)?;
+            let x_normalized = normalize_pm_shorthand(&x_raw).ok_or(HpError::Domain)?;
 
             // 3. Parse X as HH.MMSScc via parse_time_hpnum.
             let (hours, minutes, seconds, _cs) =
@@ -138,8 +137,7 @@ pub fn submit_step(state: &mut CalcState, step: TimeStep) -> Result<(), HpError>
 
             // 2. Parse X as date per Flag 31.
             let dmy = (state.flags & (1u64 << 31)) != 0;
-            let (year, month, day) =
-                super::date_arith::parse_date_hpnum(&state.stack.x, dmy)?;
+            let (year, month, day) = super::date_arith::parse_date_hpnum(&state.stack.x, dmy)?;
 
             // 3. Compute entered JDN.
             let entered_jdn = super::date_arith::date_to_jdn(year, month, day);
@@ -318,7 +316,7 @@ mod tests {
         // We assert the field was at least written (even if same value is possible):
         // The test documents the INTENT: offset computation happens.
         let _ = offset_before; // accepted: live-time test cannot pin exact delta
-        // Key contract: modal state cleared.
+                               // Key contract: modal state cleared.
     }
 
     /// Catches: SETIME stub does not compute offset from entered seconds.
