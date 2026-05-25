@@ -118,6 +118,17 @@ None - no external service configuration required.
 - `? help overlay` will auto-generate "Time Pac (XROM 26)" section once prgm_display.rs provides op_display_name arms (4-way invariant item 3)
 - `test_pool_partition_is_exhaustive` will guard against any future Advantage Pac additions without proper registration
 
+## Self-Check: PASSED
+
+- FOUND: docs/hp41-time-functions.json
+- FOUND: hp41-cli/src/help_data.rs (modified)
+- FOUND: hp41-cli/tests/function_matrix_parity.rs (modified)
+- FOUND: hp41-core/tests/xrom_shadowing.rs (modified)
+- FOUND: .planning/phases/39-hp41-cli-cli-integration-live-display/39-01-SUMMARY.md
+- FOUND: commit a5f7c0e (Task 1 — JSON + OnceLock)
+- FOUND: commit 6b4e7e0 (Task 2 — parity + shadowing tests)
+- FOUND: commit 1523506 (SUMMARY)
+
 ---
 *Phase: 39-hp41-cli-cli-integration-live-display*
 *Completed: 2026-05-25*
