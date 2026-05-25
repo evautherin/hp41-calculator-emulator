@@ -26,7 +26,7 @@
 use crate::{
     error::HpError,
     num::HpNum,
-    ops::advantage::{AdvMatrix, ADV_MATRIX_MAX_COLS, ADV_MATRIX_MAX_ROWS},
+    ops::advantage::AdvMatrix,
     stack::{apply_lift_effect, enter_number, LiftEffect},
     state::CalcState,
 };
