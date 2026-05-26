@@ -23,8 +23,7 @@ static V32_FIXTURE: &str = include_str!("fixtures/v32-autosave.json");
 
 #[test]
 fn v32_save_loads_with_advantage_migration() {
-    let mut state: CalcState =
-        serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
+    let mut state: CalcState = serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
 
     assert_eq!(state.xrom_modules, 7u8);
 
@@ -35,8 +34,7 @@ fn v32_save_loads_with_advantage_migration() {
 
 #[test]
 fn v32_save_advantage_fields_default_cleanly() {
-    let mut state: CalcState =
-        serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
+    let mut state: CalcState = serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
     state.migrate_after_load();
 
     assert!(state.adv_matrices.is_empty());
@@ -47,8 +45,7 @@ fn v32_save_advantage_fields_default_cleanly() {
 
 #[test]
 fn v32_save_time_fields_preserved() {
-    let mut state: CalcState =
-        serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
+    let mut state: CalcState = serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
     state.migrate_after_load();
 
     assert_eq!(state.time_offset_secs, 3600i64);
