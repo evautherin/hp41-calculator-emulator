@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Advantage Pac Emulation
 status: executing
-last_updated: "2026-05-26T00:15:00.000Z"
-last_activity: 2026-05-26 -- Phase 43 complete (10/10 plans); ready for Phase 44
+last_updated: "2026-05-26T06:34:24.711Z"
+last_activity: 2026-05-26 -- Phase 44 execution started
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 10
+  total_plans: 12
   completed_plans: 10
   percent: 20
 ---
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-05-25 after v3.3 roadmap)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 44 — hp41-cli CLI Integration (Advantage Pac)
+**Current focus:** Phase 44 — hp41-cli-cli-integration
 
 ---
 
 ## Current Position
 
-Phase: 44 of 47 (hp41-cli — CLI Integration)
-Plan: — (not yet planned)
-Status: Phase 43 complete; Phase 44 ready to plan
-Last activity: 2026-05-26 -- Phase 43 complete (10/10 plans, 4 waves, 2729 tests)
+Phase: 44 (hp41-cli-cli-integration) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 44
+Last activity: 2026-05-26 -- Phase 44 execution started
 
 Progress: [██░░░░░░░░] 20%  (1/5 phases)
 
@@ -72,6 +72,7 @@ None.
 ### Pending Todos
 
 None — all 7 research open questions resolved during Phase 43 execution:
+
 - FROOT: Laguerre's method with quadratic deflation (degree from X, coefficients in R01..R(n+1))
 - ADVMTRX: 50 ops across ADV_MATH_A (element access, lifecycle, reductions, linalg, complex matrix)
 - CATALOG 2: ADV_MATH_A name "ADV 22A", ADV_MATH_B name "ADV 24B"
