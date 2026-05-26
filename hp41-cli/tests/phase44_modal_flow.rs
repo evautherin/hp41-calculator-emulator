@@ -286,9 +286,9 @@ fn advantage_cmedit_element_prompt_format() {
 fn advantage_ve_component_prompt_format() {
     // VeComponentPrompt(k) -> "V[k]=?" — verify format contains component index.
     let prog = ModalProgram::Advantage(AdvantageStep::VeComponentPrompt(2));
-    let prompt = prog.current_prompt().unwrap_or_else(|| {
-        panic!("VeComponentPrompt(2).current_prompt() must return Some(...)")
-    });
+    let prompt = prog
+        .current_prompt()
+        .unwrap_or_else(|| panic!("VeComponentPrompt(2).current_prompt() must return Some(...)"));
     assert!(
         prompt.contains('2'),
         "VeComponentPrompt(2) prompt '{}' must contain component index '2'",

@@ -14,9 +14,7 @@
 
 use std::collections::HashSet;
 
-use hp41_cli::help_data::{
-    help_entries_adv, help_entries_all, help_overlay_rows,
-};
+use hp41_cli::help_data::{help_entries_adv, help_entries_all, help_overlay_rows};
 
 /// Test 1: hard-build-blocker exercised on success path.
 #[test]
@@ -303,7 +301,9 @@ fn help_overlay_rows_includes_adv_pac_sections() {
 fn adv_help_entries_no_collision_with_other_pools() {
     // Catches: an Advantage mnemonic accidentally shadowing a v2.2 built-in, Math 1,
     // Stat 1, or Time entry in the op_variant space.
-    use hp41_cli::help_data::{help_entries, help_entries_math1, help_entries_stat1, help_entries_time};
+    use hp41_cli::help_data::{
+        help_entries, help_entries_math1, help_entries_stat1, help_entries_time,
+    };
     let v22: HashSet<&str> = help_entries()
         .iter()
         .map(|e| e.op_variant.as_str())

@@ -23,7 +23,9 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::math1::xrom::{xrom_resolve, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE};
+use hp41_core::ops::math1::xrom::{
+    xrom_resolve, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE,
+};
 
 /// All mnemonic strings recognized by `builtin_card_op` in `hp41-core/src/ops/program.rs`.
 ///

@@ -553,8 +553,14 @@ fn test_pool_partition_is_exhaustive() {
     assert_eq!(math1_count, 45, "Math 1 pool count drift: {math1_count}");
     assert_eq!(stat1_count, 26, "Stat 1 pool count drift: {stat1_count}");
     assert_eq!(time_count, 35, "Time pool count drift: {time_count}");
-    assert_eq!(adv_a_count, 63, "Adv CONV+MTRX (XROM 22) pool count drift: {adv_a_count}");
-    assert_eq!(adv_b_count, 51, "Adv MATH+TVM (XROM 24) pool count drift: {adv_b_count}");
+    assert_eq!(
+        adv_a_count, 63,
+        "Adv CONV+MTRX (XROM 22) pool count drift: {adv_a_count}"
+    );
+    assert_eq!(
+        adv_b_count, 51,
+        "Adv MATH+TVM (XROM 24) pool count drift: {adv_b_count}"
+    );
 }
 
 // ── Phase 44 Plan 01/02: Advantage Pac bidirectional parity tests (ADV-CLI-02) ──
