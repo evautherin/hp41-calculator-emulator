@@ -362,13 +362,13 @@ pub struct CalcState {
     #[serde(default)]
     pub adv_matrices: Vec<crate::ops::advantage::AdvMatrix>,
 
-    /// Current row index (1-based) into the active named matrix (D-43.4).
-    /// Default: 1. Persistent — `#[serde(default)]`.
+    /// Current row index (0-based) into the active named matrix (D-43.4).
+    /// Default: 0. Persistent — `#[serde(default)]`.
     #[serde(default)]
     pub adv_matrix_i: u8,
 
-    /// Current column index (1-based) into the active named matrix (D-43.4).
-    /// Default: 1. Persistent — `#[serde(default)]`.
+    /// Current column index (0-based) into the active named matrix (D-43.4).
+    /// Default: 0. Persistent — `#[serde(default)]`.
     #[serde(default)]
     pub adv_matrix_j: u8,
 
@@ -500,8 +500,8 @@ impl CalcState {
             alarm_catalog_mode: false,
             // Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) fields
             adv_matrices: Vec::new(),
-            adv_matrix_i: 1,
-            adv_matrix_j: 1,
+            adv_matrix_i: 0,
+            adv_matrix_j: 0,
             adv_tvm_state: None,
             adv_current_matrix: None,
             adv_froot_state: None,

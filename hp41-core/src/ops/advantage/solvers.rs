@@ -395,7 +395,13 @@ pub fn op_adv_fsolve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
 
         // Secant step: x_new = x2 - f(x2)*(x2-x1)/(f(x2)-f(x1))
         let x_new_f64 = x2_f64 - fx2_f64 * (x2_f64 - x1_f64) / denom;
-        let x_new = HpNum::from(Decimal::from_f64(x_new_f64).unwrap_or(Decimal::ZERO));
+        if !x_new_f64.is_finite() {
+            state.print_buffer.push("NO ROOT FOUND".to_string());
+            state.adv_fsolve_state = None;
+            state.pc = save_pc;
+            return Err(HpError::Overflow);
+        }
+        let x_new = HpNum::from(Decimal::from_f64(x_new_f64).ok_or(HpError::Overflow)?);
 
         let fx_new_f64 = match eval_user_fn_inner(
             state,
@@ -449,11 +455,11 @@ pub fn op_adv_fsolve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
         fx2_f64 = fx_new_f64;
     }
 
-    // Iteration cap
+    // Iteration cap — surface failure to programmatic callers
     state.print_buffer.push("NO ROOT FOUND".to_string());
     state.adv_fsolve_state = None;
     state.pc = save_pc;
-    Ok(())
+    Err(HpError::NoRoot)
 }
 
 /// Inner helper: evaluate f(x_val_f64) via run_user_function re-entry.
@@ -650,6 +656,11 @@ pub fn op_adv_fintg_run_loop(state: &mut CalcState, program: &[Op]) -> Result<()
         };
         sum_f64 += coeff * fx_k;
 
+        if !sum_f64.is_finite() {
+            state.adv_fintg_state = None;
+            state.pc = save_pc;
+            return Err(HpError::Overflow);
+        }
         // Update accumulator for diagnostic
         if let Some(ref mut st) = state.adv_fintg_state {
             st.accumulator = HpNum::from(Decimal::from_f64(sum_f64).unwrap_or(Decimal::ZERO));
@@ -745,8 +756,7 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
     };
 
     if order_raw != 1 && order_raw != 2 {
-        state.modal_prompt = Some("ORDER MUST BE 1 OR 2".to_string());
-        return Ok(());
+        return Err(HpError::Domain);
     }
     let order = order_raw;
 
@@ -837,8 +847,14 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
         };
 
         // Evaluate user callback with current (x, y) → returns f(x, y)
-        let eval_f = |state: &mut CalcState, x_val: f64, _y_val: f64| -> Result<f64, HpError> {
+        // Push y first (becomes Y register), then x (becomes X register),
+        // so the user function sees x in X and y in Y per HP Advantage Pac convention.
+        let eval_f = |state: &mut CalcState, x_val: f64, y_val: f64| -> Result<f64, HpError> {
+            let y_dec = Decimal::from_f64(y_val).ok_or(HpError::Overflow)?;
             let x_dec = Decimal::from_f64(x_val).ok_or(HpError::Overflow)?;
+            state.stack.lift_enabled = true;
+            enter_number(state, HpNum::from(y_dec));
+            apply_lift_effect(state, LiftEffect::Enable);
             state.stack.lift_enabled = true;
             enter_number(state, HpNum::from(x_dec));
             apply_lift_effect(state, LiftEffect::Enable);
@@ -922,8 +938,13 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
         };
 
         let x_new_f64 = x_f64 + h_f64;
-        let x_new = HpNum::from(Decimal::from_f64(x_new_f64).unwrap_or(Decimal::ZERO));
-        let y_new = HpNum::from(Decimal::from_f64(y_new_f64).unwrap_or(Decimal::ZERO));
+        if !x_new_f64.is_finite() || !y_new_f64.is_finite() {
+            state.adv_fdifeq_state = None;
+            state.pc = save_pc;
+            return Err(HpError::Overflow);
+        }
+        let x_new = HpNum::from(Decimal::from_f64(x_new_f64).ok_or(HpError::Overflow)?);
+        let y_new = HpNum::from(Decimal::from_f64(y_new_f64).ok_or(HpError::Overflow)?);
 
         // Update state
         if let Some(ref mut st) = state.adv_fdifeq_state {
@@ -931,7 +952,12 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
             st.y[0] = y_new.clone();
             if order == 2 {
                 if let Some(z_f64) = z_new_opt_f64 {
-                    let z_new = HpNum::from(Decimal::from_f64(z_f64).unwrap_or(Decimal::ZERO));
+                    if !z_f64.is_finite() {
+                        state.adv_fdifeq_state = None;
+                        state.pc = save_pc;
+                        return Err(HpError::Overflow);
+                    }
+                    let z_new = HpNum::from(Decimal::from_f64(z_f64).ok_or(HpError::Overflow)?);
                     if st.y.len() > 1 {
                         st.y[1] = z_new;
                     } else {
@@ -1034,9 +1060,11 @@ pub fn op_adv_froot(state: &mut CalcState) -> Result<(), HpError> {
         } else {
             let re_hp = HpNum::from(Decimal::from_f64(*re).unwrap_or(Decimal::ZERO));
             let im_hp = HpNum::from(Decimal::from_f64(im.abs()).unwrap_or(Decimal::ZERO));
+            let sign = if *im < 0.0 { "-" } else { "+" };
             state.print_buffer.push(format!(
-                "ROOT: {}+{}i",
+                "ROOT: {}{}{}i",
                 format_hpnum(&re_hp, &state.display_mode),
+                sign,
                 format_hpnum(&im_hp, &state.display_mode)
             ));
         }
@@ -1044,7 +1072,7 @@ pub fn op_adv_froot(state: &mut CalcState) -> Result<(), HpError> {
 
     // Push first root to X (real part)
     if let Some((re, _im)) = roots.first() {
-        let root_hp = HpNum::from(Decimal::from_f64(*re).unwrap_or(Decimal::ZERO));
+        let root_hp = HpNum::from(Decimal::from_f64(*re).ok_or(HpError::Overflow)?);
         unary_result(state, root_hp);
         apply_lift_effect(state, LiftEffect::Enable);
     }
@@ -1093,12 +1121,18 @@ fn laguerre_roots(coeffs: &[f64], degree: usize) -> Result<Vec<(f64, f64)>, HpEr
                 break;
             }
 
-            // G = P'/P (complex division)
-            let (g_re, g_im) = complex_div(dp.0, dp.1, p.0, p.1);
+            // G = P'/P (complex division) — None means P(x)≈0, i.e. root found
+            let (g_re, g_im) = match complex_div(dp.0, dp.1, p.0, p.1) {
+                Some(v) => v,
+                None => break,
+            };
             // H = G^2 - P''/P
             let g2_re = g_re * g_re - g_im * g_im;
             let g2_im = 2.0 * g_re * g_im;
-            let (pp_over_p_re, pp_over_p_im) = complex_div(ddp.0, ddp.1, p.0, p.1);
+            let (pp_over_p_re, pp_over_p_im) = match complex_div(ddp.0, ddp.1, p.0, p.1) {
+                Some(v) => v,
+                None => break,
+            };
             let h_re = g2_re - pp_over_p_re;
             let h_im = g2_im - pp_over_p_im;
 
@@ -1124,8 +1158,11 @@ fn laguerre_roots(coeffs: &[f64], degree: usize) -> Result<Vec<(f64, f64)>, HpEr
                 (denom2_re, denom2_im)
             };
 
-            // Step: a = n / denom (complex division)
-            let (a_re, a_im) = complex_div(n_f, 0.0, denom_re, denom_im);
+            // Step: a = n / denom — None means degenerate case, stop iteration
+            let (a_re, a_im) = match complex_div(n_f, 0.0, denom_re, denom_im) {
+                Some(v) => v,
+                None => break,
+            };
 
             let abs_a = (a_re * a_re + a_im * a_im).sqrt();
             if abs_a < LAGUERRE_TOLERANCE {
@@ -1144,7 +1181,10 @@ fn laguerre_roots(coeffs: &[f64], degree: usize) -> Result<Vec<(f64, f64)>, HpEr
             if dp_abs < 1e-300 {
                 break;
             }
-            let (step_re, step_im) = complex_div(p.0, p.1, dp.0, dp.1);
+            let (step_re, step_im) = match complex_div(p.0, p.1, dp.0, dp.1) {
+                Some(v) => v,
+                None => break,
+            };
             let new_re = x_re - step_re;
             let new_im = x_im - step_im;
             if (step_re * step_re + step_im * step_im).sqrt() < 1e-14 {
@@ -1217,15 +1257,16 @@ fn horner_complex(coeffs: &[f64], x_re: f64, x_im: f64) -> ((f64, f64), (f64, f6
 }
 
 /// Complex division: (a_re + i*a_im) / (b_re + i*b_im).
-fn complex_div(a_re: f64, a_im: f64, b_re: f64, b_im: f64) -> (f64, f64) {
+/// Returns `None` when the denominator is near zero.
+fn complex_div(a_re: f64, a_im: f64, b_re: f64, b_im: f64) -> Option<(f64, f64)> {
     let denom = b_re * b_re + b_im * b_im;
     if denom < 1e-300 {
-        return (0.0, 0.0);
+        return None;
     }
-    (
+    Some((
         (a_re * b_re + a_im * b_im) / denom,
         (a_im * b_re - a_re * b_im) / denom,
-    )
+    ))
 }
 
 /// Complex square root.
@@ -1274,128 +1315,6 @@ fn deflate_quadratic(coeffs: &[f64], b: f64, c: f64) -> Vec<f64> {
 }
 
 // ---------------------------------------------------------------------------
-// PLY — Polynomial evaluation via Horner's method (ADV-MATH-07)
-// ---------------------------------------------------------------------------
-
-/// ADV PLY — evaluate polynomial at X using Horner's method.
-///
-/// ## Entry convention (D-43.8 — same as FROOT):
-/// - `state.stack.x` = x (evaluation point)
-/// - `state.regs[0]` (R00) = degree
-/// - `state.regs[1]` (R01) through `state.regs[degree+1]` = coefficients,
-///   highest-degree first.
-///
-/// ## Result:
-/// Pushes P(x) to X. `LiftEffect::Enable`.
-///
-/// # Errors
-/// Returns `HpError::Domain` if degree > 100 or < 0.
-/// Returns `HpError::Overflow` on numerical failure.
-pub fn op_adv_ply(state: &mut CalcState) -> Result<(), HpError> {
-    let x_val = state.stack.x.inner().to_f64().ok_or(HpError::Overflow)?;
-
-    let degree_raw = state
-        .regs
-        .first()
-        .map(|r| r.numeric_or_zero().inner().to_u32().unwrap_or(0))
-        .unwrap_or(0);
-    let degree = degree_raw as usize;
-
-    if degree > FROOT_MAX_DEGREE {
-        return Err(HpError::Domain);
-    }
-
-    // Read coefficients from R01..R(degree+1), highest-degree first
-    let mut result = state
-        .regs
-        .get(1)
-        .map(|r| r.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    // Horner: result = coeffs[0]*x^n + ... = ((coeffs[0]*x + coeffs[1])*x + ...)*x + coeffs[n]
-    for i in 1..=degree {
-        let reg_idx = i + 1;
-        let coeff = state
-            .regs
-            .get(reg_idx)
-            .map(|r| r.numeric_or_zero().inner().to_f64().unwrap_or(0.0))
-            .unwrap_or(0.0);
-        result = result * x_val + coeff;
-    }
-
-    let result_hp = HpNum::from(Decimal::from_f64(result).ok_or(HpError::Overflow)?);
-    unary_result(state, result_hp);
-    apply_lift_effect(state, LiftEffect::Enable);
-
-    Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// RTS — Root output (ADV-MATH-08)
-// ---------------------------------------------------------------------------
-
-/// ADV RTS — recall roots computed by FROOT sequentially.
-///
-/// Each call pushes the next root to X (real part). If the root is complex,
-/// the imaginary part is pushed to Y. Advances the root cursor in `adv_froot_state`.
-/// When cursor reaches end, wraps back to root 0.
-///
-/// ## Entry requirement:
-/// `state.adv_froot_state` must be `Some(...)` from a prior FROOT computation.
-///
-/// # Errors
-/// Returns `HpError::InvalidOp` if no prior FROOT state available.
-pub fn op_adv_rts(state: &mut CalcState) -> Result<(), HpError> {
-    let (re, im, next_index) = match state.adv_froot_state {
-        None => return Err(HpError::InvalidOp),
-        Some(ref mut froot) => {
-            if froot.roots_found.is_empty() {
-                return Err(HpError::InvalidOp);
-            }
-            let idx = froot.root_index;
-            if idx >= froot.roots_found.len() {
-                // Wrap around to first root
-                froot.root_index = 1;
-                let (re, im) = froot.roots_found[0];
-                (re, im, 1usize)
-            } else {
-                let (re, im) = froot.roots_found[idx];
-                let next = if idx + 1 >= froot.roots_found.len() {
-                    0
-                } else {
-                    idx + 1
-                };
-                (re, im, next)
-            }
-        }
-    };
-
-    // Update index
-    if let Some(ref mut froot) = state.adv_froot_state {
-        froot.root_index = next_index;
-    }
-
-    let re_hp = HpNum::from(Decimal::from_f64(re).unwrap_or(Decimal::ZERO));
-
-    if im.abs() < 1e-10 {
-        // Real root: push to X
-        unary_result(state, re_hp);
-        apply_lift_effect(state, LiftEffect::Enable);
-    } else {
-        // Complex root: push re to X, im to Y
-        let im_hp = HpNum::from(Decimal::from_f64(im).unwrap_or(Decimal::ZERO));
-        state.stack.lift_enabled = true;
-        enter_number(state, im_hp);
-        apply_lift_effect(state, LiftEffect::Enable);
-        state.stack.lift_enabled = true;
-        enter_number(state, re_hp);
-        apply_lift_effect(state, LiftEffect::Enable);
-    }
-
-    Ok(())
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1403,6 +1322,7 @@ pub fn op_adv_rts(state: &mut CalcState) -> Result<(), HpError> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::ops::advantage::{op_adv_ply, op_adv_rts};
 
     // Catches: FrootState default initializes cleanly
     #[test]
@@ -1503,7 +1423,7 @@ mod tests {
         state.stack.lift_enabled = false;
 
         let result = op_adv_fsolve_run_loop(&mut state, &program);
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(HpError::NoRoot)));
         assert_eq!(
             state.print_buffer.first().map(|s| s.as_str()),
             Some("NO ROOT FOUND")
@@ -1882,8 +1802,7 @@ mod tests {
         state.regs[2] = HpNum::from(0i32).into();
         state.regs[3] = HpNum::from(0i32).into();
         let result = op_adv_fdifeq_run_loop(&mut state, &program);
-        assert!(result.is_ok()); // order error is non-fatal
-        assert_eq!(state.modal_prompt, Some("ORDER MUST BE 1 OR 2".to_string()));
+        assert!(matches!(result, Err(HpError::Domain)));
     }
 
     // Catches: FDIFEQ RK4 not integrating dy/dx=2x correctly

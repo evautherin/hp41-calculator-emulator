@@ -98,11 +98,10 @@ fn reg_f64(state: &CalcState, idx: usize) -> f64 {
 }
 
 /// Write an f64 value to a register.
-/// NaN/inf are mapped to zero (domain guard — callers validate upstream).
-#[inline]
-fn set_reg_f64(state: &mut CalcState, idx: usize, v: f64) {
-    let dec = Decimal::from_f64(v).unwrap_or(Decimal::ZERO);
+fn set_reg_f64(state: &mut CalcState, idx: usize, v: f64) -> Result<(), HpError> {
+    let dec = Decimal::from_f64(v).ok_or(HpError::Overflow)?;
     state.regs[idx] = HpNum::rounded(dec).into();
+    Ok(())
 }
 
 /// Convert HpNum to f64 via Decimal inner.
@@ -244,12 +243,12 @@ pub fn op_adv_as(state: &mut CalcState) -> Result<(), HpError> {
     let sum_xy = reg_f64(state, CFIT_SUM_XY_REG) + x * y;
     let sum_y2 = reg_f64(state, CFIT_SUM_Y2_REG) + y * y;
 
-    set_reg_f64(state, CFIT_N_REG, n);
-    set_reg_f64(state, CFIT_SUM_X_REG, sum_x);
-    set_reg_f64(state, CFIT_SUM_Y_REG, sum_y);
-    set_reg_f64(state, CFIT_SUM_X2_REG, sum_x2);
-    set_reg_f64(state, CFIT_SUM_XY_REG, sum_xy);
-    set_reg_f64(state, CFIT_SUM_Y2_REG, sum_y2);
+    set_reg_f64(state, CFIT_N_REG, n)?;
+    set_reg_f64(state, CFIT_SUM_X_REG, sum_x)?;
+    set_reg_f64(state, CFIT_SUM_Y_REG, sum_y)?;
+    set_reg_f64(state, CFIT_SUM_X2_REG, sum_x2)?;
+    set_reg_f64(state, CFIT_SUM_XY_REG, sum_xy)?;
+    set_reg_f64(state, CFIT_SUM_Y2_REG, sum_y2)?;
 
     // Push n to X (stack drops Y — binary-style stack drop)
     let n_hp = f64_to_hpnum(n)?;
@@ -283,12 +282,12 @@ pub fn op_adv_ds(state: &mut CalcState) -> Result<(), HpError> {
     let sum_xy = reg_f64(state, CFIT_SUM_XY_REG) - x * y;
     let sum_y2 = reg_f64(state, CFIT_SUM_Y2_REG) - y * y;
 
-    set_reg_f64(state, CFIT_N_REG, n.max(0.0));
-    set_reg_f64(state, CFIT_SUM_X_REG, sum_x);
-    set_reg_f64(state, CFIT_SUM_Y_REG, sum_y);
-    set_reg_f64(state, CFIT_SUM_X2_REG, sum_x2);
-    set_reg_f64(state, CFIT_SUM_XY_REG, sum_xy);
-    set_reg_f64(state, CFIT_SUM_Y2_REG, sum_y2);
+    set_reg_f64(state, CFIT_N_REG, n.max(0.0))?;
+    set_reg_f64(state, CFIT_SUM_X_REG, sum_x)?;
+    set_reg_f64(state, CFIT_SUM_Y_REG, sum_y)?;
+    set_reg_f64(state, CFIT_SUM_X2_REG, sum_x2)?;
+    set_reg_f64(state, CFIT_SUM_XY_REG, sum_xy)?;
+    set_reg_f64(state, CFIT_SUM_Y2_REG, sum_y2)?;
 
     // Push n to X (stack drops Y)
     let n_hp = f64_to_hpnum(n.max(0.0))?;
@@ -373,9 +372,9 @@ pub fn op_adv_fit(state: &mut CalcState) -> Result<(), HpError> {
         _ => a_raw,
     };
 
-    set_reg_f64(state, CFIT_COEFF_A_REG, a_final);
-    set_reg_f64(state, CFIT_COEFF_B_REG, b);
-    set_reg_f64(state, CFIT_CORR_REG, r);
+    set_reg_f64(state, CFIT_COEFF_A_REG, a_final)?;
+    set_reg_f64(state, CFIT_COEFF_B_REG, b)?;
+    set_reg_f64(state, CFIT_CORR_REG, r)?;
 
     // Push b to Y and a to X using double-lift
     let b_hp = f64_to_hpnum(b)?;

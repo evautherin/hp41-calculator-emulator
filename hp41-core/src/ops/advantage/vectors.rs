@@ -96,14 +96,14 @@ fn read_vec(state: &CalcState, base: usize) -> (f64, f64, f64) {
 }
 
 /// Write 3 vector components to registers at `base`, `base+1`, `base+2`.
-#[inline]
-fn write_vec(state: &mut CalcState, base: usize, v: (f64, f64, f64)) {
-    let mk = |val: f64| -> crate::num::HpValue {
-        HpNum::rounded(Decimal::from_f64(val).unwrap_or(Decimal::ZERO)).into()
+fn write_vec(state: &mut CalcState, base: usize, v: (f64, f64, f64)) -> Result<(), HpError> {
+    let mk = |val: f64| -> Result<crate::num::HpValue, HpError> {
+        Ok(HpNum::rounded(Decimal::from_f64(val).ok_or(HpError::Overflow)?).into())
     };
-    state.regs[base] = mk(v.0);
-    state.regs[base + 1] = mk(v.1);
-    state.regs[base + 2] = mk(v.2);
+    state.regs[base] = mk(v.0)?;
+    state.regs[base + 1] = mk(v.1)?;
+    state.regs[base + 2] = mk(v.2)?;
+    Ok(())
 }
 
 /// Convert HpNum to f64.
@@ -134,7 +134,7 @@ pub fn op_adv_v_plus(state: &mut CalcState) -> Result<(), HpError> {
     require_vec_size(state)?;
     let (a1, a2, a3) = read_vec(state, VEC_A_BASE);
     let (b1, b2, b3) = read_vec(state, VEC_B_BASE);
-    write_vec(state, VEC_RESULT_BASE, (a1 + b1, a2 + b2, a3 + b3));
+    write_vec(state, VEC_RESULT_BASE, (a1 + b1, a2 + b2, a3 + b3))?;
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -151,7 +151,7 @@ pub fn op_adv_v_minus(state: &mut CalcState) -> Result<(), HpError> {
     require_vec_size(state)?;
     let (a1, a2, a3) = read_vec(state, VEC_A_BASE);
     let (b1, b2, b3) = read_vec(state, VEC_B_BASE);
-    write_vec(state, VEC_RESULT_BASE, (a1 - b1, a2 - b2, a3 - b3));
+    write_vec(state, VEC_RESULT_BASE, (a1 - b1, a2 - b2, a3 - b3))?;
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -192,7 +192,7 @@ pub fn op_adv_cross(state: &mut CalcState) -> Result<(), HpError> {
     let r1 = a2 * b3 - a3 * b2;
     let r2 = a3 * b1 - a1 * b3;
     let r3 = a1 * b2 - a2 * b1;
-    write_vec(state, VEC_RESULT_BASE, (r1, r2, r3));
+    write_vec(state, VEC_RESULT_BASE, (r1, r2, r3))?;
     let mag = (r1 * r1 + r2 * r2 + r3 * r3).sqrt();
     let result = f64_to_hpnum(mag)?;
     enter_number(state, result);
@@ -226,7 +226,7 @@ pub fn op_adv_vs(state: &mut CalcState) -> Result<(), HpError> {
         state,
         VEC_RESULT_BASE,
         (scalar * a1, scalar * a2, scalar * a3),
-    );
+    )?;
     // Drop X (scalar consumed)
     state.stack.x = state.stack.y.clone();
     state.stack.y = state.stack.z.clone();
@@ -288,7 +288,7 @@ pub fn op_adv_vr(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_adv_ve(state: &mut CalcState) -> Result<(), HpError> {
     require_vec_size(state)?;
     // Clear vector A registers before entry
-    write_vec(state, VEC_A_BASE, (0.0, 0.0, 0.0));
+    write_vec(state, VEC_A_BASE, (0.0, 0.0, 0.0))?;
     // Enter modal workflow for component 1
     state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::VeComponentPrompt(1)));
     state.modal_prompt = Some("V[1]=?".to_string());
@@ -307,7 +307,7 @@ pub fn op_adv_ve(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_adv_vxy(state: &mut CalcState) -> Result<(), HpError> {
     require_vec_size(state)?;
     let (a1, a2, _) = read_vec(state, VEC_A_BASE);
-    write_vec(state, VEC_A_BASE, (a1, a2, 0.0));
+    write_vec(state, VEC_A_BASE, (a1, a2, 0.0))?;
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -328,7 +328,7 @@ pub fn op_adv_uv(state: &mut CalcState) -> Result<(), HpError> {
     if mag < 1e-15 {
         return Err(HpError::DivideByZero);
     }
-    write_vec(state, VEC_RESULT_BASE, (a1 / mag, a2 / mag, a3 / mag));
+    write_vec(state, VEC_RESULT_BASE, (a1 / mag, a2 / mag, a3 / mag))?;
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -398,7 +398,7 @@ pub fn op_adv_tr(state: &mut CalcState) -> Result<(), HpError> {
     let r2 = sin_a * a1 + cos_a * a2;
     let r3 = a3;
 
-    write_vec(state, VEC_RESULT_BASE, (r1, r2, r3));
+    write_vec(state, VEC_RESULT_BASE, (r1, r2, r3))?;
 
     // Drop X (angle consumed)
     state.stack.x = state.stack.y.clone();
@@ -420,12 +420,12 @@ mod tests {
 
     // Helper: set vector A registers
     fn set_vec_a(state: &mut CalcState, v: (f64, f64, f64)) {
-        write_vec(state, VEC_A_BASE, v);
+        write_vec(state, VEC_A_BASE, v).unwrap();
     }
 
     // Helper: set vector B registers
     fn set_vec_b(state: &mut CalcState, v: (f64, f64, f64)) {
-        write_vec(state, VEC_B_BASE, v);
+        write_vec(state, VEC_B_BASE, v).unwrap();
     }
 
     // Helper: read result vector registers
@@ -569,7 +569,7 @@ mod tests {
     fn adv_vr_recalls_result() {
         let mut state = new_state();
         // Put known result vector in registers
-        write_vec(&mut state, VEC_RESULT_BASE, (10.0, 20.0, 30.0));
+        write_vec(&mut state, VEC_RESULT_BASE, (10.0, 20.0, 30.0)).unwrap();
         op_adv_vr(&mut state).unwrap();
         // After VR: X=component1, Y=component2, Z=component3
         let x = x_f64(&state);
