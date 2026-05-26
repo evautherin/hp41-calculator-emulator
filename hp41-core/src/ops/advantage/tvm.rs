@@ -283,7 +283,7 @@ pub fn op_adv_tvm_star_i(state: &mut CalcState) -> Result<(), HpError> {
         } else {
             i_new
         };
-        let i_clamped = i_damped.max(-0.9999).min(10.0);
+        let i_clamped = i_damped.clamp(-0.9999, 10.0);
 
         if (i_clamped - i).abs() < TVM_CONVERGENCE_THRESHOLD {
             i = i_clamped;
@@ -361,8 +361,10 @@ mod tests {
     // Catches: TvmState can be cloned (required for CalcState::clone())
     #[test]
     fn tvm_state_clone() {
-        let mut t = TvmState::default();
-        t.begin_mode = true;
+        let t = TvmState {
+            begin_mode: true,
+            ..Default::default()
+        };
         let t2 = t.clone();
         assert!(t2.begin_mode);
     }
@@ -371,12 +373,14 @@ mod tests {
     // Also verifies adv_tvm_state has #[serde(default)] without skip
     #[test]
     fn tvm_state_serde_round_trip() {
-        let mut t = TvmState::default();
-        t.n = HpNum::from(12_i32);
-        t.pv = HpNum::from(Decimal::from_f64(200_000.0).unwrap());
-        t.pmt = HpNum::from(Decimal::from_f64(-1199.1).unwrap());
-        t.fv = HpNum::zero();
-        t.begin_mode = true;
+        let t = TvmState {
+            n: HpNum::from(12_i32),
+            pv: HpNum::from(Decimal::from_f64(200_000.0).unwrap()),
+            pmt: HpNum::from(Decimal::from_f64(-1199.1).unwrap()),
+            fv: HpNum::zero(),
+            begin_mode: true,
+            ..Default::default()
+        };
         let json = serde_json::to_string(&t).unwrap();
         let t2: TvmState = serde_json::from_str(&json).unwrap();
         assert_eq!(t2.n, t.n);
@@ -414,7 +418,7 @@ mod tests {
     #[test]
     fn tvm_constants_sane() {
         assert_eq!(TVM_MAX_ITERATIONS, 100);
-        assert!(TVM_CONVERGENCE_THRESHOLD < 1e-8);
+        const { assert!(TVM_CONVERGENCE_THRESHOLD < 1e-8) };
     }
 
     // Catches: op_adv_tvm opens the modal workflow (not InvalidOp)

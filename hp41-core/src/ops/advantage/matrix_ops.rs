@@ -60,7 +60,7 @@ fn find_matrix<'a>(matrices: &'a [AdvMatrix], name: &str) -> Result<&'a AdvMatri
 ///
 /// Returns `HpError::InvalidOp` if no matrix with that name exists.
 fn find_matrix_mut<'a>(
-    matrices: &'a mut Vec<AdvMatrix>,
+    matrices: &'a mut [AdvMatrix],
     name: &str,
 ) -> Result<&'a mut AdvMatrix, HpError> {
     matrices
@@ -1121,7 +1121,7 @@ mod tests {
         state.stack.x = HpNum::from(2); // col 2 (1-based) = 0-based 1
         op_adv_msij(&mut state).unwrap();
         let mat = &state.adv_matrices[0];
-        assert_eq!(f64_from_hpnum(&mat.data[0 * 2 + 1]), 99.0);
+        assert_eq!(f64_from_hpnum(&mat.data[1]), 99.0);
     }
 
     // ── MRC+/MRR+/MSC+/MSR+ tests ────────────────────────────────────────────

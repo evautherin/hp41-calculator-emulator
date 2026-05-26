@@ -59,7 +59,7 @@ fn complex_elem_indices(mat: &AdvMatrix, i: usize, j: usize) -> Result<(usize, u
 ///
 /// # Errors
 /// Returns `HpError::InvalidOp` if no matrix with the given name exists.
-fn find_matrix_by_name<'a>(matrices: &'a [AdvMatrix], name: &str) -> Result<usize, HpError> {
+fn find_matrix_by_name(matrices: &[AdvMatrix], name: &str) -> Result<usize, HpError> {
     matrices
         .iter()
         .position(|m| m.name == name)

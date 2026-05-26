@@ -629,7 +629,7 @@ mod tests {
     use super::*;
     use crate::ops::advantage::AdvMatrix;
     use rust_decimal::Decimal;
-    use std::str::FromStr;
+
 
     /// Build an AdvMatrix from row-major f64 values.
     fn make_matrix(name: &str, rows: u8, cols: u8, data: &[f64]) -> AdvMatrix {
@@ -1103,7 +1103,7 @@ mod tests {
     #[test]
     fn lu_decompose_2x2() {
         let mut data = vec![1.0, 2.0, 3.0, 4.0];
-        let (perm, sign) = lu_decompose(&mut data, 2).unwrap();
+        let (_perm, sign) = lu_decompose(&mut data, 2).unwrap();
         // After decomp, diagonal product * sign = det = -2
         let det = sign * data[0] * data[3];
         assert_near(det, -2.0, 1e-9, "LU det 2x2");

@@ -348,12 +348,6 @@ mod tests {
         );
     }
 
-    // Helper: set Y register exactly from u64 (bypasses rounded(), safe for all u64).
-    fn set_y_u64(state: &mut CalcState, val: u64) {
-        state.stack.y =
-            HpNum(rust_decimal::Decimal::from_u64(val).unwrap_or(rust_decimal::Decimal::ZERO));
-    }
-
     // Helper: read X as f64.
     fn get_x_f64(state: &CalcState) -> f64 {
         state.stack.x.inner().to_f64().unwrap_or(f64::NAN)

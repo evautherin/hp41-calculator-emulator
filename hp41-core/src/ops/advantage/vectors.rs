@@ -667,10 +667,7 @@ mod tests {
             VEC_MAX_REG < state.regs.len(),
             "VEC_MAX_REG must be addressable"
         );
-        assert!(
-            VEC_A_BASE >= 20,
-            "vector A block must start at R20 or later"
-        );
-        assert!(VEC_MAX_REG <= 28, "vector block must end at R28 or earlier");
+        const { assert!(VEC_A_BASE >= 20, "vector A block must start at R20 or later") };
+        const { assert!(VEC_MAX_REG <= 28, "vector block must end at R28 or earlier") };
     }
 }

@@ -695,7 +695,7 @@ mod tests {
             CFIT_MAX_REG < state.regs.len(),
             "CFIT_MAX_REG must be addressable"
         );
-        assert!(CFIT_N_REG >= 10, "CFIT block must start at R10 or later");
-        assert!(CFIT_MAX_REG <= 19, "CFIT block must end at R19 or earlier");
+        const { assert!(CFIT_N_REG >= 10, "CFIT block must start at R10 or later") };
+        const { assert!(CFIT_MAX_REG <= 19, "CFIT block must end at R19 or earlier") };
     }
 }
