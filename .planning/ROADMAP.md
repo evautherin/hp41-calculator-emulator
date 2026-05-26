@@ -157,7 +157,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
 
   1. `docs/hp41-advantage-functions.json` exists with entries for all Advantage Pac ops; `function_matrix_parity.rs` 5-pool partition test passes
-  2. `?` overlay in the CLI displays two "Advantage Pac" sections (XROM 22 + XROM 24); substring search spans all five JSON pools
+  2. `?` overlay in the CLI displays four Advantage Pac category sections ("Adv Conv", "Adv Mtrx", "Adv Math", "Adv TVM"); substring search spans all five JSON pools
   3. `XEQ "MATRX"`, `XEQ "TVM"`, `XEQ "MEDIT"`, and `XEQ "VE"` route through modal-prompt infrastructure with correct prompts appearing in the status bar
   4. `xrom_shadowing.rs` CI gate passes: all ADV MTRX + ADV MATH + ADV TVM + ADV CONV mnemonics are confirmed disjoint from all other XROM modules and built-in card ops (Pitfall 22 across all 5 XROM modules)
   5. `hp41-cli` compiles with no `non-exhaustive patterns` warnings — 4-way invariant item 3 is fully satisfied

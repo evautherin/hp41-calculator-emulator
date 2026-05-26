@@ -600,16 +600,11 @@ No security-relevant changes in this phase. CLI integration is display + test-ga
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **JSON category naming for Advantage Pac**
-   - What we know: Time uses `"Time <Noun>"`, Stat 1 uses `"Stat1 <Noun>"`.
-   - What's unclear: Should Advantage use `"Adv Conv"` / `"Adv Mtrx"` / `"Adv Math"` / `"Adv TVM"`, or a different convention?
-   - Recommendation: Use `"Adv Conv"`, `"Adv Mtrx"`, `"Adv Math"`, `"Adv TVM"` to match the hardware module group names. This produces four overlay section headers (`=== Adv Conv ===`, etc.) rather than two (`=== Advantage Pac (XROM 22) ===`). The requirement ADV-CLI-04 says "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)" sections — but that wording may mean two overlay sections, one per XROM ID. Using fine-grained categories (Conv/Mtrx/Math/TVM) is better UX. If only two sections are required, use `"Adv XROM 22"` and `"Adv XROM 24"` as category values. **Planner should use four categories** for better discoverability.
+1. **JSON category naming for Advantage Pac** — RESOLVED: Use four fine-grained categories (`"Adv Conv"`, `"Adv Mtrx"`, `"Adv Math"`, `"Adv TVM"`) for better `?`-overlay discoverability. This produces four section headers rather than two XROM-ID-labeled sections. ADV-CLI-04 ROADMAP wording updated to reflect four-category design.
 
-2. **Divergence documentation for FSOLVE/FINTG/FDIFEQ display_name**
-   - The run-loop variants (`AdvFsolveRunLoop`, etc.) display as `"FSOLVE"` / `"FINTG"` / `"FDIFEQ"` — same as their triggering variants. Users in PRGM mode will see duplicate mnemonics if a program stores them.
-   - Recommendation: No divergence entry needed (this is the same pattern as Math Pac I's `MatrixWorkflow` → `MATRIX`); document if needed in `docs/hp41-advantage-divergences.md` (Phase 45 scope).
+2. **Divergence documentation for FSOLVE/FINTG/FDIFEQ display_name** — RESOLVED: No divergence entry needed (same pattern as Math Pac I `MatrixWorkflow` → `MATRIX`). Defer to Phase 45 `docs/hp41-advantage-divergences.md` if needed.
 
 ---
 
