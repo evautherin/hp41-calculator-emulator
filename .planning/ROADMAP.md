@@ -104,7 +104,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 - [x] **Phase 44: hp41-cli — CLI Integration** - Fifth JSON canonical source, op_display_name arms, help overlay sections, xrom_shadowing extension, modal-prompt routing (completed 2026-05-26)
 - [x] **Phase 45: Documentation & ADRs** - Divergences catalog, function matrix, ADRs for named-matrix model / FROOT algorithm / dual-XROM design / math1 visibility promotions, CLAUDE.md v3.3 block (completed 2026-05-26)
 - [x] **Phase 46: hp41-gui — GUI Integration** - GUI op_display_name arms (4-way invariant item 4), HelpOverlay sections, CATALOG 2 entries for XROM 22+24, modal LCD rendering (completed 2026-05-26)
-- [ ] **Phase 47: Test Hardening & Quality Gates** - Unified meta-gates extended to Advantage Pac, FROOT/FINTG/MDET/MINV accuracy oracles, backward compat v3.2→v3.3, E2E smoke, README hard-claim graduated
+- [x] **Phase 47: Test Hardening & Quality Gates** - Unified meta-gates extended to Advantage Pac, FROOT/FINTG/MDET/MINV accuracy oracles, backward compat v3.2→v3.3, E2E smoke, README hard-claim graduated (completed 2026-05-26)
 
 ## Phase Details
 
@@ -231,7 +231,7 @@ Plans:
   4. `adv_backward_compat.rs` test confirms v3.2 save files (`xrom_modules = 0b0111`) load and migrate to `0b11111` without data loss; `adv_matrices` defaults to empty; existing `rand_seed` and `time_offset_secs` are preserved
   5. E2E smoke test in `hp41-gui/e2e/smoke.spec.js` exercises an Advantage Pac workflow (e.g., FROOT or MDET); Free42 contamination guard covers `advantage/` directory and exits 0; README hard-claim reads "feature-complete per Owner's Manual 00041-90482"
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 **Wave 1**
@@ -240,7 +240,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 47-02-PLAN.md — Coverage gap closure (all advantage/*.rs >= 90% region) + numerical accuracy oracles (FROOT/FINTG/MDET/MINV)
+- [x] 47-02-PLAN.md — Coverage gap closure (all advantage/*.rs >= 90% region) + numerical accuracy oracles (FROOT/FINTG/MDET/MINV)
 
 ## Progress
 
@@ -250,7 +250,7 @@ Plans:
 | 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
 | 45. Documentation & ADRs | 2/2 | Complete   | 2026-05-26 |
 | 46. hp41-gui — GUI Integration | 2/2 | Complete   | 2026-05-26 |
-| 47. Test Hardening & Quality Gates | 1/2 | In Progress|  |
+| 47. Test Hardening & Quality Gates | 2/2 | Complete   | 2026-05-26 |
 
 ---
 
