@@ -103,7 +103,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 - [x] **Phase 43: hp41-core — XROM Framework + All Advantage Pac Ops** - XROM 22 + XROM 24 registration, named-matrix CalcState model, AdvantageStep modal variant, and all ~117 Op variants (ADV CONV/MTRX/MATH/TVM) implemented in `ops/advantage/` (completed 2026-05-25)
 - [x] **Phase 44: hp41-cli — CLI Integration** - Fifth JSON canonical source, op_display_name arms, help overlay sections, xrom_shadowing extension, modal-prompt routing (completed 2026-05-26)
 - [x] **Phase 45: Documentation & ADRs** - Divergences catalog, function matrix, ADRs for named-matrix model / FROOT algorithm / dual-XROM design / math1 visibility promotions, CLAUDE.md v3.3 block (completed 2026-05-26)
-- [ ] **Phase 46: hp41-gui — GUI Integration** - GUI op_display_name arms (4-way invariant item 4), HelpOverlay sections, CATALOG 2 entries for XROM 22+24, modal LCD rendering
+- [x] **Phase 46: hp41-gui — GUI Integration** - GUI op_display_name arms (4-way invariant item 4), HelpOverlay sections, CATALOG 2 entries for XROM 22+24, modal LCD rendering (completed 2026-05-26)
 - [ ] **Phase 47: Test Hardening & Quality Gates** - Unified meta-gates extended to Advantage Pac, FROOT/FINTG/MDET/MINV accuracy oracles, backward compat v3.2→v3.3, E2E smoke, README hard-claim graduated
 
 ## Phase Details
@@ -210,13 +210,13 @@ Plans:
   4. HelpOverlay.tsx displays "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)" sections; search across all five JSON pools returns Advantage Pac entries
 
 **UI hint**: yes
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 **Wave 1**
 
-- [ ] 46-01-PLAN.md — 117 Advantage Pac op_display_name arms (4-way invariant item 4) + CATALOG 2 xrom_registry extension for XROM 22 + XROM 24
-- [ ] 46-02-PLAN.md — HelpOverlay fifth JSON pool + "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)" sections
+- [x] 46-01-PLAN.md — 117 Advantage Pac op_display_name arms (4-way invariant item 4) + CATALOG 2 xrom_registry extension for XROM 22 + XROM 24
+- [x] 46-02-PLAN.md — HelpOverlay fifth JSON pool + "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)" sections
 
 ### Phase 47: Test Hardening & Quality Gates
 
@@ -240,7 +240,7 @@ Plans:
 | 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
 | 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
 | 45. Documentation & ADRs | 2/2 | Complete   | 2026-05-26 |
-| 46. hp41-gui — GUI Integration | 0/2 | Not started | - |
+| 46. hp41-gui — GUI Integration | 2/2 | Complete   | 2026-05-26 |
 | 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---
