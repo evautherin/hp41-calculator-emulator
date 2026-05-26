@@ -84,17 +84,17 @@ None — all 7 research open questions resolved during Phase 43 execution:
 
 ## Deferred Items
 
-Carried forward from v3.2 milestone close (2026-05-25):
+All quick_tasks from v3.2 milestone close verified as completed (2026-05-26 consistency check):
 
-| Category | Item | Status |
-|----------|------|--------|
-| uat_gap | Phase 41: visual verification scenarios (3 items) | partial |
-| quick_task | 260506-a1g-add-gitignore | missing |
-| quick_task | 260508-06h-fix-sci-eng-digit-input | missing |
-| quick_task | 260508-y30-eex-chs-exponent-sign-toggle | missing |
-| quick_task | 260516-c1p-fix-gui-clp-binding-and-modal-letter-clicks | missing |
-| quick_task | 260522-g7s-add-yellow-keyboard-frame-matching-vorgabe | missing |
-| quick_task | 260522-gud-honor-shift-on-physical-keyboard | missing |
+| Category | Item | Status | Evidence |
+|----------|------|--------|----------|
+| uat_gap | Phase 41: visual verification scenarios (3 items) | done | covered by v3.2 Phase 41/42 |
+| quick_task | 260506-a1g-add-gitignore | done | .gitignore present; multiple gitignore commits |
+| quick_task | 260508-06h-fix-sci-eng-digit-input | done | `019009e` fix(format): Mantissa-Carry-Bug |
+| quick_task | 260508-y30-eex-chs-exponent-sign-toggle | done | `9cf2104` feat(15-02): eex_chs branch |
+| quick_task | 260516-c1p-fix-gui-clp-binding-and-modal-letter-clicks | done | `96c46b8` + `21895da` CLP/LBL + modal letter |
+| quick_task | 260522-g7s-add-yellow-keyboard-frame-matching-vorgabe | done | `509344a` + `6094e32` gold trim SVG |
+| quick_task | 260522-gud-honor-shift-on-physical-keyboard | done | `aa7e614` fix(gui): honor shiftActive |
 
 ---
 
