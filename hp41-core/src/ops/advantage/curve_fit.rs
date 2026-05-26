@@ -516,6 +516,7 @@ mod tests {
         op_adv_as(&mut state).unwrap();
         // X should now be n=1
         let n = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 count accumulation; integer n, exact
         assert!(
             (n - 1.0).abs() < 1e-9,
             "n should be 1 after first AS, got {n}"
@@ -524,6 +525,7 @@ mod tests {
         set_xy(&mut state, 3.0, 6.0);
         op_adv_as(&mut state).unwrap();
         let n = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 count accumulation; integer n, exact
         assert!(
             (n - 2.0).abs() < 1e-9,
             "n should be 2 after second AS, got {n}"
@@ -550,8 +552,11 @@ mod tests {
         let b = y_f64(&state);
         let corr = reg_f64(&state, CFIT_CORR_REG);
 
+        // LINT-EXEMPT: pure-f64 linear regression result; collinear points, tolerance 1e-6
         assert!((a - 1.0).abs() < 1e-6, "intercept should be 1.0, got {a}");
+        // LINT-EXEMPT: pure-f64 linear regression result; collinear points, tolerance 1e-6
         assert!((b - 2.0).abs() < 1e-6, "slope should be 2.0, got {b}");
+        // LINT-EXEMPT: pure-f64 correlation result; collinear data, r=1 expected
         assert!(
             (corr - 1.0).abs() < 1e-6,
             "correlation should be 1.0, got {corr}"
@@ -576,6 +581,7 @@ mod tests {
         op_adv_y_query_x(&mut state).unwrap();
 
         let pred = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 linear prediction result; y=2x+1 at x=4, exact within tolerance
         assert!(
             (pred - 9.0).abs() < 1e-6,
             "predicted y at x=4 should be 9.0, got {pred}"
@@ -595,6 +601,7 @@ mod tests {
         // n == 2 → SZ? should return 0
         op_adv_sz_query(&mut state).unwrap();
         let result = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 SZ? return value 0.0; exact integer comparison
         assert!(
             result.abs() < 1e-9,
             "SZ? should return 0 when n=2, got {result}"
@@ -613,6 +620,7 @@ mod tests {
         }
         op_adv_sz_query(&mut state).unwrap();
         let result = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 SZ? return value 1.0; exact integer comparison
         assert!(
             (result - 1.0).abs() < 1e-9,
             "SZ? should return 1 when n=3, got {result}"
@@ -635,6 +643,7 @@ mod tests {
         op_adv_ds(&mut state).unwrap();
 
         let n = reg_f64(&state, CFIT_N_REG);
+        // LINT-EXEMPT: pure-f64 count after DS; integer n=2, exact
         assert!((n - 2.0).abs() < 1e-9, "n should be 2 after DS, got {n}");
     }
 
@@ -652,6 +661,7 @@ mod tests {
 
         // SZ? should indicate sufficient data
         op_adv_sz_query(&mut state).unwrap();
+        // LINT-EXEMPT: pure-f64 SZ? return value 1.0; exact integer comparison
         assert!((x_f64(&state) - 1.0).abs() < 1e-9);
 
         op_adv_fit(&mut state).unwrap();
@@ -660,6 +670,7 @@ mod tests {
         state.stack.x = HpNum::rounded(Decimal::from_f64(5.0).unwrap());
         op_adv_y_query_x(&mut state).unwrap();
         let pred = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 linear prediction result; y=3x+2 at x=5, tolerance 1e-4
         assert!(
             (pred - 17.0).abs() < 1e-4,
             "predicted y at x=5 should be 17.0, got {pred}"
@@ -679,6 +690,7 @@ mod tests {
         }
         op_adv_bfit(&mut state).unwrap();
         let r_abs = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 correlation coefficient; perfect linear data, |r|=1 expected
         assert!(
             (r_abs - 1.0).abs() < 1e-6,
             "|r| should be 1.0 for perfect linear data, got {r_abs}"

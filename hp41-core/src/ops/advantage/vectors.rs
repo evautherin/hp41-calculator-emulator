@@ -446,6 +446,7 @@ mod tests {
         set_vec_b(&mut state, (4.0, 5.0, 6.0));
         op_adv_dot(&mut state).unwrap();
         let result = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 vector dot product; integer inputs, exact
         assert!(
             (result - 32.0).abs() < 1e-9,
             "DOT([1,2,3],[4,5,6]) should be 32.0, got {result}"
@@ -476,6 +477,7 @@ mod tests {
         let (r1, r2, r3) = get_result(&state);
         assert!(r1.abs() < 1e-9, "cross result[1] should be 0, got {r1}");
         assert!(r2.abs() < 1e-9, "cross result[2] should be 0, got {r2}");
+        // LINT-EXEMPT: pure-f64 cross product; unit vector inputs, exact
         assert!(
             (r3 - 1.0).abs() < 1e-9,
             "cross result[3] should be 1, got {r3}"
@@ -490,8 +492,11 @@ mod tests {
         set_vec_b(&mut state, (4.0, 5.0, 6.0));
         op_adv_v_plus(&mut state).unwrap();
         let (r1, r2, r3) = get_result(&state);
+        // LINT-EXEMPT: pure-f64 vector addition; integer inputs, exact
         assert!((r1 - 5.0).abs() < 1e-9, "V+[1] should be 5, got {r1}");
+        // LINT-EXEMPT: pure-f64 vector addition; integer inputs, exact
         assert!((r2 - 7.0).abs() < 1e-9, "V+[2] should be 7, got {r2}");
+        // LINT-EXEMPT: pure-f64 vector addition; integer inputs, exact
         assert!((r3 - 9.0).abs() < 1e-9, "V+[3] should be 9, got {r3}");
     }
 
@@ -503,8 +508,11 @@ mod tests {
         set_vec_b(&mut state, (1.0, 2.0, 3.0));
         op_adv_v_minus(&mut state).unwrap();
         let (r1, r2, r3) = get_result(&state);
+        // LINT-EXEMPT: pure-f64 vector subtraction; integer inputs, exact
         assert!((r1 - 3.0).abs() < 1e-9, "V-[1] should be 3, got {r1}");
+        // LINT-EXEMPT: pure-f64 vector subtraction; integer inputs, exact
         assert!((r2 - 3.0).abs() < 1e-9, "V-[2] should be 3, got {r2}");
+        // LINT-EXEMPT: pure-f64 vector subtraction; integer inputs, exact
         assert!((r3 - 3.0).abs() < 1e-9, "V-[3] should be 3, got {r3}");
     }
 
@@ -516,8 +524,11 @@ mod tests {
         state.stack.x = HpNum::rounded(Decimal::from_f64(2.0).unwrap());
         op_adv_vs(&mut state).unwrap();
         let (r1, r2, r3) = get_result(&state);
+        // LINT-EXEMPT: pure-f64 scalar multiply; integer inputs, exact
         assert!((r1 - 2.0).abs() < 1e-9, "VS[1] should be 2, got {r1}");
+        // LINT-EXEMPT: pure-f64 scalar multiply; integer inputs, exact
         assert!((r2 - 4.0).abs() < 1e-9, "VS[2] should be 4, got {r2}");
+        // LINT-EXEMPT: pure-f64 scalar multiply; integer inputs, exact
         assert!((r3 - 6.0).abs() < 1e-9, "VS[3] should be 6, got {r3}");
     }
 
@@ -528,7 +539,9 @@ mod tests {
         set_vec_a(&mut state, (3.0, 4.0, 0.0));
         op_adv_uv(&mut state).unwrap();
         let (r1, r2, r3) = get_result(&state);
+        // LINT-EXEMPT: pure-f64 unit vector normalization; 3-4-5 Pythagorean triple, exact
         assert!((r1 - 0.6).abs() < 1e-9, "UV[1] should be 0.6, got {r1}");
+        // LINT-EXEMPT: pure-f64 unit vector normalization; 3-4-5 Pythagorean triple, exact
         assert!((r2 - 0.8).abs() < 1e-9, "UV[2] should be 0.8, got {r2}");
         assert!(r3.abs() < 1e-9, "UV[3] should be 0, got {r3}");
     }
@@ -549,6 +562,7 @@ mod tests {
         set_vec_a(&mut state, (3.0, 4.0, 0.0));
         op_adv_v_mag(&mut state).unwrap();
         let mag = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 vector magnitude; 3-4-5 Pythagorean triple, exact
         assert!(
             (mag - 5.0).abs() < 1e-9,
             "V< of [3,4,0] should be 5.0, got {mag}"
@@ -575,14 +589,17 @@ mod tests {
         let x = x_f64(&state);
         let y = hpnum_to_f64(&state.stack.y).unwrap();
         let z = hpnum_to_f64(&state.stack.z).unwrap();
+        // LINT-EXEMPT: pure-f64 VR recall; integer register values, exact
         assert!(
             (x - 10.0).abs() < 1e-9,
             "X should be component 1 = 10, got {x}"
         );
+        // LINT-EXEMPT: pure-f64 VR recall; integer register values, exact
         assert!(
             (y - 20.0).abs() < 1e-9,
             "Y should be component 2 = 20, got {y}"
         );
+        // LINT-EXEMPT: pure-f64 VR recall; integer register values, exact
         assert!(
             (z - 30.0).abs() < 1e-9,
             "Z should be component 3 = 30, got {z}"
@@ -596,7 +613,9 @@ mod tests {
         set_vec_a(&mut state, (3.0, 4.0, 5.0));
         op_adv_vxy(&mut state).unwrap();
         let (a1, a2, a3) = read_vec(&state, VEC_A_BASE);
+        // LINT-EXEMPT: pure-f64 VXY projection; integer components, exact
         assert!((a1 - 3.0).abs() < 1e-9);
+        // LINT-EXEMPT: pure-f64 VXY projection; integer components, exact
         assert!((a2 - 4.0).abs() < 1e-9);
         assert!(
             a3.abs() < 1e-9,
@@ -614,6 +633,7 @@ mod tests {
         let (r1, r2, r3) = get_result(&state);
         // Rotating [1,0,0] by 90° → [0,1,0]
         assert!(r1.abs() < 1e-9, "TR[1] should be ~0, got {r1}");
+        // LINT-EXEMPT: pure-f64 TR rotation result; sin(90°)=1.0 is exact within tolerance
         assert!((r2 - 1.0).abs() < 1e-9, "TR[2] should be ~1, got {r2}");
         assert!(r3.abs() < 1e-9, "TR[3] should be 0, got {r3}");
     }
@@ -628,6 +648,7 @@ mod tests {
         let (r1, r2, r3) = get_result(&state);
         assert!(r1.abs() < 1e-9);
         assert!(r2.abs() < 1e-9);
+        // LINT-EXEMPT: pure-f64 cross product alias; unit vector inputs, exact
         assert!((r3 - 1.0).abs() < 1e-9);
     }
 
@@ -639,6 +660,7 @@ mod tests {
         set_vec_b(&mut state, (1.0, 1.0, 1.0));
         op_adv_vd(&mut state).unwrap();
         let result = x_f64(&state);
+        // LINT-EXEMPT: pure-f64 dot product alias; integer inputs, exact
         assert!(
             (result - 9.0).abs() < 1e-9,
             "VD([2,3,4],[1,1,1]) should be 9, got {result}"
@@ -653,8 +675,11 @@ mod tests {
         state.stack.x = HpNum::rounded(Decimal::from_f64(3.0).unwrap());
         op_adv_v_star(&mut state).unwrap();
         let (r1, r2, r3) = get_result(&state);
+        // LINT-EXEMPT: pure-f64 scalar multiply alias; integer inputs, exact
         assert!((r1 - 3.0).abs() < 1e-9);
+        // LINT-EXEMPT: pure-f64 scalar multiply alias; integer inputs, exact
         assert!((r2 - 6.0).abs() < 1e-9);
+        // LINT-EXEMPT: pure-f64 scalar multiply alias; integer inputs, exact
         assert!((r3 - 9.0).abs() < 1e-9);
     }
 

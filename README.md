@@ -56,7 +56,7 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
   RAND/SEED extension, [documented divergences](docs/hp41-stat1-divergences.md)) — see [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md)
 - v3.2 ships Time Pac behavioral emulation, feature-complete per Owner's Manual 00041-90035 (35 XEQ entry points, real-time clock/stopwatch/alarm backed by the host system clock,
   [documented divergences](docs/hp41-time-divergences.md)) — see [Time Pac Function Matrix](docs/hp41-time-function-matrix.md)
-- v3.3 ships Advantage Pac behavioral emulation (~117 XEQ entry points across base conversion,
+- v3.3 ships Advantage Pac behavioral emulation, feature-complete per Owner's Manual 00041-90482 (~117 XEQ entry points across base conversion,
   named-matrix operations, advanced math/solvers/complex/curve-fit, and time-value-of-money;
   dual XROM IDs 22 + 24; [documented divergences](docs/hp41-advantage-divergences.md)) —
   see [Advantage Pac Function Matrix](docs/hp41-advantage-function-matrix.md)

@@ -189,6 +189,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok(), "PLY constant: {result:?}");
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; degree-0 constant 5, exact
         assert!((val - 5.0).abs() < 1e-9, "PLY(5)=5, got {val}");
     }
 
@@ -207,6 +208,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; integer coefficients at x=2, exact
         assert!((val - 15.0).abs() < 1e-9, "PLY(2x^2+3x+1, 2) = {val}");
     }
 
@@ -226,6 +228,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; degree-3 integer coefficients at x=1, exact
         assert!((val - 10.0).abs() < 1e-9, "PLY(x^3+2x^2+3x+4, 1) = {val}");
     }
 
@@ -262,6 +265,7 @@ mod tests {
         let result = op_adv_rts(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 root bridge; exact f64 literal 2.0 stored in FrootState
         assert!((val - 2.0).abs() < 1e-9, "RTS[0] = {val}");
 
         // Second RTS → -2.0
@@ -269,6 +273,7 @@ mod tests {
         let result = op_adv_rts(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 root bridge; exact f64 literal -2.0 stored in FrootState
         assert!((val - (-2.0)).abs() < 1e-9, "RTS[1] = {val}");
     }
 
@@ -290,6 +295,7 @@ mod tests {
         let result = op_adv_rts(&mut state);
         assert!(result.is_ok(), "RTS wrap: {result:?}");
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 root bridge; exact f64 literal 3.0 stored in FrootState
         assert!((val - 3.0).abs() < 1e-9, "RTS wrap to first: {val}");
     }
 
@@ -309,6 +315,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; x=0 collapses to constant term 7, exact
         assert!((val - 7.0).abs() < 1e-9, "PLY at x=0 = {val}");
     }
 }
