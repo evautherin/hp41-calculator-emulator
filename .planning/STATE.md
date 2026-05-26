@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Advantage Pac Emulation
 status: executing
-last_updated: "2026-05-25T19:10:39.252Z"
-last_activity: 2026-05-25 -- Phase 43 execution started
+last_updated: "2026-05-26T00:15:00.000Z"
+last_activity: 2026-05-26 -- Phase 43 complete (10/10 plans); ready for Phase 44
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 10
-  completed_plans: 0
-  percent: 0
+  completed_plans: 10
+  percent: 20
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,18 +23,18 @@ See: .planning/PROJECT.md (updated 2026-05-25 after v3.3 roadmap)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 43 — hp41-core-xrom-framework-all-advantage-pac-ops
+**Current focus:** Phase 44 — hp41-cli CLI Integration (Advantage Pac)
 
 ---
 
 ## Current Position
 
-Phase: 43 (hp41-core-xrom-framework-all-advantage-pac-ops) — EXECUTING
-Plan: 1 of 10
-Status: Executing Phase 43
-Last activity: 2026-05-25 -- Phase 43 execution started
+Phase: 44 of 47 (hp41-cli — CLI Integration)
+Plan: — (not yet planned)
+Status: Phase 43 complete; Phase 44 ready to plan
+Last activity: 2026-05-26 -- Phase 43 complete (10/10 plans, 4 waves, 2729 tests)
 
-Progress: [░░░░░░░░░░] 0%  (0/5 phases)
+Progress: [██░░░░░░░░] 20%  (1/5 phases)
 
 ---
 
@@ -71,7 +71,14 @@ None.
 
 ### Pending Todos
 
-- Resolve 7 open questions from research (Phase 43 pre-work): FROOT calling convention, complete ADVMTRX 52-op sub-numbers, CATALOG 2 display strings, NOT/AND/OR/XOR word size, complex stack convention, FSOLVE/FINTG nesting architecture, TVM register persistence model
+None — all 7 research open questions resolved during Phase 43 execution:
+- FROOT: Laguerre's method with quadratic deflation (degree from X, coefficients in R01..R(n+1))
+- ADVMTRX: 50 ops across ADV_MATH_A (element access, lifecycle, reductions, linalg, complex matrix)
+- CATALOG 2: ADV_MATH_A name "ADV 22A", ADV_MATH_B name "ADV 24B"
+- NOT/AND/OR/XOR: 36-bit fixed word size (ADV_WORD_MASK = 0x0000_000F_FFFF_FFFF)
+- Complex stack: X+iY convention, delegates to Math Pac I where possible (pub(crate) promotions)
+- FSOLVE/FINTG nesting: separate state fields (adv_fsolve_state / adv_fintg_state), D-43.7 cross-nesting
+- TVM: Option<TvmState> with #[serde(default)] WITHOUT skip (D-43.11 persistence)
 
 ---
 
@@ -92,4 +99,4 @@ Carried forward from v3.2 milestone close (2026-05-25):
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-25 — v3.3 roadmap created; Phase 43 ready to plan*
+*Last updated: 2026-05-26 — Phase 43 complete (117 Advantage Pac ops, 2729 tests); Phase 44 ready*
