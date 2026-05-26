@@ -231,7 +231,16 @@ Plans:
   4. `adv_backward_compat.rs` test confirms v3.2 save files (`xrom_modules = 0b0111`) load and migrate to `0b11111` without data loss; `adv_matrices` defaults to empty; existing `rand_seed` and `time_offset_secs` are preserved
   5. E2E smoke test in `hp41-gui/e2e/smoke.spec.js` exercises an Advantage Pac workflow (e.g., FROOT or MDET); Free42 contamination guard covers `advantage/` directory and exits 0; README hard-claim reads "feature-complete per Owner's Manual 00041-90482"
 
-**Plans**: TBD
+**Plans:** 2 plans (2 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 47-01-PLAN.md — Meta-gate extension (xrom_op_test_count + lint_xrom_assertions for 5 XROM modules) + backward compat + E2E smoke + Free42 guard + README hard-claim
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 47-02-PLAN.md — Coverage gap closure (all advantage/*.rs >= 90% region) + numerical accuracy oracles (FROOT/FINTG/MDET/MINV)
 
 ## Progress
 
@@ -241,8 +250,8 @@ Plans:
 | 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
 | 45. Documentation & ADRs | 2/2 | Complete   | 2026-05-26 |
 | 46. hp41-gui — GUI Integration | 2/2 | Complete   | 2026-05-26 |
-| 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
+| 47. Test Hardening & Quality Gates | 0/2 | Not started | - |
 
 ---
 
-*Last updated: 2026-05-26 — Phase 46 planned (2 plans in 1 wave).*
+*Last updated: 2026-05-26 — Phase 47 planned (2 plans in 2 waves).*
