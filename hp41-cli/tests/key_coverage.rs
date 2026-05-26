@@ -216,7 +216,12 @@ fn key_coverage_implemented_entries_dispatch() {
                 // so that Time Module XEQ-by-name entries from help_entries_all()
                 // (added in Phase 39) resolve correctly. The Time sub-loop below
                 // uses 0b0000_0111 (the v3.2 default bitfield).
-                let cli_local = xeq_by_name_local_resolve(&name, 0b0000_0111);
+                //
+                // Phase 44 Plan 44-01: upgrade to 0b0001_1111 (v3.3
+                // default — all 5 modules: Math 1 + Stat 1 + Time + Adv CONV+MTRX
+                // + Adv MATH+TVM) so that Advantage Pac XEQ-by-name entries from
+                // help_entries_all() (added in Phase 44) resolve correctly.
+                let cli_local = xeq_by_name_local_resolve(&name, 0b0001_1111);
                 if cli_local.is_some() {
                     // Direct fast-path hit — accept and move on.
                     continue;
@@ -256,8 +261,13 @@ fn key_coverage_implemented_entries_dispatch() {
     // + Time ~35 → total ~168. The 155 threshold leaves headroom for minor
     // JSON-authoring churn but catches any regression where the Time entries
     // are silently filtered out.
+    // Phase 44 Plan 44-01 fix: raised to 270 to absorb the ~114 new Advantage
+    // Pac entries added in Phase 44. As-shipped pools: v2.2 ~62 + Math1 ~45
+    // + Stat1 ~26 + Time ~35 + Advantage ~114 → total ~282. The 270 threshold
+    // leaves headroom for minor JSON-authoring churn but catches any regression
+    // where the Advantage Pac entries are silently filtered out.
     assert!(
-        probed >= 155,
+        probed >= 270,
         "key_coverage probed only {probed} entries — JSON pool is empty, \
          a file failed to load, the filter is wrong, or \
          parse_key_path is over-eager about skipping"
@@ -401,6 +411,51 @@ fn key_coverage_implemented_entries_dispatch() {
         time_probed >= 30,
         "Time sub-loop probed only {time_probed} entries — \
          help_entries_all is missing the Time pool, or every Time \
+         entry lost its xrom field"
+    );
+
+    // Phase 44 Plan 44-01: sub-loop for Advantage Pac entries
+    // (xrom.module_id == 22 for ADV_MATH_A, == 24 for ADV_MATH_B).
+    // Mirrors the BL-04 Math1, Stat1, and Time sub-loops but uses
+    // 0b0001_1111 (the v3.3 default — all 5 modules loaded).
+    // ADV_MATH_A hardware ID = 22 (XROM 22, bit 3 in xrom_modules = 0b0000_1000).
+    // ADV_MATH_B hardware ID = 24 (XROM 24, bit 4 in xrom_modules = 0b0001_0000).
+    let mut adv_probed = 0usize;
+    for entry in entries.iter() {
+        if entry.status != "implemented" {
+            continue;
+        }
+        let Some(xrom) = entry.xrom.as_ref() else {
+            continue;
+        };
+        // Only probe Advantage Pac module IDs (22 and 24).
+        if xrom.module_id != 22 && xrom.module_id != 24 {
+            continue;
+        }
+        let Some(key_path) = entry.key_path.as_deref() else {
+            continue;
+        };
+        let Some(rest) = key_path.strip_prefix("XEQ \"") else {
+            continue;
+        };
+        let Some(name) = rest.strip_suffix('"') else {
+            continue;
+        };
+        adv_probed += 1;
+        let resolved = xeq_by_name_local_resolve(name, 0b0001_1111);
+        assert!(
+            resolved.is_some(),
+            "{} via XEQ \"{}\": xeq_by_name_local_resolve with v3.3 default \
+             modules loaded (0b0001_1111) returned None — JSON typo or \
+             missing ADV_MATH_A/B.ops entry?",
+            entry.op_variant,
+            name
+        );
+    }
+    assert!(
+        adv_probed >= 100,
+        "Advantage sub-loop probed only {adv_probed} entries — \
+         help_entries_all is missing the Advantage pool, or every Advantage \
          entry lost its xrom field"
     );
 }
