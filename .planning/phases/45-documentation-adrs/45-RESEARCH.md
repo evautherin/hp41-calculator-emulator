@@ -463,17 +463,11 @@ These two plans should be sequential (Plan 45-02 references the ADRs from Plan 4
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Matrix size cap in divergences catalog**
-   - What we know: D-43.2 was Claude's Discretion; implementation uses `u8` (255 max). REQUIREMENTS.md out-of-scope table mentions 14×14 as a cap "for consistency with Math Pac I."
-   - What's unclear: Whether 255 or 14 is the correct cap to document. The actual code uses u8 (255), not 14.
-   - Recommendation: Document the u8 constraint (255×255) as the actual behavioral policy. The 14×14 was an out-of-scope design note in REQUIREMENTS.md, not the implementation. Verify by checking `ADV_MATRIX_MAX_ROWS` constant in `ops/advantage/mod.rs`.
+1. **Matrix size cap in divergences catalog** — RESOLVED: Document the u8 constraint (255×255) as the actual behavioral policy. Confirmed by `ADV_MATRIX_MAX_ROWS: u8 = 255` in `ops/advantage/mod.rs`. The 14×14 from REQUIREMENTS.md was an out-of-scope design note, not the implementation.
 
-2. **FROOT input register convention vs. OM**
-   - What we know: Implementation uses X register for degree, R01..R(n+1) for coefficients (D-43.8 resolution). OM 00041-90482 Section 3 may specify a different convention.
-   - What's unclear: Whether the emulator's register convention matches OM exactly (OM may use different register indexing).
-   - Recommendation: This is a candidate for bucket 1 (OM Divergence) or bucket 3 (Behavioral Policy). Inspect the OM citation during Plan 45-01 execution. If register convention differs from OM, document as D-45-NN in bucket 1.
+2. **FROOT input register convention vs. OM** — RESOLVED: Plan 45-01 Task 1 executor will check OM Section 3 at execution time and add a D-45-NN bucket 1 entry if the register convention differs. The nine planned D-45-NN entries leave room for additions. If convention matches OM, no additional entry needed.
 
 ---
 
