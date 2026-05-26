@@ -3,7 +3,7 @@
 //
 //! v3.2 save-file backward compatibility + `migrate_after_load` migration tests.
 //!
-//! Three tests verify the v3.2 → v3.3 save-file migration contract:
+//! Four tests verify the v3.2 → v3.3 save-file migration contract:
 //!
 //! 1. `v32_save_loads_with_advantage_migration` — a v3.2 fixture with
 //!    `"xrom_modules": 7` (Math 1 + Stat 1 + Time, bits 0+1+2) deserializes
@@ -14,10 +14,16 @@
 //!
 //! 3. `v32_save_time_fields_preserved` — Time fields present in the v3.2 fixture
 //!    survive the v3.3 migration unchanged.
+//!
+//! 4. `v32_save_rand_seed_preserved` — `rand_seed` present in the v3.2 fixture
+//!    ("0.5") survives the v3.3 migration unchanged (ADR-v3.1-001 / Pitfall 20:
+//!    `rand_seed` uses `#[serde(default)]` WITHOUT `#[serde(skip)]`).
 
 #![allow(clippy::unwrap_used)]
 
 use hp41_core::state::CalcState;
+use rust_decimal::Decimal;
+use std::str::FromStr;
 
 static V32_FIXTURE: &str = include_str!("fixtures/v32-autosave.json");
 
@@ -50,4 +56,21 @@ fn v32_save_time_fields_preserved() {
 
     assert_eq!(state.time_offset_secs, 3600i64);
     assert!(state.clock_12h);
+}
+
+/// Verify that `rand_seed` serialized in a v3.2 save file is preserved across
+/// the v3.3 migration. `rand_seed` uses `#[serde(default)]` WITHOUT
+/// `#[serde(skip)]` per ADR-v3.1-001 / Pitfall 20 — this test is the
+/// forward-compat guard that catches accidental `#[serde(skip)]` regressions.
+///
+/// The v3.2 fixture contains `"rand_seed": "0.5"` — must survive migration
+/// unchanged.
+#[test]
+fn v32_save_rand_seed_preserved() {
+    let mut state: CalcState = serde_json::from_str(V32_FIXTURE).expect("v32 fixture deserializes");
+    state.migrate_after_load();
+
+    let expected = Decimal::from_str("0.5").expect("literal 0.5 parses");
+    // LINT-EXEMPT: serde round-trip Decimal equality; "0.5" is exact in BCD
+    assert_eq!(state.rand_seed.inner(), expected, "rand_seed must survive v3.2 → v3.3 migration");
 }
