@@ -186,12 +186,12 @@ Plans:
   4. `docs/architecture-history.md` contains a `## v3.3 additions` section and CLAUDE.md contains a `### v3.3 additions` block
   5. README contains the v3.3 soft-claim bullet under `## Features`
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 45-01-PLAN.md — Divergence catalog (9 D-45-NN entries, 3 buckets) + 4 ADRs (v3.3-001 through v3.3-004)
+- [x] 45-01-PLAN.md — Divergence catalog (9 D-45-NN entries, 3 buckets) + 4 ADRs (v3.3-001 through v3.3-004)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -233,7 +233,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
 | 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
-| 45. Documentation & ADRs | 0/2 | Not started | - |
+| 45. Documentation & ADRs | 1/2 | In Progress|  |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
 | 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
