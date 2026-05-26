@@ -392,8 +392,8 @@ pub fn op_adv_msc_plus(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_adv_mrijr(state: &mut CalcState) -> Result<(), HpError> {
     // MRIJ reads and pops the row/col from stack
     // Save row/col for I register update before MRIJ consumes them
-    let row_1based = hpnum_to_u8(&state.stack.y).unwrap_or(1);
-    let i_0based = if row_1based > 0 { row_1based - 1 } else { 0 };
+    let row_1based = hpnum_to_u8(&state.stack.y)?;
+    let i_0based = row_1based.saturating_sub(1);
     op_adv_mrij(state)?;
     // Update adv_matrix_i to the row that was just read
     state.adv_matrix_i = i_0based;

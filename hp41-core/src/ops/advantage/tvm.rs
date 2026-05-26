@@ -49,17 +49,9 @@ pub struct TvmState {
 // ---------------------------------------------------------------------------
 
 /// Return a reference to the mutable TvmState, initializing it if needed.
-/// Inline so the borrow checker sees the field directly.
 #[inline]
 fn tvm_state(state: &mut CalcState) -> &mut TvmState {
-    if state.adv_tvm_state.is_none() {
-        state.adv_tvm_state = Some(TvmState::default());
-    }
-    // SAFETY: we just ensured it is Some above
-    state
-        .adv_tvm_state
-        .as_mut()
-        .expect("TvmState was just initialized")
+    state.adv_tvm_state.get_or_insert_with(TvmState::default)
 }
 
 // ---------------------------------------------------------------------------

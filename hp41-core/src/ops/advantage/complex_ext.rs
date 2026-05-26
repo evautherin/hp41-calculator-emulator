@@ -305,16 +305,14 @@ pub fn op_adv_z_pow_1w(state: &mut CalcState) -> Result<(), HpError> {
 pub fn op_adv_aip(state: &mut CalcState) -> Result<(), HpError> {
     let x_f = state.stack.x.inner().to_f64().ok_or(HpError::Overflow)?;
 
-    // Negative codepoint is invalid
-    if x_f < 0.0 {
+    if x_f < 0.0 || x_f > u32::MAX as f64 {
         return Err(HpError::Domain);
     }
 
     let codepoint = x_f.trunc() as u32;
 
-    if let Some(ch) = char::from_u32(codepoint) {
-        state.alpha_reg.push(ch);
-    }
+    let ch = char::from_u32(codepoint).ok_or(HpError::Domain)?;
+    state.alpha_reg.push(ch);
 
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())

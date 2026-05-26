@@ -793,7 +793,7 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
 
     loop {
         let (step_count, max_s, x_n, y_n, z_n_opt, h) = {
-            let st = state.adv_fdifeq_state.as_ref().expect("set above");
+            let st = state.adv_fdifeq_state.as_ref().ok_or(HpError::InvalidOp)?;
             (
                 st.steps,
                 st.max_steps,
@@ -1020,12 +1020,12 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
 /// Returns `HpError::InvalidOp` on any numerical failure.
 pub fn op_adv_froot(state: &mut CalcState) -> Result<(), HpError> {
     let degree_f64 = state.stack.x.inner().to_f64().ok_or(HpError::Domain)?;
-    let degree = degree_f64 as usize;
 
-    // Validate degree (T-43-13)
-    if degree == 0 || degree > FROOT_MAX_DEGREE || degree_f64 < 1.0 {
+    if !degree_f64.is_finite() || degree_f64 < 1.0 || degree_f64 > FROOT_MAX_DEGREE as f64 {
         return Err(HpError::Domain);
     }
+
+    let degree = degree_f64 as usize;
 
     // Read coefficients from R01..R(degree+1), highest-degree first
     let mut coeffs: Vec<f64> = Vec::with_capacity(degree + 1);
