@@ -43,10 +43,6 @@ fn setup_matrix(state: &mut CalcState, name: &str, rows: u8, cols: u8, data: &[f
     state.adv_matrix_j = 1;
 }
 
-fn push(state: &mut CalcState, val: f64) {
-    dispatch(state, Op::PushNum(hpf(val))).unwrap();
-}
-
 fn get_x(state: &CalcState) -> f64 {
     state.stack.x.inner().to_f64().unwrap()
 }
