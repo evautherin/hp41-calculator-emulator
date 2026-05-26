@@ -101,7 +101,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 ## Phases (v3.3)
 
 - [x] **Phase 43: hp41-core — XROM Framework + All Advantage Pac Ops** - XROM 22 + XROM 24 registration, named-matrix CalcState model, AdvantageStep modal variant, and all ~117 Op variants (ADV CONV/MTRX/MATH/TVM) implemented in `ops/advantage/` (completed 2026-05-25)
-- [ ] **Phase 44: hp41-cli — CLI Integration** - Fifth JSON canonical source, op_display_name arms, help overlay sections, xrom_shadowing extension, modal-prompt routing
+- [x] **Phase 44: hp41-cli — CLI Integration** - Fifth JSON canonical source, op_display_name arms, help overlay sections, xrom_shadowing extension, modal-prompt routing (completed 2026-05-26)
 - [ ] **Phase 45: Documentation & ADRs** - Divergences catalog, function matrix, ADRs for named-matrix model / FROOT algorithm / dual-XROM design / math1 visibility promotions, CLAUDE.md v3.3 block
 - [ ] **Phase 46: hp41-gui — GUI Integration** - GUI op_display_name arms (4-way invariant item 4), HelpOverlay sections, CATALOG 2 entries for XROM 22+24, modal LCD rendering
 - [ ] **Phase 47: Test Hardening & Quality Gates** - Unified meta-gates extended to Advantage Pac, FROOT/FINTG/MDET/MINV accuracy oracles, backward compat v3.2→v3.3, E2E smoke, README hard-claim graduated
@@ -162,7 +162,7 @@ Plans:
   4. `xrom_shadowing.rs` CI gate passes: all ADV MTRX + ADV MATH + ADV TVM + ADV CONV mnemonics are confirmed disjoint from all other XROM modules and built-in card ops (Pitfall 22 across all 5 XROM modules)
   5. `hp41-cli` compiles with no `non-exhaustive patterns` warnings — 4-way invariant item 3 is fully satisfied
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 **Wave 1**
@@ -171,7 +171,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 44-02-PLAN.md — Partition parity + xrom shadowing + modal flow + help data smoke + key coverage tests
+- [x] 44-02-PLAN.md — Partition parity + xrom shadowing + modal flow + help data smoke + key coverage tests
 
 ### Phase 45: Documentation & ADRs
 
@@ -223,7 +223,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
-| 44. hp41-cli — CLI Integration | 1/2 | In Progress|  |
+| 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
 | 45. Documentation & ADRs | 0/TBD | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
 | 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
