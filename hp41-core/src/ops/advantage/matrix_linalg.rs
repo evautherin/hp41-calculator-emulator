@@ -630,7 +630,6 @@ mod tests {
     use crate::ops::advantage::AdvMatrix;
     use rust_decimal::Decimal;
 
-
     /// Build an AdvMatrix from row-major f64 values.
     fn make_matrix(name: &str, rows: u8, cols: u8, data: &[f64]) -> AdvMatrix {
         AdvMatrix {
