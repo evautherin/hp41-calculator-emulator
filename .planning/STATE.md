@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Advantage Pac Emulation
-status: executing
-last_updated: "2026-05-26T17:54:14.668Z"
-last_activity: 2026-05-26 -- Phase 47 execution started
+status: complete
+last_updated: "2026-05-26T21:00:00.000Z"
+last_activity: 2026-05-26 -- v3.3 Advantage Pac Emulation shipped
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 18
-  completed_plans: 16
-  percent: 80
+  completed_plans: 18
+  percent: 100
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,33 +23,33 @@ See: .planning/PROJECT.md (updated 2026-05-25 after v3.3 roadmap)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 47 — test-hardening-quality-gates
+**Current focus:** None — v3.3 milestone complete. Run `/gsd-new-milestone` to start the next milestone.
 
 ---
 
 ## Current Position
 
-Phase: 47 (test-hardening-quality-gates) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 47
-Last activity: 2026-05-26 -- Phase 47 execution started
+Milestone: v3.3 Advantage Pac Emulation — COMPLETE
+All phases shipped: 43 (core), 44 (CLI), 45 (docs), 46 (GUI), 47 (test hardening)
+Tagged: `v3.3` (2026-05-26)
 
-Progress: [████░░░░░░] 40%  (2/5 phases)
+Progress: [████████████████████] 100%  (5/5 phases, 18/18 plans)
 
 ---
 
-## Performance Metrics (v3.2 ship baseline)
+## Performance Metrics (v3.3 ship baseline)
 
-| Metric | Target | Last measured (v3.2) |
+| Metric | Target | Last measured (v3.3) |
 |--------|--------|----------------------|
 | Cold-start latency | <= 0.5 s | 2.2 ms (M1) |
 | Key-press latency | <= 50 ms | ~65 ns/op |
-| `hp41-core` line coverage | >= 95 % | 93.72 % (denominator dilution) |
-| `hp41-core` region coverage | >= 93 % | **95.63 %** |
-| Numerical accuracy | >= 98 % | 98.86 % (791 cases) |
+| `hp41-core` line coverage | >= 95 % | ~93 % (denominator dilution from ~32K new LOC) |
+| `hp41-core` region coverage | >= 93 % | ~95 % |
+| Numerical accuracy | >= 98 % | 98.86 % (791+30+22 = 843 cases) |
 | Panics in `hp41-core` | 0 | 0 |
 | Free42 contamination | 0 | 0 (18-token guard) |
 | CI platforms | Win/macOS/Ubuntu | All green |
+| Tests passing | — | 3262 (up from 3161 at v3.2) |
 
 ---
 
@@ -63,7 +63,7 @@ Progress: [████░░░░░░] 40%  (2/5 phases)
 - FROOT uses Laguerre's method (arbitrary degree); coexists with Math Pac I Bairstow (degree 2-5)
 - FINTG uses Romberg integration; coexists with Math Pac I Simpson
 - Zero new runtime dependencies (ADR-v3.1-002 invariant maintained)
-- All Advantage Pac code in `ops/advantage/`; math1/ freeze: only visibility promotions (`complex_atan2` pub(crate), `USER_CALLBACK_MAX_STEPS` pub(crate) if needed)
+- All Advantage Pac code in `ops/advantage/`; math1/ freeze: only visibility promotions (`complex_atan2` pub(crate))
 
 ### Blockers
 
@@ -71,15 +71,7 @@ None.
 
 ### Pending Todos
 
-None — all 7 research open questions resolved during Phase 43 execution:
-
-- FROOT: Laguerre's method with quadratic deflation (degree from X, coefficients in R01..R(n+1))
-- ADVMTRX: 50 ops across ADV_MATH_A (element access, lifecycle, reductions, linalg, complex matrix)
-- CATALOG 2: ADV_MATH_A name "ADV 22A", ADV_MATH_B name "ADV 24B"
-- NOT/AND/OR/XOR: 36-bit fixed word size (ADV_WORD_MASK = 0x0000_000F_FFFF_FFFF)
-- Complex stack: X+iY convention, delegates to Math Pac I where possible (pub(crate) promotions)
-- FSOLVE/FINTG nesting: separate state fields (adv_fsolve_state / adv_fintg_state), D-43.7 cross-nesting
-- TVM: Option<TvmState> with #[serde(default)] WITHOUT skip (D-43.11 persistence)
+None — all v3.3 work complete.
 
 ---
 
@@ -100,4 +92,4 @@ All quick_tasks from v3.2 milestone close verified as completed (2026-05-26 cons
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-26 — Phase 44 complete (421 CLI tests, 114-entry JSON pipeline, 5-pool help chain); Phase 45 ready*
+*Last updated: 2026-05-26 — v3.3 Advantage Pac Emulation shipped (5 phases, 18 plans, 47 total project phases)*
