@@ -72,5 +72,9 @@ fn v32_save_rand_seed_preserved() {
 
     let expected = Decimal::from_str("0.5").expect("literal 0.5 parses");
     // LINT-EXEMPT: serde round-trip Decimal equality; "0.5" is exact in BCD
-    assert_eq!(state.rand_seed.inner(), expected, "rand_seed must survive v3.2 → v3.3 migration");
+    assert_eq!(
+        state.rand_seed.inner(),
+        expected,
+        "rand_seed must survive v3.2 → v3.3 migration"
+    );
 }

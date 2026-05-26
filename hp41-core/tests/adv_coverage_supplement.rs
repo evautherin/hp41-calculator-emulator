@@ -59,7 +59,9 @@ fn setup_matrix(state: &mut CalcState, name: &str, rows: u8, cols: u8, data: &[f
 }
 
 fn setup_complex_matrix(state: &mut CalcState, name: &str, rows: u8, cols: u8, data: &[f64]) {
-    state.adv_matrices.push(make_complex_matrix(name, rows, cols, data));
+    state
+        .adv_matrices
+        .push(make_complex_matrix(name, rows, cols, data));
     state.adv_current_matrix = Some(name.to_string());
     state.adv_matrix_i = 1;
     state.adv_matrix_j = 1;
@@ -138,7 +140,7 @@ fn not_zero() {
 fn rotxy_zero_shift() {
     let mut s = CalcState::new();
     push(&mut s, 255.0); // value
-    push(&mut s, 0.0);   // shift by 0
+    push(&mut s, 0.0); // shift by 0
     let r = dispatch(&mut s, Op::AdvRotxy);
     assert!(r.is_ok());
 }
@@ -263,7 +265,8 @@ fn mname_query_with_matrix() {
 fn mswap_exercises_code_path() {
     let mut s = CalcState::new();
     setup_matrix(&mut s, "A", 2, 2, &[1.0, 2.0, 3.0, 4.0]);
-    s.adv_matrices.push(make_matrix("B", 2, 2, &[5.0, 6.0, 7.0, 8.0]));
+    s.adv_matrices
+        .push(make_matrix("B", 2, 2, &[5.0, 6.0, 7.0, 8.0]));
     // MSWAP swaps current matrix with ALPHA-named matrix
     s.adv_current_matrix = Some("A".to_string());
     s.alpha_reg = "B".to_string();
@@ -672,7 +675,7 @@ fn ln_z_one() {
 #[test]
 fn log_z_ten() {
     let mut s = CalcState::new();
-    push(&mut s, 0.0);  // imag
+    push(&mut s, 0.0); // imag
     push(&mut s, 10.0); // real
     let r = dispatch(&mut s, Op::AdvLogZ);
     assert!(r.is_ok());
@@ -685,9 +688,9 @@ fn log_z_ten() {
 fn z_pow_n_exercises() {
     // Z^N: Z = (X+iY), N in Z-register (stack.z)
     let mut s = CalcState::new();
-    s.stack.z = hpf(2.0);  // N = 2
-    s.stack.y = hpf(0.0);  // imag
-    s.stack.x = hpf(3.0);  // real = 3
+    s.stack.z = hpf(2.0); // N = 2
+    s.stack.y = hpf(0.0); // imag
+    s.stack.x = hpf(3.0); // real = 3
     let r = dispatch(&mut s, Op::AdvZPowN);
     assert!(r.is_ok(), "Z^N: {r:?}");
 }
@@ -695,8 +698,8 @@ fn z_pow_n_exercises() {
 #[test]
 fn z_pow_1n_exercises() {
     let mut s = CalcState::new();
-    s.stack.z = hpf(3.0);  // N = 3
-    s.stack.y = hpf(0.0);  // imag
+    s.stack.z = hpf(3.0); // N = 3
+    s.stack.y = hpf(0.0); // imag
     s.stack.x = hpf(27.0); // real = 27
     let r = dispatch(&mut s, Op::AdvZPow1n);
     assert!(r.is_ok(), "Z^(1/N): {r:?}");
@@ -1081,7 +1084,10 @@ fn tvm_full_workflow() {
     assert!(r.is_ok(), "*I solve: {r:?}");
     let rate = get_x(&s);
     // LINT-EXEMPT: Newton-Raphson TVM solver; ~0.5% monthly rate for 6% annual
-    assert!(rate > 0.0 && rate < 2.0, "monthly rate should be 0-2%, got {rate}");
+    assert!(
+        rate > 0.0 && rate < 2.0,
+        "monthly rate should be 0-2%, got {rate}"
+    );
 }
 
 // ── curve_fit.rs edge cases ─────────────────────────────────────────────────
@@ -1168,8 +1174,8 @@ fn froot_degree_1_linear() {
     let mut s = CalcState::new();
     s.stack.x = HpNum::from(1i32); // degree 1
     s.stack.lift_enabled = false;
-    s.regs[1] = HpNum::from(1i32).into();  // x coefficient
-    s.regs[2] = HpNum::from(2i32).into();  // constant
+    s.regs[1] = HpNum::from(1i32).into(); // x coefficient
+    s.regs[2] = HpNum::from(2i32).into(); // constant
     let r = dispatch(&mut s, Op::AdvFroot);
     assert!(r.is_ok(), "FROOT degree 1: {r:?}");
     let froot = s.adv_froot_state.as_ref().unwrap();
@@ -1185,11 +1191,11 @@ fn froot_quartic() {
     let mut s = CalcState::new();
     s.stack.x = HpNum::from(4i32);
     s.stack.lift_enabled = false;
-    s.regs[1] = HpNum::from(1i32).into();   // x^4
-    s.regs[2] = HpNum::from(0i32).into();   // x^3
-    s.regs[3] = HpNum::from(-5i32).into();  // x^2
-    s.regs[4] = HpNum::from(0i32).into();   // x
-    s.regs[5] = HpNum::from(4i32).into();   // constant
+    s.regs[1] = HpNum::from(1i32).into(); // x^4
+    s.regs[2] = HpNum::from(0i32).into(); // x^3
+    s.regs[3] = HpNum::from(-5i32).into(); // x^2
+    s.regs[4] = HpNum::from(0i32).into(); // x
+    s.regs[5] = HpNum::from(4i32).into(); // constant
 
     let r = dispatch(&mut s, Op::AdvFroot);
     assert!(r.is_ok(), "FROOT quartic: {r:?}");
@@ -1198,7 +1204,7 @@ fn froot_quartic() {
     let mut reals: Vec<f64> = froot
         .roots_found
         .iter()
-    // LINT-EXEMPT: f64 filter tolerance
+        // LINT-EXEMPT: f64 filter tolerance
         .filter(|(_, im)| im.abs() < 1e-4)
         .map(|(re, _)| *re)
         .collect();

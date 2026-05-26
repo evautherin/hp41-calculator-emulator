@@ -373,14 +373,7 @@ fn count_adv_a_test_mentions(
     tests_dir: &Path,
     src_adv_dir: &Path,
 ) -> usize {
-    count_xrom_test_mentions_dual(
-        variant_name,
-        fn_name,
-        tests_dir,
-        "adv_",
-        None,
-        src_adv_dir,
-    )
+    count_xrom_test_mentions_dual(variant_name, fn_name, tests_dir, "adv_", None, src_adv_dir)
 }
 
 /// Count how many distinct `#[test]` function blocks across BOTH passes contain
@@ -394,14 +387,7 @@ fn count_adv_b_test_mentions(
     tests_dir: &Path,
     src_adv_dir: &Path,
 ) -> usize {
-    count_xrom_test_mentions_dual(
-        variant_name,
-        fn_name,
-        tests_dir,
-        "adv_",
-        None,
-        src_adv_dir,
-    )
+    count_xrom_test_mentions_dual(variant_name, fn_name, tests_dir, "adv_", None, src_adv_dir)
 }
 
 /// Generic dual-scan (external files + inline cfg(test)) for XROM modules.
@@ -589,8 +575,7 @@ fn each_xrom_op_has_at_least_5_tests() {
     let src_adv_dir = src_ops_dir.join("advantage");
     for variant_name in &adv_a_variants {
         let fn_name = adv_variant_to_fn_name(variant_name);
-        let count =
-            count_adv_a_test_mentions(variant_name, &fn_name, &tests_dir, &src_adv_dir);
+        let count = count_adv_a_test_mentions(variant_name, &fn_name, &tests_dir, &src_adv_dir);
         if count < 5 {
             failures.push(format!(
                 "[AdvA] Op::{variant_name} (fn {fn_name}): only {count} test mention(s) \
@@ -611,8 +596,7 @@ fn each_xrom_op_has_at_least_5_tests() {
 
     for variant_name in &adv_b_variants {
         let fn_name = adv_variant_to_fn_name(variant_name);
-        let count =
-            count_adv_b_test_mentions(variant_name, &fn_name, &tests_dir, &src_adv_dir);
+        let count = count_adv_b_test_mentions(variant_name, &fn_name, &tests_dir, &src_adv_dir);
         if count < 5 {
             failures.push(format!(
                 "[AdvB] Op::{variant_name} (fn {fn_name}): only {count} test mention(s) \

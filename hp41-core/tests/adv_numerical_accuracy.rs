@@ -56,7 +56,7 @@ fn assert_close(actual: f64, expected: f64, label: &str) {
     // LINT-EXEMPT: f64 numerical accuracy tolerance
     if expected.abs() < 1e-12 {
         assert!(
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+            // LINT-EXEMPT: f64 numerical accuracy tolerance
             actual.abs() < tol,
             "{label}: expected ~0, got {actual}"
         );
@@ -94,11 +94,13 @@ fn mdet_3x3_near_singular() {
     // [[1,2,3],[4,5,6],[7,8,10]] → det = -3.0
     // (row 3 differs from rank-2 pattern by +1 in position (3,3))
     let mut s = CalcState::new();
-    setup_matrix(&mut s, "B", 3, 3, &[
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
-        7.0, 8.0, 10.0,
-    ]);
+    setup_matrix(
+        &mut s,
+        "B",
+        3,
+        3,
+        &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0],
+    );
     dispatch(&mut s, Op::AdvMdet).unwrap();
     assert_close(get_x(&s), -3.0, "det([[1,2,3],[4,5,6],[7,8,10]])");
 }
@@ -108,11 +110,13 @@ fn mdet_3x3_large_values() {
     // [[6,1,1],[4,-2,5],[2,8,7]] → det = -306.0
     // numpy: np.linalg.det([[6,1,1],[4,-2,5],[2,8,7]]) = -306.0
     let mut s = CalcState::new();
-    setup_matrix(&mut s, "C", 3, 3, &[
-        6.0, 1.0, 1.0,
-        4.0, -2.0, 5.0,
-        2.0, 8.0, 7.0,
-    ]);
+    setup_matrix(
+        &mut s,
+        "C",
+        3,
+        3,
+        &[6.0, 1.0, 1.0, 4.0, -2.0, 5.0, 2.0, 8.0, 7.0],
+    );
     dispatch(&mut s, Op::AdvMdet).unwrap();
     assert_close(get_x(&s), -306.0, "det([[6,1,1],[4,-2,5],[2,8,7]])");
 }
@@ -121,11 +125,13 @@ fn mdet_3x3_large_values() {
 fn mdet_3x3_identity() {
     // det(I_3) = 1.0
     let mut s = CalcState::new();
-    setup_matrix(&mut s, "I3", 3, 3, &[
-        1.0, 0.0, 0.0,
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0,
-    ]);
+    setup_matrix(
+        &mut s,
+        "I3",
+        3,
+        3,
+        &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    );
     dispatch(&mut s, Op::AdvMdet).unwrap();
     assert_close(get_x(&s), 1.0, "det(I_3)");
 }
@@ -137,12 +143,15 @@ fn mdet_4x4_permutation() {
     // numpy: np.linalg.det(...) = 1.0 (even permutation? let me recalculate)
     // Actually: swap rows (1,2) and (3,4) → two swaps → det = +1
     let mut s = CalcState::new();
-    setup_matrix(&mut s, "P", 4, 4, &[
-        0.0, 1.0, 0.0, 0.0,
-        1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 0.0,
-    ]);
+    setup_matrix(
+        &mut s,
+        "P",
+        4,
+        4,
+        &[
+            0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,
+        ],
+    );
     dispatch(&mut s, Op::AdvMdet).unwrap();
     // Two row swaps → det = +1
     assert_close(get_x(&s), 1.0, "det(permutation_4x4)");
@@ -192,11 +201,13 @@ fn minv_2x2_second() {
 fn minv_3x3_identity() {
     // inv(I_3) = I_3
     let mut s = CalcState::new();
-    setup_matrix(&mut s, "I", 3, 3, &[
-        1.0, 0.0, 0.0,
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0,
-    ]);
+    setup_matrix(
+        &mut s,
+        "I",
+        3,
+        3,
+        &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    );
     dispatch(&mut s, Op::AdvMinv).unwrap();
 
     let m = s.adv_matrices.iter().find(|m| m.name == "I").unwrap();
@@ -240,8 +251,10 @@ fn froot_oracle_quadratic_real() {
     let froot = s.adv_froot_state.as_ref().unwrap();
     assert_eq!(froot.roots_found.len(), 2);
 
-    let mut reals: Vec<f64> = froot.roots_found.iter()
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+    let mut reals: Vec<f64> = froot
+        .roots_found
+        .iter()
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         .filter(|(_, im)| im.abs() < 1e-6)
         .map(|(re, _)| *re)
         .collect();
@@ -267,13 +280,19 @@ fn froot_oracle_cubic_factors() {
     let froot = s.adv_froot_state.as_ref().unwrap();
     assert_eq!(froot.roots_found.len(), 3);
 
-    let mut reals: Vec<f64> = froot.roots_found.iter()
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+    let mut reals: Vec<f64> = froot
+        .roots_found
+        .iter()
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         .filter(|(_, im)| im.abs() < 1e-4)
         .map(|(re, _)| *re)
         .collect();
     reals.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    assert!(reals.len() >= 3, "should have 3 real roots, got {}", reals.len());
+    assert!(
+        reals.len() >= 3,
+        "should have 3 real roots, got {}",
+        reals.len()
+    );
     assert_close(reals[0], 1.0, "root 1 of cubic");
     assert_close(reals[1], 2.0, "root 2 of cubic");
     assert_close(reals[2], 3.0, "root 3 of cubic");
@@ -294,7 +313,7 @@ fn froot_oracle_double_root() {
     let froot = s.adv_froot_state.as_ref().unwrap();
     assert_eq!(froot.roots_found.len(), 2);
     for (re, im) in &froot.roots_found {
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         assert!(im.abs() < 1e-4, "double root should be real, imag={im}");
         assert_close(*re, 2.0, "double root of x^2-4x+4");
     }
@@ -316,7 +335,7 @@ fn froot_oracle_complex_roots() {
     assert_eq!(froot.roots_found.len(), 2);
     // Both roots should have real part ~0 and imag part ~±1
     for (re, im) in &froot.roots_found {
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         assert!(re.abs() < 1e-6, "real part ~0, got {re}");
         assert_close(im.abs(), 1.0, "imag part ~±1");
     }
@@ -357,8 +376,10 @@ fn froot_oracle_quartic() {
     let froot = s.adv_froot_state.as_ref().unwrap();
     assert_eq!(froot.roots_found.len(), 4);
 
-    let mut reals: Vec<f64> = froot.roots_found.iter()
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+    let mut reals: Vec<f64> = froot
+        .roots_found
+        .iter()
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         .filter(|(_, im)| im.abs() < 1e-4)
         .map(|(re, _)| *re)
         .collect();
@@ -391,10 +412,7 @@ fn run_fintg(label: &str, program: Vec<Op>, a: f64, b: f64, subdivisions: f64) -
 fn fintg_oracle_x_0_to_1() {
     // ∫₀¹ x dx = 0.5
     // scipy: scipy.integrate.quad(lambda x: x, 0, 1) = (0.5, ...)
-    let program = vec![
-        Op::Lbl("F".to_string()),
-        Op::Rtn,
-    ];
+    let program = vec![Op::Lbl("F".to_string()), Op::Rtn];
     let val = run_fintg("F", program, 0.0, 1.0, 100.0);
     assert_close(val, 0.5, "∫₀¹ x dx");
 }
@@ -403,16 +421,12 @@ fn fintg_oracle_x_0_to_1() {
 fn fintg_oracle_x2_0_to_1() {
     // ∫₀¹ x² dx = 1/3
     // scipy: scipy.integrate.quad(lambda x: x**2, 0, 1) = (0.333..., ...)
-    let program = vec![
-        Op::Lbl("F".to_string()),
-        Op::Sq,
-        Op::Rtn,
-    ];
+    let program = vec![Op::Lbl("F".to_string()), Op::Sq, Op::Rtn];
     let val = run_fintg("F", program, 0.0, 1.0, 100.0);
     let expected = 1.0 / 3.0;
     let tol = 1e-4; // Romberg with 100 subdivisions may not hit 1e-7
     assert!(
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         ((val - expected) / expected).abs() < tol,
         "∫₀¹ x² dx: expected {expected}, got {val}"
     );
@@ -444,7 +458,7 @@ fn fintg_oracle_x3_0_to_2() {
     let val = run_fintg("F", program, 0.0, 2.0, 100.0);
     let tol = 1e-3;
     assert!(
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         ((val - 4.0) / 4.0).abs() < tol,
         "∫₀² x³ dx: expected 4.0, got {val}"
     );
@@ -453,14 +467,11 @@ fn fintg_oracle_x3_0_to_2() {
 #[test]
 fn fintg_oracle_negative_interval() {
     // ∫₁⁰ x dx = -∫₀¹ x dx = -0.5
-    let program = vec![
-        Op::Lbl("F".to_string()),
-        Op::Rtn,
-    ];
+    let program = vec![Op::Lbl("F".to_string()), Op::Rtn];
     let val = run_fintg("F", program, 1.0, 0.0, 50.0);
     let tol = 1e-4;
     assert!(
-    // LINT-EXEMPT: f64 numerical accuracy tolerance
+        // LINT-EXEMPT: f64 numerical accuracy tolerance
         ((val - (-0.5)) / 0.5).abs() < tol,
         "∫₁⁰ x dx: expected -0.5, got {val}"
     );
