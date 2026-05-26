@@ -347,15 +347,68 @@ README hard-claim graduation (D-42.11): "feature-complete per Owner's Manual HP 
 
 ---
 
+## v3.3 additions (Advantage Pac Emulation, Phases 43–47)
+
+Phases 43–47 ship the fourth XROM application module — the HP-41 Advantage Pac (HP 00041-90482, 1985) — as a behavioral emulation of ~117 XEQ-by-name entry points across four functional families: base conversion/boolean logic (ADV CONV, XROM 22), named-matrix operations (ADV MTRX, XROM 22), advanced math/complex/solver/curve-fit (ADV MATH, XROM 24), and time-value-of-money (ADV TVM, XROM 24). This is the first XROM module requiring two hardware ROM chip IDs (XROM 22 + XROM 24), introducing a dual-resolver design (ADR-v3.3-003). Three other novel architectural additions — named-matrix storage isolated from Math Pac I (ADR-v3.3-001), Laguerre polynomial root-finder coexisting with Math Pac I Bairstow (ADR-v3.3-002), and math1/ visibility promotion policy (ADR-v3.3-004) — each received a standalone ADR. Everything else follows the v3.0/v3.1/v3.2 invariants (XROM resolver chain, modal-workflow infrastructure, JSON-canonical pipeline, save-file backward compat, zero new runtime deps).
+
+### Phase 43 — XROM Framework + All Advantage Pac Ops (shipped 2026-05-25)
+
+The XROM framework extends from a three-arm cascade (MATH_1 bit-0, STAT_1 bit-1, TIME_MODULE bit-2) to a five-arm cascade landing the Advantage Pac across two hardware-accurate XROM IDs: ADV_MATH_A (XROM 22, bit-3) for the ADV CONV + ADV MTRX families (63 ops), and ADV_MATH_B (XROM 24, bit-4) for the ADV MATH + ADV TVM families (51 ops). The hardware display strings are `"ADV 22A"` and `"ADV 24B"` (HP's CATALOG 2 notation for the two ROM chips). The `xrom_resolve` bit-3 and bit-4 arms fire after bit-2 (TIME_MODULE) in the resolver chain — Pitfall 1 mitigation preserved, and Pitfall 22 (mnemonic collision) is mitigated by `xrom_shadowing.rs` extension in Phase 44. The `default_xrom_modules()` constant advances from `0b0000_0111` to `0b0001_1111`, and `migrate_after_load()` auto-upgrades v3.2 save files carrying `xrom_modules: 7` to the five-bit value.
+
+The named-matrix model (ADR-v3.3-001, D-43.1, D-43.5) was the most consequential architectural decision of Phase 43. Math Pac I uses a register-based matrix model (`state.matrix_dim`, `state.matrix_active_reg`, registers R14/R15+) fixed at compile time. The Advantage Pac's named-matrix model (NEWMAT, GETM, PUTM, MTRXD, MRCL, MSTO, element access) requires ALPHA-named matrices with arbitrary dimensions and independent I/J global pointers. The adopted design: a `Vec<AdvMatrix>` on CalcState (separate from all Math Pac I fields), global `adv_matrix_i: u8` and `adv_matrix_j: u8` indices, and `adv_current_matrix: Option<String>` as a transient field. The critical isolation mandate (D-43.5) prohibits any Advantage Pac operation from touching `state.matrix_dim` or `state.matrix_active_reg` — the two matrix systems are completely independent. Alternatives evaluated: `HashMap<String, AdvMatrix>` (rejected — non-deterministic serde order), register-based (rejected — D-43.5 incompatibility), X-MEM file model (deferred post-v3.3), per-matrix I/J indices (rejected — OM treats I/J as calculator-global pointers).
+
+The FROOT polynomial root-finder (ADR-v3.3-002, D-43.8) uses Laguerre's method with an initial guess of (0.4, 0.9) — not (0, 0) — because `(0, 0)` causes convergence failure for purely imaginary roots such as `x²+1 = 0` (origin singularity discovered during Phase 43 implementation). The algorithm uses quadratic deflation for complex conjugate pairs, linear deflation for real roots, and f64 arithmetic throughout — converting to `HpNum` only at final root output to prevent decimal rounding drift during iteration. The degree is read from the X register (D-43.8 resolution — NOT a modal prompt). The Free42 disclaim is verbatim per ADR-v3.1-002 policy: "Algorithm independently re-derived from primary literature (Numerical Recipes §9.5 Laguerre's method); Free42 source consulted only as sanity-check oracle, not copied." Alternatives evaluated: Bairstow's method (Math Pac I ROOTS — degree-limited 2–5; FROOT needs arbitrary degree up to 100), Jenkins-Traub (~300 LOC; Laguerre sufficient), companion matrix eigenvalue (requires dense LA not otherwise in hp41-core), Durand-Kerner (simultaneous root finding, higher memory).
+
+The dual-XROM-ID design (ADR-v3.3-003) is hardware-faithful: the real HP Advantage Pac ships on two ROM chips with distinct XROM IDs 22 and 24. Using a single ID would require an artificially unified 114-entry module that has no hardware basis. A significant consequence of two independent resolver arms is that 12 ADV_MATH_B mnemonics intentionally overlap with MATH_1: E^Z, LNZ, LOGZ, Z^N, Z^1/N, Z^W, |Z|, SINZ, COSZ, TANZ, A^Z, CINV. The MATH_1 arm (bit-0) fires before the ADV_MATH_B arm (bit-4), so MATH_1 wins for any user with MATH_1 installed — hardware-faithful resolver priority. The `xrom_shadowing.rs` test for ADV_MATH_B uses the `0b0001_0000` bit-4 isolation mask (not `0b0001_1111`) to permit this intentional overlap.
+
+The math1/ visibility promotion (ADR-v3.3-004) promotes `complex_atan2` in `math1/complex.rs` from `pub(super)` to `pub(crate)` — the third sanctioned carve-out of the math1/ freeze boundary (after `xrom.rs` D-33.3 and `modal.rs` D-33.3b). The complete list of five math1/ sanctioned files after v3.3: `xrom.rs` (ADR-v3.1-004), `modal.rs` (ADR-v3.1-004 + Advantage arm added Phase 43), `complex.rs` (visibility promotion, Phase 43). All other math1/ files remain frozen since Plan 25-01.
+
+TVM state persistence (D-43.11) follows the `rand_seed` precedent (ADR-v3.1-001 / Pitfall 20): `adv_tvm_state: Option<TvmState>` carries `#[serde(default)]` WITHOUT `#[serde(skip)]`. This is the documented exception to the transient-field convention — TVM register contents should survive save/load cycles just as the RNG seed does. All other Phase 43 transient state fields (`adv_froot_state`, `adv_fintg_state`, `adv_fsolve_state`, `adv_fdifeq_state`) use the standard `#[serde(default, skip)]` pattern. The `adv_current_matrix` field also uses `skip` because it mirrors the hardware ALPHA register's volatility — the active matrix name is not persisted across sessions.
+
+Solver cross-nesting (D-43.7) allows one level of cross-module nesting (e.g., FINTG inside FSOLVE, FSOLVE inside FINTG) following the same re-entrancy infrastructure introduced for Math Pac I in Phase 28. Self-nesting (FSOLVE inside FSOLVE) is blocked. The 36-bit `ADV_WORD_MASK` (D-43.9, D-43.10) silently truncates bitwise operands to 36 significant bits — hardware-faithful behavior for the HP-41 base-N integer operations; documented in the divergences catalog (D-45-07).
+
+~117 new `Op` variants land in `dispatch()` and `execute_op()`. Items 1+2 of the 4-way exhaustive-match invariant are complete in `hp41-core`; items 3 and 4 (CLI and GUI `op_display_name`) are sanctioned-deferred to Phase 44 and Phase 46 respectively, creating the same intentional `non-exhaustive patterns` CI break used in Phase 33 and Phase 38. `scripts/check-free42-contamination.sh` is extended to cover the `advantage/` directory tree (same 18-token guard; exits 0).
+
+Phase 43 CalcState additions with serde shapes: `adv_matrices: Vec<AdvMatrix>` (`#[serde(default)]`), `adv_matrix_i: u8` (`#[serde(default)]`), `adv_matrix_j: u8` (`#[serde(default)]`), `adv_tvm_state: Option<TvmState>` (`#[serde(default)]` WITHOUT skip — Pitfall 20 exception per D-43.11 / ADR-v3.1-001 precedent), `adv_current_matrix: Option<String>` (`#[serde(default, skip)]` — transient), `adv_froot_state: Option<FrootState>` (`#[serde(default, skip)]` — transient), `adv_fintg_state: Option<AdvFintegState>` (`#[serde(default, skip)]` — transient), `adv_fsolve_state: Option<AdvFsolveState>` (`#[serde(default, skip)]` — transient), `adv_fdifeq_state: Option<AdvFdifeqState>` (`#[serde(default, skip)]` — transient). XROM bits summary: ADV_MATH_A = bit-3 (XROM 22), ADV_MATH_B = bit-4 (XROM 24); `default_xrom_modules()` = `0b0001_1111`.
+
+### Phase 44 — CLI Integration (shipped 2026-05-26)
+
+The fifth source-of-truth lands as `docs/hp41-advantage-functions.json` — a 114-entry canonical source split across two JSON pools reflecting the dual-XROM-ID hardware design: 63 entries under `xrom: { module: "ADV CONV/MTRX", module_id: 22 }` and 51 entries under `xrom: { module: "ADV MATH/TVM", module_id: 24 }`. The 7-category convention (ADV Base Conversion / ADV Boolean / ADV Matrix / ADV Complex / ADV Polynomial / ADV Solver / ADV TVM) follows the D-34.1 / D-39.9 naming discipline. Inline `divergences` fields appear only on entries where inline signposting is warranted; the full divergences taxonomy lives in `docs/hp41-advantage-divergences.md` (D-45-NN entries, bucket 2-3).
+
+The fifth `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs` chains as `help_entries_adv()` + the 5-pool `help_entries_all()` accumulator (cv → math1 → stat1 → time → adv). The `?` help overlay gains an "Advantage Pac (XROM 22+24)" section auto-derived from the JSON categories; incremental substring search spans all five pools. 114 new `op_display_name` arms land in `hp41-cli/src/prgm_display.rs` (item 3 of the 4-way exhaustive-match invariant complete; no `_ =>` catch-all). `function_matrix_parity.rs` graduates to a 5-pool partition test. `xrom_shadowing.rs` is extended to cover both `ADV_MATH_A.ops` and `ADV_MATH_B.ops` — critically, the shadowing test for ADV_MATH_B uses the `0b0001_0000` bit-4 isolation mask (not `0b0001_1111`) so that the 12 intentional MATH_1 overlaps (E^Z, LNZ, LOGZ, Z^N, Z^1/N, Z^W, |Z|, SINZ, COSZ, TANZ, A^Z, CINV) are correctly recognised as intentional rather than flagged as mnemonic collisions. The fifth `just docs-matrix` invocation generates `docs/hp41-advantage-function-matrix.md`; `just docs-matrix-check` covers all five matrices. 421 hp41-cli tests pass. No hp41-core or hp41-gui changes ship in Phase 44 — SC-4 invariant trivially preserved.
+
+### Phase 45 — Documentation & ADRs (shipped 2026-05-26)
+
+Phase 45 authors the Advantage Pac documentation suite in two plans. Plan 45-01 creates `docs/hp41-advantage-divergences.md` (three-bucket D-30.5 five-field catalog, 9 `D-45-NN` entries across 0 OM Divergences / 2 Emulator Extensions / 7 Behavioral Policies) and four long-form ADRs: v3.3-001 (named-matrix storage model), v3.3-002 (FROOT Laguerre algorithm), v3.3-003 (dual XROM ID design), v3.3-004 (math1/ visibility promotion policy). Plan 45-02 (this plan) appends this v3.3 architecture-history narrative section, the `### v3.3 additions` CLAUDE.md decision-summary block, and the README v3.3 soft-claim bullet. The v3.3 hard-claim ("feature-complete per Owner's Manual 00041-90482") is deferred to Phase 47 per the D-30.9 → D-32.5 → D-35.3 → D-37.11 → D-42.11 graduation cadence.
+
+### Phase 46 — GUI Integration
+
+Phase 46 planned.
+
+### Phase 47 — Test Hardening & Quality Gates
+
+Phase 47 planned.
+
+**Frozen invariants preserved across v3.3:**
+
+- SC-4 invariant: Advantage Pac math lives in `hp41-core/src/ops/advantage/`. The math1/ third carve-out (`complex.rs` visibility promotion) is documented per ADR-v3.3-004 — no Advantage Pac code leaks INTO the frozen `math1/` tree. Phase 46 GUI integration will add zero calculator logic to `hp41-gui` (SC-4 grep must return nothing).
+- 4-exhaustive-match invariant: items 1+2 complete in Phase 43 (`dispatch()` + `execute_op()`); item 3 closed in Phase 44 (CLI `prgm_display.rs`); item 4 deferred to Phase 46 (GUI `prgm_display.rs`). The intentional `non-exhaustive patterns` CI break between Phase 43 ship and Phase 44 ship was the load-bearing reminder for item 3; Phase 46 closes item 4.
+- `#![deny(clippy::unwrap_used)]` continues to apply in `hp41-core`; new test files in v3.3 carry `#[allow]` at file scope per the established pattern.
+- Save-file backward compat: all 9 Phase 43 CalcState fields carry `#[serde(default)]`; 5 transient fields additionally carry `#[serde(skip)]`. The `adv_tvm_state` field is the documented exception (`default` WITHOUT `skip` per D-43.11 / ADR-v3.1-001 Pitfall 20 pattern — the second instance after `rand_seed`). Phase 47 backward-compat test will confirm v3.2 → v3.3 migration path.
+- MSRV 1.88 unchanged through Phase 43–47. Zero new runtime deps (no LA library, no polynomial library added).
+- Free42 GPL contamination guard: extended to cover `advantage/` tree; 18 tokens, exits 0. Phase 47 re-verification pending.
+
+---
+
 ## Quality Gate History
 
-| Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) | v3.2 (Phase 42) |
-|------|--------|------|-------------|------------------|------------------|------------------|-----------------|
-| Cold-start | ≤ 0.5 s | 2.2 ms (M1) | unchanged (CLI); GUI not gated | unchanged | unchanged | unchanged | TBD |
-| Key latency | ≤ 50 ms median | ~65 ns/op | unchanged | unchanged | unchanged | unchanged | TBD |
-| Numerical accuracy | ≥ 98% | 99% (495/500) | unchanged | 99.1% (561/566) | 99.3% (763/768) | 98.86% (791 cases) | TBD |
-| `hp41-core` coverage | ≥ 95% lines / ≥ 93% regions (v2.2 raised from 80%) | 94.87% | 92.5% / 89.9% | 95.25% / 93.75% | 95.39% / 94.26% | 93.91% / 95.84% | TBD |
-| Panics in `hp41-core` | 0 | 0 | 0 | 0 | 0 | 0 | TBD |
-| Free42 contamination | 0 distinctive symbols | n/a | n/a | n/a | 0 (12 tokens, CI-gated) | 0 (18 tokens, CI-gated) | TBD |
-| CI | Win 10+, macOS 12+, Ubuntu 22.04+ | `ci.yml` | + `ci-gui.yml` | unchanged | + `license-audit` job | unchanged | TBD |
-| MSRV | declared | — | 1.88 | 1.88 | 1.88 | 1.88 | TBD |
+| Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) | v3.2 (Phase 42) | v3.3 (Phase 47) |
+|------|--------|------|-------------|------------------|------------------|------------------|-----------------|-----------------|
+| Cold-start | ≤ 0.5 s | 2.2 ms (M1) | unchanged (CLI); GUI not gated | unchanged | unchanged | unchanged | TBD | TBD |
+| Key latency | ≤ 50 ms median | ~65 ns/op | unchanged | unchanged | unchanged | unchanged | TBD | TBD |
+| Numerical accuracy | ≥ 98% | 99% (495/500) | unchanged | 99.1% (561/566) | 99.3% (763/768) | 98.86% (791 cases) | TBD | TBD |
+| `hp41-core` coverage | ≥ 95% lines / ≥ 93% regions (v2.2 raised from 80%) | 94.87% | 92.5% / 89.9% | 95.25% / 93.75% | 95.39% / 94.26% | 93.91% / 95.84% | TBD | TBD |
+| Panics in `hp41-core` | 0 | 0 | 0 | 0 | 0 | 0 | TBD | TBD |
+| Free42 contamination | 0 distinctive symbols | n/a | n/a | n/a | 0 (12 tokens, CI-gated) | 0 (18 tokens, CI-gated) | TBD | TBD |
+| CI | Win 10+, macOS 12+, Ubuntu 22.04+ | `ci.yml` | + `ci-gui.yml` | unchanged | + `license-audit` job | unchanged | TBD | TBD |
+| MSRV | declared | — | 1.88 | 1.88 | 1.88 | 1.88 | TBD | TBD |
