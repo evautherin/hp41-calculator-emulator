@@ -102,7 +102,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 
 - [x] **Phase 43: hp41-core — XROM Framework + All Advantage Pac Ops** - XROM 22 + XROM 24 registration, named-matrix CalcState model, AdvantageStep modal variant, and all ~117 Op variants (ADV CONV/MTRX/MATH/TVM) implemented in `ops/advantage/` (completed 2026-05-25)
 - [x] **Phase 44: hp41-cli — CLI Integration** - Fifth JSON canonical source, op_display_name arms, help overlay sections, xrom_shadowing extension, modal-prompt routing (completed 2026-05-26)
-- [ ] **Phase 45: Documentation & ADRs** - Divergences catalog, function matrix, ADRs for named-matrix model / FROOT algorithm / dual-XROM design / math1 visibility promotions, CLAUDE.md v3.3 block
+- [x] **Phase 45: Documentation & ADRs** - Divergences catalog, function matrix, ADRs for named-matrix model / FROOT algorithm / dual-XROM design / math1 visibility promotions, CLAUDE.md v3.3 block (completed 2026-05-26)
 - [ ] **Phase 46: hp41-gui — GUI Integration** - GUI op_display_name arms (4-way invariant item 4), HelpOverlay sections, CATALOG 2 entries for XROM 22+24, modal LCD rendering
 - [ ] **Phase 47: Test Hardening & Quality Gates** - Unified meta-gates extended to Advantage Pac, FROOT/FINTG/MDET/MINV accuracy oracles, backward compat v3.2→v3.3, E2E smoke, README hard-claim graduated
 
@@ -186,7 +186,7 @@ Plans:
   4. `docs/architecture-history.md` contains a `## v3.3 additions` section and CLAUDE.md contains a `### v3.3 additions` block
   5. README contains the v3.3 soft-claim bullet under `## Features`
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 **Wave 1**
@@ -195,7 +195,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 45-02-PLAN.md — architecture-history.md v3.3 narrative + CLAUDE.md v3.3 block + README soft-claim + ADV-DOC-01 verification
+- [x] 45-02-PLAN.md — architecture-history.md v3.3 narrative + CLAUDE.md v3.3 block + README soft-claim + ADV-DOC-01 verification
 
 ### Phase 46: hp41-gui — GUI Integration
 
@@ -233,7 +233,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
 | 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
-| 45. Documentation & ADRs | 1/2 | In Progress|  |
+| 45. Documentation & ADRs | 2/2 | Complete   | 2026-05-26 |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
 | 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
