@@ -94,7 +94,7 @@ See [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) for full phase deta
 
 </details>
 
-### 🚧 v3.3 Advantage Pac Emulation (In Progress)
+### v3.3 Advantage Pac Emulation (In Progress)
 
 **Milestone Goal:** Behavioral emulation of the HP-41 Advantage Pac (OM 00041-90482) as the fourth XROM application module, completing all remaining HP-41 module emulation. Two XROM IDs (22 + 24): ~117 ops across bitwise/base conversion (ADV CONV), named-matrix operations (ADV MTRX), advanced math/complex/solver/curve-fit (ADV MATH), and time-value-of-money (ADV TVM).
 
@@ -186,7 +186,16 @@ Plans:
   4. `docs/architecture-history.md` contains a `## v3.3 additions` section and CLAUDE.md contains a `### v3.3 additions` block
   5. README contains the v3.3 soft-claim bullet under `## Features`
 
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 45-01-PLAN.md — Divergence catalog (9 D-45-NN entries, 3 buckets) + 4 ADRs (v3.3-001 through v3.3-004)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 45-02-PLAN.md — architecture-history.md v3.3 narrative + CLAUDE.md v3.3 block + README soft-claim + ADV-DOC-01 verification
 
 ### Phase 46: hp41-gui — GUI Integration
 
@@ -224,10 +233,10 @@ Plans:
 |-------|----------------|--------|-----------|
 | 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
 | 44. hp41-cli — CLI Integration | 2/2 | Complete   | 2026-05-26 |
-| 45. Documentation & ADRs | 0/TBD | Not started | - |
+| 45. Documentation & ADRs | 0/2 | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
 | 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---
 
-*Last updated: 2026-05-26 — Phase 44 planned (2 plans in 2 waves).*
+*Last updated: 2026-05-26 — Phase 45 planned (2 plans in 2 waves).*
