@@ -218,7 +218,7 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
                         <button
                             className="help-overlay-section-heading"
                             onClick={() => toggleSection(section.id)}
-                            aria-expanded={!!expanded[section.id]}
+                            aria-expanded={expanded[section.id] ? "true" : "false"}
                         >
                             {section.heading}
                             {query !== '' && ` (${count})`}
