@@ -39,8 +39,8 @@ use crate::{
     stack::{apply_lift_effect, enter_number, LiftEffect},
     state::CalcState,
 };
-use rust_decimal::Decimal;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::Decimal;
 
 // ── Register index constants ───────────────────────────────────────────────
 
@@ -517,12 +517,18 @@ mod tests {
         op_adv_as(&mut state).unwrap();
         // X should now be n=1
         let n = x_f64(&state);
-        assert!((n - 1.0).abs() < 1e-9, "n should be 1 after first AS, got {n}");
+        assert!(
+            (n - 1.0).abs() < 1e-9,
+            "n should be 1 after first AS, got {n}"
+        );
 
         set_xy(&mut state, 3.0, 6.0);
         op_adv_as(&mut state).unwrap();
         let n = x_f64(&state);
-        assert!((n - 2.0).abs() < 1e-9, "n should be 2 after second AS, got {n}");
+        assert!(
+            (n - 2.0).abs() < 1e-9,
+            "n should be 2 after second AS, got {n}"
+        );
     }
 
     // Catches: linear AS + FIT with collinear data returns correct coefficients
@@ -547,7 +553,10 @@ mod tests {
 
         assert!((a - 1.0).abs() < 1e-6, "intercept should be 1.0, got {a}");
         assert!((b - 2.0).abs() < 1e-6, "slope should be 2.0, got {b}");
-        assert!((corr - 1.0).abs() < 1e-6, "correlation should be 1.0, got {corr}");
+        assert!(
+            (corr - 1.0).abs() < 1e-6,
+            "correlation should be 1.0, got {corr}"
+        );
     }
 
     // Catches: Y?X predicts correctly after a linear fit
@@ -568,7 +577,10 @@ mod tests {
         op_adv_y_query_x(&mut state).unwrap();
 
         let pred = x_f64(&state);
-        assert!((pred - 9.0).abs() < 1e-6, "predicted y at x=4 should be 9.0, got {pred}");
+        assert!(
+            (pred - 9.0).abs() < 1e-6,
+            "predicted y at x=4 should be 9.0, got {pred}"
+        );
     }
 
     // Catches: SZ? returns 0 when n < 3
@@ -584,7 +596,10 @@ mod tests {
         // n == 2 → SZ? should return 0
         op_adv_sz_query(&mut state).unwrap();
         let result = x_f64(&state);
-        assert!(result.abs() < 1e-9, "SZ? should return 0 when n=2, got {result}");
+        assert!(
+            result.abs() < 1e-9,
+            "SZ? should return 0 when n=2, got {result}"
+        );
     }
 
     // Catches: SZ? returns 1 when n >= 3
@@ -599,7 +614,10 @@ mod tests {
         }
         op_adv_sz_query(&mut state).unwrap();
         let result = x_f64(&state);
-        assert!((result - 1.0).abs() < 1e-9, "SZ? should return 1 when n=3, got {result}");
+        assert!(
+            (result - 1.0).abs() < 1e-9,
+            "SZ? should return 1 when n=3, got {result}"
+        );
     }
 
     // Catches: DS reverses AS correctly
@@ -643,7 +661,10 @@ mod tests {
         state.stack.x = HpNum::rounded(Decimal::from_f64(5.0).unwrap());
         op_adv_y_query_x(&mut state).unwrap();
         let pred = x_f64(&state);
-        assert!((pred - 17.0).abs() < 1e-4, "predicted y at x=5 should be 17.0, got {pred}");
+        assert!(
+            (pred - 17.0).abs() < 1e-4,
+            "predicted y at x=5 should be 17.0, got {pred}"
+        );
     }
 
     // Catches: BFIT returns |r| for the stored data
@@ -659,7 +680,10 @@ mod tests {
         }
         op_adv_bfit(&mut state).unwrap();
         let r_abs = x_f64(&state);
-        assert!((r_abs - 1.0).abs() < 1e-6, "|r| should be 1.0 for perfect linear data, got {r_abs}");
+        assert!(
+            (r_abs - 1.0).abs() < 1e-6,
+            "|r| should be 1.0 for perfect linear data, got {r_abs}"
+        );
     }
 
     // Catches: named constants are in valid register range (T-43-11 mitigation)
@@ -667,7 +691,10 @@ mod tests {
     fn cfit_register_constants_in_bounds() {
         let state = new_state();
         // CalcState::new() provides 100 registers (0..99)
-        assert!(CFIT_MAX_REG < state.regs.len(), "CFIT_MAX_REG must be addressable");
+        assert!(
+            CFIT_MAX_REG < state.regs.len(),
+            "CFIT_MAX_REG must be addressable"
+        );
         assert!(CFIT_N_REG >= 10, "CFIT block must start at R10 or later");
         assert!(CFIT_MAX_REG <= 19, "CFIT block must end at R19 or earlier");
     }

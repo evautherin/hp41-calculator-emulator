@@ -58,8 +58,8 @@ pub use tvm::TvmState;
 // Re-export all op functions for use in ops/mod.rs dispatch() and ops/program.rs execute_op()
 pub use complex_ext::{
     op_adv_a_pow_z, op_adv_aip, op_adv_c_div, op_adv_c_minus, op_adv_c_mul, op_adv_c_plus,
-    op_adv_cinv, op_adv_cos_z, op_adv_exp_z, op_adv_ln_z, op_adv_log_z, op_adv_magz,
-    op_adv_sin_z, op_adv_tan_z, op_adv_z_pow_1n, op_adv_z_pow_1w, op_adv_z_pow_n, op_adv_z_pow_w,
+    op_adv_cinv, op_adv_cos_z, op_adv_exp_z, op_adv_ln_z, op_adv_log_z, op_adv_magz, op_adv_sin_z,
+    op_adv_tan_z, op_adv_z_pow_1n, op_adv_z_pow_1w, op_adv_z_pow_n, op_adv_z_pow_w,
 };
 pub use conv::{
     op_adv_and, op_adv_binin, op_adv_binview, op_adv_bit_test, op_adv_cvtview, op_adv_hexin,
@@ -77,11 +77,11 @@ pub use matrix_linalg::{
 };
 pub use matrix_ops::{
     op_adv_dim_query, op_adv_fnrm, op_adv_i_minus, op_adv_i_plus, op_adv_j_minus, op_adv_j_plus,
-    op_adv_matdim, op_adv_max, op_adv_maxab, op_adv_min, op_adv_mname_query, op_adv_mp,
-    op_adv_mr, op_adv_mrc_minus, op_adv_mrc_plus, op_adv_mrij, op_adv_mrr_minus, op_adv_mrr_plus,
-    op_adv_ms, op_adv_msc_plus, op_adv_msij, op_adv_msijr, op_adv_msr_plus, op_adv_mswap,
-    op_adv_piv, op_adv_r_exchange_r, op_adv_r_gt_r_query, op_adv_rmaxab, op_adv_rnrm,
-    op_adv_rsum, op_adv_sum, op_adv_sumab,
+    op_adv_matdim, op_adv_max, op_adv_maxab, op_adv_min, op_adv_mname_query, op_adv_mp, op_adv_mr,
+    op_adv_mrc_minus, op_adv_mrc_plus, op_adv_mrij, op_adv_mrr_minus, op_adv_mrr_plus, op_adv_ms,
+    op_adv_msc_plus, op_adv_msij, op_adv_msijr, op_adv_msr_plus, op_adv_mswap, op_adv_piv,
+    op_adv_r_exchange_r, op_adv_r_gt_r_query, op_adv_rmaxab, op_adv_rnrm, op_adv_rsum, op_adv_sum,
+    op_adv_sumab,
 };
 pub use matrix_workflow::{op_adv_cmedit, op_adv_matrx, op_adv_medit, op_adv_mtr};
 pub use poly::{op_adv_ply, op_adv_rts};
@@ -89,10 +89,12 @@ pub use solvers::{
     op_adv_fdifeq, op_adv_fdifeq_run_loop, op_adv_fintg, op_adv_fintg_run_loop, op_adv_froot,
     op_adv_fsolve, op_adv_fsolve_run_loop,
 };
-pub use tvm::{op_adv_tvm, op_adv_tvm_fv, op_adv_tvm_n, op_adv_tvm_pmt, op_adv_tvm_pv, op_adv_tvm_star_i};
+pub use tvm::{
+    op_adv_tvm, op_adv_tvm_fv, op_adv_tvm_n, op_adv_tvm_pmt, op_adv_tvm_pv, op_adv_tvm_star_i,
+};
 pub use vectors::{
     op_adv_cross, op_adv_dot, op_adv_tr, op_adv_uv, op_adv_v_mag, op_adv_v_minus, op_adv_v_plus,
-    op_adv_v_star, op_adv_vd, op_adv_ve, op_adv_vr, op_adv_vs, op_adv_vc, op_adv_vxy,
+    op_adv_v_star, op_adv_vc, op_adv_vd, op_adv_ve, op_adv_vr, op_adv_vs, op_adv_vxy,
 };
 
 /// Named matrix entry for Advantage Pac X-MEM model (ADV-FW-04 / D-43.1).
@@ -153,8 +155,7 @@ mod tests {
     #[test]
     fn adv_word_mask_value() {
         assert_eq!(
-            ADV_WORD_MASK,
-            68_719_476_735u64,
+            ADV_WORD_MASK, 68_719_476_735u64,
             "ADV_WORD_MASK == 2^36 - 1 == 68_719_476_735"
         );
     }

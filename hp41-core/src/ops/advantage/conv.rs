@@ -312,7 +312,11 @@ pub fn op_adv_bit_test(state: &mut CalcState) -> Result<(), HpError> {
     }
     let val = x_to_u64_masked(&state.stack.x)?;
     let is_set = (val >> (bit_num as u32)) & 1 == 1;
-    let result = if is_set { HpNum::from(1i32) } else { HpNum::zero() };
+    let result = if is_set {
+        HpNum::from(1i32)
+    } else {
+        HpNum::zero()
+    };
     binary_result(state, result);
     Ok(())
 }
@@ -327,27 +331,27 @@ mod tests {
     // Helper: set X register via f64 (for values ≤ 10^9, within 10-digit HpNum precision).
     fn set_x(state: &mut CalcState, val: f64) {
         state.stack.x = HpNum::from(
-            rust_decimal::Decimal::from_f64(val)
-                .unwrap_or(rust_decimal::Decimal::ZERO),
+            rust_decimal::Decimal::from_f64(val).unwrap_or(rust_decimal::Decimal::ZERO),
         );
     }
 
     // Helper: set X register exactly from u64 (bypasses rounded(), safe for all u64).
     fn set_x_u64(state: &mut CalcState, val: u64) {
-        state.stack.x = HpNum(rust_decimal::Decimal::from_u64(val).unwrap_or(rust_decimal::Decimal::ZERO));
+        state.stack.x =
+            HpNum(rust_decimal::Decimal::from_u64(val).unwrap_or(rust_decimal::Decimal::ZERO));
     }
 
     // Helper: set Y register via f64 (for values ≤ 10^9, within 10-digit HpNum precision).
     fn set_y(state: &mut CalcState, val: f64) {
         state.stack.y = HpNum::from(
-            rust_decimal::Decimal::from_f64(val)
-                .unwrap_or(rust_decimal::Decimal::ZERO),
+            rust_decimal::Decimal::from_f64(val).unwrap_or(rust_decimal::Decimal::ZERO),
         );
     }
 
     // Helper: set Y register exactly from u64 (bypasses rounded(), safe for all u64).
     fn set_y_u64(state: &mut CalcState, val: u64) {
-        state.stack.y = HpNum(rust_decimal::Decimal::from_u64(val).unwrap_or(rust_decimal::Decimal::ZERO));
+        state.stack.y =
+            HpNum(rust_decimal::Decimal::from_u64(val).unwrap_or(rust_decimal::Decimal::ZERO));
     }
 
     // Helper: read X as f64.
@@ -404,7 +408,11 @@ mod tests {
         let s = "1".to_string() + &"0".repeat(36);
         state.alpha_reg = s;
         op_adv_binin(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 0.0, "37-bit string must be masked to 36 bits");
+        assert_eq!(
+            get_x_f64(&state),
+            0.0,
+            "37-bit string must be masked to 36 bits"
+        );
     }
 
     // Catches: BININ with whitespace trims correctly
@@ -547,10 +555,22 @@ mod tests {
         let mut state = CalcState::new();
         set_x(&mut state, 10.0);
         op_adv_cvtview(&mut state).unwrap();
-        assert!(state.print_buffer.iter().any(|l| l.contains("1010")), "BIN line must contain 1010");
-        assert!(state.print_buffer.iter().any(|l| l.contains("12")), "OCT line must contain 12");
-        assert!(state.print_buffer.iter().any(|l| l.contains("10")), "DEC line must contain 10");
-        assert!(state.print_buffer.iter().any(|l| l.contains('A')), "HEX line must contain A");
+        assert!(
+            state.print_buffer.iter().any(|l| l.contains("1010")),
+            "BIN line must contain 1010"
+        );
+        assert!(
+            state.print_buffer.iter().any(|l| l.contains("12")),
+            "OCT line must contain 12"
+        );
+        assert!(
+            state.print_buffer.iter().any(|l| l.contains("10")),
+            "DEC line must contain 10"
+        );
+        assert!(
+            state.print_buffer.iter().any(|l| l.contains('A')),
+            "HEX line must contain A"
+        );
     }
 
     // Catches: CVTVIEW pushes exactly 4 lines
@@ -570,7 +590,11 @@ mod tests {
         let mut state = CalcState::new();
         set_x(&mut state, 0.0);
         op_adv_not(&mut state).unwrap();
-        assert_eq!(get_x_u64(&state), ADV_WORD_MASK, "NOT(0) must equal ADV_WORD_MASK");
+        assert_eq!(
+            get_x_u64(&state),
+            ADV_WORD_MASK,
+            "NOT(0) must equal ADV_WORD_MASK"
+        );
     }
 
     // Catches: NOT(ADV_WORD_MASK) == 0 (use u64 helper to set 11-digit value precisely)
@@ -589,7 +613,11 @@ mod tests {
         set_x(&mut state, 42.0);
         op_adv_not(&mut state).unwrap();
         op_adv_not(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 42.0, "double NOT must restore original value");
+        assert_eq!(
+            get_x_f64(&state),
+            42.0,
+            "double NOT must restore original value"
+        );
     }
 
     // ── AND ───────────────────────────────────────────────────────────────────
@@ -602,9 +630,17 @@ mod tests {
         set_y(&mut state, 0x0F_u64 as f64); // Y = 15
         let y_before = state.stack.z.inner(); // track stack drop
         op_adv_and(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 15.0, "AND(0xFF, 0x0F) must yield 0x0F = 15");
+        assert_eq!(
+            get_x_f64(&state),
+            15.0,
+            "AND(0xFF, 0x0F) must yield 0x0F = 15"
+        );
         // Verify stack dropped: new Y = old Z
-        assert_eq!(state.stack.y.inner(), y_before, "AND must drop Y (stack drop)");
+        assert_eq!(
+            state.stack.y.inner(),
+            y_before,
+            "AND must drop Y (stack drop)"
+        );
     }
 
     // Catches: AND with 0 yields 0
@@ -626,7 +662,11 @@ mod tests {
         set_x(&mut state, 0xF0_u64 as f64); // X = 240
         set_y(&mut state, 0x0F_u64 as f64); // Y = 15
         op_adv_or(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 0xFF_u64 as f64, "OR(0xF0, 0x0F) must yield 0xFF = 255");
+        assert_eq!(
+            get_x_f64(&state),
+            0xFF_u64 as f64,
+            "OR(0xF0, 0x0F) must yield 0xFF = 255"
+        );
     }
 
     // Catches: OR with 0 is identity
@@ -648,7 +688,11 @@ mod tests {
         set_x(&mut state, 0xFF_u64 as f64); // X = 255
         set_y(&mut state, 0x0F_u64 as f64); // Y = 15
         op_adv_xor(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 0xF0_u64 as f64, "XOR(0xFF, 0x0F) must yield 0xF0 = 240");
+        assert_eq!(
+            get_x_f64(&state),
+            0xF0_u64 as f64,
+            "XOR(0xFF, 0x0F) must yield 0xF0 = 240"
+        );
     }
 
     // Catches: XOR with itself yields 0
@@ -678,10 +722,14 @@ mod tests {
     fn adv_rotxy_right_by_one() {
         let mut state = CalcState::new();
         set_x(&mut state, -1.0); // shift = -1 (right by 1 = left by 35 within 36-bit word)
-        set_y(&mut state, 1.0);  // value = 1
+        set_y(&mut state, 1.0); // value = 1
         op_adv_rotxy(&mut state).unwrap();
         let expected = 1u64 << 35; // 2^35 = 34,359,738,368
-        assert_eq!(get_x_u64(&state), expected, "rotate right 1: bit 0 wraps to bit 35");
+        assert_eq!(
+            get_x_u64(&state),
+            expected,
+            "rotate right 1: bit 0 wraps to bit 35"
+        );
     }
 
     // Catches: ROTXY full cycle (shift 36) is identity
@@ -723,7 +771,11 @@ mod tests {
         set_x(&mut state, 5.0); // X = 5 = 0b101
         set_y(&mut state, 0.0); // Y = bit 0
         op_adv_bit_test(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 1.0, "bit 0 of 5 (0b101) is set → result 1");
+        assert_eq!(
+            get_x_f64(&state),
+            1.0,
+            "bit 0 of 5 (0b101) is set → result 1"
+        );
     }
 
     // Catches: BIT?(X=5, Y=1) → 0 (bit 1 of 5 = 101 is clear)
@@ -733,7 +785,11 @@ mod tests {
         set_x(&mut state, 5.0); // X = 5 = 0b101
         set_y(&mut state, 1.0); // Y = bit 1
         op_adv_bit_test(&mut state).unwrap();
-        assert_eq!(get_x_f64(&state), 0.0, "bit 1 of 5 (0b101) is clear → result 0");
+        assert_eq!(
+            get_x_f64(&state),
+            0.0,
+            "bit 1 of 5 (0b101) is clear → result 0"
+        );
     }
 
     // Catches: BIT? bit 35 (MSB of 36-bit word — 2^35 = 34,359,738,368 = 11 digits, use u64 helper)
@@ -784,7 +840,11 @@ mod tests {
         set_y(&mut state, 0.0);
         op_adv_bit_test(&mut state).unwrap();
         // After binary_result: new Y = old Z = 99
-        assert_eq!(state.stack.y.inner().to_f64().unwrap(), 99.0, "BIT? must drop Y (stack drop)");
+        assert_eq!(
+            state.stack.y.inner().to_f64().unwrap(),
+            99.0,
+            "BIT? must drop Y (stack drop)"
+        );
     }
 
     // Catches: x_to_u64_masked handles max 36-bit value (ADV_WORD_MASK = 2^36-1 = 11 digits).

@@ -116,7 +116,9 @@ pub fn op_adv_medit(state: &mut CalcState) -> Result<(), HpError> {
     // Start element-editing from (1,1) (1-based display)
     state.adv_matrix_i = 0; // 0-based storage
     state.adv_matrix_j = 0;
-    state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::MeditElementPrompt(1, 1)));
+    state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::MeditElementPrompt(
+        1, 1,
+    )));
     state.modal_prompt = Some("[1,1]=?".to_string());
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
@@ -149,7 +151,9 @@ pub fn op_adv_cmedit(state: &mut CalcState) -> Result<(), HpError> {
     // Start complex element-editing from (1,1)
     state.adv_matrix_i = 0;
     state.adv_matrix_j = 0;
-    state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::CmeditElementPrompt(1, 1)));
+    state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::CmeditElementPrompt(
+        1, 1,
+    )));
     state.modal_prompt = Some("C[1,1]=?".to_string());
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
@@ -232,7 +236,9 @@ mod tests {
         op_adv_medit(&mut state).unwrap();
         assert!(matches!(
             state.modal_program,
-            Some(ModalProgram::Advantage(AdvantageStep::MeditElementPrompt(1, 1)))
+            Some(ModalProgram::Advantage(AdvantageStep::MeditElementPrompt(
+                1, 1
+            )))
         ));
         assert_eq!(state.modal_prompt, Some("[1,1]=?".to_string()));
         assert_eq!(state.adv_matrix_i, 0, "i reset to 0 (0-based)");
@@ -269,7 +275,9 @@ mod tests {
         op_adv_cmedit(&mut state).unwrap();
         assert!(matches!(
             state.modal_program,
-            Some(ModalProgram::Advantage(AdvantageStep::CmeditElementPrompt(1, 1)))
+            Some(ModalProgram::Advantage(AdvantageStep::CmeditElementPrompt(
+                1, 1
+            )))
         ));
         assert_eq!(state.modal_prompt, Some("C[1,1]=?".to_string()));
     }

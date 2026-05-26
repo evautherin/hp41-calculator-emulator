@@ -561,8 +561,16 @@ mod tests {
     fn adv_c_plus_t_replicate() {
         let mut s = make_state("1", "2", "3", "4");
         op_adv_c_plus(&mut s).unwrap();
-        assert_relative_eq!(s.stack.z.inner().to_f64().unwrap(), 4.0, max_relative = 1e-7);
-        assert_relative_eq!(s.stack.t.inner().to_f64().unwrap(), 4.0, max_relative = 1e-7);
+        assert_relative_eq!(
+            s.stack.z.inner().to_f64().unwrap(),
+            4.0,
+            max_relative = 1e-7
+        );
+        assert_relative_eq!(
+            s.stack.t.inner().to_f64().unwrap(),
+            4.0,
+            max_relative = 1e-7
+        );
     }
 
     /// Catches: ADV C+ enables lift.
@@ -737,7 +745,10 @@ mod tests {
     #[test]
     fn adv_z_pow_1w_zero_exponent_is_divide_by_zero() {
         let mut s = make_state("2", "0", "0", "0"); // z=2, w=0
-        assert!(matches!(op_adv_z_pow_1w(&mut s), Err(HpError::DivideByZero)));
+        assert!(matches!(
+            op_adv_z_pow_1w(&mut s),
+            Err(HpError::DivideByZero)
+        ));
     }
 
     /// Catches: Z^(1/W) with z=(0+0i) and Re(w)>0 → (0+0i).

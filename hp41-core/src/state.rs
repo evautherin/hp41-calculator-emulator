@@ -354,7 +354,6 @@ pub struct CalcState {
     pub alarm_catalog_mode: bool,
 
     // ── Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) ─────────────────
-
     /// Named matrices for the Advantage Pac ALPHA-register model (D-43.1).
     ///
     /// D-43.5 ISOLATION INVARIANT: This field has NO connection to

@@ -40,6 +40,7 @@
 //!
 //! Source: HP Advantage Pac Owner's Manual 00041-90482 §3 Vector Operations.
 
+use crate::ops::math1::ModalProgram;
 use crate::{
     error::HpError,
     num::HpNum,
@@ -47,9 +48,8 @@ use crate::{
     stack::{apply_lift_effect, enter_number, LiftEffect},
     state::CalcState,
 };
-use crate::ops::math1::ModalProgram;
-use rust_decimal::Decimal;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::Decimal;
 
 // ── Register index constants ───────────────────────────────────────────────
 
@@ -77,16 +77,30 @@ fn require_vec_size(state: &CalcState) -> Result<(), HpError> {
 /// Read 3 vector components from registers at `base`, `base+1`, `base+2`.
 #[inline]
 fn read_vec(state: &CalcState, base: usize) -> (f64, f64, f64) {
-    let v1 = state.regs[base].numeric_or_zero().inner().to_f64().unwrap_or(0.0);
-    let v2 = state.regs[base + 1].numeric_or_zero().inner().to_f64().unwrap_or(0.0);
-    let v3 = state.regs[base + 2].numeric_or_zero().inner().to_f64().unwrap_or(0.0);
+    let v1 = state.regs[base]
+        .numeric_or_zero()
+        .inner()
+        .to_f64()
+        .unwrap_or(0.0);
+    let v2 = state.regs[base + 1]
+        .numeric_or_zero()
+        .inner()
+        .to_f64()
+        .unwrap_or(0.0);
+    let v3 = state.regs[base + 2]
+        .numeric_or_zero()
+        .inner()
+        .to_f64()
+        .unwrap_or(0.0);
     (v1, v2, v3)
 }
 
 /// Write 3 vector components to registers at `base`, `base+1`, `base+2`.
 #[inline]
 fn write_vec(state: &mut CalcState, base: usize, v: (f64, f64, f64)) {
-    let mk = |val: f64| -> crate::num::HpValue { HpNum::rounded(Decimal::from_f64(val).unwrap_or(Decimal::ZERO)).into() };
+    let mk = |val: f64| -> crate::num::HpValue {
+        HpNum::rounded(Decimal::from_f64(val).unwrap_or(Decimal::ZERO)).into()
+    };
     state.regs[base] = mk(v.0);
     state.regs[base + 1] = mk(v.1);
     state.regs[base + 2] = mk(v.2);
@@ -208,7 +222,11 @@ pub fn op_adv_vs(state: &mut CalcState) -> Result<(), HpError> {
     require_vec_size(state)?;
     let scalar = hpnum_to_f64(&state.stack.x)?;
     let (a1, a2, a3) = read_vec(state, VEC_A_BASE);
-    write_vec(state, VEC_RESULT_BASE, (scalar * a1, scalar * a2, scalar * a3));
+    write_vec(
+        state,
+        VEC_RESULT_BASE,
+        (scalar * a1, scalar * a2, scalar * a3),
+    );
     // Drop X (scalar consumed)
     state.stack.x = state.stack.y.clone();
     state.stack.y = state.stack.z.clone();
@@ -428,7 +446,10 @@ mod tests {
         set_vec_b(&mut state, (4.0, 5.0, 6.0));
         op_adv_dot(&mut state).unwrap();
         let result = x_f64(&state);
-        assert!((result - 32.0).abs() < 1e-9, "DOT([1,2,3],[4,5,6]) should be 32.0, got {result}");
+        assert!(
+            (result - 32.0).abs() < 1e-9,
+            "DOT([1,2,3],[4,5,6]) should be 32.0, got {result}"
+        );
     }
 
     // Catches: DOT is commutative
@@ -439,7 +460,10 @@ mod tests {
         set_vec_b(&mut state, (0.0, 1.0, 0.0));
         op_adv_dot(&mut state).unwrap();
         let result = x_f64(&state);
-        assert!(result.abs() < 1e-9, "DOT of orthogonal unit vectors should be 0");
+        assert!(
+            result.abs() < 1e-9,
+            "DOT of orthogonal unit vectors should be 0"
+        );
     }
 
     // Catches: CROSS([1,0,0],[0,1,0]) = [0,0,1]
@@ -452,7 +476,10 @@ mod tests {
         let (r1, r2, r3) = get_result(&state);
         assert!(r1.abs() < 1e-9, "cross result[1] should be 0, got {r1}");
         assert!(r2.abs() < 1e-9, "cross result[2] should be 0, got {r2}");
-        assert!((r3 - 1.0).abs() < 1e-9, "cross result[3] should be 1, got {r3}");
+        assert!(
+            (r3 - 1.0).abs() < 1e-9,
+            "cross result[3] should be 1, got {r3}"
+        );
     }
 
     // Catches: V+([1,2,3],[4,5,6]) = [5,7,9]
@@ -522,7 +549,10 @@ mod tests {
         set_vec_a(&mut state, (3.0, 4.0, 0.0));
         op_adv_v_mag(&mut state).unwrap();
         let mag = x_f64(&state);
-        assert!((mag - 5.0).abs() < 1e-9, "V< of [3,4,0] should be 5.0, got {mag}");
+        assert!(
+            (mag - 5.0).abs() < 1e-9,
+            "V< of [3,4,0] should be 5.0, got {mag}"
+        );
     }
 
     // Catches: VE sets up modal prompt for vector entry
@@ -545,9 +575,18 @@ mod tests {
         let x = x_f64(&state);
         let y = hpnum_to_f64(&state.stack.y).unwrap();
         let z = hpnum_to_f64(&state.stack.z).unwrap();
-        assert!((x - 10.0).abs() < 1e-9, "X should be component 1 = 10, got {x}");
-        assert!((y - 20.0).abs() < 1e-9, "Y should be component 2 = 20, got {y}");
-        assert!((z - 30.0).abs() < 1e-9, "Z should be component 3 = 30, got {z}");
+        assert!(
+            (x - 10.0).abs() < 1e-9,
+            "X should be component 1 = 10, got {x}"
+        );
+        assert!(
+            (y - 20.0).abs() < 1e-9,
+            "Y should be component 2 = 20, got {y}"
+        );
+        assert!(
+            (z - 30.0).abs() < 1e-9,
+            "Z should be component 3 = 30, got {z}"
+        );
     }
 
     // Catches: VXY zeros the Z component
@@ -559,7 +598,10 @@ mod tests {
         let (a1, a2, a3) = read_vec(&state, VEC_A_BASE);
         assert!((a1 - 3.0).abs() < 1e-9);
         assert!((a2 - 4.0).abs() < 1e-9);
-        assert!(a3.abs() < 1e-9, "Z component should be 0 after VXY, got {a3}");
+        assert!(
+            a3.abs() < 1e-9,
+            "Z component should be 0 after VXY, got {a3}"
+        );
     }
 
     // Catches: TR rotates vector A by 90 degrees
@@ -597,7 +639,10 @@ mod tests {
         set_vec_b(&mut state, (1.0, 1.0, 1.0));
         op_adv_vd(&mut state).unwrap();
         let result = x_f64(&state);
-        assert!((result - 9.0).abs() < 1e-9, "VD([2,3,4],[1,1,1]) should be 9, got {result}");
+        assert!(
+            (result - 9.0).abs() < 1e-9,
+            "VD([2,3,4],[1,1,1]) should be 9, got {result}"
+        );
     }
 
     // Catches: V* is alias for VS
@@ -618,8 +663,14 @@ mod tests {
     fn vec_register_constants_in_bounds() {
         let state = new_state();
         // CalcState::new() provides 100 registers (0..99)
-        assert!(VEC_MAX_REG < state.regs.len(), "VEC_MAX_REG must be addressable");
-        assert!(VEC_A_BASE >= 20, "vector A block must start at R20 or later");
+        assert!(
+            VEC_MAX_REG < state.regs.len(),
+            "VEC_MAX_REG must be addressable"
+        );
+        assert!(
+            VEC_A_BASE >= 20,
+            "vector A block must start at R20 or later"
+        );
         assert!(VEC_MAX_REG <= 28, "vector block must end at R28 or earlier");
     }
 }

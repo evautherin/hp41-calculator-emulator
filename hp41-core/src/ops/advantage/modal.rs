@@ -8,12 +8,7 @@
 //! TVM modal steps (TvmN/TvmI/TvmPv/TvmPmt/TvmFv/TvmBeginEnd) are fully
 //! implemented (Plan 43-09 pattern). Matrix workflow steps implemented in Plan 43-08.
 
-use crate::{
-    error::HpError,
-    num::HpNum,
-    ops::math1::modal::ModalProgram,
-    state::CalcState,
-};
+use crate::{error::HpError, num::HpNum, ops::math1::modal::ModalProgram, state::CalcState};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 
@@ -74,15 +69,9 @@ pub fn current_prompt(step: &AdvantageStep) -> Option<String> {
         AdvantageStep::MatrixNamePrompt => Some("MNAME?".to_string()),
         AdvantageStep::MatrixDimRowPrompt => Some("ROWS=?".to_string()),
         AdvantageStep::MatrixDimColPrompt => Some("COLS=?".to_string()),
-        AdvantageStep::MeditElementPrompt(r, c) => {
-            Some(format!("[{},{}]=?", r, c))
-        }
-        AdvantageStep::CmeditElementPrompt(r, c) => {
-            Some(format!("C[{},{}]=?", r, c))
-        }
-        AdvantageStep::VeComponentPrompt(k) => {
-            Some(format!("V[{}]=?", k))
-        }
+        AdvantageStep::MeditElementPrompt(r, c) => Some(format!("[{},{}]=?", r, c)),
+        AdvantageStep::CmeditElementPrompt(r, c) => Some(format!("C[{},{}]=?", r, c)),
+        AdvantageStep::VeComponentPrompt(k) => Some(format!("V[{}]=?", k)),
         AdvantageStep::MatrxOperationChoice => Some("MATRX OP?".to_string()),
         AdvantageStep::MtrNamePrompt => Some("MTR NAME?".to_string()),
         AdvantageStep::FdifeqOrderPrompt => Some("ORDER=?".to_string()),
@@ -122,10 +111,7 @@ pub fn requires_alpha_label(step: &AdvantageStep) -> bool {
 /// Used for dimension entry in matrix workflows (T-43-14 mitigation).
 fn x_to_dim(state: &CalcState) -> Result<u8, HpError> {
     let trunc = state.stack.x.trunc_int();
-    let v = trunc
-        .inner()
-        .to_u8()
-        .ok_or(HpError::Domain)?;
+    let v = trunc.inner().to_u8().ok_or(HpError::Domain)?;
     if v == 0 {
         return Err(HpError::Domain);
     }
@@ -193,10 +179,7 @@ fn stack_drop(state: &mut CalcState) {
 /// - Matrix arms: `HpError::Domain` for invalid dimensions/choices; `HpError::InvalidOp`
 ///   for missing matrix.
 /// - Non-implemented arms: `Err(HpError::InvalidOp)`.
-pub fn submit_step(
-    state: &mut CalcState,
-    step: AdvantageStep,
-) -> Result<(), HpError> {
+pub fn submit_step(state: &mut CalcState, step: AdvantageStep) -> Result<(), HpError> {
     match step {
         // ── TVM register-entry workflow ────────────────────────────────────────
         // Each arm:
@@ -269,15 +252,13 @@ pub fn submit_step(
             // If matrix already exists: skip dimension entry, go to operation choice
             if crate::ops::advantage::matrix_workflow::check_matrix_exists(state, &name) {
                 state.adv_current_matrix = Some(name);
-                state.modal_program = Some(ModalProgram::Advantage(
-                    AdvantageStep::MatrxOperationChoice,
-                ));
+                state.modal_program =
+                    Some(ModalProgram::Advantage(AdvantageStep::MatrxOperationChoice));
                 state.modal_prompt = Some("MATRX OP?".to_string());
             } else {
                 // New matrix: prompt for dimensions
-                state.modal_program = Some(ModalProgram::Advantage(
-                    AdvantageStep::MatrixDimRowPrompt,
-                ));
+                state.modal_program =
+                    Some(ModalProgram::Advantage(AdvantageStep::MatrixDimRowPrompt));
                 state.modal_prompt = Some("ROWS=?".to_string());
             }
             Ok(())
@@ -290,9 +271,7 @@ pub fn submit_step(
             state.pending_adv_matrix_rows = Some(rows);
             // Drop X (consumed)
             stack_drop(state);
-            state.modal_program = Some(ModalProgram::Advantage(
-                AdvantageStep::MatrixDimColPrompt,
-            ));
+            state.modal_program = Some(ModalProgram::Advantage(AdvantageStep::MatrixDimColPrompt));
             state.modal_prompt = Some("COLS=?".to_string());
             Ok(())
         }
@@ -313,9 +292,7 @@ pub fn submit_step(
             // Push rows to Y (X already has cols), set alpha_reg to name, call op_adv_matdim
             // op_adv_matdim: reads alpha_reg=name, Y=rows, X=cols; drops Y+X
             // We need: Y=rows, X=cols — currently X=cols (user entered it), push rows to Y
-            let rows_hp = HpNum::from(
-                Decimal::from_u8(rows).ok_or(HpError::Domain)?,
-            );
+            let rows_hp = HpNum::from(Decimal::from_u8(rows).ok_or(HpError::Domain)?);
             // Lift stack: Z←Y, Y←X (cols), then set Y=rows
             // Actually we need to push rows onto the stack so Y=rows, X=cols
             // Save current X (cols) temporarily
@@ -336,9 +313,8 @@ pub fn submit_step(
             // op_adv_matdim: sets adv_current_matrix = name, resets I=0, J=0
 
             // Advance to operation choice
-            state.modal_program = Some(ModalProgram::Advantage(
-                AdvantageStep::MatrxOperationChoice,
-            ));
+            state.modal_program =
+                Some(ModalProgram::Advantage(AdvantageStep::MatrxOperationChoice));
             state.modal_prompt = Some("MATRX OP?".to_string());
             Ok(())
         }
@@ -347,10 +323,7 @@ pub fn submit_step(
         AdvantageStep::MatrxOperationChoice => {
             // Read operation code from X: 1=DET, 2=INV, 3=SYS (T-43-14: validate)
             let trunc = state.stack.x.trunc_int();
-            let choice = trunc
-                .inner()
-                .to_i32()
-                .ok_or(HpError::Domain)?;
+            let choice = trunc.inner().to_i32().ok_or(HpError::Domain)?;
             // Drop X (consumed)
             stack_drop(state);
             // Clear modal state BEFORE dispatching (stat1 pattern)
@@ -375,15 +348,13 @@ pub fn submit_step(
             if crate::ops::advantage::matrix_workflow::check_matrix_exists(state, &name) {
                 // Matrix exists: go to operation choice
                 state.adv_current_matrix = Some(name);
-                state.modal_program = Some(ModalProgram::Advantage(
-                    AdvantageStep::MatrxOperationChoice,
-                ));
+                state.modal_program =
+                    Some(ModalProgram::Advantage(AdvantageStep::MatrxOperationChoice));
                 state.modal_prompt = Some("MATRX OP?".to_string());
             } else {
                 // New matrix: prompt for dimensions, then element entry loop
-                state.modal_program = Some(ModalProgram::Advantage(
-                    AdvantageStep::MatrixDimRowPrompt,
-                ));
+                state.modal_program =
+                    Some(ModalProgram::Advantage(AdvantageStep::MatrixDimRowPrompt));
                 state.modal_prompt = Some("ROWS=?".to_string());
             }
             Ok(())
@@ -520,10 +491,7 @@ pub fn submit_step(
         AdvantageStep::FdifeqOrderPrompt => {
             // Read ODE order from X: must be 1 or 2
             let trunc = state.stack.x.trunc_int();
-            let order = trunc
-                .inner()
-                .to_u8()
-                .ok_or(HpError::Domain)?;
+            let order = trunc.inner().to_u8().ok_or(HpError::Domain)?;
             if order != 1 && order != 2 {
                 return Err(HpError::Domain);
             }
@@ -572,9 +540,9 @@ pub fn submit_step(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::state::CalcState;
     use crate::num::HpNum;
     use crate::ops::advantage::AdvMatrix;
+    use crate::state::CalcState;
     use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
     use rust_decimal::Decimal;
 
@@ -625,7 +593,9 @@ mod tests {
     fn alpha_label_steps() {
         assert!(requires_alpha_label(&AdvantageStep::MatrixNamePrompt));
         assert!(requires_alpha_label(&AdvantageStep::MtrNamePrompt));
-        assert!(requires_alpha_label(&AdvantageStep::FdifeqFunctionNamePrompt));
+        assert!(requires_alpha_label(
+            &AdvantageStep::FdifeqFunctionNamePrompt
+        ));
         assert!(!requires_alpha_label(&AdvantageStep::TvmN));
         assert!(!requires_alpha_label(&AdvantageStep::MatrixDimRowPrompt));
     }
@@ -684,8 +654,14 @@ mod tests {
         // Step 6: submit BeginEnd=0 (END mode)
         push_x(&mut state, 0.0);
         submit_step(&mut state, AdvantageStep::TvmBeginEnd).unwrap();
-        assert!(state.modal_program.is_none(), "modal cleared after TvmBeginEnd");
-        assert!(state.modal_prompt.is_none(), "prompt cleared after TvmBeginEnd");
+        assert!(
+            state.modal_program.is_none(),
+            "modal cleared after TvmBeginEnd"
+        );
+        assert!(
+            state.modal_prompt.is_none(),
+            "prompt cleared after TvmBeginEnd"
+        );
         let tvm = state.adv_tvm_state.as_ref().unwrap();
         assert!(!tvm.begin_mode, "X=0 → END mode");
     }
@@ -835,7 +811,11 @@ mod tests {
         submit_step(&mut state, AdvantageStep::MatrixDimColPrompt).unwrap();
 
         // Matrix should exist 3x3
-        let mat = state.adv_matrices.iter().find(|m| m.name == "TEST").unwrap();
+        let mat = state
+            .adv_matrices
+            .iter()
+            .find(|m| m.name == "TEST")
+            .unwrap();
         assert_eq!(mat.rows, 3);
         assert_eq!(mat.cols, 3);
 
@@ -923,7 +903,9 @@ mod tests {
         // Modal advanced to (1,2)
         assert!(matches!(
             state.modal_program,
-            Some(ModalProgram::Advantage(AdvantageStep::MeditElementPrompt(1, 2)))
+            Some(ModalProgram::Advantage(AdvantageStep::MeditElementPrompt(
+                1, 2
+            )))
         ));
         assert_eq!(state.modal_prompt, Some("[1,2]=?".to_string()));
     }
@@ -948,13 +930,16 @@ mod tests {
 
         let values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         // Element order: (1,1),(1,2),(1,3),(2,1),(2,2),(2,3)
-        let order: &[(u8, u8)] = &[(1,1),(1,2),(1,3),(2,1),(2,2),(2,3)];
+        let order: &[(u8, u8)] = &[(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)];
 
         for (i, (r, c)) in order.iter().enumerate() {
             push_x(&mut state, values[i]);
             submit_step(&mut state, AdvantageStep::MeditElementPrompt(*r, *c)).unwrap();
         }
-        assert!(state.modal_program.is_none(), "modal cleared after last element");
+        assert!(
+            state.modal_program.is_none(),
+            "modal cleared after last element"
+        );
 
         let mat = state.adv_matrices.iter().find(|m| m.name == "M2").unwrap();
         for (i, v) in values.iter().enumerate() {
@@ -986,8 +971,14 @@ mod tests {
         submit_step(&mut state, AdvantageStep::CmeditElementPrompt(1, 1)).unwrap();
 
         let mat = state.adv_matrices.iter().find(|m| m.name == "CM").unwrap();
-        assert!((mat.data[0].inner().to_f64().unwrap() - 5.0).abs() < 1e-9, "real part");
-        assert!((mat.data[1].inner().to_f64().unwrap() - 3.0).abs() < 1e-9, "imag part");
+        assert!(
+            (mat.data[0].inner().to_f64().unwrap() - 5.0).abs() < 1e-9,
+            "real part"
+        );
+        assert!(
+            (mat.data[1].inner().to_f64().unwrap() - 3.0).abs() < 1e-9,
+            "imag part"
+        );
         assert!(state.modal_program.is_none(), "1x1 → modal cleared");
     }
 
@@ -1009,7 +1000,9 @@ mod tests {
 
         assert!(matches!(
             state.modal_program,
-            Some(ModalProgram::Advantage(AdvantageStep::CmeditElementPrompt(2, 1)))
+            Some(ModalProgram::Advantage(AdvantageStep::CmeditElementPrompt(
+                2, 1
+            )))
         ));
     }
 
@@ -1061,7 +1054,9 @@ mod tests {
         assert_eq!(state.adv_fdifeq_state.as_ref().unwrap().order, 2);
         assert!(matches!(
             state.modal_program,
-            Some(ModalProgram::Advantage(AdvantageStep::FdifeqFunctionNamePrompt))
+            Some(ModalProgram::Advantage(
+                AdvantageStep::FdifeqFunctionNamePrompt
+            ))
         ));
     }
 

@@ -1181,13 +1181,24 @@ mod tests {
     fn adv_fsolve_run_loop_not_in_module_table() {
         // The *_run_loop ops are internal re-entry points, not user-callable mnemonics.
         let result = xrom_resolve("FSOLVE_RUN_LOOP", 0b0001_1111);
-        assert!(result.is_none(), "FSOLVE_RUN_LOOP must not be XEQ-resolvable");
+        assert!(
+            result.is_none(),
+            "FSOLVE_RUN_LOOP must not be XEQ-resolvable"
+        );
     }
 
     // Catches: migration default_xrom_modules bit-3 + bit-4 sanity
     #[test]
     fn adv_modules_bit_positions_sanity() {
-        assert_eq!(0b0001_1111u8 & 0b0000_1000, 0b0000_1000, "bit 3 = ADV_MATH_A");
-        assert_eq!(0b0001_1111u8 & 0b0001_0000, 0b0001_0000, "bit 4 = ADV_MATH_B");
+        assert_eq!(
+            0b0001_1111u8 & 0b0000_1000,
+            0b0000_1000,
+            "bit 3 = ADV_MATH_A"
+        );
+        assert_eq!(
+            0b0001_1111u8 & 0b0001_0000,
+            0b0001_0000,
+            "bit 4 = ADV_MATH_B"
+        );
     }
 }

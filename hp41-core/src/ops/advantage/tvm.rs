@@ -56,7 +56,10 @@ fn tvm_state(state: &mut CalcState) -> &mut TvmState {
         state.adv_tvm_state = Some(TvmState::default());
     }
     // SAFETY: we just ensured it is Some above
-    state.adv_tvm_state.as_mut().expect("TvmState was just initialized")
+    state
+        .adv_tvm_state
+        .as_mut()
+        .expect("TvmState was just initialized")
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +400,10 @@ mod tests {
         });
         let json = serde_json::to_string(&state).unwrap();
         // Confirm adv_tvm_state appears in the JSON (not skipped)
-        assert!(json.contains("adv_tvm_state"), "adv_tvm_state must be in JSON (not serde(skip))");
+        assert!(
+            json.contains("adv_tvm_state"),
+            "adv_tvm_state must be in JSON (not serde(skip))"
+        );
         let state2: CalcState = serde_json::from_str(&json).unwrap();
         let tvm2 = state2.adv_tvm_state.unwrap();
         assert_eq!(tvm2.n, HpNum::from(360_i32));
@@ -434,8 +440,18 @@ mod tests {
         let mut state = CalcState::new();
         push_x(&mut state, 360.0);
         op_adv_tvm_n(&mut state).unwrap();
-        let n = state.adv_tvm_state.as_ref().unwrap().n.inner().to_f64().unwrap();
-        assert!((n - 360.0).abs() < 1e-9, "tvm.n must equal 360 after op_adv_tvm_n with X=360");
+        let n = state
+            .adv_tvm_state
+            .as_ref()
+            .unwrap()
+            .n
+            .inner()
+            .to_f64()
+            .unwrap();
+        assert!(
+            (n - 360.0).abs() < 1e-9,
+            "tvm.n must equal 360 after op_adv_tvm_n with X=360"
+        );
     }
 
     // Catches: TVM PV stores X into tvm.pv (ADV-TVM-03)
@@ -444,7 +460,14 @@ mod tests {
         let mut state = CalcState::new();
         push_x(&mut state, 200_000.0);
         op_adv_tvm_pv(&mut state).unwrap();
-        let pv = state.adv_tvm_state.as_ref().unwrap().pv.inner().to_f64().unwrap();
+        let pv = state
+            .adv_tvm_state
+            .as_ref()
+            .unwrap()
+            .pv
+            .inner()
+            .to_f64()
+            .unwrap();
         assert!((pv - 200_000.0).abs() < 1e-9, "tvm.pv must equal 200000");
     }
 
@@ -454,7 +477,14 @@ mod tests {
         let mut state = CalcState::new();
         push_x(&mut state, -1000.0);
         op_adv_tvm_pmt(&mut state).unwrap();
-        let pmt = state.adv_tvm_state.as_ref().unwrap().pmt.inner().to_f64().unwrap();
+        let pmt = state
+            .adv_tvm_state
+            .as_ref()
+            .unwrap()
+            .pmt
+            .inner()
+            .to_f64()
+            .unwrap();
         assert!((pmt - (-1000.0)).abs() < 1e-9, "tvm.pmt must equal -1000");
     }
 
@@ -464,7 +494,14 @@ mod tests {
         let mut state = CalcState::new();
         push_x(&mut state, 0.0);
         op_adv_tvm_fv(&mut state).unwrap();
-        let fv = state.adv_tvm_state.as_ref().unwrap().fv.inner().to_f64().unwrap();
+        let fv = state
+            .adv_tvm_state
+            .as_ref()
+            .unwrap()
+            .fv
+            .inner()
+            .to_f64()
+            .unwrap();
         assert!(fv.abs() < 1e-9, "tvm.fv must equal 0");
     }
 
@@ -475,12 +512,18 @@ mod tests {
         state.stack.lift_enabled = true;
         push_x(&mut state, 1.0);
         op_adv_tvm_n(&mut state).unwrap();
-        assert!(state.stack.lift_enabled, "N op must be lift-neutral (leave lift_enabled=true)");
+        assert!(
+            state.stack.lift_enabled,
+            "N op must be lift-neutral (leave lift_enabled=true)"
+        );
 
         state.stack.lift_enabled = false;
         push_x(&mut state, 1.0);
         op_adv_tvm_pv(&mut state).unwrap();
-        assert!(!state.stack.lift_enabled, "PV op must be lift-neutral (leave lift_enabled=false)");
+        assert!(
+            !state.stack.lift_enabled,
+            "PV op must be lift-neutral (leave lift_enabled=false)"
+        );
     }
 
     // Catches: *I converges on standard 30-year mortgage case
@@ -498,7 +541,11 @@ mod tests {
         });
 
         let result = op_adv_tvm_star_i(&mut state);
-        assert!(result.is_ok(), "*I must converge for standard mortgage: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "*I must converge for standard mortgage: {:?}",
+            result
+        );
 
         // X should contain monthly rate in percent ≈ 0.5% (6%/12)
         let i_pct = x_as_f64(&state);
@@ -531,7 +578,11 @@ mod tests {
         });
 
         let result = op_adv_tvm_star_i(&mut state);
-        assert!(result.is_ok(), "*I must converge for N=1,PV=-100,FV=110: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "*I must converge for N=1,PV=-100,FV=110: {:?}",
+            result
+        );
 
         let i_pct = x_as_f64(&state);
         assert!(

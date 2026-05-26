@@ -59,10 +59,7 @@ fn complex_elem_indices(mat: &AdvMatrix, i: usize, j: usize) -> Result<(usize, u
 ///
 /// # Errors
 /// Returns `HpError::InvalidOp` if no matrix with the given name exists.
-fn find_matrix_by_name<'a>(
-    matrices: &'a [AdvMatrix],
-    name: &str,
-) -> Result<usize, HpError> {
+fn find_matrix_by_name<'a>(matrices: &'a [AdvMatrix], name: &str) -> Result<usize, HpError> {
     matrices
         .iter()
         .position(|m| m.name == name)
@@ -82,10 +79,7 @@ fn find_matrix_by_name<'a>(
 /// - `HpError::InvalidOp` — no active matrix or named matrix not found.
 /// - `HpError::Domain` — either matrix is not complex.
 pub fn op_adv_c_exchange_c(state: &mut CalcState) -> Result<(), HpError> {
-    let active_name = state
-        .adv_current_matrix
-        .clone()
-        .ok_or(HpError::InvalidOp)?;
+    let active_name = state.adv_current_matrix.clone().ok_or(HpError::InvalidOp)?;
     let alpha_name = state.alpha_reg.trim().to_string();
     if alpha_name.is_empty() {
         return Err(HpError::InvalidOp);
@@ -133,10 +127,7 @@ pub fn op_adv_c_exchange_c(state: &mut CalcState) -> Result<(), HpError> {
 /// - `HpError::Domain` — matrix is not complex.
 /// - `HpError::Overflow` — conversion to f64 fails.
 pub fn op_adv_cmaxab(state: &mut CalcState) -> Result<(), HpError> {
-    let name = state
-        .adv_current_matrix
-        .clone()
-        .ok_or(HpError::InvalidOp)?;
+    let name = state.adv_current_matrix.clone().ok_or(HpError::InvalidOp)?;
     let idx = find_matrix_by_name(&state.adv_matrices, &name)?;
     if !state.adv_matrices[idx].is_complex {
         return Err(HpError::Domain);
@@ -179,10 +170,7 @@ pub fn op_adv_cmaxab(state: &mut CalcState) -> Result<(), HpError> {
 /// - `HpError::Domain` — matrix is not complex.
 /// - `HpError::Overflow` — conversion to f64 fails.
 pub fn op_adv_cnrm(state: &mut CalcState) -> Result<(), HpError> {
-    let name = state
-        .adv_current_matrix
-        .clone()
-        .ok_or(HpError::InvalidOp)?;
+    let name = state.adv_current_matrix.clone().ok_or(HpError::InvalidOp)?;
     let idx = find_matrix_by_name(&state.adv_matrices, &name)?;
     if !state.adv_matrices[idx].is_complex {
         return Err(HpError::Domain);
@@ -223,10 +211,7 @@ pub fn op_adv_cnrm(state: &mut CalcState) -> Result<(), HpError> {
 /// - `HpError::Domain` — matrix is not complex.
 /// - `HpError::Overflow` — f64 conversion or HpNum arithmetic fails.
 pub fn op_adv_csum(state: &mut CalcState) -> Result<(), HpError> {
-    let name = state
-        .adv_current_matrix
-        .clone()
-        .ok_or(HpError::InvalidOp)?;
+    let name = state.adv_current_matrix.clone().ok_or(HpError::InvalidOp)?;
     let idx = find_matrix_by_name(&state.adv_matrices, &name)?;
     if !state.adv_matrices[idx].is_complex {
         return Err(HpError::Domain);
@@ -271,10 +256,7 @@ pub fn op_adv_csum(state: &mut CalcState) -> Result<(), HpError> {
 /// - `HpError::Domain` — matrix is not complex.
 /// - `HpError::Domain` — (I, J) is out of range for the matrix.
 pub fn op_adv_yc_plus_c(state: &mut CalcState) -> Result<(), HpError> {
-    let name = state
-        .adv_current_matrix
-        .clone()
-        .ok_or(HpError::InvalidOp)?;
+    let name = state.adv_current_matrix.clone().ok_or(HpError::InvalidOp)?;
     let idx = find_matrix_by_name(&state.adv_matrices, &name)?;
     if !state.adv_matrices[idx].is_complex {
         return Err(HpError::Domain);
@@ -291,10 +273,8 @@ pub fn op_adv_yc_plus_c(state: &mut CalcState) -> Result<(), HpError> {
     let scalar_im = state.stack.y.clone();
 
     // Modify element in-place
-    let new_re = state.adv_matrices[idx].data[re_idx]
-        .checked_add(&scalar_re)?;
-    let new_im = state.adv_matrices[idx].data[im_idx]
-        .checked_add(&scalar_im)?;
+    let new_re = state.adv_matrices[idx].data[re_idx].checked_add(&scalar_re)?;
+    let new_im = state.adv_matrices[idx].data[im_idx].checked_add(&scalar_im)?;
 
     state.adv_matrices[idx].data[re_idx] = new_re;
     state.adv_matrices[idx].data[im_idx] = new_im;
@@ -315,9 +295,7 @@ fn make_complex_matrix(name: &str, rows: u8, cols: u8, data: Vec<f64>) -> AdvMat
         is_complex: true,
         data: data
             .into_iter()
-            .map(|v| {
-                HpNum::rounded(Decimal::from_f64(v).unwrap_or(Decimal::ZERO))
-            })
+            .map(|v| HpNum::rounded(Decimal::from_f64(v).unwrap_or(Decimal::ZERO)))
             .collect(),
     }
 }
@@ -555,7 +533,10 @@ mod tests {
         state.adv_matrices.push(mat_b);
         state.adv_current_matrix = Some("A".to_string());
         state.alpha_reg = "B".to_string();
-        assert!(matches!(op_adv_c_exchange_c(&mut state), Err(HpError::Domain)));
+        assert!(matches!(
+            op_adv_c_exchange_c(&mut state),
+            Err(HpError::Domain)
+        ));
     }
 
     /// Catches: C<>C with no active matrix → InvalidOp.
@@ -563,7 +544,10 @@ mod tests {
     fn adv_c_exchange_c_no_active_matrix() {
         let mut state = CalcState::new();
         state.alpha_reg = "B".to_string();
-        assert!(matches!(op_adv_c_exchange_c(&mut state), Err(HpError::InvalidOp)));
+        assert!(matches!(
+            op_adv_c_exchange_c(&mut state),
+            Err(HpError::InvalidOp)
+        ));
     }
 
     /// Catches: C<>C with non-existent alpha matrix → InvalidOp.
@@ -574,7 +558,10 @@ mod tests {
         state.adv_matrices.push(mat_a);
         state.adv_current_matrix = Some("A".to_string());
         state.alpha_reg = "MISSING".to_string();
-        assert!(matches!(op_adv_c_exchange_c(&mut state), Err(HpError::InvalidOp)));
+        assert!(matches!(
+            op_adv_c_exchange_c(&mut state),
+            Err(HpError::InvalidOp)
+        ));
     }
 
     /// Catches: C<>C is LiftEffect::Neutral.
@@ -598,12 +585,17 @@ mod tests {
     /// Element (0,0) = (1+2i), add (3+4i) → (4+6i).
     #[test]
     fn adv_yc_plus_c_basic() {
-        let mut state = state_with_complex_matrix("A", 2, 2, vec![
-            1.0, 2.0,   // (0,0)
-            0.0, 0.0,   // (0,1)
-            0.0, 0.0,   // (1,0)
-            0.0, 0.0,   // (1,1)
-        ]);
+        let mut state = state_with_complex_matrix(
+            "A",
+            2,
+            2,
+            vec![
+                1.0, 2.0, // (0,0)
+                0.0, 0.0, // (0,1)
+                0.0, 0.0, // (1,0)
+                0.0, 0.0, // (1,1)
+            ],
+        );
         use rust_decimal::Decimal;
         state.stack.x = HpNum::rounded(Decimal::from_f64(3.0).unwrap());
         state.stack.y = HpNum::rounded(Decimal::from_f64(4.0).unwrap());
@@ -634,7 +626,10 @@ mod tests {
     #[test]
     fn adv_yc_plus_c_no_active_matrix() {
         let mut state = CalcState::new();
-        assert!(matches!(op_adv_yc_plus_c(&mut state), Err(HpError::InvalidOp)));
+        assert!(matches!(
+            op_adv_yc_plus_c(&mut state),
+            Err(HpError::InvalidOp)
+        ));
     }
 
     /// Catches: YC+C with out-of-bounds I,J → Bounds.

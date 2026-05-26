@@ -398,13 +398,7 @@ pub fn op_adv_m_mul_m(state: &mut CalcState) -> Result<(), HpError> {
         let a_r = mat_a.rows as usize;
         let a_c = mat_a.cols as usize;
         let b_c = mat_b.cols as usize;
-        (
-            a_r,
-            a_c,
-            b_c,
-            matrix_to_f64(mat_a)?,
-            matrix_to_f64(mat_b)?,
-        )
+        (a_r, a_c, b_c, matrix_to_f64(mat_a)?, matrix_to_f64(mat_b)?)
     };
 
     // Compute C = A * B
@@ -717,10 +711,7 @@ mod tests {
         state.adv_current_matrix = Some("S".to_string());
         op_adv_mdet(&mut state).unwrap(); // Singular → det = 0, not an error
         let det = state.stack.x.inner().to_f64().unwrap();
-        assert!(
-            det.abs() < 1e-9,
-            "MDET singular: expected ~0, got {det}"
-        );
+        assert!(det.abs() < 1e-9, "MDET singular: expected ~0, got {det}");
     }
 
     // Catches: MDET of non-square matrix returns HpError::Domain
@@ -1037,11 +1028,7 @@ mod tests {
         state.adv_current_matrix = Some("A".to_string());
         op_adv_trnps(&mut state).unwrap();
 
-        let mat = state
-            .adv_matrices
-            .iter()
-            .find(|m| m.name == "A")
-            .unwrap();
+        let mat = state.adv_matrices.iter().find(|m| m.name == "A").unwrap();
         assert_eq!(mat.rows, 3, "TRNPS: transposed rows should be 3");
         assert_eq!(mat.cols, 2, "TRNPS: transposed cols should be 2");
 

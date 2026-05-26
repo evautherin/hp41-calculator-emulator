@@ -49,10 +49,7 @@ fn element_index(mat: &AdvMatrix, i: u8, j: u8) -> Result<usize, HpError> {
 /// Find a matrix by name (immutable borrow).
 ///
 /// Returns `HpError::InvalidOp` if no matrix with that name exists.
-fn find_matrix<'a>(
-    matrices: &'a [AdvMatrix],
-    name: &str,
-) -> Result<&'a AdvMatrix, HpError> {
+fn find_matrix<'a>(matrices: &'a [AdvMatrix], name: &str) -> Result<&'a AdvMatrix, HpError> {
     matrices
         .iter()
         .find(|m| m.name == name)
@@ -94,10 +91,7 @@ fn current_matrix_name(state: &CalcState) -> Result<String, HpError> {
 /// Truncate a HpNum value to a u8, returning `HpError::Domain` on out-of-range.
 fn hpnum_to_u8(n: &HpNum) -> Result<u8, HpError> {
     let trunc = n.trunc_int();
-    trunc
-        .inner()
-        .to_u8()
-        .ok_or(HpError::Domain)
+    trunc.inner().to_u8().ok_or(HpError::Domain)
 }
 
 // ── Row index operations ──────────────────────────────────────────────────────
@@ -604,9 +598,7 @@ pub fn op_adv_piv(state: &mut CalcState) -> Result<(), HpError> {
     }
     // Find row with maximum |element| in current column from pivot_row downward
     let mut max_row = pivot_row;
-    let mut max_abs = mat.data[pivot_row * cols + pivot_col]
-        .inner()
-        .abs();
+    let mut max_abs = mat.data[pivot_row * cols + pivot_col].inner().abs();
     for r in (pivot_row + 1)..rows {
         let abs_val = mat.data[r * cols + pivot_col].inner().abs();
         if abs_val > max_abs {
@@ -1110,11 +1102,8 @@ mod tests {
     // Catches: MRIJ reads element at explicit I=Y, J=X (1-based)
     #[test]
     fn adv_mrij_reads_element_at_explicit_ij() {
-        let mut state = make_state_with_matrix("A", 3, 3, vec![
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 9.0,
-        ]);
+        let mut state =
+            make_state_with_matrix("A", 3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         // Read element at row=2, col=3 (1-based) = (1,2) 0-based = value 6
         state.stack.y = HpNum::from(2); // row 2 (1-based)
         state.stack.x = HpNum::from(3); // col 3 (1-based)
@@ -1140,10 +1129,7 @@ mod tests {
     // Catches: MRC+ reads element then increments column index
     #[test]
     fn adv_mrc_plus_reads_then_increments_j() {
-        let mut state = make_state_with_matrix("A", 2, 3, vec![
-            10.0, 20.0, 30.0,
-            40.0, 50.0, 60.0,
-        ]);
+        let mut state = make_state_with_matrix("A", 2, 3, vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
         state.adv_matrix_i = 0;
         state.adv_matrix_j = 1; // read element (0,1) = 20
         op_adv_mrc_plus(&mut state).unwrap();
@@ -1154,11 +1140,7 @@ mod tests {
     // Catches: MRR+ reads element then increments row index
     #[test]
     fn adv_mrr_plus_reads_then_increments_i() {
-        let mut state = make_state_with_matrix("A", 3, 2, vec![
-            1.0, 2.0,
-            3.0, 4.0,
-            5.0, 6.0,
-        ]);
+        let mut state = make_state_with_matrix("A", 3, 2, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         state.adv_matrix_i = 1; // read element (1,0) = 3
         state.adv_matrix_j = 0;
         op_adv_mrr_plus(&mut state).unwrap();
@@ -1224,7 +1206,10 @@ mod tests {
     fn adv_mname_query_no_matrix_returns_error() {
         let mut state = CalcState::new();
         state.alpha_reg = "".to_string();
-        assert!(matches!(op_adv_mname_query(&mut state), Err(HpError::InvalidOp)));
+        assert!(matches!(
+            op_adv_mname_query(&mut state),
+            Err(HpError::InvalidOp)
+        ));
     }
 
     // ── Row operation tests ───────────────────────────────────────────────────
@@ -1232,11 +1217,16 @@ mod tests {
     // Catches: MSWAP swaps two rows of the matrix
     #[test]
     fn adv_mswap_swaps_rows() {
-        let mut state = make_state_with_matrix("A", 3, 2, vec![
-            1.0, 2.0,  // row 0
-            3.0, 4.0,  // row 1
-            5.0, 6.0,  // row 2
-        ]);
+        let mut state = make_state_with_matrix(
+            "A",
+            3,
+            2,
+            vec![
+                1.0, 2.0, // row 0
+                3.0, 4.0, // row 1
+                5.0, 6.0, // row 2
+            ],
+        );
         // Swap row 1 and row 3 (1-based)
         state.stack.y = HpNum::from(1); // row k=1 (1-based)
         state.stack.x = HpNum::from(3); // row l=3 (1-based)
@@ -1269,11 +1259,16 @@ mod tests {
     fn adv_piv_swaps_pivot_row() {
         // Matrix [[1,2],[5,6],[3,4]] — current col=0, starting from row 0
         // PIV should identify row 1 (value 5) as pivot and swap with row 0
-        let mut state = make_state_with_matrix("A", 3, 2, vec![
-            1.0, 2.0,  // row 0, col 0 = 1
-            5.0, 6.0,  // row 1, col 0 = 5 (max abs)
-            3.0, 4.0,  // row 2, col 0 = 3
-        ]);
+        let mut state = make_state_with_matrix(
+            "A",
+            3,
+            2,
+            vec![
+                1.0, 2.0, // row 0, col 0 = 1
+                5.0, 6.0, // row 1, col 0 = 5 (max abs)
+                3.0, 4.0, // row 2, col 0 = 3
+            ],
+        );
         state.adv_matrix_i = 0;
         state.adv_matrix_j = 0;
         op_adv_piv(&mut state).unwrap();
@@ -1357,7 +1352,11 @@ mod tests {
     fn adv_rnrm_2x2() {
         let mut state = make_state_with_matrix("A", 2, 2, vec![1.0, 2.0, 3.0, 4.0]);
         op_adv_rnrm(&mut state).unwrap();
-        assert_eq!(f64_from_hpnum(&state.stack.x), 7.0, "max row sum of abs = 3+4 = 7");
+        assert_eq!(
+            f64_from_hpnum(&state.stack.x),
+            7.0,
+            "max row sum of abs = 3+4 = 7"
+        );
     }
 
     // Catches: RSUM of row 0 of [[1,2],[3,4]] = 1+2 = 3
@@ -1390,11 +1389,16 @@ mod tests {
     // Catches: R>R? returns 1 if first element of row k > first element of row l
     #[test]
     fn adv_r_gt_r_query_returns_1_when_true() {
-        let mut state = make_state_with_matrix("A", 3, 2, vec![
-            1.0, 0.0,  // row 1
-            5.0, 0.0,  // row 2
-            3.0, 0.0,  // row 3
-        ]);
+        let mut state = make_state_with_matrix(
+            "A",
+            3,
+            2,
+            vec![
+                1.0, 0.0, // row 1
+                5.0, 0.0, // row 2
+                3.0, 0.0, // row 3
+            ],
+        );
         // Row 2 > Row 1 (5 > 1) → should return 1
         state.stack.y = HpNum::from(2); // row k=2 (1-based)
         state.stack.x = HpNum::from(1); // row l=1 (1-based)
@@ -1405,11 +1409,16 @@ mod tests {
     // Catches: R>R? returns 0 if row k <= row l
     #[test]
     fn adv_r_gt_r_query_returns_0_when_false() {
-        let mut state = make_state_with_matrix("A", 3, 2, vec![
-            5.0, 0.0,  // row 1
-            1.0, 0.0,  // row 2
-            3.0, 0.0,  // row 3
-        ]);
+        let mut state = make_state_with_matrix(
+            "A",
+            3,
+            2,
+            vec![
+                5.0, 0.0, // row 1
+                1.0, 0.0, // row 2
+                3.0, 0.0, // row 3
+            ],
+        );
         // Row 2 > Row 1 (1 > 5)? No → should return 0
         state.stack.y = HpNum::from(2); // row k=2 (1-based)
         state.stack.x = HpNum::from(1); // row l=1 (1-based)
@@ -1426,7 +1435,11 @@ mod tests {
         let mut state = make_state_with_matrix("A", 2, 2, vec![1.0, 2.0, 3.0, 4.0]);
         // All ops should work correctly using only adv_matrices + adv_matrix_i/j
         op_adv_sum(&mut state).unwrap();
-        assert_eq!(f64_from_hpnum(&state.stack.x), 10.0, "SUM uses adv_matrices only");
+        assert_eq!(
+            f64_from_hpnum(&state.stack.x),
+            10.0,
+            "SUM uses adv_matrices only"
+        );
     }
 
     // Catches: MR on non-existent matrix returns InvalidOp

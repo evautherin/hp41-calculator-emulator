@@ -325,24 +325,36 @@ pub fn op_adv_fsolve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
     };
 
     // Evaluate f(x1) and f(x2)
-    let mut fx1_f64 =
-        match eval_user_fn_inner(state, program, label_pos, x1_f64, save_call_stack_len, save_pc) {
-            Ok(v) => v,
-            Err(e) => {
-                state.adv_fsolve_state = None;
-                state.pc = save_pc;
-                return Err(e);
-            }
-        };
-    let mut fx2_f64 =
-        match eval_user_fn_inner(state, program, label_pos, x2_f64, save_call_stack_len, save_pc) {
-            Ok(v) => v,
-            Err(e) => {
-                state.adv_fsolve_state = None;
-                state.pc = save_pc;
-                return Err(e);
-            }
-        };
+    let mut fx1_f64 = match eval_user_fn_inner(
+        state,
+        program,
+        label_pos,
+        x1_f64,
+        save_call_stack_len,
+        save_pc,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            state.adv_fsolve_state = None;
+            state.pc = save_pc;
+            return Err(e);
+        }
+    };
+    let mut fx2_f64 = match eval_user_fn_inner(
+        state,
+        program,
+        label_pos,
+        x2_f64,
+        save_call_stack_len,
+        save_pc,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            state.adv_fsolve_state = None;
+            state.pc = save_pc;
+            return Err(e);
+        }
+    };
 
     // Modified secant loop
     for iter in 0..FSOLVE_MAX_ITERATIONS {
@@ -383,19 +395,23 @@ pub fn op_adv_fsolve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
 
         // Secant step: x_new = x2 - f(x2)*(x2-x1)/(f(x2)-f(x1))
         let x_new_f64 = x2_f64 - fx2_f64 * (x2_f64 - x1_f64) / denom;
-        let x_new = HpNum::from(
-            Decimal::from_f64(x_new_f64).unwrap_or(Decimal::ZERO),
-        );
+        let x_new = HpNum::from(Decimal::from_f64(x_new_f64).unwrap_or(Decimal::ZERO));
 
-        let fx_new_f64 =
-            match eval_user_fn_inner(state, program, label_pos, x_new_f64, save_call_stack_len, save_pc) {
-                Ok(v) => v,
-                Err(e) => {
-                    state.adv_fsolve_state = None;
-                    state.pc = save_pc;
-                    return Err(e);
-                }
-            };
+        let fx_new_f64 = match eval_user_fn_inner(
+            state,
+            program,
+            label_pos,
+            x_new_f64,
+            save_call_stack_len,
+            save_pc,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                state.adv_fsolve_state = None;
+                state.pc = save_pc;
+                return Err(e);
+            }
+        };
 
         // Convergence check
         if fx_new_f64.abs() < FSOLVE_CONVERGENCE_THRESHOLD {
@@ -411,8 +427,7 @@ pub fn op_adv_fsolve_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
         }
 
         // Sign change stagnation check
-        if fx1_f64 * fx_new_f64 < 0.0
-            && (x_new_f64 - x2_f64).abs() < 1e-14 * x2_f64.abs().max(1.0)
+        if fx1_f64 * fx_new_f64 < 0.0 && (x_new_f64 - x2_f64).abs() < 1e-14 * x2_f64.abs().max(1.0)
         {
             let v1 = format_hpnum(
                 &HpNum::from(Decimal::from_f64(x1_f64).unwrap_or(Decimal::ZERO)),
@@ -723,7 +738,11 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
         .get(5)
         .map(|r| r.numeric_or_zero().inner().to_u32().unwrap_or(0))
         .unwrap_or(0);
-    let max_steps = if max_steps_raw == 0 { 1000u32 } else { max_steps_raw };
+    let max_steps = if max_steps_raw == 0 {
+        1000u32
+    } else {
+        max_steps_raw
+    };
 
     if order_raw != 1 && order_raw != 2 {
         state.modal_prompt = Some("ORDER MUST BE 1 OR 2".to_string());
@@ -770,7 +789,11 @@ pub fn op_adv_fdifeq_run_loop(state: &mut CalcState, program: &[Op]) -> Result<(
                 st.max_steps,
                 st.x.clone(),
                 st.y.first().cloned().unwrap_or_default(),
-                if order == 2 { st.y.get(1).cloned() } else { None },
+                if order == 2 {
+                    st.y.get(1).cloned()
+                } else {
+                    None
+                },
                 st.h.clone(),
             )
         };
@@ -1004,9 +1027,10 @@ pub fn op_adv_froot(state: &mut CalcState) -> Result<(), HpError> {
     for (re, im) in &roots {
         if im.abs() < 1e-10 {
             let root_hp = HpNum::from(Decimal::from_f64(*re).unwrap_or(Decimal::ZERO));
-            state
-                .print_buffer
-                .push(format!("ROOT: {}", format_hpnum(&root_hp, &state.display_mode)));
+            state.print_buffer.push(format!(
+                "ROOT: {}",
+                format_hpnum(&root_hp, &state.display_mode)
+            ));
         } else {
             let re_hp = HpNum::from(Decimal::from_f64(*re).unwrap_or(Decimal::ZERO));
             let im_hp = HpNum::from(Decimal::from_f64(im.abs()).unwrap_or(Decimal::ZERO));
@@ -1161,11 +1185,7 @@ fn laguerre_roots(coeffs: &[f64], degree: usize) -> Result<Vec<(f64, f64)>, HpEr
 
 /// Evaluate P(x), P'(x), P''(x) at complex x using Horner's method.
 /// Returns ((P_re, P_im), (P'_re, P'_im), (P''_re, P''_im)).
-fn horner_complex(
-    coeffs: &[f64],
-    x_re: f64,
-    x_im: f64,
-) -> ((f64, f64), (f64, f64), (f64, f64)) {
+fn horner_complex(coeffs: &[f64], x_re: f64, x_im: f64) -> ((f64, f64), (f64, f64), (f64, f64)) {
     let mut p_re = coeffs[0];
     let mut p_im = 0.0_f64;
     let mut dp_re = 0.0_f64;
@@ -1202,7 +1222,10 @@ fn complex_div(a_re: f64, a_im: f64, b_re: f64, b_im: f64) -> (f64, f64) {
     if denom < 1e-300 {
         return (0.0, 0.0);
     }
-    ((a_re * b_re + a_im * b_im) / denom, (a_im * b_re - a_re * b_im) / denom)
+    (
+        (a_re * b_re + a_im * b_im) / denom,
+        (a_im * b_re - a_re * b_im) / denom,
+    )
 }
 
 /// Complex square root.
@@ -1337,7 +1360,11 @@ pub fn op_adv_rts(state: &mut CalcState) -> Result<(), HpError> {
                 (re, im, 1usize)
             } else {
                 let (re, im) = froot.roots_found[idx];
-                let next = if idx + 1 >= froot.roots_found.len() { 0 } else { idx + 1 };
+                let next = if idx + 1 >= froot.roots_found.len() {
+                    0
+                } else {
+                    idx + 1
+                };
                 (re, im, next)
             }
         }
@@ -1730,8 +1757,8 @@ mod tests {
         let mut state = CalcState::new();
         state.stack.x = HpNum::from(2i32); // degree = 2
         state.stack.lift_enabled = false;
-        state.regs[1] = HpNum::from(1i32).into();  // x^2
-        state.regs[2] = HpNum::from(0i32).into();  // x
+        state.regs[1] = HpNum::from(1i32).into(); // x^2
+        state.regs[2] = HpNum::from(0i32).into(); // x
         state.regs[3] = HpNum::from(-4i32).into(); // constant
 
         let result = op_adv_froot(&mut state);
@@ -1749,8 +1776,16 @@ mod tests {
             .collect();
         reals.sort_by(|a, b| a.partial_cmp(b).unwrap());
         assert_eq!(reals.len(), 2, "both roots should be real");
-        assert!((reals[0] - (-2.0)).abs() < 1e-6, "root[0] ≈ -2, got {}", reals[0]);
-        assert!((reals[1] - 2.0).abs() < 1e-6, "root[1] ≈ 2, got {}", reals[1]);
+        assert!(
+            (reals[0] - (-2.0)).abs() < 1e-6,
+            "root[0] ≈ -2, got {}",
+            reals[0]
+        );
+        assert!(
+            (reals[1] - 2.0).abs() < 1e-6,
+            "root[1] ≈ 2, got {}",
+            reals[1]
+        );
     }
 
     // Catches: FROOT cubic x^3-1 missing real root at x=1
@@ -1759,9 +1794,9 @@ mod tests {
         let mut state = CalcState::new();
         state.stack.x = HpNum::from(3i32);
         state.stack.lift_enabled = false;
-        state.regs[1] = HpNum::from(1i32).into();  // x^3
-        state.regs[2] = HpNum::from(0i32).into();  // x^2
-        state.regs[3] = HpNum::from(0i32).into();  // x
+        state.regs[1] = HpNum::from(1i32).into(); // x^3
+        state.regs[2] = HpNum::from(0i32).into(); // x^2
+        state.regs[3] = HpNum::from(0i32).into(); // x
         state.regs[4] = HpNum::from(-1i32).into(); // constant
 
         let result = op_adv_froot(&mut state);
@@ -1769,9 +1804,10 @@ mod tests {
         let froot = state.adv_froot_state.as_ref().unwrap();
         assert_eq!(froot.roots_found.len(), 3);
         // Should have at least one real root near x=1
-        let has_root_at_1 = froot.roots_found.iter().any(|(re, im)| {
-            im.abs() < 1e-4 && (re - 1.0).abs() < 1e-4
-        });
+        let has_root_at_1 = froot
+            .roots_found
+            .iter()
+            .any(|(re, im)| im.abs() < 1e-4 && (re - 1.0).abs() < 1e-4);
         assert!(has_root_at_1, "x^3-1 must have root at x=1");
     }
 
@@ -1863,7 +1899,7 @@ mod tests {
         let mut state = CalcState::new();
         state.alpha_reg = "ODE".to_string();
         state.regs[0] = HpNum::from(1i32).into(); // order=1
-        // step_size = 0.1
+                                                  // step_size = 0.1
         use rust_decimal::Decimal;
         use std::str::FromStr;
         state.regs[1] = HpNum::from(Decimal::from_str("0.1").unwrap()).into();
@@ -1874,10 +1910,16 @@ mod tests {
         let result = op_adv_fdifeq_run_loop(&mut state, &program);
         assert!(result.is_ok(), "FDIFEQ dy/dx=2x: {result:?}");
         // Should have 10+1 lines (initial + 10 steps)
-        assert!(state.print_buffer.len() >= 10, "must have >=10 output lines");
+        assert!(
+            state.print_buffer.len() >= 10,
+            "must have >=10 output lines"
+        );
         // Last line should show X≈1.0
         let last = state.print_buffer.last().unwrap();
-        assert!(last.starts_with("X="), "last line must start X=, got: {last}");
+        assert!(
+            last.starts_with("X="),
+            "last line must start X=, got: {last}"
+        );
     }
 
     // Catches: Horner evaluation wrong

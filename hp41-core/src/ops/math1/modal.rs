@@ -123,7 +123,9 @@ impl ModalProgram {
             // D-carried.4: Time Module alpha-label gate delegates to time::modal.
             ModalProgram::Time(step) => crate::ops::time::modal::requires_alpha_label(step),
             // D-43.6: Advantage Pac alpha-label gate delegates to advantage::modal.
-            ModalProgram::Advantage(step) => crate::ops::advantage::modal::requires_alpha_label(step),
+            ModalProgram::Advantage(step) => {
+                crate::ops::advantage::modal::requires_alpha_label(step)
+            }
             _ => false,
         }
     }
