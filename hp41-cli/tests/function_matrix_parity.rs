@@ -655,8 +655,8 @@ const ADV_A_OP_VARIANT_NAMES: &[&str] = &[
 ];
 
 /// Hand-curated inventory of ADV_MATH_B (XROM 24) `Op` variants shipped in Phase 43.
-/// ADV MATH complex extensions (18) + polynomial (2) + solvers (4) + curve fitting (7)
-/// + vectors (14) + AIP (1) + ADV TVM (6) = 51.
+/// ADV MATH complex extensions (18), polynomial (2), solvers (4), curve fitting (7),
+/// vectors (14), AIP (1), ADV TVM (6) = 51 total.
 /// Run-loop variants (AdvFsolveRunLoop/AdvFintgRunLoop/AdvFdifeqRunLoop) are EXCLUDED.
 ///
 /// Maintenance gate: if future plans add new ADV_MATH_B `Op` variants, append here

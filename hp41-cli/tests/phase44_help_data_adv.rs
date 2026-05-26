@@ -4,7 +4,7 @@
 //! targets (== 114 unique Op variants split 63 XROM 22 + 51 XROM 24 per Phase 43 ship).
 //!
 //! Test 11 (`help_entries_all_returns_five_pools`) asserts the merged chain length is
-//! >= 130 + 45 + 26 + 35 + 114 = 350 (v2.2 built-ins + Math Pac I + Stat 1 Pac +
+//! `>= 130 + 45 + 26 + 35 + 114 = 350` (v2.2 built-ins + Math Pac I + Stat 1 Pac +
 //! Time Pac + Advantage Pac). This is the five-pool chain established in Phase 44 Plan 01.
 //!
 //! Test 12 (`help_overlay_rows_includes_adv_pac_sections`) verifies that the fifth pool
