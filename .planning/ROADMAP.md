@@ -162,7 +162,16 @@ Plans:
   4. `xrom_shadowing.rs` CI gate passes: all ADV MTRX + ADV MATH + ADV TVM + ADV CONV mnemonics are confirmed disjoint from all other XROM modules and built-in card ops (Pitfall 22 across all 5 XROM modules)
   5. `hp41-cli` compiles with no `non-exhaustive patterns` warnings — 4-way invariant item 3 is fully satisfied
 
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 44-01-PLAN.md — JSON authoring (114 entries) + fifth OnceLock pool + docs-matrix extension
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 44-02-PLAN.md — Partition parity + xrom shadowing + modal flow + help data smoke + key coverage tests
 
 ### Phase 45: Documentation & ADRs
 
@@ -214,11 +223,11 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 43. hp41-core — XROM Framework + All Advantage Pac Ops | 10/10 | Complete   | 2026-05-25 |
-| 44. hp41-cli — CLI Integration | 0/TBD | Not started | - |
+| 44. hp41-cli — CLI Integration | 0/2 | Planned | - |
 | 45. Documentation & ADRs | 0/TBD | Not started | - |
 | 46. hp41-gui — GUI Integration | 0/TBD | Not started | - |
 | 47. Test Hardening & Quality Gates | 0/TBD | Not started | - |
 
 ---
 
-*Last updated: 2026-05-25 — Phase 43 planned (10 plans in 5 waves).*
+*Last updated: 2026-05-26 — Phase 44 planned (2 plans in 2 waves).*
