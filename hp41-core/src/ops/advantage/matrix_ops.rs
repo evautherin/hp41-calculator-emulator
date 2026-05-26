@@ -891,6 +891,7 @@ mod tests {
     fn make_state_with_matrix(name: &str, rows: u8, cols: u8, data: Vec<f64>) -> CalcState {
         let mut state = CalcState::new();
         let len = (rows as usize) * (cols as usize);
+        // LINT-EXEMPT: usize length comparison, not HpNum/Decimal; HpNum appears only in lookahead
         assert_eq!(data.len(), len, "test data length mismatch");
         let hp_data: Vec<HpNum> = data
             .into_iter()
@@ -1341,6 +1342,7 @@ mod tests {
         op_adv_fnrm(&mut state).unwrap();
         let result = f64_from_hpnum(&state.stack.x);
         let expected = 30.0_f64.sqrt();
+        // LINT-EXEMPT: sqrt result comparison — expected is computed as f64, 1e-6 tolerance appropriate for irrational
         assert!(
             (result - expected).abs() < 1e-6,
             "FNRM expected {expected}, got {result}"

@@ -343,10 +343,15 @@ mod tests {
     #[test]
     fn tvm_state_default() {
         let t = TvmState::default();
+        // LINT-EXEMPT: Decimal-exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge
         assert_eq!(t.n, HpNum::zero());
+        // LINT-EXEMPT: Decimal-exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge
         assert_eq!(t.i, HpNum::zero());
+        // LINT-EXEMPT: Decimal-exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge
         assert_eq!(t.pv, HpNum::zero());
+        // LINT-EXEMPT: Decimal-exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge
         assert_eq!(t.pmt, HpNum::zero());
+        // LINT-EXEMPT: Decimal-exact integer equality — HpNum::zero() is Decimal(0), no f64 bridge
         assert_eq!(t.fv, HpNum::zero());
         assert!(!t.begin_mode);
     }
@@ -383,9 +388,13 @@ mod tests {
         };
         let json = serde_json::to_string(&t).unwrap();
         let t2: TvmState = serde_json::from_str(&json).unwrap();
+        // LINT-EXEMPT: serde round-trip equality — HpNum fields constructed from exact Decimal literals, no f64 bridge
         assert_eq!(t2.n, t.n);
+        // LINT-EXEMPT: serde round-trip equality — HpNum fields constructed from exact Decimal literals, no f64 bridge
         assert_eq!(t2.pv, t.pv);
+        // LINT-EXEMPT: serde round-trip equality — HpNum fields constructed from exact Decimal literals, no f64 bridge
         assert_eq!(t2.pmt, t.pmt);
+        // LINT-EXEMPT: serde round-trip equality — HpNum fields constructed from exact Decimal literals, no f64 bridge
         assert_eq!(t2.fv, t.fv);
         assert!(t2.begin_mode);
     }
@@ -410,6 +419,7 @@ mod tests {
         );
         let state2: CalcState = serde_json::from_str(&json).unwrap();
         let tvm2 = state2.adv_tvm_state.unwrap();
+        // LINT-EXEMPT: Decimal-exact integer equality — HpNum::from(360_i32) is exact, no f64 bridge
         assert_eq!(tvm2.n, HpNum::from(360_i32));
         assert!(!tvm2.begin_mode);
     }
@@ -452,6 +462,7 @@ mod tests {
             .inner()
             .to_f64()
             .unwrap();
+        // LINT-EXEMPT: pure-f64 tolerance check on a value extracted via to_f64() — n is 360.0 (exact int), 1e-9 threshold appropriate
         assert!(
             (n - 360.0).abs() < 1e-9,
             "tvm.n must equal 360 after op_adv_tvm_n with X=360"
@@ -472,6 +483,7 @@ mod tests {
             .inner()
             .to_f64()
             .unwrap();
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact Decimal(200000), no iterative computation
         assert!((pv - 200_000.0).abs() < 1e-9, "tvm.pv must equal 200000");
     }
 
@@ -553,6 +565,7 @@ mod tests {
 
         // X should contain monthly rate in percent ≈ 0.5% (6%/12)
         let i_pct = x_as_f64(&state);
+        // LINT-EXEMPT: iterative *I convergence result — 1% tolerance is intentionally coarse for Newton root-find
         assert!(
             (i_pct - 0.5).abs() < 0.01,
             "*I result {i_pct:.6}% must be approximately 0.5% monthly (6% APR/12)"
@@ -561,6 +574,7 @@ mod tests {
         // tvm.i must store the periodic rate (not percent)
         let tvm = state.adv_tvm_state.as_ref().unwrap();
         let i_stored = tvm.i.inner().to_f64().unwrap();
+        // LINT-EXEMPT: iterative *I convergence result — 1e-4 tolerance covers TVM_CONVERGENCE_THRESHOLD (1e-9) + f64 extraction
         assert!(
             (i_stored - 0.005).abs() < 0.0001,
             "tvm.i must store periodic rate ~0.005, got {i_stored:.8}"
@@ -589,6 +603,7 @@ mod tests {
         );
 
         let i_pct = x_as_f64(&state);
+        // LINT-EXEMPT: iterative *I convergence result for trivial 1-period case — 1e-3 is tight given TVM_CONVERGENCE_THRESHOLD
         assert!(
             (i_pct - 10.0).abs() < 0.001,
             "*I result {i_pct:.6}% must equal 10% for trivial 1-period case"

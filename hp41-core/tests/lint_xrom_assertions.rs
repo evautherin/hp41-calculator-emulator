@@ -1,8 +1,13 @@
 // Algorithm independently re-derived from HP module Owner's Manuals;
 // Free42 source consulted only as sanity-check oracle, not copied.
 //
-//! Phase 42 Plan 01 / D-42.1 — Unified assertion-discipline lint over all
-//! three XROM module test surfaces (Math 1, Stat 1, Time).
+//! Phase 47 Plan 01 / ADV-QUAL-02 — Unified assertion-discipline lint over all
+//! five XROM module test surfaces (Math 1, Stat 1, Time, ADV MATH A, ADV MATH B).
+//!
+//! **Extended in Phase 47 (ADV-QUAL-02):**
+//! Extended from Phase 42 / D-42.1 (3 modules) to cover the Advantage Pac
+//! test surfaces: external `tests/adv_*.rs` files and inline `#[cfg(test)]`
+//! blocks from `src/ops/advantage/*.rs`.
 //!
 //! **Replaces (D-42.14):**
 //! - `lint_math1_assertions.rs` (Phase 32 Plan 01 / T-32-04)
@@ -28,7 +33,7 @@
 //!    `approx::assert_relative_eq!` so every relative-equality check lives
 //!    under one canonical tolerance knob (D-27.1).
 //!
-//! **Scan scope (three-module collection):**
+//! **Scan scope (five-module collection):**
 //!
 //! - **Math 1:** external `tests/math1_*.rs` files (full content — entire file
 //!   is test code). Does NOT include `tests/numerical_accuracy.rs` (the `case!`
@@ -42,6 +47,10 @@
 //! - **Time:** external `tests/time_*.rs` files if any (Pass 1) AND inline
 //!   `#[cfg(test)]` blocks from `src/ops/time/*.rs` (Pass 2). Time has 209
 //!   inline tests as the primary test surface at Wave 1.
+//!
+//! - **ADV MATH A + ADV MATH B:** external `tests/adv_*.rs` files (Pass 1) AND
+//!   inline `#[cfg(test)]` blocks from `src/ops/advantage/*.rs` (Pass 2). The
+//!   Advantage Pac has 322 inline tests as the primary test surface.
 //!
 //! **LINT-EXEMPT annotations:**
 //!
@@ -64,7 +73,7 @@ const LINT_EXEMPT_TOKEN: &str = "LINT-EXEMPT:";
 
 // ── Unified test-content collector ────────────────────────────────────────────
 
-/// Collect all XROM module test content for linting via three-module strategy.
+/// Collect all XROM module test content for linting via five-module strategy.
 ///
 /// **Module 1 — Math 1:** external `tests/math1_*.rs` files (full file content).
 ///
@@ -73,6 +82,10 @@ const LINT_EXEMPT_TOKEN: &str = "LINT-EXEMPT:";
 ///
 /// **Module 3 — Time:** external `tests/time_*.rs` files if any (Pass 1) AND
 /// inline `#[cfg(test)]` blocks from `src/ops/time/*.rs` (Pass 2).
+///
+/// **Module 4+5 — ADV MATH A + ADV MATH B:** external `tests/adv_*.rs` files
+/// (Pass 1) AND inline `#[cfg(test)]` blocks from `src/ops/advantage/*.rs`
+/// (Pass 2). Both ADV modules share the same source directory.
 ///
 /// Returns `Vec<(PathBuf, String)>` of (path, scanned-content) pairs for all
 /// collected test surfaces.
@@ -90,6 +103,12 @@ fn collect_xrom_test_content(tests_dir: &Path, manifest_dir: &Path) -> Vec<(Path
     // ── Time: external tests/time_*.rs (Pass 1) + inline src/ops/time/*.rs (Pass 2)
     collect_external_files(tests_dir, "time_", None, &mut files);
     collect_inline_cfg_test_blocks(&src_ops_dir.join("time"), &mut files);
+
+    // ── Advantage (ADV MATH A + ADV MATH B): external tests/adv_*.rs (Pass 1)
+    //    + inline src/ops/advantage/*.rs (Pass 2).
+    //    Both XROM modules share the same source directory and test prefix.
+    collect_external_files(tests_dir, "adv_", None, &mut files);
+    collect_inline_cfg_test_blocks(&src_ops_dir.join("advantage"), &mut files);
 
     files
 }
@@ -302,10 +321,12 @@ fn line_is_forbidden_manual_tolerance(line: &str, lines: &[&str], idx: usize) ->
 /// the drift inside `hp41-core`, but `to_f64()` bridges re-expose it. T-32-04:
 /// the offender list is reported in full so a reviewer can spot weakening.
 ///
-/// Scans ALL three XROM module test surfaces (D-42.1 unification):
-/// - Math 1: `tests/math1_*.rs` (external)
-/// - Stat 1: `tests/stat1_*.rs` (external) + `src/ops/stat1/*.rs` inline cfg(test)
-/// - Time:   `tests/time_*.rs` (external) + `src/ops/time/*.rs` inline cfg(test)
+/// Scans ALL five XROM module test surfaces (D-42.1 unification + Phase 47
+/// ADV-QUAL-02 extension):
+/// - Math 1:     `tests/math1_*.rs` (external)
+/// - Stat 1:     `tests/stat1_*.rs` (external) + `src/ops/stat1/*.rs` inline cfg(test)
+/// - Time:       `tests/time_*.rs` (external) + `src/ops/time/*.rs` inline cfg(test)
+/// - ADV MATH A+B: `tests/adv_*.rs` (external) + `src/ops/advantage/*.rs` inline cfg(test)
 #[test]
 fn no_decimal_assert_eq_in_xrom_tests() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -335,10 +356,12 @@ fn no_decimal_assert_eq_in_xrom_tests() {
 /// the single-source-of-truth `max_relative = 1e-7` discipline. T-32-04: the
 /// offender list is reported in full so a reviewer can spot weakening.
 ///
-/// Scans ALL three XROM module test surfaces (D-42.1 unification):
-/// - Math 1: `tests/math1_*.rs` (external)
-/// - Stat 1: `tests/stat1_*.rs` (external) + `src/ops/stat1/*.rs` inline cfg(test)
-/// - Time:   `tests/time_*.rs` (external) + `src/ops/time/*.rs` inline cfg(test)
+/// Scans ALL five XROM module test surfaces (D-42.1 unification + Phase 47
+/// ADV-QUAL-02 extension):
+/// - Math 1:     `tests/math1_*.rs` (external)
+/// - Stat 1:     `tests/stat1_*.rs` (external) + `src/ops/stat1/*.rs` inline cfg(test)
+/// - Time:       `tests/time_*.rs` (external) + `src/ops/time/*.rs` inline cfg(test)
+/// - ADV MATH A+B: `tests/adv_*.rs` (external) + `src/ops/advantage/*.rs` inline cfg(test)
 #[test]
 fn no_manual_tolerance_pattern_in_xrom_tests() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

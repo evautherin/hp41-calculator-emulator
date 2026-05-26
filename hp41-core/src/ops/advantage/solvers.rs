@@ -1517,6 +1517,7 @@ mod tests {
         let result = op_adv_fintg_run_loop(&mut state, &program);
         assert!(result.is_ok(), "FINTG x^2 0..1: {result:?}");
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Simpson integration result; 1/3 is not exactly representable
         assert!(
             (val - 1.0 / 3.0).abs() < 1e-4,
             "FINTG(x^2,0,1) = {val}, expected ~0.333"
@@ -1616,6 +1617,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok(), "PLY: {result:?}");
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; exact integer arithmetic, no rounding
         assert!((val - 15.0).abs() < 1e-9, "PLY(2x^2+3x+1, 2) = {val}");
     }
 
@@ -1631,6 +1633,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; degree-0 constant, exact
         assert!((val - 42.0).abs() < 1e-9, "PLY(42, x=5) = {val}");
     }
 
@@ -1650,6 +1653,7 @@ mod tests {
         let result = op_adv_ply(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 Horner result; degree-3 with integer coefficients, exact
         assert!((val - 10.0).abs() < 1e-9, "PLY(x^3+2x^2+3x+4, 1) = {val}");
     }
 
@@ -1696,11 +1700,13 @@ mod tests {
             .collect();
         reals.sort_by(|a, b| a.partial_cmp(b).unwrap());
         assert_eq!(reals.len(), 2, "both roots should be real");
+        // LINT-EXEMPT: pure-f64 Laguerre root tolerance; numerical root-finder result
         assert!(
             (reals[0] - (-2.0)).abs() < 1e-6,
             "root[0] ≈ -2, got {}",
             reals[0]
         );
+        // LINT-EXEMPT: pure-f64 Laguerre root tolerance; numerical root-finder result
         assert!(
             (reals[1] - 2.0).abs() < 1e-6,
             "root[1] ≈ 2, got {}",
@@ -1724,6 +1730,7 @@ mod tests {
         let froot = state.adv_froot_state.as_ref().unwrap();
         assert_eq!(froot.roots_found.len(), 3);
         // Should have at least one real root near x=1
+        // LINT-EXEMPT: pure-f64 Laguerre root tolerance; `.any()` closure, not top-level assert
         let has_root_at_1 = froot
             .roots_found
             .iter()
@@ -1754,6 +1761,7 @@ mod tests {
         let result = op_adv_rts(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 root-to-f64() bridge; exact f64 literal 2.0 stored in FrootState
         assert!((val - 2.0).abs() < 1e-9, "RTS[0] = {val}");
 
         // Second RTS → -2.0
@@ -1761,6 +1769,7 @@ mod tests {
         let result = op_adv_rts(&mut state);
         assert!(result.is_ok());
         let val = state.stack.x.inner().to_f64().unwrap();
+        // LINT-EXEMPT: pure-f64 root-to-f64() bridge; exact f64 literal -2.0 stored in FrootState
         assert!((val - (-2.0)).abs() < 1e-9, "RTS[1] = {val}");
     }
 

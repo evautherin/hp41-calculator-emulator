@@ -630,6 +630,8 @@ mod tests {
             "AND(0xFF, 0x0F) must yield 0x0F = 15"
         );
         // Verify stack dropped: new Y = old Z
+        // LINT-EXEMPT: stack-drop structural equality — both sides are Decimal; Z was
+        // set via set_y(0.0) which is integer, exact; no f64 bridge round-trip drift
         assert_eq!(
             state.stack.y.inner(),
             y_before,
@@ -834,6 +836,7 @@ mod tests {
         set_y(&mut state, 0.0);
         op_adv_bit_test(&mut state).unwrap();
         // After binary_result: new Y = old Z = 99
+        // LINT-EXEMPT: stack-drop f64 bridge check; Z was HpNum::from(99i32), exact integer
         assert_eq!(
             state.stack.y.inner().to_f64().unwrap(),
             99.0,

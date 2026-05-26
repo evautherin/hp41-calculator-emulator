@@ -625,15 +625,19 @@ mod tests {
         // Step 1: submit N=12
         push_x(&mut state, 12.0);
         submit_step(&mut state, AdvantageStep::TvmN).unwrap();
+        // LINT-EXEMPT: String comparison on modal_prompt (Option<String>), not HpNum/Decimal
         assert_eq!(state.modal_prompt, Some("I%YR=?".to_string()));
         let tvm = state.adv_tvm_state.as_ref().unwrap();
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact integer (12.0), no iterative computation
         assert!((tvm.n.inner().to_f64().unwrap() - 12.0).abs() < 1e-9);
 
         // Step 2: submit I=6
         push_x(&mut state, 6.0);
         submit_step(&mut state, AdvantageStep::TvmI).unwrap();
+        // LINT-EXEMPT: String comparison on modal_prompt (Option<String>), not HpNum/Decimal
         assert_eq!(state.modal_prompt, Some("PV=?".to_string()));
         let tvm = state.adv_tvm_state.as_ref().unwrap();
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact integer (6.0), no iterative computation
         assert!((tvm.i.inner().to_f64().unwrap() - 6.0).abs() < 1e-9);
 
         // Step 3: submit PV=1000
@@ -898,6 +902,7 @@ mod tests {
 
         // Matrix element [0][0] should be 42
         let mat = state.adv_matrices.iter().find(|m| m.name == "M").unwrap();
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact integer (42.0), no iterative computation
         assert!((mat.data[0].inner().to_f64().unwrap() - 42.0).abs() < 1e-9);
 
         // Modal advanced to (1,2)
@@ -943,6 +948,7 @@ mod tests {
 
         let mat = state.adv_matrices.iter().find(|m| m.name == "M2").unwrap();
         for (i, v) in values.iter().enumerate() {
+            // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact test values, no iterative computation
             assert!(
                 (mat.data[i].inner().to_f64().unwrap() - v).abs() < 1e-9,
                 "element {} mismatch",
@@ -971,10 +977,12 @@ mod tests {
         submit_step(&mut state, AdvantageStep::CmeditElementPrompt(1, 1)).unwrap();
 
         let mat = state.adv_matrices.iter().find(|m| m.name == "CM").unwrap();
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact integer (5.0), no iterative computation
         assert!(
             (mat.data[0].inner().to_f64().unwrap() - 5.0).abs() < 1e-9,
             "real part"
         );
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact integer (3.0), no iterative computation
         assert!(
             (mat.data[1].inner().to_f64().unwrap() - 3.0).abs() < 1e-9,
             "imag part"
@@ -1020,6 +1028,7 @@ mod tests {
         submit_step(&mut state, AdvantageStep::VeComponentPrompt(1)).unwrap();
         // R20 = 1.5
         if let crate::num::HpValue::Numeric(ref v) = state.regs[20] {
+            // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of 1.5, no iterative computation
             assert!((v.inner().to_f64().unwrap() - 1.5).abs() < 1e-9);
         } else {
             panic!("R20 should be numeric");
