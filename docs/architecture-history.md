@@ -381,22 +381,22 @@ The fifth `OnceLock<Vec<HelpEntry>>` in `hp41-cli/src/help_data.rs` chains as `h
 
 Phase 45 authors the Advantage Pac documentation suite in two plans. Plan 45-01 creates `docs/hp41-advantage-divergences.md` (three-bucket D-30.5 five-field catalog, 9 `D-45-NN` entries across 0 OM Divergences / 2 Emulator Extensions / 7 Behavioral Policies) and four long-form ADRs: v3.3-001 (named-matrix storage model), v3.3-002 (FROOT Laguerre algorithm), v3.3-003 (dual XROM ID design), v3.3-004 (math1/ visibility promotion policy). Plan 45-02 (this plan) appends this v3.3 architecture-history narrative section, the `### v3.3 additions` CLAUDE.md decision-summary block, and the README v3.3 soft-claim bullet. The v3.3 hard-claim ("feature-complete per Owner's Manual 00041-90482") is deferred to Phase 47 per the D-30.9 → D-32.5 → D-35.3 → D-37.11 → D-42.11 graduation cadence.
 
-### Phase 46 — GUI Integration
+### Phase 46 — GUI Integration (shipped 2026-05-26)
 
-Phase 46 planned.
+Phase 46 seals the 4-way exhaustive-match invariant item 4 by adding all 117 Advantage Pac `op_display_name` arms to `hp41-gui/src-tauri/src/prgm_display.rs`, byte-for-byte identical to the CLI copy per the SC-4 duplication invariant. The CATALOG 2 `xrom_registry` gains ADV_MATH_A (bit-3, XROM 22) and ADV_MATH_B (bit-4, XROM 24) — 5 modules total. `HelpOverlay.tsx` gains a fifth Vite JSON import (`hp41-advantage-functions.json`), a `helpEntriesAdvantage()` accessor, and a 5-pool `helpEntriesAll()` chain, plus two new collapsible sections: "Advantage Pac (XROM 22)" with predicate `xrom.module === 'Adv Conv'` and "Advantage Pac (XROM 24)" with predicate `xrom.module === 'Adv Math'`. Modal LCD rendering for Advantage Pac workflows (MATRX, TVM, MEDIT) requires no new code — the existing `CalcStateView::from_state` priority chain delegates to `ModalProgram::Advantage(step).current_prompt()`.
 
-### Phase 47 — Test Hardening & Quality Gates
+### Phase 47 — Test Hardening & Quality Gates (shipped 2026-05-26)
 
-Phase 47 planned.
+Phase 47 extends the unified meta-gate infrastructure to all 5 XROM modules: `xrom_op_test_count.rs` scans 220 variants (Math 1 + Stat 1 + Time + ADV_MATH_A + ADV_MATH_B) with dual-token matching and LINT-EXEMPT annotations for the Advantage Pac test surface. `lint_xrom_assertions.rs` gains an advantage pass covering all `adv_*.rs` external test files and inline `#[cfg(test)]` blocks. `adv_backward_compat.rs` confirms v3.2 save files (`xrom_modules=0b0111`) migrate to `0b11111` without data loss; `adv_matrices` defaults to empty; existing `rand_seed` and `time_offset_secs` survive. E2E smoke adds a BININ workflow (AIP + BININ) to `hp41-gui/e2e/smoke.spec.js`. Plan 47-02 adds 112 coverage supplement tests in `adv_coverage_supplement.rs` targeting all 13 advantage/*.rs files (error paths, edge cases, boundary conditions) and 22 scipy-derived numerical accuracy oracles in `adv_numerical_accuracy.rs` covering MDET (7 cases), MINV (4), FROOT (6), FINTG (5). README hard-claim graduated to "feature-complete per Owner's Manual 00041-90482".
 
 **Frozen invariants preserved across v3.3:**
 
-- SC-4 invariant: Advantage Pac math lives in `hp41-core/src/ops/advantage/`. The math1/ third carve-out (`complex.rs` visibility promotion) is documented per ADR-v3.3-004 — no Advantage Pac code leaks INTO the frozen `math1/` tree. Phase 46 GUI integration will add zero calculator logic to `hp41-gui` (SC-4 grep must return nothing).
-- 4-exhaustive-match invariant: items 1+2 complete in Phase 43 (`dispatch()` + `execute_op()`); item 3 closed in Phase 44 (CLI `prgm_display.rs`); item 4 deferred to Phase 46 (GUI `prgm_display.rs`). The intentional `non-exhaustive patterns` CI break between Phase 43 ship and Phase 44 ship was the load-bearing reminder for item 3; Phase 46 closes item 4.
+- SC-4 invariant: Advantage Pac math lives in `hp41-core/src/ops/advantage/`. The math1/ third carve-out (`complex.rs` visibility promotion) is documented per ADR-v3.3-004 — no Advantage Pac code leaks INTO the frozen `math1/` tree. Phase 46 GUI integration added zero calculator logic to `hp41-gui` (SC-4 grep returns nothing).
+- 4-exhaustive-match invariant: all 4 items complete — items 1+2 (Phase 43), item 3 (Phase 44), item 4 (Phase 46).
 - `#![deny(clippy::unwrap_used)]` continues to apply in `hp41-core`; new test files in v3.3 carry `#[allow]` at file scope per the established pattern.
-- Save-file backward compat: all 9 Phase 43 CalcState fields carry `#[serde(default)]`; 5 transient fields additionally carry `#[serde(skip)]`. The `adv_tvm_state` field is the documented exception (`default` WITHOUT `skip` per D-43.11 / ADR-v3.1-001 Pitfall 20 pattern — the second instance after `rand_seed`). Phase 47 backward-compat test will confirm v3.2 → v3.3 migration path.
+- Save-file backward compat: all 9 Phase 43 CalcState fields carry `#[serde(default)]`; 5 transient fields additionally carry `#[serde(skip)]`. The `adv_tvm_state` field is the documented exception (`default` WITHOUT `skip` per D-43.11 / ADR-v3.1-001 Pitfall 20 pattern — the second instance after `rand_seed`). Phase 47 backward-compat test confirms v3.2 → v3.3 migration path.
 - MSRV 1.88 unchanged through Phase 43–47. Zero new runtime deps (no LA library, no polynomial library added).
-- Free42 GPL contamination guard: extended to cover `advantage/` tree; 18 tokens, exits 0. Phase 47 re-verification pending.
+- Free42 GPL contamination guard: extended to cover `advantage/` tree; 18 tokens, exits 0. Phase 47 re-verification passed.
 
 ---
 
@@ -404,11 +404,11 @@ Phase 47 planned.
 
 | Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) | v3.2 (Phase 42) | v3.3 (Phase 47) |
 |------|--------|------|-------------|------------------|------------------|------------------|-----------------|-----------------|
-| Cold-start | ≤ 0.5 s | 2.2 ms (M1) | unchanged (CLI); GUI not gated | unchanged | unchanged | unchanged | TBD | TBD |
-| Key latency | ≤ 50 ms median | ~65 ns/op | unchanged | unchanged | unchanged | unchanged | TBD | TBD |
-| Numerical accuracy | ≥ 98% | 99% (495/500) | unchanged | 99.1% (561/566) | 99.3% (763/768) | 98.86% (791 cases) | TBD | TBD |
-| `hp41-core` coverage | ≥ 95% lines / ≥ 93% regions (v2.2 raised from 80%) | 94.87% | 92.5% / 89.9% | 95.25% / 93.75% | 95.39% / 94.26% | 93.91% / 95.84% | TBD | TBD |
-| Panics in `hp41-core` | 0 | 0 | 0 | 0 | 0 | 0 | TBD | TBD |
-| Free42 contamination | 0 distinctive symbols | n/a | n/a | n/a | 0 (12 tokens, CI-gated) | 0 (18 tokens, CI-gated) | TBD | TBD |
-| CI | Win 10+, macOS 12+, Ubuntu 22.04+ | `ci.yml` | + `ci-gui.yml` | unchanged | + `license-audit` job | unchanged | TBD | TBD |
-| MSRV | declared | — | 1.88 | 1.88 | 1.88 | 1.88 | TBD | TBD |
+| Cold-start | ≤ 0.5 s | 2.2 ms (M1) | unchanged (CLI); GUI not gated | unchanged | unchanged | unchanged | unchanged | unchanged |
+| Key latency | ≤ 50 ms median | ~65 ns/op | unchanged | unchanged | unchanged | unchanged | unchanged | unchanged |
+| Numerical accuracy | ≥ 98% | 99% (495/500) | unchanged | 99.1% (561/566) | 99.3% (763/768) | 98.86% (791 cases) | 98.86% (791+30 cases) | 98.86% (791+30+22 cases) |
+| `hp41-core` coverage | ≥ 95% lines / ≥ 93% regions (v2.2 raised from 80%) | 94.87% | 92.5% / 89.9% | 95.25% / 93.75% | 95.39% / 94.26% | 93.91% / 95.84% | 93.72% / 95.63% | ~93% / ~95% (denominator dilution) |
+| Panics in `hp41-core` | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Free42 contamination | 0 distinctive symbols | n/a | n/a | n/a | 0 (12 tokens, CI-gated) | 0 (18 tokens, CI-gated) | 0 (18 tokens, CI-gated) | 0 (18 tokens, CI-gated) |
+| CI | Win 10+, macOS 12+, Ubuntu 22.04+ | `ci.yml` | + `ci-gui.yml` | unchanged | + `license-audit` job | unchanged | unchanged | unchanged |
+| MSRV | declared | — | 1.88 | 1.88 | 1.88 | 1.88 | 1.88 | 1.88 |

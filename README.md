@@ -7,7 +7,7 @@
 <p align="center">
   <img src="docs/screenshots/hp41-gui-v3.x.png" alt="HP-41CV GUI on macOS — v3.1" width="320">
   <br>
-  <em>HP-41CV desktop GUI on macOS — v3.1 with Stat 1 Pac emulation</em>
+  <em>HP-41CV desktop GUI on macOS — v3.3 with Math, Stat 1, Time, and Advantage Pac emulation</em>
 </p>
 
 A faithful, open-source behavioral emulation of the **HP-41C/CV/CX** programmable RPN calculator, written in Rust. Ships both a terminal UI (`hp41-cli`) and a pixel-perfect desktop app (`hp41-gui`, Tauri v2 + React).
@@ -28,6 +28,7 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| [v3.3](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.3) | 2026-05-26 | **Advantage Pac behavioral emulation** (HP 00041-90482): 114 XEQ entry points across XROM 22 (ADV CONV + ADV MTRX, 63 ops) + XROM 24 (ADV MATH + ADV TVM, 51 ops); base conversion & 36-bit bitwise logic; named-matrix model with MATDIM/MDET/MINV/MSYS/M*M; Laguerre polynomial root-finder (FROOT); Romberg integration (FINTG); secant root-finder (FSOLVE) with cross-nesting; RK4 ODE solver (FDIFEQ); 4-model curve fitting; 3D vector arithmetic (DOT/CROSS/UV); Newton-Raphson TVM solver; 22 scipy-derived accuracy oracles; zero new runtime deps; v1.0–v3.2 save files load without migration |
 | [v3.2](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.2) | 2026-05-25 | **Time Pac behavioral emulation** (HP 82182A, OM 00041-90035): 35 XEQ entry points across clock, date arithmetic, stopwatch, alarm catalog; real-time clock/stopwatch backed by host system clock with `time_offset_secs` delta model; 253-entry alarm catalog with message + control alarms and repeat intervals; pure-Rust Gregorian calendar arithmetic (Fliegel-Van Flandern JDN, zero new runtime deps); live clock/stopwatch display in CLI (62 Hz) and GUI (setInterval); `?` overlay gains "Time Pac (XROM 26)" section; v1.0–v3.1 save files load without migration |
 | [v3.1](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.1) | 2026-05-24 | **Stat 1 Pac behavioral emulation** (HP 00041-90030): 13 programs, 26 XEQ entry points covering univariate statistics, one/two-way ANOVA, ANOCOV, linear/exponential/logistic/power/polynomial/multiple regression, hypothesis tests (pooled t-test), nonparametric tests (chi-square, Spearman), normal/chi-square distribution CDF/PDF/inverse, RAND/SEED LCG extension; 3 hand-coded distribution primitives (zero new runtime deps); modal prompts for DEGREE/SEED/ν; `?` overlay gains "Stat 1 Pac (XROM 2)" section; v1.0–v3.0 save files load without migration |
 | [v3.0](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.0) | 2026-05-20 | **Math Pac I behavioral emulation** (HP 00041-90034, 1979): 10 top-level programs, ~55 XEQ-by-Name entry points across hyperbolics, complex stack, polynomial roots (Bairstow), matrix DET/INV/SIMEQ, INTG (Simpson), SOLVE (secant), DIFEQ (RK4), triangle solvers, Fourier transform, 2D/3D coordinate transforms; modal-workflow state machine + user-callback re-entrancy; CLI ↔ GUI parity via shared `xrom_resolve`; coverage 95.39 % lines / 94.26 % regions; `?` overlay gains incremental substring search; v1.0–v2.2 save files load without migration |
@@ -145,8 +146,13 @@ The GUI and CLI share state via `~/.hp41/autosave.json` — they auto-save every
 | [Function Matrix](docs/hp41cv-function-matrix.md) | Per-op status, keyboard path, divergences |
 | [Math Pac I Function Matrix](docs/hp41-math1-function-matrix.md) | Math Pac I XROM entries with module/function IDs |
 | [Stat 1 Pac Function Matrix](docs/hp41-stat1-function-matrix.md) | Stat 1 Pac XROM entries (module 2) with function IDs and divergences |
+| [Time Pac Function Matrix](docs/hp41-time-function-matrix.md) | Time Pac XROM entries (module 26) with function IDs and divergences |
+| [Advantage Pac Function Matrix](docs/hp41-advantage-function-matrix.md) | Advantage Pac XROM entries (modules 22+24) with function IDs and divergences |
 | [Keyboard Layout](docs/keyboard-layout.md) | Key layout and shifted functions |
 | [Programming Guide](docs/programming-guide.md) | Stack model, programs, flags, loops |
+| [Verifying Math Pac I](docs/verifying-math-pac-1.md) | Operator walk-through for Math Pac I (all 11 groups) |
+| [Verifying Stat 1 Pac](docs/verifying-stat-pac-1.md) | Operator walk-through for Stat 1 Pac (all 7 groups) |
+| [Verifying Advantage Pac](docs/verifying-advantage-pac.md) | Operator walk-through for Advantage Pac (all 7 groups) |
 | [Architecture](docs/architecture.md) | Emulator internals for contributors |
 | [Release Setup](docs/release-setup.md) | Maintainer guide: binary-release workflows + Apple Developer secrets |
 

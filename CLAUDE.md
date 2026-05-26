@@ -8,7 +8,7 @@ Faithful Rust behavioral emulation of the HP-41C/CV/CX RPN calculator.
 - `hp41-cli` — TUI binary (ratatui 0.30 + crossterm 0.29)
 - `hp41-gui` — Tauri v2 + React desktop app (nested standalone workspace)
 
-**Current:** v3.2 Time Pac (Owner's Manual 00041-90035 feature-complete), shipped 2026-05-25. Earlier tags: `v3.1` (Stat 1 Pac, 2026-05-24), `v3.0` (Math Pac I, 2026-05-21), `v2.2` (HP-41CV complete, 2026-05-16), `v2.0` (Tauri GUI, 2026-05-10), `v1.1`, `v1.0`.
+**Current:** v3.3 Advantage Pac (Owner's Manual 00041-90482 feature-complete), shipped 2026-05-26. Earlier tags: `v3.2` (Time Pac, 2026-05-25), `v3.1` (Stat 1 Pac, 2026-05-24), `v3.0` (Math Pac I, 2026-05-21), `v2.2` (HP-41CV complete, 2026-05-16), `v2.0` (Tauri GUI, 2026-05-10), `v1.1`, `v1.0`.
 
 **Where the long-form history lives:**
 - `docs/architecture-history.md` — full phase-by-phase narrative + decision rationale (Markdown fallback for reviewers without gbrain)
@@ -297,20 +297,28 @@ CI-enforced via `scripts/check-free42-contamination.sh` in `just license-audit` 
 - **4 ADRs:** [v3.3-001 named-matrix-storage-model](docs/adr/v3.3-001-named-matrix-storage-model.md) + [v3.3-002 froot-laguerre-algorithm](docs/adr/v3.3-002-froot-laguerre-algorithm.md) + [v3.3-003 dual-xrom-id-design](docs/adr/v3.3-003-dual-xrom-id-design.md) + [v3.3-004 math1-visibility-promotion-policy](docs/adr/v3.3-004-math1-visibility-promotion-policy.md); each long-form per D-30.6; `## Alternatives Considered` quotes 43-CONTEXT.md verbatim per D-30.7.
 - **README v3.3 soft-claim bullet:** `- v3.3 ships Advantage Pac behavioral emulation (~117 XEQ entry points ...)` under `## Features`; NO "feature-complete per Owner's Manual 00041-90482" language (hard-claim deferred to Phase 47 per D-30.9 graduation cadence).
 - **CLAUDE.md `### v3.3 additions` block (this section):** decision-summary surface per D-40.9 convention.
-- **`docs/architecture-history.md` v3.3 narrative:** `## v3.3 additions` section with Phase 43-45 narratives, Phase 46-47 stubs, frozen invariants block, and updated Quality Gate History table with v3.3 (Phase 47) column.
+- **`docs/architecture-history.md` v3.3 narrative:** `## v3.3 additions` section with Phase 43-47 narratives, frozen invariants block, and updated Quality Gate History table with v3.3 (Phase 47) column.
 
-#### Phase 46 — GUI Integration
+#### Phase 46 — GUI Integration (shipped 2026-05-26)
 
-(in progress — Phase 46 planned)
+- **117 `op_display_name` arms in `hp41-gui/src-tauri/src/prgm_display.rs`** (4-way invariant item 4 complete; no `_ =>` catch-all). `function_matrix_parity.rs` 5-pool partition test cross-checks bidirectional consistency across all five JSON pools.
+- **CATALOG 2 `xrom_registry` extended** with ADV_MATH_A (bit-3, XROM 22) + ADV_MATH_B (bit-4, XROM 24) — 5 modules total in `hp41-core/src/ops/program.rs`.
+- **HelpOverlay.tsx fifth+sixth sections** "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)": `helpEntriesAdvantage()` accessor + 5-pool `helpEntriesAll()` chain in `help_data.ts`.
+- **Modal LCD rendering** via existing `CalcStateView::from_state` priority chain — no new code needed (ADV-GUI-04).
 
-#### Phase 47 — Test Hardening & Quality Gates
+#### Phase 47 — Test Hardening & Quality Gates (shipped 2026-05-26)
 
-(Phase 47 planned)
+- **Meta-gate unification (ADV-QUAL-01/02):** `xrom_op_test_count.rs` extended to all 5 XROM modules (220 variants); `lint_xrom_assertions.rs` covers all advantage test files with LINT-EXEMPT annotations.
+- **Coverage supplement (ADV-QUAL-03):** `adv_coverage_supplement.rs` (112 targeted tests) covering all 13 advantage/*.rs files — error paths, edge cases, boundary conditions.
+- **Numerical accuracy (ADV-QUAL-04):** `adv_numerical_accuracy.rs` (22 oracle cases) — MDET (7), MINV (4), FROOT (6), FINTG (5); all scipy-derived, tolerance 1e-7.
+- **Backward compatibility (ADV-QUAL-05):** `adv_backward_compat.rs` extended — v3.2 `xrom_modules=0b0111` migrates to `0b11111`.
+- **E2E smoke (ADV-QUAL-06):** BININ workflow in `hp41-gui/e2e/smoke.spec.js`.
+- **README hard-claim graduated (ADV-QUAL-09):** "feature-complete per Owner's Manual 00041-90482".
 
 **Frozen invariants preserved across v3.3:**
 
-- SC-4 invariant: every Phase 43–45 change respects the stricter grep — Advantage Pac math lives in `hp41-core/src/ops/advantage/`. The math1/ third carve-out (`complex.rs` visibility promotion) is documented per ADR-v3.3-004; no Advantage Pac code leaks INTO the frozen `math1/` module. Phase 46 GUI integration must add zero calculator logic to `hp41-gui`.
-- 4-exhaustive-match invariant: items 1+2 complete (Phase 43); item 3 complete (Phase 44); item 4 deferred to Phase 46.
+- SC-4 invariant: every Phase 43–47 change respects the stricter grep — Advantage Pac math lives in `hp41-core/src/ops/advantage/`. The math1/ third carve-out (`complex.rs` visibility promotion) is documented per ADR-v3.3-004; no Advantage Pac code leaks INTO the frozen `math1/` module.
+- 4-exhaustive-match invariant: all 4 items complete — items 1+2 (Phase 43), item 3 (Phase 44), item 4 (Phase 46).
 - `#![deny(clippy::unwrap_used)]` continues to apply in `hp41-core`; new test files in v3.3 carry `#[allow]` at file scope per the established pattern.
 - Save-file backward compat: all 9 Phase 43 CalcState fields carry `#[serde(default)]`; 5 transient fields additionally carry `#[serde(skip)]`. The `adv_tvm_state` field is the documented exception (`default` WITHOUT `skip` per D-43.11 / Pitfall 20 — the second instance after `rand_seed`).
 - MSRV 1.88 unchanged through Phase 43–47. Zero new runtime deps.
