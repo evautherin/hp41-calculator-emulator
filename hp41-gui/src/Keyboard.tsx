@@ -1,4 +1,105 @@
+// Phase 48 Plan 03 — GradientColors interface + THEME_GRADIENTS map (D-48.10 / P55).
+// SVG <defs> gradient stops cannot use CSS var() — theme config is passed as props.
+// GradientColors contains the 14 hex stop values spanning body, key-face, enter,
+// shift-idle, and shift-active gradients. App.tsx derives the active set from
+// THEME_GRADIENTS[theme] and passes it to <Keyboard gradientColors={...} />.
+
 import { useState, type MutableRefObject } from 'react';
+
+// 14-field gradient stop interface for all SVG gradient defs (P55).
+export interface GradientColors {
+    // Calculator body background gradient
+    bodyTop: string;
+    bodyBottom: string;
+    // Regular key cap gradient (3 stops)
+    keyDarkTop: string;
+    keyDarkMid: string;
+    keyDarkBot: string;
+    // ENTER key gradient (3 stops)
+    enterTop: string;
+    enterMid: string;
+    enterBot: string;
+    // SHIFT key idle-state gradient (3 stops)
+    shiftIdleTop: string;
+    shiftIdleMid: string;
+    shiftIdleBot: string;
+    // SHIFT key armed-state gradient (3 stops)
+    shiftActiveTop: string;
+    shiftActiveMid: string;
+    shiftActiveBot: string;
+}
+
+// Dark theme — matches current hardcoded hex values exactly (zero visual regression).
+export const DARK_GRADIENT_COLORS: GradientColors = {
+    bodyTop: '#1a1a1a',
+    bodyBottom: '#000000',
+    keyDarkTop: '#303030',
+    keyDarkMid: '#181818',
+    keyDarkBot: '#080808',
+    enterTop: '#346034',
+    enterMid: '#1a3a1a',
+    enterBot: '#0a180a',
+    shiftIdleTop: '#d68a1c',
+    shiftIdleMid: '#b06811',
+    shiftIdleBot: '#7a4708',
+    shiftActiveTop: '#ffb742',
+    shiftActiveMid: '#f5a423',
+    shiftActiveBot: '#c97d10',
+};
+
+// Theme gradient map — one entry per theme ID (D-48.10).
+// Values sourced from 48-UI-SPEC.md per-theme color tables.
+export const THEME_GRADIENTS: Record<string, GradientColors> = {
+    'dark': DARK_GRADIENT_COLORS,
+    'light': {
+        bodyTop: '#d4d4d4',
+        bodyBottom: '#c4c4c4',
+        keyDarkTop: '#c8c8c8',
+        keyDarkMid: '#a8a8a8',
+        keyDarkBot: '#888888',
+        enterTop: '#4a8a4a',
+        enterMid: '#2e6a2e',
+        enterBot: '#1a4a1a',
+        shiftIdleTop: '#c07010',
+        shiftIdleMid: '#9a5808',
+        shiftIdleBot: '#6a3a04',
+        shiftActiveTop: '#f5a423',
+        shiftActiveMid: '#e09010',
+        shiftActiveBot: '#b87010',
+    },
+    'classic-beige': {
+        bodyTop: '#b8a880',
+        bodyBottom: '#a89870',
+        keyDarkTop: '#3a3020',
+        keyDarkMid: '#282010',
+        keyDarkBot: '#181008',
+        enterTop: '#2a5028',
+        enterMid: '#1a3818',
+        enterBot: '#0e200c',
+        shiftIdleTop: '#c8780a',
+        shiftIdleMid: '#a85e08',
+        shiftIdleBot: '#784206',
+        shiftActiveTop: '#f5a030',
+        shiftActiveMid: '#e08818',
+        shiftActiveBot: '#b86010',
+    },
+    'high-contrast': {
+        bodyTop: '#111111',
+        bodyBottom: '#000000',
+        keyDarkTop: '#222222',
+        keyDarkMid: '#111111',
+        keyDarkBot: '#000000',
+        enterTop: '#003300',
+        enterMid: '#002200',
+        enterBot: '#001100',
+        shiftIdleTop: '#aa6600',
+        shiftIdleMid: '#884400',
+        shiftIdleBot: '#662200',
+        shiftActiveTop: '#ffcc00',
+        shiftActiveMid: '#ffaa00',
+        shiftActiveBot: '#dd8800',
+    },
+};
 
 const COLS = 5;
 const KEY_W = 68;
@@ -188,6 +289,9 @@ export interface KeyboardProps {
   // pass them now without a TypeScript error.
   userActive?: boolean;
   userKeymap?: ReadonlyArray<[number, string]>;
+  // Phase 48 D-48.10 / P55 — SVG gradient stops cannot use CSS var(); pass
+  // theme config as prop. Defaults to DARK_GRADIENT_COLORS if not provided.
+  gradientColors?: GradientColors;
 }
 
 export function Keyboard({
@@ -197,6 +301,7 @@ export function Keyboard({
   alphaActive,
   userActive = false,
   userKeymap = [],
+  gradientColors = DARK_GRADIENT_COLORS,
 }: KeyboardProps) {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
 
@@ -231,31 +336,32 @@ export function Keyboard({
       aria-label="HP-41C keyboard"
     >
       <defs>
+        {/* Body background gradient — uses gradientColors prop (D-48.10 / P55) */}
         <linearGradient id="body-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#1a1a1a" />
-          <stop offset="100%" stopColor="#000000" />
+          <stop offset="0%"   stopColor={gradientColors.bodyTop} />
+          <stop offset="100%" stopColor={gradientColors.bodyBottom} />
         </linearGradient>
 
         {/* Key cap gradients — lighter at top, darker at bottom (convex 3D look) */}
         <linearGradient id="grad-dark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#303030" />
-          <stop offset="60%"  stopColor="#181818" />
-          <stop offset="100%" stopColor="#080808" />
+          <stop offset="0%"   stopColor={gradientColors.keyDarkTop} />
+          <stop offset="60%"  stopColor={gradientColors.keyDarkMid} />
+          <stop offset="100%" stopColor={gradientColors.keyDarkBot} />
         </linearGradient>
         <linearGradient id="grad-enter" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#346034" />
-          <stop offset="60%"  stopColor="#1a3a1a" />
-          <stop offset="100%" stopColor="#0a180a" />
+          <stop offset="0%"   stopColor={gradientColors.enterTop} />
+          <stop offset="60%"  stopColor={gradientColors.enterMid} />
+          <stop offset="100%" stopColor={gradientColors.enterBot} />
         </linearGradient>
         <linearGradient id="grad-shift-idle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#d68a1c" />
-          <stop offset="60%"  stopColor="#b06811" />
-          <stop offset="100%" stopColor="#7a4708" />
+          <stop offset="0%"   stopColor={gradientColors.shiftIdleTop} />
+          <stop offset="60%"  stopColor={gradientColors.shiftIdleMid} />
+          <stop offset="100%" stopColor={gradientColors.shiftIdleBot} />
         </linearGradient>
         <linearGradient id="grad-shift-active" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#ffb742" />
-          <stop offset="60%"  stopColor="#f5a423" />
-          <stop offset="100%" stopColor="#c97d10" />
+          <stop offset="0%"   stopColor={gradientColors.shiftActiveTop} />
+          <stop offset="60%"  stopColor={gradientColors.shiftActiveMid} />
+          <stop offset="100%" stopColor={gradientColors.shiftActiveBot} />
         </linearGradient>
 
         {/* Inner bevel highlight — white gradient fading out (top of key only) */}

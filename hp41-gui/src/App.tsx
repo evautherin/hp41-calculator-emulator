@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import './App.css';
-import { Keyboard, KEY_DEFS, type KeyDef } from './Keyboard';
+import { Keyboard, KEY_DEFS, THEME_GRADIENTS, type KeyDef } from './Keyboard';
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
+import SettingsPanel from './SettingsPanel';
 import {
   handleModalKey,
   renderModalLcd,
@@ -234,6 +235,10 @@ function App() {
   // (no IPC round-trip — the help data is bundled at build time via
   // help_data.ts's vite JSON import).
   const [helpOpen, setHelpOpen] = useState(false);
+  // Phase 48 D-48.1/D-48.13 — settings panel open/close + active theme.
+  // Theme defaults to 'dark'; overridden by get_prefs on mount.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<string>('dark');
   // Toast overlay for GuiError responses (single-toast policy, 2s auto-dismiss).
   // The monotonic `seq` is required because two clicks on the same stubbed
   // key produce identical message strings — setting state to the same value
@@ -254,6 +259,17 @@ function App() {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Phase 48 D-48.13 — theme change handler.
+  // Applies theme instantly via CSS variable system + gradient prop, then
+  // persists to prefs.json via fire-and-forget IPC (D-48.13: errors silently logged).
+  const handleThemeChange = useCallback((newTheme: string) => {
+    setTheme(newTheme);
+    document.body.dataset.theme = newTheme;
+    invoke('set_pref', { key: 'theme', value: newTheme }).catch(() => {
+      // Persistence failure is non-fatal — theme applies visually regardless.
+    });
+  }, []);
 
   // Phase 41 D-41.2/D-41.3/D-41.8: start/stop the 100ms live-display interval.
   //
@@ -287,6 +303,21 @@ function App() {
     invoke<CalcStateView>('get_state')
       .then(view => { setCalcState(view); setErrorMessage(null); })
       .catch(err => setErrorMessage(`Load failed: ${err}`));
+  }, []);
+
+  // Phase 48 D-48.13 — load persisted theme preference on mount.
+  // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
+  // Silently falls back to 'dark' if prefs.json is missing (first run) or
+  // if the IPC call fails for any reason (D-48.8 / UI-SPEC copywriting).
+  useEffect(() => {
+    invoke<{ theme: string }>('get_prefs')
+      .then(prefs => {
+        setTheme(prefs.theme);
+        document.body.dataset.theme = prefs.theme;
+      })
+      .catch(() => {
+        document.body.dataset.theme = 'dark';
+      });
   }, []);
 
   // Physical-keyboard dispatch (option B): string-id path, no SHIFT/ALPHA frontend
@@ -492,6 +523,7 @@ function App() {
     if (e.key === '?' && !alphaOn && !helpOpen) {
       e.preventDefault();
       setHelpOpen(true);
+      setSettingsOpen(false);  // Phase 48: close settings when help opens
       return;
     }
 
@@ -636,7 +668,7 @@ function App() {
 
     e.preventDefault();
     dispatchKeyId(keyId);
-  }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, showToast]);
+  }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, showToast]);
 
   // Register keyboard listener — cleanup required for React StrictMode (D-12)
   useEffect(() => {
@@ -762,6 +794,34 @@ function App() {
 
   return (
     <div className="calculator">
+      {/* Phase 48 D-48.1 — title bar with gear icon and ? help button.
+          The gear icon uses onMouseDown + e.stopPropagation() to prevent the
+          SettingsPanel's click-outside mousedown listener from immediately
+          re-closing the panel when the gear icon is clicked (RESEARCH.md pitfall). */}
+      <div className="calculator-title-bar">
+        <span className="calculator-title-bar-spacer" />
+        <button
+          className="help-icon-btn"
+          aria-label="Open function reference"
+          onClick={() => { setHelpOpen(true); setSettingsOpen(false); }}
+        >
+          ?
+        </button>
+        <button
+          className="settings-gear-btn"
+          aria-label="Open settings"
+          aria-expanded={settingsOpen}
+          onMouseDown={(e) => { e.stopPropagation(); setSettingsOpen(prev => !prev); if (!settingsOpen) setHelpOpen(false); }}
+        >
+          &#9881;
+        </button>
+        <SettingsPanel
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          currentTheme={theme}
+          onThemeChange={handleThemeChange}
+        />
+      </div>
       <div className="annunciators">
         {annunciatorNames.map(name => (
           <span
@@ -794,6 +854,7 @@ function App() {
         alphaActive={calcState.annunciators.alpha}
         userActive={calcState.annunciators.user}
         userKeymap={calcState.user_keymap}
+        gradientColors={THEME_GRADIENTS[theme] || THEME_GRADIENTS['dark']}
       />
       {calcState.annunciators.prgm && (
         <div className="prgm-panel">
