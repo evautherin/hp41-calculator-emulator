@@ -398,6 +398,43 @@
 /* Phase 31-04 — section body placeholder for future style hooks. */
 .help-overlay-section-body {}
 
+/* ── Phase 48-03: Calculator title bar (gear + help icon row) ─────────── */
+/* D-48.1 / D-48.4: thin bar above annunciators for gear icon and ? button. */
+
+.calculator-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px 4px;
+  background: var(--panel-bg);
+  position: relative;
+}
+
+.calculator-title-bar-spacer {
+  flex: 1;
+}
+
+/* Help icon button (? for function reference) */
+.help-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  min-width: 28px;
+  min-height: 28px;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-icon-btn:hover {
+  color: var(--accent);
+}
+
 /* ── Phase 48-02: Settings Panel CSS ──────────────────────────────────── */
 /* D-48.4: Gear icon + settings popover positioned above help overlay (z-index 70). */
 
