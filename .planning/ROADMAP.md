@@ -169,7 +169,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 50-01-PLAN.md — Core codec: decode_all_programs, DecodedProgram, picker_label + multi-program tests
+- [x] 50-01-PLAN.md — Core codec: decode_all_programs, DecodedProgram, picker_label + multi-program tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -218,7 +218,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
-| 50. .raw File I/O | 0/4 | Planned | - |
+| 50. .raw File I/O | 1/4 | In Progress|  |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
