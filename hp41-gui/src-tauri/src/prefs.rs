@@ -9,7 +9,7 @@
 //! 2. `load_prefs` returns `GuiPrefs` directly (not `Result`) — a missing file is the normal
 //!    first-run case, not an error. Corrupt JSON also returns `GuiPrefs::default()`.
 //!
-//! Phase 49 will add `pub onboarding_done: bool` with `#[serde(default)]` to this struct.
+//! Phase 49 added `pub onboarding_done: bool` with `#[serde(default)]` to this struct.
 //! The `#[serde(default)]` on each field ensures forward/backward compatibility: a prefs.json
 //! written by an older version will load cleanly into a newer struct with new fields defaulted.
 
@@ -26,16 +26,14 @@ use serde::{Deserialize, Serialize};
 /// # Field notes
 /// - `theme`: one of "dark" | "light" | "classic-beige" | "high-contrast" (D-48.8).
 ///   Defaults to "dark" on missing prefs.json (first-run default).
-///
-/// # Future fields (Phase 49)
-/// ```rust,ignore
-/// #[serde(default)]
-/// pub onboarding_done: bool,
-/// ```
+/// - `onboarding_done`: set to `true` once the user dismisses the first-run quick-start
+///   guide (D-49.4 / ONBOARD-05). Never appears in autosave.json (P59).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct GuiPrefs {
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default)]
+    pub onboarding_done: bool,
 }
 
 /// Default theme value — "dark" per D-48.8.
@@ -47,6 +45,7 @@ impl Default for GuiPrefs {
     fn default() -> Self {
         GuiPrefs {
             theme: default_theme(),
+            onboarding_done: false,
         }
     }
 }
@@ -112,6 +111,7 @@ mod tests {
         let path = temp_path("prefs_roundtrip");
         let prefs = GuiPrefs {
             theme: "light".to_string(),
+            onboarding_done: false,
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
@@ -155,12 +155,46 @@ mod tests {
         let path = temp_path("prefs_unknown_theme");
         let prefs = GuiPrefs {
             theme: "neon-pink".to_string(),
+            onboarding_done: false,
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
         assert_eq!(
             loaded.theme, "dark",
             "unknown theme in prefs.json must fall back to 'dark'"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// D-49.4 / ONBOARD-05: `onboarding_done = true` must survive a save/load roundtrip.
+    #[test]
+    fn test_onboarding_done_roundtrip() {
+        let path = temp_path("prefs_onboarding_roundtrip");
+        let prefs = GuiPrefs {
+            theme: "dark".to_string(),
+            onboarding_done: true,
+        };
+        save_prefs(&path, &prefs).unwrap();
+        let loaded = load_prefs(&path);
+        assert!(
+            loaded.onboarding_done,
+            "onboarding_done=true must survive a prefs save/load roundtrip"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Backward compat: a prefs.json that does not contain `onboarding_done` (written by
+    /// Phase 48 or earlier) must load with `onboarding_done == false` via `#[serde(default)]`.
+    #[test]
+    fn test_onboarding_done_serde_default() {
+        let path = temp_path("prefs_onboarding_default");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // Write JSON without onboarding_done field (old format).
+        fs::write(&path, br#"{"theme":"dark"}"#).unwrap();
+        let loaded = load_prefs(&path);
+        assert!(
+            !loaded.onboarding_done,
+            "missing onboarding_done field must default to false (backward compat)"
         );
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }

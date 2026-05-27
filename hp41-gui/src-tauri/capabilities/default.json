@@ -15,6 +15,7 @@
     "allow-submit-modal-with-label",
     "allow-tick-time",
     "allow-get-prefs",
-    "allow-set-pref"
+    "allow-set-pref",
+    "allow-save-state"
   ]
 }

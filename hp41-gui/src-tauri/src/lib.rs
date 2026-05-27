@@ -110,6 +110,7 @@ pub fn run() {
             commands::tick_time,               // Phase 41 D-41.1 — 100ms periodic tick for live display
             commands::get_prefs,               // Phase 48 INFRA-01 — read GUI preferences
             commands::set_pref,                // Phase 48 INFRA-02 — write/persist a GUI preference
+            commands::save_state,              // Phase 49 KBD-02 — on-demand save (Ctrl+S / F5 in GUI)
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
