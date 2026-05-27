@@ -139,8 +139,8 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 49-01-PLAN.md — Rust backend: onboarding_done pref, save_state command, keyboard-shortcuts.json
-- [ ] 49-02-PLAN.md — Data files: enrich ~50 function entries with example/notes across 5 JSONs
+- [x] 49-01-PLAN.md — Rust backend: onboarding_done pref, save_state command, keyboard-shortcuts.json
+- [x] 49-02-PLAN.md — Data files: enrich ~50 function entries with example/notes across 5 JSONs
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -202,7 +202,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
-| 49. Onboarding + GUI Keyboard Parity | 0/4 | Not started | - |
+| 49. Onboarding + GUI Keyboard Parity | 2/4 | In Progress|  |
 | 50. .raw File I/O | 0/? | Not started | - |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
