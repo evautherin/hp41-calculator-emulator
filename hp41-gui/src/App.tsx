@@ -750,6 +750,22 @@ function App() {
       }
     }
 
+    // Modal opener intercept: shifted key IDs like 'fix_prompt', 'sto_prompt',
+    // etc. are frontend-only modal openers — they must NEVER reach dispatch_op
+    // (the backend errors on unknown key IDs per D-07). Mirrors handleClick
+    // rule 5 (line 527). Without this, Tab+1 on the physical keyboard sends
+    // 'fix_prompt' to the backend instead of opening the FIX digit modal.
+    if (MODAL_OPENERS[keyId]) {
+      const initial = MODAL_OPENERS[keyId]();
+      if (initial.kind === 'direct') {
+        void applyModalResult(handleModalKey('', initial, false));
+        return;
+      }
+      setPendingInput(initial);
+      setShiftActive(false);
+      return;
+    }
+
     e.preventDefault();
     dispatchKeyId(keyId);
   }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, onboardingOpen, isFirstRun, handleOnboardingClose, showToast]);
