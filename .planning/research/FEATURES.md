@@ -1,645 +1,489 @@
-# Feature Landscape: HP-41CX Time Module Emulation (v3.2)
+# Feature Research: HP-41 Advantage Pac + Advanced Matrix Pac
 
-**Domain:** Behavioral emulation of the HP-41CX Time Module (built-in CX ROM, also sold standalone as HP 82182A)
-**Researched:** 2026-05-24
-**Scope:** v3.2 -- Time Module (XROM 26) as the third XROM application module. Advantage Pac deferred to v3.3+.
-
-**Primary sources:**
-- HP 82182A Time Module Quick Reference Card (HP 82182-90002, November 1981) -- read directly as 2-page image. All functions, alarm catalog keyboard, stopwatch keyboard, alarm format, XYZALM stack parameters confirmed from the QRC images.
-- HP-41CX Quick Reference Guide (HP 00041-90475, August 1983) -- read as 40-page PDF. Complete function set, keyboard layouts (Normal/User/Alpha/Alarm Catalog/Stopwatch/Text Editor), Time and Alarm Formats section, Flags and Their Status table, List of Errors all extracted.
-- HP Museum XROM database (hpmuseum.org/software/xroms.htm) -- XROM 26 function IDs confirmed.
-- HP-41 QREF (qrg41.fjk.ch/hp82182a.html) -- function listing cross-checked.
-- HP-41C Wikipedia article -- alarm system behavior and CX integration details.
-
-**Confidence:** HIGH for function list and formats (primary source images read directly). MEDIUM for some behavioral edge cases (alarm interrupt model, stopwatch real-time LCD update frequency) where OM text was not fully accessible.
+**Domain:** HP-41 calculator module emulation — Advantage Pac (OM 00041-90482, HP part 5061-7285/5061-7292) + Advanced Matrix Pac
+**Researched:** 2026-05-25
+**Confidence:** MEDIUM — function list reconstructed from multiple authoritative cross-references (HP Museum XROM table, module database, Valentín Albillo article, calc.fjk.ch function DB, Advantage Math ROM Manual). The original HP OM 00041-90482 PDF (71 MB) could not be retrieved due to size limits; the German-language OM 00041-90562 (51 MB) likewise. Function names and XROM numbers are HIGH confidence (corroborated by 4+ independent sources). Behavioral descriptions (algorithms, stack conventions) are MEDIUM confidence (confirmed from HP Museum forum posts, community articles, SandMath manual references).
 
 ---
 
-## Authoritative Function List (XROM 26)
+## Background: What the Advantage Pac Is
 
-The HP 82182A Time Module (standalone) defines 30 functions (XROM 26,0 through 26,29). The HP-41CX built-in variant adds 6 more (26,30 through 26,35). Our emulation targets the **CX superset** per the PROJECT.md scope ("HP-41CX Time Module OM 00041-90035").
+The HP Advantage ROM (released July 1985) was HP's first 12K bank-switched ROM. It uses **two XROM IDs — XROM 22 and XROM 24** — to expose 117 functions in four named sections:
 
-### HP 82182A Base Functions (30)
+- **-ADV CONV** (XROM 22, fn 1–12): 12 base-conversion and boolean logic functions
+- **-ADV MTRX** (XROM 22, fn 13–63): 51 matrix routines, all M-CODE (derived from the CCD ROM, extended by HP)
+- **-ADV MATH** (XROM 24, fn 2–48+): 47 routines — Solve/Integrate (HP-15C ported to 41C M-CODE), complex arithmetic, curve fitting, polynomial roots, differential equations, vectors
+- **-ADV TVM** (XROM 24, fn 50–56): 6 Time Value of Money routines
 
-| XROM ID | Mnemonic | Category | Description |
-|---------|----------|----------|-------------|
-| 26,0 | -TIME-C | Header | Module header (not callable) |
-| 26,1 | ADATE | ALPHA Date/Time | Append date from X-reg to ALPHA in current date format |
-| 26,2 | ALMCAT | Alarm | Alarm catalog -- lists pending/past-due alarms with keyboard redefinition |
-| 26,3 | ALMNOW | Alarm | Activate oldest past-due program or function alarm in memory |
-| 26,4 | ATIME | ALPHA Date/Time | Append time from X-reg to ALPHA in CLK12 or CLK24 format |
-| 26,5 | ATIME24 | ALPHA Date/Time | Same as ATIME but always uses CLK24 format |
-| 26,6 | CLK12 | Clock Display | Switch to 12-hour time display format |
-| 26,7 | CLK24 | Clock Display | Switch to 24-hour time display format |
-| 26,8 | CLKT | Clock Display | Switch clock to time-only display format |
-| 26,9 | CLKTD | Clock Display | Switch clock to time-and-date display format |
-| 26,10 | CLOCK | Clock Display | Display the clock (also accessible via SHIFT+ON) |
-| 26,11 | CORRECT | Clock | Same as SETIME + automatically adjusts accuracy factor |
-| 26,12 | DATE | Date Arithmetic | Recall current date to X-register; from keyboard also displays day name |
-| 26,13 | DATE+ | Date Arithmetic | Calculate new date from Y-reg date + X-reg days |
-| 26,14 | DDAYS | Date Arithmetic | Calculate days between two dates (X-reg and Y-reg) |
-| 26,15 | DMY | Date Format | Set day-month-year input/output format; sets flag 31 |
-| 26,16 | DOW | Date Arithmetic | Replace X-reg date with day-of-week number (0=Sun..6=Sat); keyboard shows day name |
-| 26,17 | MDY | Date Format | Set month-day-year input/output format; clears flag 31 |
-| 26,18 | RCLAF | Clock | Recall clock accuracy factor to X-register |
-| 26,19 | RCLSW | Stopwatch | Recall current stopwatch time to X-register |
-| 26,20 | RUNSW | Stopwatch | Start the stopwatch |
-| 26,21 | SETAF | Clock | Set clock accuracy factor from X-register (-99.9 to 99.9) |
-| 26,22 | SETDATE | Clock | Set clock date from X-register |
-| 26,23 | SETIME | Clock | Set clock time from X-register |
-| 26,24 | SETSW | Stopwatch | Set stopwatch starting time from X-register (-99.595999 to 99.595999) |
-| 26,25 | STOPSW | Stopwatch | Halt the stopwatch |
-| 26,26 | SW | Stopwatch | Enter Stopwatch mode (reassigns keyboard) |
-| 26,27 | T+X | Clock | Adjust clock time by X-register value (+/-HHHH.MMSSss); date changes if crossing midnight |
-| 26,28 | TIME | Clock | Recall current time to X-register (24-hour format); from keyboard also displays time |
-| 26,29 | XYZALM | Alarm | Set alarm using stack (X=time, Y=date, Z=repeat) and ALPHA register |
+The Advantage Pac is **distinct from Math Pac I** (XROM 7). Math Pac I is pure user-code FOCAL programs; the Advantage Pac is primarily M-CODE (machine language) running at maximum speed. This distinction is critical for emulation strategy.
 
-### CX-Only Additional Functions (6)
-
-| XROM ID | Mnemonic | Category | Description |
-|---------|----------|----------|-------------|
-| 26,30 | (reserved) | -- | (gap in numbering) |
-| 26,31 | CLALMA | Alarm | Clear alarm whose message matches ALPHA register |
-| 26,32 | CLALMX | Alarm | Clear nth alarm (X-register specifies alarm number) |
-| 26,33 | CLRALMS | Alarm | Clear ALL alarms |
-| 26,34 | RCLALM | Alarm | Recall parameters of alarm n (to stack and ALPHA) |
-| 26,35 | SWPT | Stopwatch | Stopwatch and pointers -- activate stopwatch with storage/recall pointer setup |
-
-### Total: 35 callable functions (excluding header)
+The **Advanced Matrix Pac** is a separate HP module that contains all -ADV MTRX functions plus additional matrix programs from the ALGEBRA module, plus a new Matrix Input mode. It shares the same XROM matrix function set as the Advantage Pac but reorganizes the ROM banks to maximize matrix capability. For emulation purposes, the Advanced Matrix Pac is a subset/variant of the Advantage Pac, not a new function set.
 
 ---
 
-## Functional Categories
+## Complete Function List by Section
 
-### Category 1: Clock / Time Recall (6 functions)
+### Section 1: ADVCONV — Base Conversion and Boolean Logic (XROM 22, fn 1–12)
 
-**Functions:** TIME, SETIME, CORRECT, T+X, RCLAF, SETAF
+These are all **one-shot stack operations** — no prompting, no modal workflow.
 
-**TIME behavior:**
-- Returns current time to X-register in HH.MMSSss format (24-hour, always).
-- When executed from keyboard (not in program), also displays the time on the LCD.
-- LiftEffect: Enable.
+| XROM | Function | Description | Stack Input | Stack Output | Complexity |
+|------|----------|-------------|-------------|--------------|------------|
+| 22,1 | BININ | Binary string in ALPHA → integer in X | ALPHA = binary string | X = integer | LOW |
+| 22,2 | BINVIEW | Integer in X → binary string in ALPHA, display | X = integer | ALPHA = binary | LOW |
+| 22,3 | OCTIN | Octal string in ALPHA → integer in X | ALPHA = octal string | X = integer | LOW |
+| 22,4 | CVTVIEW | Display current value in all bases | X = integer | display only | LOW |
+| 22,5 | HEXIN | Hex string in ALPHA → integer in X | ALPHA = hex string | X = integer | LOW |
+| 22,6 | HEXVIEW | Integer in X → hex string in ALPHA, display | X = integer | ALPHA = hex | LOW |
+| 22,7 | NOT | Bitwise NOT of X | X = integer | X = ~X | LOW |
+| 22,8 | AND | Bitwise AND of X and Y | Y, X = integers | X = Y AND X | LOW |
+| 22,9 | OR | Bitwise OR of X and Y | Y, X = integers | X = Y OR X | LOW |
+| 22,10 | XOR | Bitwise XOR of X and Y | Y, X = integers | X = Y XOR X | LOW |
+| 22,11 | ROTXY | Rotate X by Y bits | Y = shift count, X = integer | X = rotated | LOW |
+| 22,12 | BIT? | Test bit Y of integer X; skip if set | Y = bit position, X = integer | skip/no-skip | LOW |
 
-**SETIME behavior:**
-- Sets the clock time from X-register value.
-- Format: HH.MMSSss where HH = hours, MM = minutes, SS = seconds, ss = hundredths.
-- Valid ranges per QRC:
-  - 0.000000 through 11.595999 = A.M.
-  - 12.000000 through 23.595999 = P.M.
-  - -1.000000 through -11.595999 = P.M. (negative shorthand)
-- Invalid time values produce DATA ERROR.
+**Implementation notes:** These are pure integer bitwise operations. The Advantage Pac treats integers as whole numbers in X; the word size is determined by the current value. No flags or modes affect behavior. These are entirely independent of the existing Math Pac I or HP-41CV built-ins.
 
-**CORRECT behavior:**
-- Performs SETIME plus automatically adjusts the accuracy factor.
-- The adjustment compensates for observed clock drift.
-
-**T+X behavior:**
-- Adjusts the system clock by the value in X-register.
-- Format: +/-HHHH.MMSSss (hours can exceed 24).
-- If the adjustment crosses a midnight boundary, the date also changes.
-- This is the only time function that can modify the date as a side effect.
-
-**SETAF / RCLAF behavior:**
-- Accuracy factor: interval (in seconds) at which one pulse (~9.8e-5 seconds) is added to or subtracted from the clock's 10240 Hz time base.
-- Range: -99.9 to +99.9. Value of 0.0 = no correction (default).
-- Negative = subtract a pulse (slow clock down); positive = add a pulse (speed up).
-- **Emulator divergence:** Since we use the host system clock, the accuracy factor has no physical meaning. We store it but it has no effect on timekeeping.
-
-**Complexity:** Medium. Core time recall/set is straightforward with `std::time::SystemTime` or `chrono`. The accuracy factor is store-only (no-op for emulation). T+X crossing midnight needs date rollover logic.
+**Overlap with existing code:** None. The HP-41CV has no bitwise operations. This is a clean new capability.
 
 ---
 
-### Category 2: Date Recall and Arithmetic (5 functions)
+### Section 2: ADVMTRX — Matrix Operations (XROM 22, fn 13–63)
 
-**Functions:** DATE, DATE+, DDAYS, DOW, SETDATE
+The matrix system is radically different from Math Pac I's MATRIX program. Math Pac I's MATRIX is a high-level FOCAL workflow; ADVMTRX provides 51 M-CODE primitive building blocks that programs call directly. Matrices live in **Extended Memory (X-MEM)** or in numbered registers. The system tracks current matrix, current row (I), and current column (J) indices via internal state.
 
-**Date format convention:**
-- Two formats controlled by flag 31:
-  - **MDY** (flag 31 clear): MM.DDYYYY (e.g., 3.282006 = March 28, 2006)
-  - **DMY** (flag 31 set): DD.MMYYYY (e.g., 28.032006 = March 28, 2006)
-- Input must be a positive number. All trailing digits after the year must be zero; otherwise DATA ERROR.
-- The QRC states dates use 4-digit years (YYYY, not YY).
+**Architecture:** A matrix is identified by an ALPHA name. MATDIM creates/dimensions it. Indices are manipulated with I+/I-/J+/J-/MSIJ/MRIJ. Elements are read with MRR+/MRC+/MRIJ and written with MSR+/MSC+/MSIJ. High-level operations (MDET, MINV, MSYS) consume the whole matrix at M-CODE speed.
 
-**DATE behavior:**
-- Returns current date to X-register in the active format (MM.DDYYYY or DD.MMYYYY).
-- When executed from keyboard, also displays "MM/DD/YY day" or "DD.MM.YY day" on the LCD.
-- LiftEffect: Enable.
+All ADVMTRX functions are **one-shot stack/register operations** — no modal prompting (unlike Math Pac I MATRIX which prompts ORDER=?, A1,1=? etc.). Users write their own program loops to drive these primitives.
 
-**DATE+ behavior:**
-- Y-register = base date; X-register = number of days to add (can be negative).
-- Result = new date in the active format, placed in X-register.
-- LiftEffect: Enable.
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 22,13 | C<>C | Exchange two complex matrices | One-shot |
+| 22,14 | CMAXAB | Max absolute value in complex matrix | One-shot |
+| 22,15 | CNRM | Complex matrix norm | One-shot |
+| 22,16 | CSUM | Sum of complex matrix elements | One-shot |
+| 22,17 | DIM? | Return dimensions of named matrix in X/Y | One-shot |
+| 22,18 | FNRM | Frobenius norm of matrix | One-shot |
+| 22,19 | I+ | Increment row index | One-shot |
+| 22,20 | I- | Decrement row index | One-shot |
+| 22,21 | J+ | Increment column index | One-shot |
+| 22,22 | J- | Decrement column index | One-shot |
+| 22,23 | M*M | Matrix multiply: result = A * B | One-shot |
+| 22,24 | MAT* | Scalar multiply: all elements times X | One-shot |
+| 22,25 | MAT+ | Matrix add: A + B element-wise | One-shot |
+| 22,26 | MAT- | Matrix subtract: A - B element-wise | One-shot |
+| 22,27 | MAT/ | Scalar divide: all elements divided by X | One-shot |
+| 22,28 | MATDIM | Create/dimension matrix in X-MEM or registers | One-shot |
+| 22,29 | MAX | Maximum element value (real matrices) | One-shot |
+| 22,30 | MAXAB | Maximum absolute value element | One-shot |
+| 22,31 | MDET | Determinant of current matrix | One-shot |
+| 22,32 | MIN | Minimum element value | One-shot |
+| 22,33 | MINV | Inverse of current matrix (in-place LU) | One-shot |
+| 22,34 | MMOVE | Copy rows/columns of matrix to another | One-shot |
+| 22,35 | MNAME? | Return name of current matrix in ALPHA | One-shot |
+| 22,36 | MR | Read element at current index | One-shot |
+| 22,37 | MRC+ | Read element, increment column index | One-shot |
+| 22,38 | MRC- | Read element, decrement column index | One-shot |
+| 22,39 | MRIJ | Read element at explicit I,J in X | One-shot |
+| 22,40 | MRIJR | Read element at I,J; advance to next row | One-shot |
+| 22,41 | MRR+ | Read element, increment row index | One-shot |
+| 22,42 | MRR- | Read element, decrement row index | One-shot |
+| 22,43 | MS | Write X to element at current index | One-shot |
+| 22,44 | MSC+ | Write X to element, increment column | One-shot |
+| 22,45 | MSIJ | Write X to element at explicit I,J | One-shot |
+| 22,46 | MSIJR | Write X to I,J; advance to next row | One-shot |
+| 22,47 | MSR+ | Write X to element, increment row | One-shot |
+| 22,48 | MSWAP | Swap two rows (or columns) | One-shot |
+| 22,49 | MSYS | Solve linear system Ax=b (simultaneous equations) | One-shot |
+| 22,50 | PIV | Pivot operation (partial pivoting step) | One-shot |
+| 22,51 | R<>R | Exchange two rows | One-shot |
+| 22,52 | R>R? | Compare two rows; skip if row k > row l | One-shot |
+| 22,53 | RMAXAB | Row maximum absolute value | One-shot |
+| 22,54 | RNRM | Row norm | One-shot |
+| 22,55 | RSUM | Row sum | One-shot |
+| 22,56 | SUM | Sum of all matrix elements | One-shot |
+| 22,57 | SUMAB | Sum of absolute values of all elements | One-shot |
+| 22,58 | TRNPS | Transpose matrix (in-place) | One-shot |
+| 22,59 | YC+C | Add complex number Y+Xi to complex matrix element | One-shot |
+| 22,60 | MEDIT | Open real matrix editor (interactive input mode) | Modal (editor session) |
+| 22,61 | CMEDIT | Open complex matrix editor | Modal (editor session) |
+| 22,62 | MP | Matrix print (output all elements via print buffer) | One-shot |
 
-**DDAYS behavior:**
-- Calculates days between date in Y-register and date in X-register.
-- Result = signed integer (X - Y); positive if X is later than Y.
-- Both dates must be in the active format.
-- LiftEffect: Enable.
+**Critical overlap with Math Pac I:** MDET and MINV duplicate the end-result of Math Pac I's MATRIX/DET and MATRIX/INV workflows, but use completely different underlying infrastructure. Math Pac I MATRIX stores the matrix in R15..R(15+n^2-1) numbered registers with a specific ordering; ADVMTRX uses X-MEM named matrices. These are **incompatible storage formats**. MSYS is the equivalent of MATRIX/SIMEQ.
 
-**DOW behavior:**
-- Replaces X-register date with day-of-week number: 0 = Sunday, 1 = Monday, ..., 6 = Saturday.
-- When executed from keyboard, also displays the day name (e.g., "SUNDAY").
-- LiftEffect: Enable.
-
-**SETDATE behavior:**
-- Sets clock date from X-register in the active format.
-- Validates the date; invalid dates produce DATA ERROR.
-
-**Complexity:** Medium. Date arithmetic requires a robust calendar engine. The HP-41CX supports the Gregorian calendar. We can use Rust's `chrono` crate or implement the Julian Day Number algorithm directly.
-
----
-
-### Category 3: Date/Time Format Toggles (4 functions)
-
-**Functions:** DMY, MDY, CLK12, CLK24
-
-**DMY / MDY:**
-- DMY sets flag 31 (day-month-year format).
-- MDY clears flag 31 (month-day-year format).
-- These affect all date input/output (DATE, DATE+, DDAYS, SETDATE, ADATE).
-- LiftEffect: Neutral.
-
-**CLK12 / CLK24:**
-- CLK12 switches to 12-hour time display format.
-- CLK24 switches to 24-hour time display format.
-- These affect the clock display (CLOCK) and ATIME output.
-- Note: TIME always returns 24-hour format to X-register regardless of this setting.
-- **State:** The 12/24 setting is a persistent display preference. On real hardware it is stored in the time module's own registers. For emulation, this is a new `CalcState` field.
-- LiftEffect: Neutral.
-
-**Complexity:** Low. Flag 31 already exists in the flag system. CLK12/CLK24 needs one new bool field on CalcState.
-
----
-
-### Category 4: Clock Display Modes (2+1 functions)
-
-**Functions:** CLKT, CLKTD, CLOCK (or SHIFT+ON)
-
-**CLKT / CLKTD:**
-- CLKT = time-only clock display format.
-- CLKTD = time-and-date clock display format.
-- These set the format used when CLOCK is activated.
-- LiftEffect: Neutral.
-
-**CLOCK (or SHIFT+ON):**
-- Activates the clock display on the LCD.
-- The display continuously updates in real time.
-- In CLKT mode: shows `HH:MM:SS` (or `HH:MM:SS AM/PM` in CLK12).
-- In CLKTD mode: shows `HH:MM AM MM/DD` or `HH:MM PM DD.MM` (abbreviated date).
-- While the clock is displayed, pressing R/S enters the Alarm Catalog.
-- Any other key exits clock display mode.
-- **This is the first real-time continuous display update in the emulator.** Unlike all other operations which are event-driven (key press -> display update), the clock display must tick every second.
-
-**Complexity:** HIGH. This introduces a fundamentally new display paradigm:
-1. The emulator must transition from pure event-driven to a hybrid event-driven + periodic-update model.
-2. CLI (ratatui) needs a periodic redraw timer when clock is active.
-3. GUI (Tauri/React) needs a similar periodic state-poll or push mechanism.
-4. The clock display must coexist with normal calculator operation (entering clock mode, exiting on any keypress).
+**MEDIT/CMEDIT:** These are the two modal functions in ADVMTRX. They open an interactive matrix editor where the user can navigate elements with shifted keys and enter values. This is analogous to a spreadsheet-style data entry mode. Implementation: a new ModalProgram variant (`ModalProgram::Advantage(AdvantageStep)`) would be needed, or more likely, emulated as a simpler element-by-element PROMPT loop (since the full M-CODE editor UI is not required for behavioral fidelity — what matters is data entry and storage).
 
 ---
 
-### Category 5: ALPHA Date/Time Functions (3 functions)
+### Section 3: ADVMATH — Advanced Mathematics (XROM 24)
 
-**Functions:** ADATE, ATIME, ATIME24
+This section has the highest emulation complexity. It contains 47 routines split into several subsections. XROM 24 function numbers confirmed from the calc.fjk.ch database and cross-referenced with HP Museum forum discussions.
 
-**ADATE behavior:**
-- Appends the date from X-register to the ALPHA register in the active date format.
-- The number of digits varies according to the display setting (FIX/SCI/ENG affects trailing zeros).
-- Example: With MDY and FIX 6, X=3.282006 appends "3/28/2006" to ALPHA.
+#### 3a. Matrix Interface (XROM 24, fn 0–1)
 
-**ATIME behavior:**
-- Appends the time from X-register to the ALPHA register in the current CLK12/CLK24 format.
-- Truncated according to the display digits setting.
-- Example: With CLK24 and FIX 4, X=14.3025 appends "14:30:25" to ALPHA.
+High-level entry points that wrap the ADVMTRX primitives with user-friendly prompting. These ARE multi-step modal workflows.
 
-**ATIME24 behavior:**
-- Same as ATIME but always uses 24-hour format regardless of CLK12/CLK24 setting.
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,0 | MATRX | Full matrix workflow: DIM, input, choose DET/INV/SIMEQ | Modal workflow |
+| 24,1 | MTR | Simplified matrix entry/solve frontend | Modal workflow |
 
-**Complexity:** Medium. Format conversion (numeric -> string with separators) is the main work. Reuses the existing ALPHA register append infrastructure. The display-digit-dependent truncation needs careful implementation.
+**Overlap with Math Pac I:** MATRX is the Advantage Pac's version of Math Pac I's MATRIX program. Key differences: MATRX uses X-MEM named matrices (not R15-based), prompts for matrix NAME instead of just ORDER, supports larger matrices, runs at M-CODE speed (much faster). Behavioral emulation must replicate the Advantage-specific prompt sequence (NAME=?, DIM=?, element entry) rather than the Math Pac I sequence (ORDER=?, A1,1=?).
 
----
+#### 3b. Solve and Integrate (XROM 24, fn 2–6) — HP-15C algorithms ported to M-CODE
 
-### Category 6: Alarm System (8 functions)
+These are the flagship Advantage Pac capabilities. FSOLVE and FINTG are HP-15C-compatible in algorithm but with 41C-specific user interface.
 
-**Functions:** XYZALM, ALMCAT, ALMNOW, RCLALM, CLALMA, CLALMX, CLRALMS (+ alarm acknowledge mechanism)
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,2 | FSOLVE | Root of f(x)=0 via Secant/Brent; user-program callback | Modal workflow |
+| 24,3 | FINTG | Romberg integration of f(x); user-program callback | Modal workflow |
+| 24,4 | SILOOP | Internal integration loop (not user-callable directly) | Internal |
+| 24,5 | SIRTN | Integration return (internal) | Internal |
+| 24,6 | FDIFEQ | Differential equations solver (1st/2nd order RK4) | Modal workflow |
 
-This is the most complex subsystem in the Time Module.
+**Critical distinction from Math Pac I:**
+- Math Pac I SOLVE uses a secant-based algorithm with prompts FUNCTION NAME?, GUESS 1=?, GUESS 2=?
+- Math Pac I INTG uses Simpson's rule with prompts for lower/upper bounds and subinterval count
+- Advantage FSOLVE uses an improved HP-15C-style algorithm (faster convergence, no explicit guess often required)
+- Advantage FINTG uses **Romberg's method** (Richardson extrapolation on the Euler-MacLaurin sum) — adaptive accuracy, unlike Simpson's fixed-subinterval approach
+- Both FSOLVE and FINTG support **mutual nesting**: FROOT can be called from an FINTG integrand and FINTG can be called from an FSOLVE function body — this requires re-entrant buffer management that Math Pac I's infrastructure does NOT support
+- Advantage FSOLVE/FINTG create dedicated **X-MEM buffers** to store application state — this is fundamentally different from Math Pac I's register-based state
+- Advantage FDIFEQ replaces Math Pac I's DIFEQ (same RK4 algorithm family but M-CODE speed and X-MEM buffers)
 
-#### 6a. Setting Alarms: XYZALM
+**Stack conventions:** FSOLVE: ALPHA = function name, X = initial guess (or provide two guesses). FINTG: ALPHA = function name, Y = lower limit, X = upper limit; result in X. These match HP-15C conventions loosely but use the 41C ALPHA register for the function name.
 
-**Stack parameters (from QRC):**
+#### 3c. Polynomial Roots (XROM 24, fn ~20)
 
-| Register | Content | Format |
-|----------|---------|--------|
-| T | (unused) | |
-| Z | Repeat interval | HHHH.MMSSs or 0 |
-| Y | Date | MM.DDYYYY or DD.MMYYYY or 0 |
-| X | Time | HH.MMSSs |
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,~20 | FROOT | Roots of polynomial of **arbitrary degree** using Laguerre's method; user-program as polynomial evaluator | Modal workflow |
+| 24,~21 | PLY | Polynomial evaluation: compute P(x) | One-shot |
+| 24,~22 | RTS | Root output/collection utility | One-shot |
 
-- Z = 0 means no repeat (one-shot alarm).
-- Y = 0 means "today" (current date).
+**Critical overlap and extension of Math Pac I POLY/ROOTS:**
+- Math Pac I POLY/ROOTS handles degree 2–5 only, uses a fixed closed-form algorithm
+- Advantage FROOT handles **arbitrary degree** using Laguerre's iterative method
+- FROOT requires the user to write a program that evaluates the polynomial (the function callback pattern, same infrastructure as FSOLVE/FINTG)
+- This is the "PROOT" mentioned in the PROJECT.md milestone context — "PROOT" appears to be an alternative community name; the HP OM uses FROOT
+- FROOT outputs real and complex root pairs sequentially via R/S
 
-**ALPHA register determines alarm type:**
+#### 3d. Complex Number Operations (XROM 24, fn 7–19+)
 
-| ALPHA content | Alarm type |
-|---------------|-----------|
-| Empty or message text | **Message Alarm** -- sounds tones and displays the message |
-| `>>global label` or `>>function name` | **Interrupting Control Alarm** -- runs the specified program/function; interrupts current activity |
-| `>global label` or `>function name` | **Non-interrupting (Conditional) Control Alarm** -- conditional execution (see below) |
+These extend Math Pac I's complex stack. Math Pac I already implements C+, C-, C×, C÷ and 13 complex functions using the X/Y/Z/T stack overlay. The Advantage Pac provides a **partially overlapping but architecturally different** complex number system.
 
-Note: `>>` = two shift-right-arrow characters; `>` = one shift-right-arrow character. A "function" must be a programmable function belonging to a plug-in device.
+**Key architectural difference:** Math Pac I uses the 4-register stack as two complex numbers (zeta = Z+Yi, tau = T+Xi nomenclature from the OM). Advantage Pac complex functions use the **same X/Y convention** (Y = imaginary, X = real) but include additional operations not in Math Pac I.
 
-**Conditional Alarm behavior (complex):**
-- Does NOT interrupt a running program (unlike other alarm types).
-- If HP-41CX is off or displaying the clock -> becomes a control alarm (runs the program).
-- If HP-41CX is on and NOT running a program -> becomes a message alarm.
-- If a program IS running -> alarm beeps twice and becomes past-due.
+| XROM | Function | Description | Math Pac I equivalent? |
+|------|----------|-------------|------------------------|
+| 24,7 | Z^N | Complex z raised to integer power n | No (Math Pac I has CY^X for general power) |
+| 24,8 | MAGZ | Magnitude (absolute value) of complex z | Equivalent to CABS in Math Pac I |
+| 24,9 | e^Z | Complex exponential e^z | No direct equivalent in Math Pac I |
+| 24,10 | LNZ | Complex natural log ln(z) | No direct equivalent |
+| 24,11 | Z^1/N | Complex nth root | No direct equivalent |
+| 24,12 | SINZ | Complex sine sin(z) | No direct equivalent |
+| 24,13 | COSZ | Complex cosine cos(z) | No direct equivalent |
+| 24,14 | TANZ | Complex tangent tan(z) | No direct equivalent |
+| 24,15 | a^Z | Real base a raised to complex power z | Partial overlap with CY^X |
+| 24,16 | LOGZ | Complex log base a: log_a(z) | No direct equivalent |
+| 24,17 | Z^1/W | Complex z raised to 1/w | No direct equivalent |
+| 24,18 | Z^W | Complex z raised to complex w | Equivalent to Math Pac I CY^X |
+| 24,19 | C+ | Complex addition z1 + z2 | Duplicate of Math Pac I C+ |
+| 24,~20a | C- | Complex subtraction | Duplicate of Math Pac I C- |
+| 24,~21a | CINV | Complex inverse 1/z | Equivalent to Math Pac I CINV |
+| 24,~22a | C* | Complex multiply | Duplicate of Math Pac I C× |
+| 24,~23a | C/ | Complex divide | Duplicate of Math Pac I C÷ |
 
-**Alarm storage:**
-- Up to 253 alarms depending on available memory (stored in uncommitted registers R100-R318, same memory pool as program lines and key assignments).
-- Each alarm consumes memory registers.
-- Alarms are ordered chronologically.
+**Stack convention:** Y = imaginary part, X = real part for a single complex number. Two complex numbers: Z = Im(z2), Y = Re(z2), X and T = Im(z1)/Re(z1). The convention matches the HP-15C two-complex-number stack layout, not exactly the Math Pac I zeta/tau layout. This is a behavioral divergence to document carefully.
 
-#### 6b. Alarm Catalog: ALMCAT
+**Functions in PROJECT.md mentioned mapping to Advantage Pac:**
+- CABS → MAGZ (24,8) — same function, different name
+- CARG → not separately listed; argument comes from MAGZ+LNZ or atan2 via TANZ
+- CCHS → complex negation (negate both real and imaginary parts) — trivial one-shot
+- CCONJ → complex conjugate (negate imaginary part) — trivial one-shot
+- CY^X → Z^W (24,18)
 
-- Lists all pending and past-due alarms in chronological order.
-- Pressing R/S during ALMCAT halts the listing and redefines the keyboard to the **Alarm Catalog Keyboard** (see below).
-- The alarm catalog display shows: `HH:MM AM MM/DD` or `HH:MM PM DD.MM` (time and date of each alarm).
+Note: CABS, CARG, CCHS, CCONJ as named functions appear in the **Math Pac I** complex set (already implemented in v3.0 as CMPLX-01..17). The Advantage Pac uses different names (MAGZ instead of CABS, etc.) for equivalent or extended operations.
 
-**Alarm Catalog Keyboard (from QRC):**
+#### 3e. Curve Fitting (XROM 24)
 
-| Key | Function |
-|-----|----------|
-| SHIFT+C | Delete alarm |
-| D | Alarm Date |
-| T | Alarm Time |
-| M | Alarm Message, Label, or Function |
-| R | Alarm Repeat Interval |
-| SHIFT+R | Reset Alarm Using Specified Repeat Interval |
-| SHIFT+T | Current Time |
-| SST | Next Alarm and Message, Label, or Function |
-| BST | Preceding alarm and Message, Label, or Function |
-| Back-arrow | Exit Alarm Catalog Mode |
-| R/S | Resume ALMCAT Listing |
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,~30 | CFIT | Curve fit (linear, log, exp, power) to (x,y) data | Modal workflow |
+| 24,~31 | AS | Add data point to curve fit accumulation | One-shot |
+| 24,~32 | DS | Delete/subtract data point from accumulation | One-shot |
+| 24,~33 | BFIT | Best-fit selection: determine which model fits best | Modal workflow |
+| 24,~34 | FIT | Compute fit coefficients for current model | One-shot |
+| 24,~35 | Y?X | Predict Y from X using current fit | One-shot |
+| 24,~36 | SZ? | Test if current data set has sufficient points | One-shot |
 
-This is a full keyboard-mode reassignment, similar to the Stopwatch keyboard.
+**Overlap with HP-41CV built-ins:** The HP-41CV has built-in L.R. (linear regression) and MEAN/SDEV. CFIT extends this to logarithmic, exponential, and power curve fitting. AS/DS mirror Sigma+/Sigma- but for curve fit storage registers.
 
-#### 6c. Alarm Activation: ALMNOW
+#### 3f. Vector Operations (XROM 24)
 
-- Activates the oldest past-due program or function alarm.
-- If no past-due alarms exist, no action.
-- Useful for program-driven alarm processing.
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,~37 | VC | Vector cross product (3D) | One-shot |
+| 24,~38 | CROSS | Cross product (alternate entry) | One-shot |
+| 24,~39 | VS | Vector scalar multiply | One-shot |
+| 24,~40 | VR | Vector result recall | One-shot |
+| 24,~41 | DOT | Dot product of two 3D vectors | One-shot |
+| 24,~42 | VE | Vector entry (input 3D vector to registers) | Modal |
+| 24,~43 | V- | Vector subtract | One-shot |
+| 24,~44 | V+ | Vector add | One-shot |
+| 24,~45 | VXY | Vector to X-Y plane projection | One-shot |
+| 24,~46 | UV | Unit vector | One-shot |
+| 24,~47 | V< | Vector magnitude (length) | One-shot |
+| 24,~48 | VD | Vector dot product (variant) | One-shot |
+| 24,~49 | V* | Vector scalar product (variant) | One-shot |
 
-#### 6d. Recall/Clear: RCLALM, CLALMA, CLALMX, CLRALMS
+**Note on XROM numbers:** The exact XROM 24 sub-numbers for curve fit and vector operations are MEDIUM confidence — reconstructed from the calc.fjk.ch function database and community descriptions. The function names themselves are HIGH confidence (corroborated by multiple sources). Exact fn numbers should be verified against the OM during implementation.
 
-**RCLALM n:**
-- Recalls parameters of alarm n to the stack and ALPHA register.
-- Stack layout mirrors XYZALM (X=time, Y=date, Z=repeat).
-- ALPHA gets the message/label.
+#### 3g. Coordinate Transformations (XROM 24)
 
-**CLALMA:**
-- Clears the alarm whose message matches the current ALPHA register content.
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,~50 | TR | Coordinate transformation (2D/3D) | One-shot |
+| 24,~51 | CT | Coordinate transform result | One-shot |
 
-**CLALMX:**
-- Clears the nth alarm (X-register specifies the alarm number).
+**Overlap with Math Pac I:** Math Pac I has TRANS (2D/3D coordinate transformations). The Advantage Pac TR/CT functions provide the same capability but via one-shot M-CODE primitives rather than a multi-step modal workflow.
 
-**CLRALMS:**
-- Clears ALL alarms.
+#### 3h. Miscellaneous Math (XROM 24)
 
-#### 6e. Alarm Acknowledge Mechanism
-
-**Message Alarms (from QRC):**
-- To halt a current flashing alarm: press any key except STO. This clears (deletes) the non-repeating alarm, or resets a repeating alarm.
-- To halt AND clear a current repeating alarm: press SHIFT+C.
-- To clear a non-active alarm: use SHIFT+C on the Alarm Catalog keyboard.
-- Non-message alarms (control/conditional) are not acknowledged -- they run programs.
-
-**Complexity:** VERY HIGH. The alarm system is the single most complex feature:
-1. **New data structure:** Alarm catalog stored in memory, up to 253 entries with time/date/repeat/type/message fields.
-2. **New CalcState fields:** Alarm list, active alarm state, alarm catalog mode.
-3. **Interrupt model:** Alarms fire whether or not the calculator is on (in emulation: alarms fire based on system time comparison, need a background timer).
-4. **Keyboard mode switching:** Alarm Catalog is a full keyboard reassignment (third mode after Stopwatch).
-5. **Program execution trigger:** Control alarms auto-execute programs -- requires integration with `run_program()` infrastructure.
-6. **Repeating alarms:** Need interval-based rescheduling logic.
-7. **Past-due tracking:** Alarms that fired while "off" accumulate as past-due.
-8. **Memory management:** Alarms share the uncommitted register pool.
-9. **Persistence:** Alarms must survive save/load (not transient).
-
----
-
-### Category 7: Stopwatch (6+1 functions)
-
-**Functions:** SW, RUNSW, STOPSW, SETSW, RCLSW, SWPT (CX-only)
-
-#### 7a. Programmatic Stopwatch Functions (outside SW mode)
-
-These four functions work when the calculator is NOT in Stopwatch mode:
-
-**RCLSW:** Recalls current stopwatch time to X-register (HH.MMSSss format). Works whether stopwatch is running or stopped.
-
-**RUNSW:** Starts the stopwatch. Can be used in programs to time code execution.
-
-**SETSW:** Sets stopwatch starting time from X-register. Range: -99.595999 to +99.595999.
-
-**STOPSW:** Halts the stopwatch.
-
-#### 7b. Stopwatch Mode: SW
-
-**SW** switches the calculator to Stopwatch mode and reassigns the keyboard:
-
-**Stopwatch Keyboard (from QRC):**
-
-| Key | Function |
-|-----|----------|
-| SPLIT | Take Split (record current time to a register) |
-| Delta-SPLIT | Set/Clear Delta Split Mode (difference between consecutive splits) |
-| Digit keys | Set new register address for split storage |
-| Register Address display | Shows current register pointer (Rnn or Dnn) |
-| SST, BST | Increment/Decrement Register Address |
-| PRGM | Set/Cancel Display of Three-Digit Address |
-| EXIT | Exit Stopwatch |
-| CLEAR | Clear Time to Zero |
-| REG# | Suppress/Restore Display of Register Address |
-| R/S | Run/Stop Stopwatch |
-| EEX | Three-Digit Pointer On/Off |
-| CHS | Split Difference On/Off |
-| RCL | Split Recall On/Off |
-| SHIFT+EEX | Register Pointer On/Off |
-
-**Display Symbols:**
-- `1- R` = Store split
-- `1- D` = Store split; display difference
-- `2- R` = Recall split
-- `2- D` = Recall split difference
-
-**Real-time display:** While the stopwatch is running, the LCD shows the elapsed time updating continuously (similar to CLOCK mode but with stopwatch-specific formatting: `HH:MM:SS.hh`).
-
-**SWPT (CX-only):** Given sss.rrr in X-register, activates the Stopwatch keyboard and sets the storage pointer (sss) and recall pointer (rrr).
-
-**Complexity:** HIGH.
-1. **Real-time display updates** (second instance of continuous LCD refresh, alongside CLOCK).
-2. **Full keyboard reassignment** (second special keyboard mode).
-3. **Split timing** with register storage and delta calculation.
-4. **Background timer** -- stopwatch must continue running even when not in SW mode.
-5. **Three display modes** within stopwatch: store-split, recall-split, display-difference.
-6. **Negative stopwatch support** (timer can count into negatives per the SETSW range).
+| XROM | Function | Description | Type |
+|------|----------|-------------|------|
+| 24,~52 | AIP | Alpha integer append to ALPHA string | One-shot |
 
 ---
 
-## Table Stakes
+### Section 4: ADVTVM — Time Value of Money (XROM 24, fn ~53–58)
 
-Features users expect from a "Time Module emulation." Missing any of these would make the claim "Time Module emulation" inaccurate.
+These are primarily **one-shot stack operations**. The TVM model is stored in dedicated registers.
 
-| Feature | Why Expected | Complexity | Dependency |
-|---------|--------------|------------|------------|
-| TIME -- recall current time | Core time function; most basic | Low | Host system clock |
-| DATE -- recall current date | Core date function; most basic | Low | Host system clock |
-| SETIME / SETDATE | Set clock; users expect to set time/date | Medium | Time offset storage |
-| DATE+ / DDAYS / DOW | Date arithmetic trio; fundamental utility | Medium | Calendar engine |
-| DMY / MDY | Date format toggle; fundamental | Low | Flag 31 (exists) |
-| CLK12 / CLK24 | Time format toggle; fundamental | Low | New bool on CalcState |
-| ADATE / ATIME / ATIME24 | ALPHA-register formatting; expected for programs | Medium | Existing ALPHA infra |
-| CLKT / CLKTD | Clock display format preference | Low | New enum on CalcState |
-| CLOCK display | Live clock on LCD; signature feature | HIGH | Periodic display update |
-| T+X | Time adjustment; expected for completeness | Medium | Midnight rollover logic |
-| CORRECT / SETAF / RCLAF | Accuracy factor; expected for completeness | Low | Store-only (no-op for emulation) |
-| XYZALM -- set alarm | Core alarm function; defines the module | HIGH | Full alarm subsystem |
-| ALMCAT -- alarm catalog | Browse/manage alarms; companion to XYZALM | HIGH | Alarm catalog keyboard mode |
-| ALMNOW -- activate alarm | Program-driven alarm trigger | Medium | Alarm execution infra |
-| RCLALM -- recall alarm | Read alarm parameters back | Medium | Alarm data access |
-| CLALMA / CLALMX / CLRALMS | Clear alarms; basic management | Medium | Alarm data mutation |
-| RUNSW / STOPSW / SETSW / RCLSW | Programmatic stopwatch control | Medium | Background timer |
-| SW -- stopwatch mode | Full stopwatch with keyboard | HIGH | SW keyboard + real-time display |
-| SWPT | Stopwatch with pointers | Medium | SW mode infra |
-| 4-way exhaustive match | All new Op variants in dispatch + execute_op + 2x prgm_display | Low | Existing invariant |
-| JSON-canonical help pipeline | `docs/hp41-time-functions.json` + help_data.rs | Medium | Existing JSON infra |
-| CATALOG 2 listing | Time Module appears in CATALOG 2 | Low | Existing XROM framework |
+| XROM | Function | Description | Stack |
+|------|----------|-------------|-------|
+| 24,~53 | TVM | Initialize / master TVM solver | Modal (prompts N, I, PV, PMT, FV) |
+| 24,~54 | N | Solve for N (periods) given other TVM vars | One-shot |
+| 24,~55 | PV | Solve for PV (present value) | One-shot |
+| 24,~56 | PMT | Solve for PMT (payment) | One-shot |
+| 24,~57 | FV | Solve for FV (future value) | One-shot |
+| 24,~58 | *I | Solve for periodic interest rate | One-shot (iterative internally) |
+
+**Note:** *I (solve for interest) is iterative because there is no closed-form solution for interest rate. This is the only TVM function requiring internal iteration. The others are closed-form rearrangements of the TVM equation.
 
 ---
 
-## Differentiators
+## Feature Landscape
 
-Features that would set this emulation apart from typical HP-41 emulators or add genuine user value.
+### Table Stakes (Users Expect These for a Complete Advantage Pac Emulation)
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| ADVCONV: 12 base/boolean ops (BININ to BIT?) | OM documents them; HP-16C users expect these | LOW | Pure integer arithmetic, no modal |
+| ADVMTRX: core element access (MR/MS, I+/I-/J+/J-, MSIJ/MRIJ, MSR+/MSC+, MRR+/MRC+) | Foundation for all matrix programs | MEDIUM | Index state management per CalcState |
+| ADVMTRX: MATDIM, DIM?, MNAME? | Matrix lifecycle management | MEDIUM | Named matrices in X-MEM model |
+| ADVMTRX: MDET, MINV, MSYS | The three flagship matrix ops users actually call | HIGH | LU decomposition, back-substitution |
+| ADVMTRX: MAT+/MAT-/MAT*/MAT//M*M | Element-wise and matrix arithmetic | MEDIUM | Requires named matrix storage |
+| ADVMTRX: TRNPS | Transpose | MEDIUM | In-place or copy |
+| ADVMTRX: MMOVE, MSWAP, R<>R | Row/column manipulation | MEDIUM | Index arithmetic |
+| ADVMTRX: SUM, MAX, MIN, MAXAB, RMAXAB | Reduction ops; used in sorting programs | LOW | Simple iteration |
+| ADVMTRX: FNRM, RNRM | Norms for convergence testing | LOW | Simple iteration |
+| FSOLVE (XROM 24) | Solve f(x)=0; flagship capability | HIGH | Brent/Secant, X-MEM buffer, callback |
+| FINTG (XROM 24) | Romberg integration; flagship capability | HIGH | Richardson extrapolation, X-MEM buffer |
+| FROOT / PLY / RTS | Arbitrary-degree polynomial roots | HIGH | Laguerre's method, complex root output |
+| Complex functions (MAGZ, e^Z, LNZ, Z^N, SINZ, COSZ, TANZ, Z^W, C+/C-/C*/C/) | Math users expect complex arithmetic | MEDIUM | Most are one-shot; extend Math Pac I |
+| CFIT / AS / DS / Y?X | Curve fitting beyond L.R. | MEDIUM | Builds on Sigma-register pattern |
+| ADVTVM: TVM, N, PV, PMT, FV, *I | HP-12C-style TVM; widely expected | MEDIUM | *I requires Newton iteration |
+
+### Differentiators
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Host-clock integration | Time/Date use real system clock, not fake counter | Low | Natural for a software emulator; real hardware had a crystal oscillator |
-| Alarm notification integration | OS-level notifications when alarms fire | HIGH | Desktop notifications via Tauri; CLI could use terminal bell |
-| Persistent alarm catalog | Alarms survive application restart | Medium | Serialize alarm list to autosave.json |
-| Stopwatch precision | Millisecond or better precision (vs. hardware's centisecond) | Low | Host system clock resolution exceeds original |
-| Divergence documentation | Document behavioral differences from hardware | Low | Follows v3.0/v3.1 established pattern |
-| Timezone awareness | Display local time correctly | Low | `chrono::Local` handles this automatically |
+| FROOT mutual nesting with FINTG | Solve for root of an integral; impossible in Math Pac I | HIGH | Re-entrant X-MEM buffer architecture |
+| ADVMTRX in X-MEM (no numbered registers consumed) | Programs at SIZE 000 work with full matrices | HIGH | X-MEM named matrix storage model |
+| MEDIT/CMEDIT matrix editor | Spreadsheet-style interactive matrix entry | HIGH | Modal editor session, new UX pattern |
+| Romberg vs Simpson integration | Significantly more accurate for smooth functions | MEDIUM | Algorithm difference, same callback pattern |
+| Laguerre roots for arbitrary degree | Generalize POLY/ROOTS to any degree polynomial | HIGH | Adds complex root output |
+| M*M (matrix multiply) | HP-15C users expect this | MEDIUM | O(n^3) loop over named matrices |
+| Vector ops (DOT, CROSS, V+, V-, UV) | Useful for physics/engineering | MEDIUM | Simple stack arithmetic mostly |
+| BFIT automatic model selection | "Best fit" auto-selection | LOW | Tests all 4 fit models, picks lowest residual |
 
----
+### Anti-Features
 
-## Anti-Features
-
-Features to explicitly NOT build for v3.2.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Cycle-accurate crystal oscillator simulation | No user value; host clock is better | Use `std::time::SystemTime` or `chrono::Local` |
-| Accuracy factor correction loop | The 10240 Hz crystal correction has no meaning with a host OS clock | Store SETAF/RCLAF value but ignore it; document as divergence |
-| HP-IL alarm wake-up | The HP-41 could wake from OFF state on alarm; we have no OFF state | Trigger alarms whenever the app is running; document as divergence |
-| Battery-low alarm suppression | Real hardware suppressed clock display when battery low (BAT annunciator) | Not applicable; no battery in emulation |
-| Extended Memory integration | Text editor, file system, extended memory functions are a separate XROM module | Out of scope for v3.2; these are Extended Functions (XROM 25), not Time Module |
-| Shared register pool for alarms | Real hardware stored alarms in uncommitted registers R100-R318 alongside programs | Use a dedicated `Vec<Alarm>` on CalcState instead; simpler and equivalent behavior |
-| Physical keyboard overlay | The HP 82182A came with a keyboard overlay label strip | Not applicable to software emulator |
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|--------------|---------------|-----------------|-------------|
+| Full M-CODE speed emulation | "Faithfulness" | Behavioral emulation is the project scope; cycle-accurate M-CODE is excluded per project invariants | Correct algorithms at any speed |
+| Duplicating Math Pac I infrastructure for Advantage | Unified codebase | Math Pac I uses register-based matrices; Advantage uses X-MEM named matrices — they are architecturally incompatible. Merging creates silent bugs | Separate `adv/` directory under `ops/` |
+| MEDIT full interactive editor | Completeness | The M-CODE editor intercepts every keystroke; full replication requires a new major TUI mode. The OM behavioral spec can be satisfied with a simpler PROMPT-driven element entry loop | Use existing modal infrastructure: ModalProgram::Advantage(AdvantageStep) with element-by-element prompts |
+| X-MEM full Extended Memory model | Completeness | Full HP-41CX X-MEM with EMDIR, EMROOM, EMREG, etc. is a separate major feature. The Advantage Pac only needs named matrix storage | Implement a minimal named-matrix store (Vec of (name, rows, cols, data) tuples) on CalcState |
+| MSYS unlimited size | Faithfulness | Math Pac I MATRIX tops at 14x14. Advantage MSYS is limited by available X-MEM. For emulation, cap at the same 14x14 limit for consistency | Document as behavioral policy in divergences file |
 
 ---
 
 ## Feature Dependencies
 
 ```
-                   Flag 31 (already exists)
-                        |
-                   DMY / MDY
-                        |
-          +-------------+-------------+
-          |             |             |
-        DATE         ADATE        SETDATE
-          |             |
-       DATE+         ATIME -----> CLK12/CLK24 (new CalcState field)
-          |             |                |
-       DDAYS        ATIME24          CLKT/CLKTD (new CalcState field)
-          |                              |
-        DOW                           CLOCK display
-                                         |
-                             (periodic display update infrastructure)
-                                         |
-                                    SW stopwatch mode
-                                         |
-                         +-----------+---+---+-----------+
-                         |           |       |           |
-                      RUNSW      STOPSW   SETSW      RCLSW
-                         |                               |
-                       SWPT                           SPLIT
+ADVCONV (12 ops)
+    └── independent (no dependencies)
 
-        SETIME / CORRECT / T+X -----> Time offset model
-        SETAF / RCLAF -----> Store-only field (no dependency)
+ADVMTRX element primitives (I+/I-/J+/J-/MR/MS/MRIJ/MSIJ/etc.)
+    └──requires──> Named matrix storage on CalcState (X-MEM model stub)
+                      └──requires──> adv_matrices: Vec<(String, usize, usize, Vec<HpNum>)>
 
-        XYZALM -----> Alarm data structure
-            |             |
-         ALMCAT      ALMNOW -----> run_program() integration
-            |             |
-    Alarm Catalog    RCLALM
-      Keyboard       |
-            |     CLALMA / CLALMX / CLRALMS
-    Alarm acknowledge
-      mechanism
-```
+ADVMTRX high-level (MDET/MINV/MSYS/M*M/TRNPS/MAT+/etc.)
+    └──requires──> ADVMTRX element primitives (index system)
 
-**Critical path:** The periodic display update infrastructure (needed for CLOCK and SW) is the foundational new capability that does not exist in the emulator today. Everything else layers on top of existing patterns.
+MATRX / MTR modal workflows
+    └──requires──> ADVMTRX high-level ops
+    └──requires──> Modal infrastructure: ModalProgram::Advantage(AdvantageStep)
 
----
+FSOLVE / FINTG / FROOT / FDIFEQ
+    └──requires──> User-program callback infrastructure (already in v3.0)
+    └──requires──> Per-invocation buffer (can be CalcState transient field)
+    └──shared──> Mutual nesting requires re-entrant buffer stack
 
-## Time and Alarm Formats (from QRG pp. 31-33)
+Complex ops (MAGZ / e^Z / LNZ / SINZ / COSZ / TANZ / Z^W / etc.)
+    └──extends──> Math Pac I complex stack (already in v3.0, CMPLX-01..17)
+    └──note──> Stack convention may differ (verify Y=Im vs Y=Re in Advantage vs Math Pac I)
 
-### Time Values
+Curve fitting (CFIT / AS / DS / FIT / BFIT / Y?X)
+    └──requires──> Dedicated accumulation registers (separate from HP-41CV Sigma-registers)
 
-Clock time settings use the following conventions:
+Vector ops (V+ / V- / DOT / CROSS / VS / UV / V< etc.)
+    └──independent──> Simple stack arithmetic, no new infrastructure
 
-| Setting | Clock Time |
-|---------|-----------|
-| 0 | Midnight |
-| 1 | 1 (a.m.) |
-| ... | ... |
-| 11 | 11 |
-| 12 | Noon |
-| -1 or 13 | 1 p.m. or 13:00 |
-| -2 or 14 | 2 or 14 |
-| ... | ... |
-| -11 or 23 | 11 or 23 |
-| 0 | Midnight (wraps) |
-
-Results of clock-time operations (TIME, RCLALM) are always expressed in 24-hour format in the X-register. Midnight is zero.
-
-### Date Format Table
-
-| Setting | Input* and Output Format (FIX 6 Display) | Display When DATE Executed From Keyboard |
-|---------|------------------------------------------|------------------------------------------|
-| MDY | MM.DDYYYY | MM/DD/YY day |
-| DMY | DD.MMYYYY | DD.MM.YY day |
-
-*Input must be a positive number. All trailing digits after the year must be zero; otherwise an error message will result.
-
-### Alarm Format (XYZALM parameters)
-
-See Category 6 above. The three alarm types are:
-1. **Message Alarm** -- ALPHA empty or contains text message.
-2. **Interrupting Control Alarm** -- ALPHA contains `>>global_label` or `>>function_name`.
-3. **Conditional Control Alarm** -- ALPHA contains `>global_label` or `>function_name`.
-
-### Acknowledging Message Alarms
-
-- Press any key (except STO) to halt a flashing alarm. Non-repeating alarm is deleted; repeating alarm is reset to next occurrence.
-- Press SHIFT+C to halt AND clear a repeating alarm.
-- Non-message alarms (control) are not acknowledged -- they run programs automatically.
-
----
-
-## Flags Affected
-
-| Flag | Name | Relevance |
-|------|------|-----------|
-| 31 | Date Format | 0 = MDY, 1 = DMY. Already exists in the flag system (flag 31 is a system flag, testable but not directly alterable by SF/CF -- only by DMY/MDY functions). |
-| 44 | Continuous On | Affects whether the calculator auto-turns-off. Relevant for clock display and alarms. |
-| 50 | Message | Set when a message alarm fires. |
-
----
-
-## New CalcState Fields Required
-
-| Field | Type | Serde | Purpose |
-|-------|------|-------|---------|
-| `clock_mode_12h` | `bool` | `#[serde(default)]` | CLK12/CLK24 preference; default false (24h) |
-| `clock_display_mode` | `enum { TimeOnly, TimeAndDate }` | `#[serde(default)]` | CLKT/CLKTD preference |
-| `clock_active` | `bool` | `#[serde(default, skip)]` | Transient: clock display is currently showing |
-| `accuracy_factor` | `HpNum` | `#[serde(default)]` | SETAF/RCLAF storage; no-op for emulation |
-| `alarms` | `Vec<Alarm>` | `#[serde(default)]` | Persistent alarm catalog |
-| `stopwatch_state` | `StopwatchState` | `#[serde(default)]` | Stopwatch running/stopped, elapsed time, start instant |
-| `stopwatch_mode` | `bool` | `#[serde(default, skip)]` | Transient: stopwatch keyboard is active |
-| `xrom_modules` bit 2 | `u8` | existing field | Bit 2 = Time Module loaded |
-| `time_offset` | `Option<Duration>` | `#[serde(default)]` | Offset from host system clock (for SETIME/SETDATE) |
-
-### Alarm Data Structure
-
-```rust
-struct Alarm {
-    time: HpNum,           // HH.MMSSss
-    date: HpNum,           // MM.DDYYYY or DD.MMYYYY
-    repeat_interval: HpNum, // HHHH.MMSSs or 0 (no repeat)
-    alarm_type: AlarmType,
-    message: String,       // Message text or label name
-}
-
-enum AlarmType {
-    Message,
-    ControlInterrupting,
-    ControlConditional,
-}
+ADVTVM (TVM / N / PV / PMT / FV / *I)
+    └──requires──> Dedicated TVM state registers on CalcState
+    └──*I requires──> Newton iteration (same callback infrastructure OR internal iteration)
 ```
 
 ---
 
-## MVP Recommendation
+## MVP Definition for v3.3
 
-### Phase 1: Core Time/Date Operations (table stakes, low-medium complexity)
+### Launch With (Phase A — Core)
 
-Prioritize first because they have no dependency on periodic updates or new keyboard modes:
+Minimum viable for users who bought the Advantage Pac for its matrix capabilities.
 
-1. TIME, DATE -- basic recall from host clock
-2. SETIME, SETDATE -- set via offset from host clock
-3. DMY, MDY -- flag 31 toggle (trivial)
-4. CLK12, CLK24 -- new bool field
-5. CLKT, CLKTD -- new enum field
-6. DATE+, DDAYS, DOW -- date arithmetic
-7. ADATE, ATIME, ATIME24 -- ALPHA formatting
-8. T+X -- clock adjustment with midnight rollover
-9. SETAF, RCLAF, CORRECT -- accuracy factor (store-only)
+- [ ] XROM framework extension: XROM 22 + XROM 24 registered (two-slot, like Advantage hardware)
+- [ ] Named matrix storage: minimal `adv_matrices` field on CalcState
+- [ ] All 12 ADVCONV ops (BININ/BINVIEW/OCTIN/CVTVIEW/HEXIN/HEXVIEW/NOT/AND/OR/XOR/ROTXY/BIT?)
+- [ ] ADVMTRX index ops: I+/I-/J+/J-/MSIJ/MRIJ/MSWAP
+- [ ] ADVMTRX element access: MR/MS/MRC+/MRC-/MRR+/MRR-/MSC+/MSR+
+- [ ] ADVMTRX lifecycle: MATDIM/DIM?/MNAME?/MMOVE
+- [ ] ADVMTRX high-level: MDET/MINV/MSYS/M*M/MAT+/MAT-/MAT*/MAT//TRNPS
+- [ ] ADVMTRX reductions: SUM/SUMAB/MAX/MIN/MAXAB/RMAXAB/FNRM/RNRM/CSUM/CNRM/CMAXAB
 
-This delivers 19 of 35 functions with manageable complexity.
+### Add After Validation (Phase B — ADVMATH)
 
-### Phase 2: Periodic Display Infrastructure + Clock Display
+Brings the flagship algorithmic functions.
 
-The critical new capability. Must be solved before stopwatch or alarm display:
+- [ ] FSOLVE (Brent/Secant root finding, per-invocation buffer, user callback)
+- [ ] FINTG (Romberg integration, per-invocation buffer, user callback)
+- [ ] FROOT/PLY/RTS (Laguerre polynomial roots, arbitrary degree)
+- [ ] FDIFEQ (RK4 differential equations, extended from Math Pac I DIFEQ)
+- [ ] New complex functions not in Math Pac I: e^Z, LNZ, Z^N, Z^1/N, SINZ, COSZ, TANZ, a^Z, LOGZ, Z^1/W, Z^W
 
-10. CLOCK display mode -- periodic LCD update (1 Hz)
-11. CLI integration: ratatui periodic redraw when clock active
-12. GUI integration: Tauri periodic state push or frontend timer
+### Future Consideration (Phase C — Completion)
 
-### Phase 3: Stopwatch
+- [ ] Curve fitting: CFIT/AS/DS/FIT/BFIT/Y?X/SZ?
+- [ ] Vector ops: V+/V-/DOT/CROSS/VC/VS/VR/VE/VXY/UV/V</VD/V*
+- [ ] ADVTVM: TVM/N/PV/PMT/FV/*I
+- [ ] MATRX/MTR modal workflows (high-level matrix entry)
+- [ ] MEDIT/CMEDIT (simplified prompt-driven, not full M-CODE editor)
+- [ ] Mutual nesting (FROOT inside FINTG integrand) — requires re-entrant buffer stack
 
-Builds on the periodic display infrastructure:
+---
 
-13. RUNSW, STOPSW, SETSW, RCLSW -- programmatic stopwatch
-14. SW -- stopwatch keyboard mode
-15. SWPT -- stopwatch with pointers
-16. Split timing with register storage
+## Overlap Matrix: Math Pac I vs Advantage Pac
 
-### Phase 4: Alarm System
+This is critical for implementation — where do existing v3.0 ops extend vs conflict vs duplicate?
 
-The most complex feature; best tackled last:
+| Capability | Math Pac I (v3.0) | Advantage Pac | Strategy |
+|------------|-------------------|---------------|----------|
+| Matrix DET | MATRIX workflow, R15-based, ORDER prompts | MDET, X-MEM based, one-shot | New Op variants; different storage model |
+| Matrix INV | MATRIX workflow, R15-based | MINV, X-MEM based, one-shot | New Op variants |
+| Linear equations | MATRIX/SIMEQ, R15-based | MSYS, X-MEM based, one-shot | New Op variants |
+| Matrix entry | A1,1=? prompts in MATRIX workflow | MEDIT or user program loop with MSR+ | New modal or simplified prompts |
+| Polynomial roots | POLY/ROOTS, deg 2-5, exact algorithm | FROOT, arbitrary degree, Laguerre | New Op; FROOT does NOT replace POLY |
+| Integration | INTG, Simpson's rule, fixed subintervals | FINTG, Romberg method, adaptive | New Op; INTG remains available |
+| Solve | SOLVE, Secant method, GUESS 1/2 prompts | FSOLVE, Brent method, single guess | New Op; SOLVE remains available |
+| Differential eq | DIFEQ, RK4, R-based | FDIFEQ, RK4, buffer-based | New Op; DIFEQ remains available |
+| Complex arith | C+/C-/C×/C÷/CABS/CARG/CCHS/CCONJ/CY^X/etc. | C+/C-/C*/C//MAGZ/Z^W/e^Z/LNZ/etc. | Many new Ops; some duplicate Math Pac I with different names |
+| Coord transforms | TRANS (2D/3D modal workflow) | TR/CT (one-shot) | New Ops; TRANS remains |
+| Hyperbolics | SINH/COSH/TANH/ASINH/ACOSH/ATANH | Not in Advantage Pac | No change needed |
 
-17. XYZALM -- set alarms (alarm data structure)
-18. ALMCAT -- alarm catalog with keyboard mode
-19. ALMNOW -- activate past-due alarms
-20. RCLALM, CLALMA, CLALMX, CLRALMS -- recall/clear
-21. Alarm firing mechanism (background timer check)
-22. Alarm acknowledge UI
+**Key invariant:** POLY/ROOTS (degree 2-5), SOLVE (secant), INTG (Simpson), DIFEQ (RK4), MATRIX (R15-based), TRANS (modal) from Math Pac I all remain available. The Advantage functions are **additions**, not replacements.
 
-### Defer:
+---
 
-- Alarm-triggered program execution (ALMNOW + control alarms running programs) could be scoped to a follow-up if it proves too complex to integrate with the existing `run_program()` / `run_loop()` re-entrancy model.
+## XROM ID Assignment
+
+Based on hardware documentation (HP Museum XROM table, module database):
+- **XROM 22**: Advantage Pac first bank (-ADV CONV + -ADV MTRX)
+- **XROM 24**: Advantage Pac second bank (-ADV MATH + -ADV TVM)
+
+The `default_xrom_modules` bit mask will need bits for XROM 22 and 24 added. The `xrom_resolve` chain already handles multiple modules; v3.3 adds two new arms. Both XROM IDs must be confirmed against the existing XROM registry to ensure no conflict with MATH_1 (7), STAT_1 (2), TIME_MODULE (26).
+
+**Advanced Matrix Pac:** Uses the same XROM 22 matrix functions. It is a ROM rearrangement for users who want to maximize matrix capability with less SOLVE/INTEG. For emulation purposes: implementing the standard Advantage Pac XROM 22+24 automatically covers the Advanced Matrix Pac's function set.
+
+---
+
+## Complexity Ratings by Phase
+
+| Phase | Functions | Estimated Op Count | Complexity Driver |
+|-------|-----------|--------------------|-------------------|
+| ADVCONV | 12 | 12 | LOW — pure integer arithmetic |
+| ADVMTRX primitives | ~30 | ~30 | MEDIUM — index state + named matrix storage |
+| ADVMTRX high-level (MDET/MINV/MSYS) | 3 | 3 | HIGH — LU decomposition, back-substitution |
+| ADVMTRX bulk ops (MAT+/M*M/TRNPS etc.) | ~18 | ~18 | MEDIUM — matrix iteration |
+| FSOLVE + FINTG | 2 (+2 internal) | 2 | HIGH — Romberg algorithm, buffer model |
+| FROOT + PLY + RTS | 3 | 3 | HIGH — Laguerre's method, complex root output |
+| FDIFEQ | 1 | 1 | MEDIUM — reuses RK4 from Math Pac I DIFEQ |
+| Complex extensions | ~13 | ~13 | MEDIUM — standard complex math formulas |
+| Curve fitting | 7 | 7 | MEDIUM — builds on Sigma-register pattern |
+| Vector ops | ~13 | ~13 | LOW — mostly stack arithmetic |
+| ADVTVM | 6 | 6 | MEDIUM (*I iteration), LOW (N/PV/PMT/FV) |
+| MATRX/MTR modal | 2 | 2 | HIGH — new modal infrastructure |
+| **Total** | **~112** | **~112** | |
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature Group | User Value | Implementation Cost | Priority |
+|---------------|------------|---------------------|----------|
+| ADVMTRX high-level (MDET/MINV/MSYS) | HIGH | HIGH | P1 |
+| ADVCONV (12 ops) | MEDIUM | LOW | P1 |
+| ADVMTRX primitives (index+element) | HIGH | MEDIUM | P1 |
+| FSOLVE + FINTG (Romberg) | HIGH | HIGH | P1 |
+| FROOT arbitrary-degree roots | HIGH | HIGH | P1 |
+| Complex extensions (e^Z, LNZ, SINZ etc.) | MEDIUM | MEDIUM | P1 |
+| ADVTVM (TVM/N/PV/PMT/FV/*I) | MEDIUM | MEDIUM | P2 |
+| ADVMTRX bulk ops (MAT+/MAT*/TRNPS etc.) | MEDIUM | MEDIUM | P2 |
+| Curve fitting (CFIT/BFIT/AS/DS) | MEDIUM | MEDIUM | P2 |
+| Vector ops (DOT/CROSS/V+/V- etc.) | MEDIUM | LOW | P2 |
+| MATRX/MTR modal workflows | MEDIUM | HIGH | P2 |
+| MEDIT/CMEDIT matrix editor | LOW | HIGH | P3 |
+| FROOT/FINTG mutual nesting | LOW | HIGH | P3 |
+| FDIFEQ (extends Math Pac I DIFEQ) | LOW | MEDIUM | P3 |
 
 ---
 
 ## Sources
 
-- [HP 82182A Time Module Quick Reference Card](https://literature.hpcalc.org/community/hp82182a-qrc-en.pdf) -- primary source (read as images)
-- [HP-41CX Quick Reference Guide](https://literature.hpcalc.org/community/hp41cx-qrg-en.pdf) -- comprehensive function set + formats
-- [HP Museum XROM Numbers](https://www.hpmuseum.org/software/xroms.htm) -- XROM 26 ID confirmation
-- [HP 82182A Time Module QREF](https://qrg41.fjk.ch/hp82182a.html) -- function list cross-check
-- [HP-41C Wikipedia](https://en.wikipedia.org/wiki/HP-41C) -- alarm system behavior overview
-- [HP-41CX Finseth contributions](https://www.finseth.com/hpdata/hp41cx.php) -- function list verification
-- [HP 82182A Time Module Owner's Manual TOC](https://archived.hpcalc.org/greendyk/hp41c-time-module/7-contents.html) -- chapter structure
+- HP-41 module database (XROM 22+24 assignment confirmed): [calc.fjk.ch/db/hp41mod.php](https://calc.fjk.ch/db/hp41mod.php) — HIGH confidence
+- HP-41 function database (complete XROM 22+24 function names): [calc.fjk.ch/db/hp41fn.php](https://calc.fjk.ch/db/hp41fn.php) — HIGH confidence
+- HP Museum XROM numbers reference (partial tables): [hpmuseum.org/software/xroms.htm](https://www.hpmuseum.org/software/xroms.htm) — MEDIUM confidence (403 on direct fetch; cross-referenced via web search)
+- Valentín Albillo, "Long Live the Advantage ROM!" (commemorative article): [albillo.hpcalc.org](https://albillo.hpcalc.org/articles/HP%20Article%20VA008%20-%20Long%20Live%20the%20Advantage%20ROM.pdf) — HIGH confidence for architectural description and matrix comparison
+- Angel M. Martin, "Advantage Math ROM Manual" (XROM 12 community extension, Feb 2020): [systemyde.com](https://www.systemyde.com/pdf/Advantage_Math_Manual.pdf) — HIGH confidence for Advantage Pac usage patterns and ADVMTRX function descriptions
+- HP Museum forum — Advanced Matrix Pac thread: [archv020 thread 184196](https://www.hpmuseum.org/cgi-bin/archv020.cgi?read=184196) — MEDIUM confidence (Advanced Matrix Pac = ADVMTRX + ALGEBRA module programs)
+- HP Museum forum — Advantage Module discussion: [archv015 thread 89055](https://www.hpmuseum.org/cgi-bin/archv015.cgi?read=89055) — MEDIUM confidence (FROOT/FINTG mutual nesting, X-MEM buffer architecture)
+- HP-41 Module Database (362 entries, 2011): [lastin.dti.supsi.ch modules PDF](https://lastin.dti.supsi.ch/VET/sys/HPXX/HP41CV/HP-41C-CV-CX_Modules.pdf) — HIGH confidence for Advantage Pac versions 1A Proto / 1A / 1B all using XROM 22+24
+- HP Calculator Literature Archive — OM 00041-90482: [literature.hpcalc.org/items/759](https://literature.hpcalc.org/items/759) — confirms part number, July 1985, 156 pages (content not readable due to 71 MB size limit)
+- HP-41 Math Pac I Quick Reference Card (confirms v3.0 existing function set): [literature.hpcalc.org/community/hp41-pac-math-qrc-en.pdf](https://literature.hpcalc.org/community/hp41-pac-math-qrc-en.pdf) — HIGH confidence
+
+---
+
+*Feature research for: HP-41 Advantage Pac + Advanced Matrix Pac emulation (v3.3 milestone)*
+*Researched: 2026-05-25*

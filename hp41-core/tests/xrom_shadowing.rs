@@ -23,7 +23,9 @@
 
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::math1::xrom::{xrom_resolve, MATH_1, STAT_1, TIME_MODULE};
+use hp41_core::ops::math1::xrom::{
+    xrom_resolve, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE,
+};
 
 /// All mnemonic strings recognized by `builtin_card_op` in `hp41-core/src/ops/program.rs`.
 ///
@@ -234,5 +236,178 @@ fn time_const_fields() {
     assert_eq!(
         TIME_MODULE.name, "TIME 2C",
         "TIME_MODULE.name must be 'TIME 2C'"
+    );
+}
+
+// ── Phase 44 Plan 02 Task 1: ADV_MATH_A disjointness + consistency gates ─────
+
+/// CI gate: no ADV_MATH_A (XROM 22) mnemonic may collide with a v2.2 builtin name.
+///
+/// Catches: Pitfall 1 — an ADV CONV+MTRX mnemonic accidentally matching a v2.2 builtin
+/// would make the XROM op permanently unreachable via XEQ (resolver fires LAST).
+#[test]
+fn adv_a_names_do_not_shadow_builtins() {
+    for (name, _op) in ADV_MATH_A.ops {
+        assert!(
+            !BUILTIN_CARD_OP_NAMES.contains(name),
+            "ADV_MATH_A mnemonic {name:?} shadows a builtin_card_op entry. \
+             The XROM resolver fires LAST (C-28.4), so the builtin would silently \
+             win and the ADV_MATH_A op would be permanently unreachable via XEQ. \
+             Rename the ADV_MATH_A mnemonic to avoid the collision."
+        );
+    }
+}
+
+/// CI gate: ADV_MATH_A.ops mnemonic strings must be disjoint from MATH_1.ops,
+/// STAT_1.ops, and TIME_MODULE.ops.
+///
+/// Catches: a future plan accidentally re-using a mnemonic from a prior module,
+/// causing the resolver to silently route to the earlier module (resolver fires
+/// in bit order: MATH_1 → STAT_1 → TIME_MODULE → ADV_MATH_A → ADV_MATH_B).
+#[test]
+fn adv_a_ops_disjoint_from_prior_modules() {
+    use std::collections::HashSet;
+    let math1_names: HashSet<&str> = MATH_1.ops.iter().map(|(n, _)| *n).collect();
+    let stat1_names: HashSet<&str> = STAT_1.ops.iter().map(|(n, _)| *n).collect();
+    let time_names: HashSet<&str> = TIME_MODULE.ops.iter().map(|(n, _)| *n).collect();
+    for (name, _op) in ADV_MATH_A.ops {
+        assert!(
+            !math1_names.contains(name),
+            "ADV_MATH_A mnemonic {name:?} also appears in MATH_1.ops. \
+             A mnemonic must belong to exactly one XROM module (resolver-LAST invariant)."
+        );
+        assert!(
+            !stat1_names.contains(name),
+            "ADV_MATH_A mnemonic {name:?} also appears in STAT_1.ops. \
+             A mnemonic must belong to exactly one XROM module (resolver-LAST invariant)."
+        );
+        assert!(
+            !time_names.contains(name),
+            "ADV_MATH_A mnemonic {name:?} also appears in TIME_MODULE.ops. \
+             A mnemonic must belong to exactly one XROM module (resolver-LAST invariant)."
+        );
+    }
+}
+
+/// CI gate: every ADV_MATH_A.ops mnemonic resolves to its declared Op via
+/// `xrom_resolve` when bit 3 is set — proves bidirectional consistency between
+/// the slice and the `adv_a_resolve` match arms.
+#[test]
+fn adv_a_ops_resolve_via_xrom_resolve() {
+    for (name, expected_op) in ADV_MATH_A.ops {
+        let resolved = xrom_resolve(name, 0b0001_1111);
+        assert_eq!(
+            resolved.as_ref(),
+            Some(expected_op),
+            "ADV_MATH_A.ops mnemonic {name:?} must resolve to {expected_op:?} via \
+             xrom_resolve(name, 0b0001_1111) — drift between ADV_MATH_A.ops slice and \
+             adv_a_resolve match arms is a Pitfall 22 / resolver-never-discard violation."
+        );
+    }
+}
+
+/// Smoke: ADV_MATH_A const fields are present and correct.
+#[test]
+fn adv_a_const_fields() {
+    assert_eq!(
+        ADV_MATH_A.id, 22,
+        "ADV_MATH_A.id must be 22 (HP Advantage Pac ADV CONV+MTRX hardware XROM ID)"
+    );
+    assert_eq!(
+        ADV_MATH_A.name, "ADV CONV",
+        "ADV_MATH_A.name must be 'ADV CONV'"
+    );
+}
+
+// ── Phase 44 Plan 02 Task 1: ADV_MATH_B disjointness + consistency gates ─────
+
+/// CI gate: no ADV_MATH_B (XROM 24) mnemonic may collide with a v2.2 builtin name.
+///
+/// Catches: Pitfall 1 — an ADV MATH+TVM mnemonic accidentally matching a v2.2 builtin
+/// would make the XROM op permanently unreachable via XEQ (resolver fires LAST).
+#[test]
+fn adv_b_names_do_not_shadow_builtins() {
+    for (name, _op) in ADV_MATH_B.ops {
+        assert!(
+            !BUILTIN_CARD_OP_NAMES.contains(name),
+            "ADV_MATH_B mnemonic {name:?} shadows a builtin_card_op entry. \
+             The XROM resolver fires LAST (C-28.4), so the builtin would silently \
+             win and the ADV_MATH_B op would be permanently unreachable via XEQ. \
+             Rename the ADV_MATH_B mnemonic to avoid the collision."
+        );
+    }
+}
+
+/// CI gate: ADV_MATH_B.ops mnemonic strings must be disjoint from STAT_1.ops,
+/// TIME_MODULE.ops, AND ADV_MATH_A.ops.
+///
+/// Note: ADV_MATH_B intentionally reuses several MATH_1 ASCII mnemonic aliases
+/// (E^Z, LNZ, LOGZ, Z^N, Z^1/N, Z^W, |Z|, SINZ, COSZ, TANZ, A^Z, CINV) mapping
+/// them to corresponding Op::Adv* variants. When all modules are loaded, MATH_1
+/// wins (resolver fires first), but when only ADV_MATH_B is loaded (bit 4 only)
+/// the adv_b_resolve arm handles them. This is intentional hardware behavior per
+/// HP Advantage Pac OM 00041-90482 — the Advantage Pac assumes Math Pac I is
+/// co-loaded and the Adv* complex ops are a superset/replacement.
+///
+/// Catches: a future plan accidentally re-using a mnemonic from STAT_1, TIME, or ADV_MATH_A.
+#[test]
+fn adv_b_ops_disjoint_from_prior_modules_and_adv_a() {
+    use std::collections::HashSet;
+    // MATH_1 overlaps are intentional — not checked here (see doc comment above).
+    let stat1_names: HashSet<&str> = STAT_1.ops.iter().map(|(n, _)| *n).collect();
+    let time_names: HashSet<&str> = TIME_MODULE.ops.iter().map(|(n, _)| *n).collect();
+    let adv_a_names: HashSet<&str> = ADV_MATH_A.ops.iter().map(|(n, _)| *n).collect();
+    for (name, _op) in ADV_MATH_B.ops {
+        assert!(
+            !stat1_names.contains(name),
+            "ADV_MATH_B mnemonic {name:?} also appears in STAT_1.ops. \
+             A mnemonic must belong to exactly one non-Math1 XROM module (resolver invariant)."
+        );
+        assert!(
+            !time_names.contains(name),
+            "ADV_MATH_B mnemonic {name:?} also appears in TIME_MODULE.ops. \
+             A mnemonic must belong to exactly one non-Math1 XROM module (resolver invariant)."
+        );
+        assert!(
+            !adv_a_names.contains(name),
+            "ADV_MATH_B mnemonic {name:?} also appears in ADV_MATH_A.ops. \
+             A mnemonic must belong to exactly one XROM module (resolver-LAST invariant)."
+        );
+    }
+}
+
+/// CI gate: every ADV_MATH_B.ops mnemonic resolves to its declared Op via
+/// `xrom_resolve` when ONLY bit 4 is set — proves bidirectional consistency between
+/// the slice and the `adv_b_resolve` match arms.
+///
+/// Note: uses 0b0001_0000 (ADV_MATH_B only) rather than 0b0001_1111 (all modules)
+/// because several ADV_MATH_B mnemonics are intentionally shared with MATH_1 ASCII
+/// aliases. When all modules are loaded, MATH_1 wins for those names. Testing with
+/// only bit 4 isolates the adv_b_resolve arm correctly (mirrors the bit-2 / bit-3
+/// isolation tests in the lib module tests in xrom.rs).
+#[test]
+fn adv_b_ops_resolve_via_xrom_resolve() {
+    for (name, expected_op) in ADV_MATH_B.ops {
+        let resolved = xrom_resolve(name, 0b0001_0000);
+        assert_eq!(
+            resolved.as_ref(),
+            Some(expected_op),
+            "ADV_MATH_B.ops mnemonic {name:?} must resolve to {expected_op:?} via \
+             xrom_resolve(name, 0b0001_0000) — drift between ADV_MATH_B.ops slice and \
+             adv_b_resolve match arms is a Pitfall 22 / resolver-never-discard violation."
+        );
+    }
+}
+
+/// Smoke: ADV_MATH_B const fields are present and correct.
+#[test]
+fn adv_b_const_fields() {
+    assert_eq!(
+        ADV_MATH_B.id, 24,
+        "ADV_MATH_B.id must be 24 (HP Advantage Pac ADV MATH+TVM hardware XROM ID)"
+    );
+    assert_eq!(
+        ADV_MATH_B.name, "ADV MATH",
+        "ADV_MATH_B.name must be 'ADV MATH'"
     );
 }

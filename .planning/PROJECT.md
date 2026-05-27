@@ -3,7 +3,17 @@
 ## Current State
 
 **Latest shipped:** v3.2 Time Pac Emulation (2026-05-25)
-**Next milestone:** TBD — start with `/gsd-new-milestone`
+
+## Current Milestone: v3.3 Advantage Pac Emulation
+
+**Goal:** Behavioral emulation of the HP-41C Advantage Pac (OM 00041-90482) and Advanced Matrix Pac as the fourth (and possibly fifth) XROM application module(s) — completing all remaining HP-41 module emulation.
+
+**Target features:**
+- Advantage Pac functions (PROOT, CABS, CARG, CCHS, CCONJ, CY^X, Romberg-INTG, and other OM-documented functions)
+- Advanced Matrix Pac functions (M+, MAT*, INV-as-transpose, V+, VDOT, IDN)
+- XROM module registration (XROM ID(s) to be determined by research)
+- Full CLI + GUI integration following the established 5-phase pattern
+- Quality gates: coverage, accuracy, Free42 contamination guard, backward compat
 
 <details>
 <summary>v3.2 Time Pac Emulation (shipped 2026-05-25 — see <code>milestones/v3.2-ROADMAP.md</code>)</summary>

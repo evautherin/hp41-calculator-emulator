@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # scripts/check-free42-contamination.sh
-# CI gate: hp41-core/src/ops/math1/ AND hp41-core/src/ops/stat1/ must contain
+# CI gate: hp41-core/src/ops/math1/ AND hp41-core/src/ops/stat1/ AND
+# hp41-core/src/ops/time/ AND hp41-core/src/ops/advantage/ must contain
 # no distinctive Free42 identifiers (Intel BID library, decNumber, Free42
 # internals, copyright markers, stats-domain function-name conventions)
-# outside the allowlisted disclaim header on each math1/ + stat1/ file.
+# outside the allowlisted disclaim header on each math1/ + stat1/ + time/ + advantage/ file.
 #
 # Phase 32 Plan 32-03: D-32.7 (12-symbol math1-scoped policy) + D-32.8
 # (dual just-ci / ci.yml invocation).
@@ -18,11 +19,14 @@
 # Pitfall 19: Free42 GPL contamination via copy-paste from the Free42 reference impl.
 # Pitfall 27: Free42 stats-domain copy-paste from core_math2.cc must be caught
 # BEFORE the first stat1/*.rs algorithm file lands (Plan 33-02 onward).
+# Phase 43: ADV_DIR added — Advantage Pac (advantage/) carries the same
+# Free42 disclaim header on every file and must be scanned with the same guard.
 set -euo pipefail
 
 MATH1_DIR="hp41-core/src/ops/math1"
 STAT1_DIR="hp41-core/src/ops/stat1"
 TIME_DIR="hp41-core/src/ops/time"
+ADV_DIR="hp41-core/src/ops/advantage"
 DISCLAIM_LINE='Free42 source consulted only as sanity-check oracle'
 
 # WR-01: explicit directory existence check — if any scanned directory is
@@ -31,7 +35,7 @@ DISCLAIM_LINE='Free42 source consulted only as sanity-check oracle'
 # because a missing-path grep returns non-zero, causing the pipeline failure
 # to evaluate as "no matches". That would neutralise the Pitfall 19 / D-32.7
 # license guard. Exit 2 on missing directory is unambiguous.
-for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR"; do
+for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR" "$ADV_DIR"; do
     if [[ ! -d "$dir" ]]; then
         echo "FAIL: $dir does not exist — license guard cannot run." >&2
         exit 2
@@ -58,9 +62,10 @@ done
 # function-name conventions: `core_commands7` (Free42 time-module source file),
 # `date2j` (Free42 internal Julian-Day conversion function name),
 # `j2date` (Free42 internal Julian-Day-to-date function name).
+# Phase 43: advantage/ directory added to the scan (same 21-token PATTERN applies).
 PATTERN='phloat|Phloat|bid128_|decNumber|decContext|vartype|arg_struct|prgm_lines|bcd_t|Thomas Okken|AGPL|GNU General Public License|math_normal_|math_chi2_|math_t_dist_|math_F_dist_|math_gamma_|math_beta_inc|core_commands7|date2j|j2date'
 
-for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR"; do
+for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR" "$ADV_DIR"; do
     if matches=$(grep -rn -E "$PATTERN" "$dir" | grep -v "$DISCLAIM_LINE"); then
         echo "FAIL: Free42 contamination detected in $dir:"
         echo "$matches"
@@ -68,5 +73,5 @@ for dir in "$MATH1_DIR" "$STAT1_DIR" "$TIME_DIR"; do
     fi
 done
 
-echo "OK: no Free42 contamination detected in $MATH1_DIR/ or $STAT1_DIR/ or $TIME_DIR/"
+echo "OK: no Free42 contamination detected in $MATH1_DIR/ or $STAT1_DIR/ or $TIME_DIR/ or $ADV_DIR/"
 exit 0

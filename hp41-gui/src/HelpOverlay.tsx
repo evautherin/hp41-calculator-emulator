@@ -22,6 +22,13 @@
 // Phase 41 Plan 41-02 D-carried.8 (TIME-GUI-03): Fourth top-level section added:
 //   4. "Time Pac (XROM 26)" — entries with `xrom.module === "Time"`
 // Section added to the sectionGroups.map() render loop automatically.
+//
+// Phase 46 Plan 46-02 (ADV-GUI-02): Fifth and sixth top-level sections added:
+//   5. "Advantage Pac (XROM 22)" — entries with `xrom.module === "Adv Conv"` (63 entries)
+//   6. "Advantage Pac (XROM 24)" — entries with `xrom.module === "Adv Math"` (51 entries)
+// CRITICAL: predicate values are "Adv Conv" / "Adv Math" — matching
+// docs/hp41-advantage-functions.json xrom.module fields exactly (NOT "ADV 22A" / "ADV 24B").
+// Search spans all five JSON pools via helpEntriesAll() 5-pool chain in help_data.ts.
 
 import { useState, useEffect, useMemo } from 'react';
 import { helpEntriesAll, type HelpEntry } from './help_data';
@@ -31,21 +38,24 @@ export type HelpOverlayProps = {
     onClose: () => void;
 };
 
-/// Section descriptor for the four top-level overlay sections.
+/// Section descriptor for the six top-level overlay sections.
 /// `predicate` selects which entries belong to this section.
 ///
 /// Phase 36 Plan 36-02: widened id union from 'hp41cv' | 'math1' to include 'stat1'
 /// (third section for Stat 1 Pac XROM 2 entries per STAT-GUI-03).
 /// Phase 41 Plan 41-02: widened id union to include 'time'
 /// (fourth section for Time Pac XROM 26 entries per TIME-GUI-03).
+/// Phase 46 Plan 46-02: widened id union to include 'adv22' and 'adv24'
+/// (fifth + sixth sections for Advantage Pac XROM 22 + XROM 24 per ADV-GUI-02).
 interface SectionDef {
-    id: 'hp41cv' | 'math1' | 'stat1' | 'time';
+    id: 'hp41cv' | 'math1' | 'stat1' | 'time' | 'adv22' | 'adv24';
     heading: string;
     predicate: (e: HelpEntry) => boolean;
 }
 
-/// Four top-level sections per D-31.8 (extended Phase 41 Plan 41-02).
-/// Order: built-in first, Math 1 Pac second, Stat 1 Pac third, Time Pac fourth.
+/// Six top-level sections per D-31.8 (extended Phase 46 Plan 46-02).
+/// Order: built-in first, Math 1 Pac second, Stat 1 Pac third, Time Pac fourth,
+/// Advantage Pac XROM 22 fifth, Advantage Pac XROM 24 sixth.
 const SECTIONS: SectionDef[] = [
     {
         id: 'hp41cv',
@@ -69,6 +79,22 @@ const SECTIONS: SectionDef[] = [
         // (per docs/hp41-time-functions.json xrom.module field / D-39.9 / Pitfall 6).
         predicate: (e: HelpEntry) => e.xrom?.module === 'Time',
     },
+    {
+        id: 'adv22',
+        heading: 'Advantage Pac (XROM 22)',
+        // CRITICAL: xrom.module value is "Adv Conv" — NOT "ADV 22A", "Advantage Conv", or
+        // "Adv Conv/Mtrx" (per docs/hp41-advantage-functions.json xrom.module field / D-44.1).
+        // Covers ADV CONV + ADV MTRX families (63 entries, module_id: 22).
+        predicate: (e: HelpEntry) => e.xrom?.module === 'Adv Conv',
+    },
+    {
+        id: 'adv24',
+        heading: 'Advantage Pac (XROM 24)',
+        // CRITICAL: xrom.module value is "Adv Math" — NOT "ADV 24B", "Advantage Math", or
+        // "Adv Math/TVM" (per docs/hp41-advantage-functions.json xrom.module field / D-44.1).
+        // Covers ADV MATH + ADV TVM families (51 entries, module_id: 24).
+        predicate: (e: HelpEntry) => e.xrom?.module === 'Adv Math',
+    },
 ];
 
 export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
@@ -77,18 +103,21 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
     // D-31.8: All sections expanded by default; state resets on each overlay open.
     // Phase 36 Plan 36-02: widened from {hp41cv, math1} to {hp41cv, math1, stat1}.
     // Phase 41 Plan 41-02: widened from {hp41cv, math1, stat1} to include time.
-    const [expanded, setExpanded] = useState<{ hp41cv: boolean; math1: boolean; stat1: boolean; time: boolean }>({
+    // Phase 46 Plan 46-02: widened to include adv22 and adv24 (Advantage Pac XROM 22 + XROM 24).
+    const [expanded, setExpanded] = useState<{ hp41cv: boolean; math1: boolean; stat1: boolean; time: boolean; adv22: boolean; adv24: boolean }>({
         hp41cv: true,
         math1: true,
         stat1: true,
         time: true,
+        adv22: true,
+        adv24: true,
     });
 
     // Reset query and expand state whenever overlay opens (clean-slate UX).
     useEffect(() => {
         if (open) {
             setQuery('');
-            setExpanded({ hp41cv: true, math1: true, stat1: true, time: true });
+            setExpanded({ hp41cv: true, math1: true, stat1: true, time: true, adv22: true, adv24: true });
         }
     }, [open]);
 
@@ -153,7 +182,7 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
 
     if (!open) return null;
 
-    const toggleSection = (id: 'hp41cv' | 'math1' | 'stat1' | 'time') => {
+    const toggleSection = (id: 'hp41cv' | 'math1' | 'stat1' | 'time' | 'adv22' | 'adv24') => {
         setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
@@ -189,7 +218,7 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
                         <button
                             className="help-overlay-section-heading"
                             onClick={() => toggleSection(section.id)}
-                            aria-expanded={expanded[section.id]}
+                            aria-expanded={expanded[section.id] ? "true" : "false"}
                         >
                             {section.heading}
                             {query !== '' && ` (${count})`}

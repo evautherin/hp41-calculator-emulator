@@ -6,6 +6,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
+pub mod advantage;
 pub mod alpha;
 pub mod arithmetic;
 pub mod cardreader_ops;
@@ -1273,6 +1274,265 @@ pub enum Op {
     TimeSwpt,
     /// STPW — Stop and reset the stopwatch (full reset to Idle).
     TimeStpw,
+
+    // ── Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) ─────────────────
+    // Phase 43 sanctioned CI break — Phase 44 closes item 3, Phase 46 closes item 4.
+
+    // ADV CONV (XROM 22) — binary/octal/hex I/O and bitwise operations
+    /// BININ — enter binary integer from ALPHA register into X.
+    AdvBinin,
+    /// BINVIEW — display X as 36-bit binary in ALPHA register.
+    AdvBinview,
+    /// OCTIN — enter octal integer from ALPHA register into X.
+    AdvOctin,
+    /// HEXIN — enter hexadecimal integer from ALPHA register into X.
+    AdvHexin,
+    /// HEXVIEW — display X as hexadecimal in ALPHA register.
+    AdvHexview,
+    /// CVTVIEW — display conversions of X (binary/octal/hex).
+    AdvCvtview,
+    /// NOT — bitwise NOT of X using 36-bit word size.
+    AdvNot,
+    /// AND — bitwise AND of X and Y using 36-bit word size.
+    AdvAnd,
+    /// OR — bitwise OR of X and Y using 36-bit word size.
+    AdvOr,
+    /// XOR — bitwise XOR of X and Y using 36-bit word size.
+    AdvXor,
+    /// ROTXY — rotate X left/right by Y bit positions within 36-bit word.
+    AdvRotxy,
+    /// BIT? — test bit Y of X.
+    AdvBitTest,
+
+    // ADV MTRX (XROM 22) — matrix element access, lifecycle, and reductions
+    /// I+ — increment current row index by 1.
+    AdvIPlus,
+    /// I- — decrement current row index by 1.
+    AdvIMinus,
+    /// J+ — increment current column index by 1.
+    AdvJPlus,
+    /// J- — decrement current column index by 1.
+    AdvJMinus,
+    /// MR — matrix recall element at (I,J).
+    AdvMr,
+    /// MS — matrix store X into element at (I,J).
+    AdvMs,
+    /// MRIJ — matrix recall with I/J from Y/X.
+    AdvMrij,
+    /// MSIJ — matrix store with I/J from Y/X.
+    AdvMsij,
+    /// MSIJR — matrix store with I/J from Y/X with auto-increment row.
+    AdvMsijr,
+    /// MRC+ — recall column-element at (I,J) then increment J.
+    AdvMrcPlus,
+    /// MRC- — recall column-element at (I,J) then decrement J.
+    AdvMrcMinus,
+    /// MRR+ — recall row-element at (I,J) then increment I.
+    AdvMrrPlus,
+    /// MRR- — recall row-element at (I,J) then decrement I.
+    AdvMrrMinus,
+    /// MSR+ — store row-element at (I,J) then increment I.
+    AdvMsrPlus,
+    /// MSC+ — store column-element at (I,J) then increment J.
+    AdvMscPlus,
+    /// MSWAP — swap elements between two matrix positions.
+    AdvMswap,
+    /// MNAME? — push name of current matrix onto ALPHA register.
+    AdvMnameQuery,
+    /// DIM? — push rows and cols of current matrix.
+    AdvDimQuery,
+    /// MATDIM — dimension/re-dimension current matrix.
+    AdvMatdim,
+    /// MP — matrix pointer: set I and J from Y and X.
+    AdvMp,
+    /// PIV — pivot element at (I,J) by partial-pivoting.
+    AdvPiv,
+    /// R<>R — exchange rows I and Y in current matrix.
+    AdvRExchangeR,
+    /// R>R? — skip-if-row-index-not-equal.
+    AdvRGtRQuery,
+    /// SUM — sum of all elements in current matrix.
+    AdvSum,
+    /// SUMAB — sum of absolute values of all elements.
+    AdvSumab,
+    /// MAX — maximum element of current matrix.
+    AdvMax,
+    /// MAXAB — maximum absolute-value element.
+    AdvMaxab,
+    /// MIN — minimum element of current matrix.
+    AdvMin,
+    /// RMAXAB — maximum absolute value in current row.
+    AdvRmaxab,
+    /// RNRM — row-norm of current matrix.
+    AdvRnrm,
+    /// RSUM — sum of current row elements.
+    AdvRsum,
+    /// FNRM — Frobenius norm of current matrix.
+    AdvFnrm,
+
+    // ADV MTRX (XROM 22) — linear algebra
+    /// MDET — determinant of current square matrix.
+    AdvMdet,
+    /// MINV — in-place matrix inverse.
+    AdvMinv,
+    /// MSYS — solve linear system Ax = b.
+    AdvMsys,
+    /// M*M — multiply two named matrices.
+    AdvMMulM,
+    /// MAT+ — add two named matrices element-wise.
+    AdvMatPlus,
+    /// MAT- — subtract two named matrices element-wise.
+    AdvMatMinus,
+    /// MAT*c — multiply matrix by scalar X.
+    AdvMatScalarMul,
+    /// MAT/c — divide matrix by scalar X.
+    AdvMatScalarDiv,
+    /// TRNPS — transpose current matrix in-place.
+    AdvTrnps,
+    /// MMOVE — copy elements of source matrix into destination matrix.
+    AdvMmove,
+
+    // ADV MTRX (XROM 22) — complex matrix operations
+    /// C<>C — exchange complex elements between two matrix positions.
+    AdvCExchangeC,
+    /// CMAXAB — maximum absolute-value complex element.
+    AdvCmaxab,
+    /// CNRM — complex Frobenius norm.
+    AdvCnrm,
+    /// CSUM — sum of complex elements.
+    AdvCsum,
+    /// YC+C — add scalar complex to every element.
+    AdvYcPlusC,
+
+    // ADV MTRX (XROM 22) — matrix workflow modals
+    /// MATRX — open matrix-operation-choice modal.
+    AdvMatrx,
+    /// MTR — open target-matrix-name modal.
+    AdvMtr,
+    /// MEDIT — enter real-matrix element-editing loop.
+    AdvMedit,
+    /// CMEDIT — enter complex-matrix element-editing loop.
+    AdvCmedit,
+
+    // ADV MATH (XROM 24) — complex extensions
+    /// e^Z — complex exponential e^(X+iY).
+    AdvExpZ,
+    /// LNZ — complex natural logarithm ln(X+iY).
+    AdvLnZ,
+    /// LOG Z — complex base-10 logarithm.
+    AdvLogZ,
+    /// Z^N — raise complex Z to integer power N.
+    AdvZPowN,
+    /// Z^(1/N) — nth complex root of Z.
+    AdvZPow1n,
+    /// Z^W — complex power Z^W.
+    AdvZPowW,
+    /// Z^(1/W) — complex root Z^(1/W).
+    AdvZPow1w,
+    /// |Z| — complex modulus.
+    AdvMagz,
+    /// SIN Z — complex sine.
+    AdvSinZ,
+    /// COS Z — complex cosine.
+    AdvCosZ,
+    /// TAN Z — complex tangent.
+    AdvTanZ,
+    /// A^Z — complex power a^Z.
+    AdvAPowZ,
+    /// ADV C+ — complex addition.
+    AdvCPlus,
+    /// ADV C- — complex subtraction.
+    AdvCMinus,
+    /// ADV CINV — complex reciprocal.
+    AdvCinv,
+    /// ADV C* — complex multiplication.
+    AdvCMul,
+    /// ADV C/ — complex division.
+    AdvCDiv,
+    /// AIP — convert ALPHA integer string to real number.
+    AdvAip,
+
+    // ADV MATH (XROM 24) — polynomial evaluation and root finding
+    /// PLY — evaluate polynomial using Horner's method.
+    AdvPly,
+    /// RTS — recall roots computed by PLY.
+    AdvRts,
+
+    // ADV MATH (XROM 24) — solvers
+    /// FSOLVE — solve f(x)=0 using Brent's method.
+    AdvFsolve,
+    /// FINTG — numerically integrate f(x) from Y to X.
+    AdvFintg,
+    /// FDIFEQ — integrate ODE system dy/dt = f(t, y).
+    AdvFdifeq,
+    /// FROOT — find a root near X using secant/Newton iteration.
+    AdvFroot,
+    /// FSOLVE run-loop — called on each re-entry from program execution.
+    AdvFsolveRunLoop,
+    /// FINTG run-loop — called on each re-entry from program execution.
+    AdvFintgRunLoop,
+    /// FDIFEQ run-loop — called on each re-entry from program execution.
+    AdvFdifeqRunLoop,
+
+    // ADV MATH (XROM 24) — curve fitting
+    /// CFIT — clear curve-fit statistical accumulators.
+    AdvCfit,
+    /// AS — add a (X,Y) data point to curve-fit accumulators.
+    AdvAs,
+    /// DS — remove a (X,Y) data point from curve-fit accumulators.
+    AdvDs,
+    /// BFIT — choose the best-fitting model.
+    AdvBfit,
+    /// FIT — compute curve-fit parameters.
+    AdvFit,
+    /// Y?X — estimate Y from X using current curve-fit model.
+    AdvYQueryX,
+    /// SZ? — push current sample size (n) onto the stack.
+    AdvSzQuery,
+
+    // ADV MATH (XROM 24) — vector operations
+    /// V+ — add two vectors element-wise.
+    AdvVPlus,
+    /// V- — subtract two vectors element-wise.
+    AdvVMinus,
+    /// DOT — dot product of two vectors.
+    AdvDot,
+    /// CROSS — cross product of two 3-vectors.
+    AdvCross,
+    /// VC — recall vector from current matrix row.
+    AdvVc,
+    /// VS — store stack elements as vector into current matrix row.
+    AdvVs,
+    /// VR — rotate vector components.
+    AdvVr,
+    /// VE — enter vector components via modal prompt.
+    AdvVe,
+    /// VXY — extract X and Y components of vector.
+    AdvVxy,
+    /// UV — normalize a vector to unit vector.
+    AdvUv,
+    /// |V| — Euclidean magnitude of vector.
+    AdvVMag,
+    /// V* — scale vector by scalar X.
+    AdvVStar,
+    /// VD — divide vector by scalar X.
+    AdvVd,
+    /// TR — vector trace (sum of diagonal elements).
+    AdvTr,
+
+    // ADV TVM (XROM 24) — Time Value of Money
+    /// TVM — open TVM register-entry workflow.
+    AdvTvm,
+    /// TVM N — store X into TVM N register.
+    AdvTvmN,
+    /// TVM PV — store X into TVM PV register.
+    AdvTvmPv,
+    /// TVM PMT — store X into TVM PMT register.
+    AdvTvmPmt,
+    /// TVM FV — store X into TVM FV register.
+    AdvTvmFv,
+    /// TVM *I — solve for periodic interest rate.
+    AdvTvmStarI,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -1755,6 +2015,140 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TimeClalma => crate::ops::time::alarm::op_clalma(state),
         Op::TimeClalmx => crate::ops::time::alarm::op_clalmx(state),
         Op::TimeClralms => crate::ops::time::alarm::op_clralms(state),
+        // ── Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) ─────────────
+        // Phase 43 sanctioned CI break — Phase 44 closes item 3, Phase 46 closes item 4.
+        // ADV CONV (XROM 22)
+        Op::AdvBinin => crate::ops::advantage::conv::op_adv_binin(state),
+        Op::AdvBinview => crate::ops::advantage::conv::op_adv_binview(state),
+        Op::AdvOctin => crate::ops::advantage::conv::op_adv_octin(state),
+        Op::AdvHexin => crate::ops::advantage::conv::op_adv_hexin(state),
+        Op::AdvHexview => crate::ops::advantage::conv::op_adv_hexview(state),
+        Op::AdvCvtview => crate::ops::advantage::conv::op_adv_cvtview(state),
+        Op::AdvNot => crate::ops::advantage::conv::op_adv_not(state),
+        Op::AdvAnd => crate::ops::advantage::conv::op_adv_and(state),
+        Op::AdvOr => crate::ops::advantage::conv::op_adv_or(state),
+        Op::AdvXor => crate::ops::advantage::conv::op_adv_xor(state),
+        Op::AdvRotxy => crate::ops::advantage::conv::op_adv_rotxy(state),
+        Op::AdvBitTest => crate::ops::advantage::conv::op_adv_bit_test(state),
+        // ADV MTRX element access and lifecycle (XROM 22)
+        Op::AdvIPlus => crate::ops::advantage::matrix_ops::op_adv_i_plus(state),
+        Op::AdvIMinus => crate::ops::advantage::matrix_ops::op_adv_i_minus(state),
+        Op::AdvJPlus => crate::ops::advantage::matrix_ops::op_adv_j_plus(state),
+        Op::AdvJMinus => crate::ops::advantage::matrix_ops::op_adv_j_minus(state),
+        Op::AdvMr => crate::ops::advantage::matrix_ops::op_adv_mr(state),
+        Op::AdvMs => crate::ops::advantage::matrix_ops::op_adv_ms(state),
+        Op::AdvMrij => crate::ops::advantage::matrix_ops::op_adv_mrij(state),
+        Op::AdvMsij => crate::ops::advantage::matrix_ops::op_adv_msij(state),
+        Op::AdvMsijr => crate::ops::advantage::matrix_ops::op_adv_msijr(state),
+        Op::AdvMrcPlus => crate::ops::advantage::matrix_ops::op_adv_mrc_plus(state),
+        Op::AdvMrcMinus => crate::ops::advantage::matrix_ops::op_adv_mrc_minus(state),
+        Op::AdvMrrPlus => crate::ops::advantage::matrix_ops::op_adv_mrr_plus(state),
+        Op::AdvMrrMinus => crate::ops::advantage::matrix_ops::op_adv_mrr_minus(state),
+        Op::AdvMsrPlus => crate::ops::advantage::matrix_ops::op_adv_msr_plus(state),
+        Op::AdvMscPlus => crate::ops::advantage::matrix_ops::op_adv_msc_plus(state),
+        Op::AdvMswap => crate::ops::advantage::matrix_ops::op_adv_mswap(state),
+        Op::AdvMnameQuery => crate::ops::advantage::matrix_ops::op_adv_mname_query(state),
+        Op::AdvDimQuery => crate::ops::advantage::matrix_ops::op_adv_dim_query(state),
+        Op::AdvMatdim => crate::ops::advantage::matrix_ops::op_adv_matdim(state),
+        Op::AdvMp => crate::ops::advantage::matrix_ops::op_adv_mp(state),
+        Op::AdvPiv => crate::ops::advantage::matrix_ops::op_adv_piv(state),
+        Op::AdvRExchangeR => crate::ops::advantage::matrix_ops::op_adv_r_exchange_r(state),
+        Op::AdvRGtRQuery => crate::ops::advantage::matrix_ops::op_adv_r_gt_r_query(state),
+        Op::AdvSum => crate::ops::advantage::matrix_ops::op_adv_sum(state),
+        Op::AdvSumab => crate::ops::advantage::matrix_ops::op_adv_sumab(state),
+        Op::AdvMax => crate::ops::advantage::matrix_ops::op_adv_max(state),
+        Op::AdvMaxab => crate::ops::advantage::matrix_ops::op_adv_maxab(state),
+        Op::AdvMin => crate::ops::advantage::matrix_ops::op_adv_min(state),
+        Op::AdvRmaxab => crate::ops::advantage::matrix_ops::op_adv_rmaxab(state),
+        Op::AdvRnrm => crate::ops::advantage::matrix_ops::op_adv_rnrm(state),
+        Op::AdvRsum => crate::ops::advantage::matrix_ops::op_adv_rsum(state),
+        Op::AdvFnrm => crate::ops::advantage::matrix_ops::op_adv_fnrm(state),
+        // ADV MTRX linear algebra (XROM 22)
+        Op::AdvMdet => crate::ops::advantage::matrix_linalg::op_adv_mdet(state),
+        Op::AdvMinv => crate::ops::advantage::matrix_linalg::op_adv_minv(state),
+        Op::AdvMsys => crate::ops::advantage::matrix_linalg::op_adv_msys(state),
+        Op::AdvMMulM => crate::ops::advantage::matrix_linalg::op_adv_m_mul_m(state),
+        Op::AdvMatPlus => crate::ops::advantage::matrix_linalg::op_adv_mat_plus(state),
+        Op::AdvMatMinus => crate::ops::advantage::matrix_linalg::op_adv_mat_minus(state),
+        Op::AdvMatScalarMul => crate::ops::advantage::matrix_linalg::op_adv_mat_scalar_mul(state),
+        Op::AdvMatScalarDiv => crate::ops::advantage::matrix_linalg::op_adv_mat_scalar_div(state),
+        Op::AdvTrnps => crate::ops::advantage::matrix_linalg::op_adv_trnps(state),
+        Op::AdvMmove => crate::ops::advantage::matrix_linalg::op_adv_mmove(state),
+        // ADV MTRX complex operations (XROM 22)
+        Op::AdvCExchangeC => crate::ops::advantage::matrix_complex::op_adv_c_exchange_c(state),
+        Op::AdvCmaxab => crate::ops::advantage::matrix_complex::op_adv_cmaxab(state),
+        Op::AdvCnrm => crate::ops::advantage::matrix_complex::op_adv_cnrm(state),
+        Op::AdvCsum => crate::ops::advantage::matrix_complex::op_adv_csum(state),
+        Op::AdvYcPlusC => crate::ops::advantage::matrix_complex::op_adv_yc_plus_c(state),
+        // ADV MTRX workflow modals (XROM 22)
+        Op::AdvMatrx => crate::ops::advantage::matrix_workflow::op_adv_matrx(state),
+        Op::AdvMtr => crate::ops::advantage::matrix_workflow::op_adv_mtr(state),
+        Op::AdvMedit => crate::ops::advantage::matrix_workflow::op_adv_medit(state),
+        Op::AdvCmedit => crate::ops::advantage::matrix_workflow::op_adv_cmedit(state),
+        // ADV MATH complex extensions (XROM 24)
+        Op::AdvExpZ => crate::ops::advantage::complex_ext::op_adv_exp_z(state),
+        Op::AdvLnZ => crate::ops::advantage::complex_ext::op_adv_ln_z(state),
+        Op::AdvLogZ => crate::ops::advantage::complex_ext::op_adv_log_z(state),
+        Op::AdvZPowN => crate::ops::advantage::complex_ext::op_adv_z_pow_n(state),
+        Op::AdvZPow1n => crate::ops::advantage::complex_ext::op_adv_z_pow_1n(state),
+        Op::AdvZPowW => crate::ops::advantage::complex_ext::op_adv_z_pow_w(state),
+        Op::AdvZPow1w => crate::ops::advantage::complex_ext::op_adv_z_pow_1w(state),
+        Op::AdvMagz => crate::ops::advantage::complex_ext::op_adv_magz(state),
+        Op::AdvSinZ => crate::ops::advantage::complex_ext::op_adv_sin_z(state),
+        Op::AdvCosZ => crate::ops::advantage::complex_ext::op_adv_cos_z(state),
+        Op::AdvTanZ => crate::ops::advantage::complex_ext::op_adv_tan_z(state),
+        Op::AdvAPowZ => crate::ops::advantage::complex_ext::op_adv_a_pow_z(state),
+        Op::AdvCPlus => crate::ops::advantage::complex_ext::op_adv_c_plus(state),
+        Op::AdvCMinus => crate::ops::advantage::complex_ext::op_adv_c_minus(state),
+        Op::AdvCinv => crate::ops::advantage::complex_ext::op_adv_cinv(state),
+        Op::AdvCMul => crate::ops::advantage::complex_ext::op_adv_c_mul(state),
+        Op::AdvCDiv => crate::ops::advantage::complex_ext::op_adv_c_div(state),
+        Op::AdvAip => crate::ops::advantage::complex_ext::op_adv_aip(state),
+        // ADV MATH polynomial (XROM 24)
+        Op::AdvPly => crate::ops::advantage::poly::op_adv_ply(state),
+        Op::AdvRts => crate::ops::advantage::poly::op_adv_rts(state),
+        // ADV MATH solvers (XROM 24)
+        Op::AdvFsolve => crate::ops::advantage::solvers::op_adv_fsolve(state),
+        Op::AdvFintg => crate::ops::advantage::solvers::op_adv_fintg(state),
+        Op::AdvFdifeq => crate::ops::advantage::solvers::op_adv_fdifeq(state),
+        Op::AdvFroot => crate::ops::advantage::solvers::op_adv_froot(state),
+        // AdvFsolveRunLoop / AdvFintgRunLoop / AdvFdifeqRunLoop must only run inside
+        // run_loop (not dispatch) to allow re-entrant user-program callbacks (D-43.7).
+        // The dispatch arm returns InvalidOp; the run_loop arm in program.rs calls
+        // op_adv_fsolve_run_loop(state, program) with the program slice.
+        Op::AdvFsolveRunLoop => Err(crate::error::HpError::InvalidOp),
+        Op::AdvFintgRunLoop => Err(crate::error::HpError::InvalidOp),
+        Op::AdvFdifeqRunLoop => Err(crate::error::HpError::InvalidOp),
+        // ADV MATH curve fitting (XROM 24)
+        Op::AdvCfit => crate::ops::advantage::curve_fit::op_adv_cfit(state),
+        Op::AdvAs => crate::ops::advantage::curve_fit::op_adv_as(state),
+        Op::AdvDs => crate::ops::advantage::curve_fit::op_adv_ds(state),
+        Op::AdvBfit => crate::ops::advantage::curve_fit::op_adv_bfit(state),
+        Op::AdvFit => crate::ops::advantage::curve_fit::op_adv_fit(state),
+        Op::AdvYQueryX => crate::ops::advantage::curve_fit::op_adv_y_query_x(state),
+        Op::AdvSzQuery => crate::ops::advantage::curve_fit::op_adv_sz_query(state),
+        // ADV MATH vectors (XROM 24)
+        Op::AdvVPlus => crate::ops::advantage::vectors::op_adv_v_plus(state),
+        Op::AdvVMinus => crate::ops::advantage::vectors::op_adv_v_minus(state),
+        Op::AdvDot => crate::ops::advantage::vectors::op_adv_dot(state),
+        Op::AdvCross => crate::ops::advantage::vectors::op_adv_cross(state),
+        Op::AdvVc => crate::ops::advantage::vectors::op_adv_vc(state),
+        Op::AdvVs => crate::ops::advantage::vectors::op_adv_vs(state),
+        Op::AdvVr => crate::ops::advantage::vectors::op_adv_vr(state),
+        Op::AdvVe => crate::ops::advantage::vectors::op_adv_ve(state),
+        Op::AdvVxy => crate::ops::advantage::vectors::op_adv_vxy(state),
+        Op::AdvUv => crate::ops::advantage::vectors::op_adv_uv(state),
+        Op::AdvVMag => crate::ops::advantage::vectors::op_adv_v_mag(state),
+        Op::AdvVStar => crate::ops::advantage::vectors::op_adv_v_star(state),
+        Op::AdvVd => crate::ops::advantage::vectors::op_adv_vd(state),
+        Op::AdvTr => crate::ops::advantage::vectors::op_adv_tr(state),
+        // ADV TVM (XROM 24)
+        Op::AdvTvm => crate::ops::advantage::tvm::op_adv_tvm(state),
+        Op::AdvTvmN => crate::ops::advantage::tvm::op_adv_tvm_n(state),
+        Op::AdvTvmPv => crate::ops::advantage::tvm::op_adv_tvm_pv(state),
+        Op::AdvTvmPmt => crate::ops::advantage::tvm::op_adv_tvm_pmt(state),
+        Op::AdvTvmFv => crate::ops::advantage::tvm::op_adv_tvm_fv(state),
+        Op::AdvTvmStarI => crate::ops::advantage::tvm::op_adv_tvm_star_i(state),
     }
 }
 

@@ -180,11 +180,12 @@ gui-e2e:
 
 # ─── Docs ───────────────────────────────────────────────────────────────────
 
-# Regenerate all four function matrices from their canonical JSON sources (developer-side).
+# Regenerate all five function matrices from their canonical JSON sources (developer-side).
 # Reads docs/hp41cv-functions.json -> docs/hp41cv-function-matrix.md (unchanged, D-30.2).
 # Reads docs/hp41-math1-functions.json -> docs/hp41-math1-function-matrix.md (unchanged, D-30.1).
 # Reads docs/hp41-stat1-functions.json -> docs/hp41-stat1-function-matrix.md (D-35.1).
 # Reads docs/hp41-time-functions.json -> docs/hp41-time-function-matrix.md (D-40.1).
+# Reads docs/hp41-advantage-functions.json -> docs/hp41-advantage-function-matrix.md (D-44.1).
 [group('docs')]
 docs-matrix:
 	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
@@ -195,9 +196,11 @@ docs-matrix:
 		docs/hp41-stat1-functions.json docs/hp41-stat1-function-matrix.md
 	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
 		docs/hp41-time-functions.json docs/hp41-time-function-matrix.md
+	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
+		docs/hp41-advantage-functions.json docs/hp41-advantage-function-matrix.md
 
 # CI-friendly drift catch (Pitfall 8): regenerate to temp files and diff all
-# four against their committed copies. Exits non-zero on mismatch so CI fails fast.
+# five against their committed copies. Exits non-zero on mismatch so CI fails fast.
 [group('docs')]
 docs-matrix-check:
 	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
@@ -212,3 +215,6 @@ docs-matrix-check:
 	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
 		docs/hp41-time-functions.json /tmp/hp41-time-function-matrix-check.md
 	diff -u docs/hp41-time-function-matrix.md /tmp/hp41-time-function-matrix-check.md
+	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
+		docs/hp41-advantage-functions.json /tmp/hp41-advantage-function-matrix-check.md
+	diff -u docs/hp41-advantage-function-matrix.md /tmp/hp41-advantage-function-matrix-check.md

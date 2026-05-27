@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 
 use hp41_cli::help_data::{
-    help_entries, help_entries_math1, help_entries_stat1, help_entries_time,
+    help_entries, help_entries_adv, help_entries_math1, help_entries_stat1, help_entries_time,
 };
 
 /// Hand-curated inventory of all `hp41_core::ops::Op` variants. Drift
@@ -513,12 +513,12 @@ fn test_every_stat1_json_entry_has_xrom_resolver_match() {
 
 #[test]
 fn test_pool_partition_is_exhaustive() {
-    // Partition help_entries_all() by xrom.module_id. The four buckets
+    // Partition help_entries_all() by xrom.module_id. The five buckets
     // are: None (built-ins, >= 130), Some(7) (Math Pac I, == 45), Some(2)
-    // (Stat 1 Pac, == 26), Some(26) (Time Pac, == 35). Any other value is
-    // rogue and fails the test.
+    // (Stat 1 Pac, == 26), Some(26) (Time Pac, == 35), Some(22) (Adv CONV+MTRX, == 63),
+    // Some(24) (Adv MATH+TVM, == 51). Any other value is rogue and fails the test.
     //
-    // This guards future v3.3+ Advantage Pac additions: before they merge,
+    // This guards future v3.4+ additions: before they merge,
     // this test fires (because Some(<new_id>) is not in the recognized set),
     // forcing the new pool to be registered in the partition.
     use hp41_cli::help_data::help_entries_all;
@@ -526,6 +526,8 @@ fn test_pool_partition_is_exhaustive() {
     let mut math1_count = 0usize;
     let mut stat1_count = 0usize;
     let mut time_count = 0usize;
+    let mut adv_a_count = 0usize;
+    let mut adv_b_count = 0usize;
     let mut rogue: Vec<(String, u8)> = Vec::new();
     for entry in help_entries_all() {
         match entry.xrom.as_ref().map(|x| x.module_id) {
@@ -533,13 +535,15 @@ fn test_pool_partition_is_exhaustive() {
             Some(7) => math1_count += 1,
             Some(2) => stat1_count += 1,
             Some(26) => time_count += 1,
+            Some(22) => adv_a_count += 1,
+            Some(24) => adv_b_count += 1,
             Some(other) => rogue.push((entry.op_variant.clone(), other)),
         }
     }
     assert!(
         rogue.is_empty(),
         "Unknown xrom.module_id values in help_entries_all(): {rogue:?}. \
-         v3.2 supports only module_id in {{None (built-ins), 7 (Math 1), 2 (Stat 1), 26 (Time)}}. \
+         v3.3 supports only module_id in {{None (built-ins), 7 (Math 1), 2 (Stat 1), 26 (Time), 22 (Adv CONV+MTRX), 24 (Adv MATH+TVM)}}. \
          Adding a new XROM module requires updating function_matrix_parity.rs partition."
     );
     assert!(
@@ -549,6 +553,500 @@ fn test_pool_partition_is_exhaustive() {
     assert_eq!(math1_count, 45, "Math 1 pool count drift: {math1_count}");
     assert_eq!(stat1_count, 26, "Stat 1 pool count drift: {stat1_count}");
     assert_eq!(time_count, 35, "Time pool count drift: {time_count}");
+    assert_eq!(
+        adv_a_count, 63,
+        "Adv CONV+MTRX (XROM 22) pool count drift: {adv_a_count}"
+    );
+    assert_eq!(
+        adv_b_count, 51,
+        "Adv MATH+TVM (XROM 24) pool count drift: {adv_b_count}"
+    );
+}
+
+// ── Phase 44 Plan 01/02: Advantage Pac bidirectional parity tests (ADV-CLI-02) ──
+//
+// Six tests guarding the hp41-advantage-functions.json ↔ ADV_MATH_A/B.ops ↔ Op::* chain:
+// 1. Inventory drift sentinel for ADV_A (63 entries, XROM 22)
+// 2. Inventory drift sentinel for ADV_B (51 entries, XROM 24)
+// 3. Forward parity (per-module): every ADV_A_OP_VARIANT_NAMES entry has a JSON row
+// 4. Forward parity (per-module): every ADV_B_OP_VARIANT_NAMES entry has a JSON row
+// 5. Reverse parity (per-module): every XROM 22 JSON display_name resolves via xrom_resolve
+// 6. Reverse parity (per-module): every XROM 24 JSON display_name resolves via xrom_resolve
+//
+// Also the combined sentinel (ADV_OP_VARIANT_NAMES length == 114) from Plan 01.
+
+/// Hand-curated inventory of ADV_MATH_A (XROM 22) `Op` variants shipped in Phase 43.
+/// ADV CONV (12) + ADV MTRX element-access/lifecycle/reduction/linalg/complex/workflow (51) = 63.
+/// Run-loop variants (AdvFsolveRunLoop/AdvFintgRunLoop/AdvFdifeqRunLoop) are EXCLUDED.
+///
+/// Maintenance gate: if future plans add new ADV_MATH_A `Op` variants, append here
+/// AND add matching JSON rows to `docs/hp41-advantage-functions.json`.
+const ADV_A_OP_VARIANT_NAMES: &[&str] = &[
+    // Phase 43 ADV_MATH_A (XROM 22) — ADV CONV (12) + ADV MTRX (51) = 63 entries
+    // ADV CONV
+    "AdvBinin",
+    "AdvBinview",
+    "AdvOctin",
+    "AdvHexin",
+    "AdvHexview",
+    "AdvCvtview",
+    "AdvNot",
+    "AdvAnd",
+    "AdvOr",
+    "AdvXor",
+    "AdvRotxy",
+    "AdvBitTest",
+    // ADV MTRX element access
+    "AdvIPlus",
+    "AdvIMinus",
+    "AdvJPlus",
+    "AdvJMinus",
+    "AdvMr",
+    "AdvMs",
+    "AdvMrij",
+    "AdvMsij",
+    "AdvMsijr",
+    "AdvMrcPlus",
+    "AdvMrcMinus",
+    "AdvMrrPlus",
+    "AdvMrrMinus",
+    "AdvMsrPlus",
+    "AdvMscPlus",
+    "AdvMswap",
+    "AdvMnameQuery",
+    "AdvDimQuery",
+    "AdvMatdim",
+    "AdvMp",
+    "AdvPiv",
+    "AdvRExchangeR",
+    "AdvRGtRQuery",
+    // ADV MTRX reductions
+    "AdvSum",
+    "AdvSumab",
+    "AdvMax",
+    "AdvMaxab",
+    "AdvMin",
+    "AdvRmaxab",
+    "AdvRnrm",
+    "AdvRsum",
+    "AdvFnrm",
+    // ADV MTRX linear algebra
+    "AdvMdet",
+    "AdvMinv",
+    "AdvMsys",
+    "AdvMMulM",
+    "AdvMatPlus",
+    "AdvMatMinus",
+    "AdvMatScalarMul",
+    "AdvMatScalarDiv",
+    "AdvTrnps",
+    "AdvMmove",
+    // ADV MTRX complex
+    "AdvCExchangeC",
+    "AdvCmaxab",
+    "AdvCnrm",
+    "AdvCsum",
+    "AdvYcPlusC",
+    // ADV MTRX workflow
+    "AdvMatrx",
+    "AdvMtr",
+    "AdvMedit",
+    "AdvCmedit",
+];
+
+/// Hand-curated inventory of ADV_MATH_B (XROM 24) `Op` variants shipped in Phase 43.
+/// ADV MATH complex extensions (18), polynomial (2), solvers (4), curve fitting (7),
+/// vectors (14), AIP (1), ADV TVM (6) = 51 total.
+/// Run-loop variants (AdvFsolveRunLoop/AdvFintgRunLoop/AdvFdifeqRunLoop) are EXCLUDED.
+///
+/// Maintenance gate: if future plans add new ADV_MATH_B `Op` variants, append here
+/// AND add matching JSON rows to `docs/hp41-advantage-functions.json`.
+const ADV_B_OP_VARIANT_NAMES: &[&str] = &[
+    // Phase 43 ADV_MATH_B (XROM 24) — ADV MATH (45) + ADV TVM (6) = 51 entries
+    // ADV MATH complex extensions
+    "AdvExpZ",
+    "AdvLnZ",
+    "AdvLogZ",
+    "AdvZPowN",
+    "AdvZPow1n",
+    "AdvZPowW",
+    "AdvZPow1w",
+    "AdvMagz",
+    "AdvSinZ",
+    "AdvCosZ",
+    "AdvTanZ",
+    "AdvAPowZ",
+    "AdvCPlus",
+    "AdvCMinus",
+    "AdvCinv",
+    "AdvCMul",
+    "AdvCDiv",
+    "AdvAip",
+    // ADV MATH polynomial
+    "AdvPly",
+    "AdvRts",
+    // ADV MATH solvers
+    "AdvFsolve",
+    "AdvFintg",
+    "AdvFdifeq",
+    "AdvFroot",
+    // ADV MATH curve fitting
+    "AdvCfit",
+    "AdvAs",
+    "AdvDs",
+    "AdvBfit",
+    "AdvFit",
+    "AdvYQueryX",
+    "AdvSzQuery",
+    // ADV MATH vectors
+    "AdvVPlus",
+    "AdvVMinus",
+    "AdvDot",
+    "AdvCross",
+    "AdvVc",
+    "AdvVs",
+    "AdvVr",
+    "AdvVe",
+    "AdvVxy",
+    "AdvUv",
+    "AdvVMag",
+    "AdvVStar",
+    "AdvVd",
+    "AdvTr",
+    // ADV TVM
+    "AdvTvm",
+    "AdvTvmN",
+    "AdvTvmPv",
+    "AdvTvmPmt",
+    "AdvTvmFv",
+    "AdvTvmStarI",
+];
+
+/// Combined inventory of all Advantage Pac `Op` variants (ADV_MATH_A + ADV_MATH_B).
+/// Drift between this list and the `ADV_MATH_A.ops` / `ADV_MATH_B.ops` tables in
+/// `hp41-core/src/ops/math1/xrom.rs` is caught by `test_adv_op_inventory_count`.
+///
+/// Maintenance gate: if future plans add new Advantage Pac `Op` variants, append here
+/// AND add matching JSON rows to `docs/hp41-advantage-functions.json`.
+const ADV_OP_VARIANT_NAMES: &[&str] = &[
+    // Phase 43 ADV_MATH_A (XROM 22) — ADV CONV (12) + ADV MTRX (51) = 63 entries
+    // ADV CONV
+    "AdvBinin",
+    "AdvBinview",
+    "AdvOctin",
+    "AdvHexin",
+    "AdvHexview",
+    "AdvCvtview",
+    "AdvNot",
+    "AdvAnd",
+    "AdvOr",
+    "AdvXor",
+    "AdvRotxy",
+    "AdvBitTest",
+    // ADV MTRX element access
+    "AdvIPlus",
+    "AdvIMinus",
+    "AdvJPlus",
+    "AdvJMinus",
+    "AdvMr",
+    "AdvMs",
+    "AdvMrij",
+    "AdvMsij",
+    "AdvMsijr",
+    "AdvMrcPlus",
+    "AdvMrcMinus",
+    "AdvMrrPlus",
+    "AdvMrrMinus",
+    "AdvMsrPlus",
+    "AdvMscPlus",
+    "AdvMswap",
+    "AdvMnameQuery",
+    "AdvDimQuery",
+    "AdvMatdim",
+    "AdvMp",
+    "AdvPiv",
+    "AdvRExchangeR",
+    "AdvRGtRQuery",
+    // ADV MTRX reductions
+    "AdvSum",
+    "AdvSumab",
+    "AdvMax",
+    "AdvMaxab",
+    "AdvMin",
+    "AdvRmaxab",
+    "AdvRnrm",
+    "AdvRsum",
+    "AdvFnrm",
+    // ADV MTRX linear algebra
+    "AdvMdet",
+    "AdvMinv",
+    "AdvMsys",
+    "AdvMMulM",
+    "AdvMatPlus",
+    "AdvMatMinus",
+    "AdvMatScalarMul",
+    "AdvMatScalarDiv",
+    "AdvTrnps",
+    "AdvMmove",
+    // ADV MTRX complex
+    "AdvCExchangeC",
+    "AdvCmaxab",
+    "AdvCnrm",
+    "AdvCsum",
+    "AdvYcPlusC",
+    // ADV MTRX workflow
+    "AdvMatrx",
+    "AdvMtr",
+    "AdvMedit",
+    "AdvCmedit",
+    // Phase 43 ADV_MATH_B (XROM 24) — ADV MATH (45) + ADV TVM (6) = 51 entries
+    // ADV MATH complex extensions
+    "AdvExpZ",
+    "AdvLnZ",
+    "AdvLogZ",
+    "AdvZPowN",
+    "AdvZPow1n",
+    "AdvZPowW",
+    "AdvZPow1w",
+    "AdvMagz",
+    "AdvSinZ",
+    "AdvCosZ",
+    "AdvTanZ",
+    "AdvAPowZ",
+    "AdvCPlus",
+    "AdvCMinus",
+    "AdvCinv",
+    "AdvCMul",
+    "AdvCDiv",
+    "AdvAip",
+    // ADV MATH polynomial
+    "AdvPly",
+    "AdvRts",
+    // ADV MATH solvers
+    "AdvFsolve",
+    "AdvFintg",
+    "AdvFdifeq",
+    "AdvFroot",
+    // ADV MATH curve fitting
+    "AdvCfit",
+    "AdvAs",
+    "AdvDs",
+    "AdvBfit",
+    "AdvFit",
+    "AdvYQueryX",
+    "AdvSzQuery",
+    // ADV MATH vectors
+    "AdvVPlus",
+    "AdvVMinus",
+    "AdvDot",
+    "AdvCross",
+    "AdvVc",
+    "AdvVs",
+    "AdvVr",
+    "AdvVe",
+    "AdvVxy",
+    "AdvUv",
+    "AdvVMag",
+    "AdvVStar",
+    "AdvVd",
+    "AdvTr",
+    // ADV TVM
+    "AdvTvm",
+    "AdvTvmN",
+    "AdvTvmPv",
+    "AdvTvmPmt",
+    "AdvTvmFv",
+    "AdvTvmStarI",
+];
+
+#[test]
+fn test_adv_a_op_inventory_count() {
+    // Catches: drift between ADV_A_OP_VARIANT_NAMES and ADV_MATH_A.ops in xrom.rs.
+    // ADV_MATH_A (XROM 22): 12 ADV CONV + 51 ADV MTRX = 63 entries.
+    // Run-loop variants excluded (internal-only, not user-XEQ-reachable).
+    assert_eq!(
+        ADV_A_OP_VARIANT_NAMES.len(),
+        63,
+        "ADV_A_OP_VARIANT_NAMES inventory drift — expected 63 ADV_MATH_A (XROM 22) Op variants \
+         (12 ADV CONV + 51 ADV MTRX). Did a future plan add Op variants without updating this \
+         inventory and docs/hp41-advantage-functions.json?"
+    );
+}
+
+#[test]
+fn test_adv_b_op_inventory_count() {
+    // Catches: drift between ADV_B_OP_VARIANT_NAMES and ADV_MATH_B.ops in xrom.rs.
+    // ADV_MATH_B (XROM 24): 45 ADV MATH + 6 ADV TVM = 51 entries.
+    // Run-loop variants excluded (internal-only, not user-XEQ-reachable).
+    assert_eq!(
+        ADV_B_OP_VARIANT_NAMES.len(),
+        51,
+        "ADV_B_OP_VARIANT_NAMES inventory drift — expected 51 ADV_MATH_B (XROM 24) Op variants \
+         (45 ADV MATH + 6 ADV TVM). Did a future plan add Op variants without updating this \
+         inventory and docs/hp41-advantage-functions.json?"
+    );
+}
+
+#[test]
+fn test_adv_op_inventory_count() {
+    // Catches: drift between this hand-curated list and ADV_MATH_A/B.ops in xrom.rs.
+    // If a new Advantage Pac Op variant is added without updating this list,
+    // this assertion fires forcing the developer to also add a JSON entry.
+    assert_eq!(
+        ADV_OP_VARIANT_NAMES.len(),
+        114,
+        "ADV_OP_VARIANT_NAMES inventory drift — expected 114 Advantage Pac Op variants per Phase 43 ship \
+         (63 ADV_MATH_A + 51 ADV_MATH_B). Did a future plan add Op variants without updating this \
+         inventory and docs/hp41-advantage-functions.json?"
+    );
+}
+
+#[test]
+fn test_every_adv_rom_op_has_adv_json_entry() {
+    // Catches: forward parity gap — an Advantage Pac Op variant without a JSON entry.
+    // Uses help_entries_adv() (narrow accessor) to assert against only the Advantage pool.
+    // Failure message lists missing variants by name for easy diagnosis.
+    let json_variants: HashSet<&str> = help_entries_adv()
+        .iter()
+        .map(|e| e.op_variant.as_str())
+        .collect();
+
+    let mut missing: Vec<&str> = Vec::new();
+    for name in ADV_OP_VARIANT_NAMES {
+        if !json_variants.contains(name) {
+            missing.push(name);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "Advantage Pac Op::* variants missing from docs/hp41-advantage-functions.json: {missing:?}"
+    );
+}
+
+#[test]
+fn test_every_adv_json_entry_has_xrom_resolver_match() {
+    // Catches: reverse parity gap — a JSON entry whose display_name cannot be
+    // resolved by xrom_resolve (C-28.4). Uses 0b0001_1111 (all 5 modules loaded)
+    // so the bidirectional invariant holds for the production bitfield state.
+    let mut orphans: Vec<String> = Vec::new();
+    for entry in help_entries_adv() {
+        let resolved =
+            hp41_core::ops::math1::xrom::xrom_resolve(entry.display_name.as_str(), 0b0001_1111);
+        if resolved.is_none() {
+            orphans.push(format!(
+                "'{}' (display_name='{}') — not found in ADV_MATH_A/B.ops / xrom_resolve",
+                entry.op_variant, entry.display_name
+            ));
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "Advantage JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0001_1111): {orphans:?}"
+    );
+}
+
+// ── Phase 44 Plan 02: Per-module (ADV_MATH_A / ADV_MATH_B) parity tests ──────
+//
+// Four tests split by XROM module ID — narrower than the combined tests above:
+// 1. Forward parity for XROM 22 (ADV_A_OP_VARIANT_NAMES)
+// 2. Forward parity for XROM 24 (ADV_B_OP_VARIANT_NAMES)
+// 3. Reverse parity for XROM 22 (JSON display_names via xrom_resolve)
+// 4. Reverse parity for XROM 24 (JSON display_names via xrom_resolve)
+
+#[test]
+fn test_every_adv_a_rom_op_has_adv_a_json_entry() {
+    // Catches: forward parity gap specifically for ADV_MATH_A (XROM 22).
+    // Filters help_entries_adv() by module_id==22 so only XROM 22 entries participate.
+    // This is narrower than test_every_adv_rom_op_has_adv_json_entry and will catch
+    // a mismatch even if ADV_MATH_B entries happen to compensate in the combined check.
+    let json_variants: HashSet<&str> = help_entries_adv()
+        .iter()
+        .filter(|e| e.xrom.as_ref().map(|x| x.module_id) == Some(22))
+        .map(|e| e.op_variant.as_str())
+        .collect();
+
+    let mut missing: Vec<&str> = Vec::new();
+    for name in ADV_A_OP_VARIANT_NAMES {
+        if !json_variants.contains(name) {
+            missing.push(name);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "ADV_MATH_A (XROM 22) Op::* variants missing from docs/hp41-advantage-functions.json: {missing:?}"
+    );
+}
+
+#[test]
+fn test_every_adv_b_rom_op_has_adv_b_json_entry() {
+    // Catches: forward parity gap specifically for ADV_MATH_B (XROM 24).
+    // Filters help_entries_adv() by module_id==24 so only XROM 24 entries participate.
+    let json_variants: HashSet<&str> = help_entries_adv()
+        .iter()
+        .filter(|e| e.xrom.as_ref().map(|x| x.module_id) == Some(24))
+        .map(|e| e.op_variant.as_str())
+        .collect();
+
+    let mut missing: Vec<&str> = Vec::new();
+    for name in ADV_B_OP_VARIANT_NAMES {
+        if !json_variants.contains(name) {
+            missing.push(name);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "ADV_MATH_B (XROM 24) Op::* variants missing from docs/hp41-advantage-functions.json: {missing:?}"
+    );
+}
+
+#[test]
+fn test_every_adv_a_json_entry_has_xrom_resolver_match() {
+    // Catches: reverse parity gap for ADV_MATH_A (XROM 22) — a JSON entry whose
+    // display_name cannot be resolved via the bit-3 arm of xrom_resolve.
+    // Uses 0b0001_1111 (all 5 modules loaded — v3.3 production default).
+    let mut orphans: Vec<String> = Vec::new();
+    for entry in help_entries_adv()
+        .iter()
+        .filter(|e| e.xrom.as_ref().map(|x| x.module_id) == Some(22))
+    {
+        let resolved =
+            hp41_core::ops::math1::xrom::xrom_resolve(entry.display_name.as_str(), 0b0001_1111);
+        if resolved.is_none() {
+            orphans.push(format!(
+                "'{}' (display_name='{}') — not found in ADV_MATH_A.ops / adv_a_resolve",
+                entry.op_variant, entry.display_name
+            ));
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "ADV_MATH_A (XROM 22) JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0001_1111): {orphans:?}"
+    );
+}
+
+#[test]
+fn test_every_adv_b_json_entry_has_xrom_resolver_match() {
+    // Catches: reverse parity gap for ADV_MATH_B (XROM 24) — a JSON entry whose
+    // display_name cannot be resolved via the bit-4 arm of xrom_resolve.
+    // Uses 0b0001_1111 (all 5 modules loaded — v3.3 production default).
+    let mut orphans: Vec<String> = Vec::new();
+    for entry in help_entries_adv()
+        .iter()
+        .filter(|e| e.xrom.as_ref().map(|x| x.module_id) == Some(24))
+    {
+        let resolved =
+            hp41_core::ops::math1::xrom::xrom_resolve(entry.display_name.as_str(), 0b0001_1111);
+        if resolved.is_none() {
+            orphans.push(format!(
+                "'{}' (display_name='{}') — not found in ADV_MATH_B.ops / adv_b_resolve",
+                entry.op_variant, entry.display_name
+            ));
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "ADV_MATH_B (XROM 24) JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0001_1111): {orphans:?}"
+    );
 }
 
 // ── Phase 39 Plan 01 Task 2: Time Pac bidirectional parity tests (TIME-CLI-02) ──

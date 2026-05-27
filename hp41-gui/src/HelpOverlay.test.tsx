@@ -24,15 +24,22 @@
 //   - helpEntriesTime() drift-catch + xrom-field assertions
 //   - helpEntriesAll() updated from 3-pool to 4-pool length assertion
 //   - sectionButtons.length updated from 3 to 4
+//
+// Phase 46 additions (ADV-GUI-03):
+//   - Fifth+sixth sections "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)"
+//   - helpEntriesAdvantage() drift-catch + xrom-field assertions
+//   - helpEntriesAll() updated from 4-pool to 5-pool length assertion
+//   - sectionButtons.length updated from 4 to 6
 
 import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { HelpOverlay } from './HelpOverlay';
-import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime } from './help_data';
+import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime, helpEntriesAdvantage } from './help_data';
 import sourceJson from '../../docs/hp41cv-functions.json';
 import math1Json from '../../docs/hp41-math1-functions.json';
 import stat1Json from '../../docs/hp41-stat1-functions.json';
 import timeJson from '../../docs/hp41-time-functions.json';
+import advJson from '../../docs/hp41-advantage-functions.json';
 
 describe('help_data', () => {
     it('helpEntries returns all entries from docs/hp41cv-functions.json (drift-catch)', () => {
@@ -58,16 +65,15 @@ describe('help_data', () => {
         }
     });
 
-    it('helpEntriesAll returns concatenation of built-in + Math 1 + Stat 1 + Time entries', () => {
+    it('helpEntriesAll returns concatenation of all 5 pools', () => {
         const all = helpEntriesAll();
         expect(all.length).toBe(
-            helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length + helpEntriesTime().length
+            helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length + helpEntriesTime().length + helpEntriesAdvantage().length
         );
-        // Built-in entries appear first (no xrom), Math 1 entries second (xrom.module === 'Math 1'),
-        // Stat 1 entries third (xrom.module === 'Stat 1'), Time entries last (xrom.module === 'Time').
         const hp41cvCount = helpEntries().length;
         const math1Count = helpEntriesMath1().length;
         const stat1Count = helpEntriesStat1().length;
+        const timeCount = helpEntriesTime().length;
         for (let i = 0; i < hp41cvCount; i++) {
             expect(all[i].xrom, `built-in entry at index ${i} should have no xrom`).toBeUndefined();
         }
@@ -79,9 +85,15 @@ describe('help_data', () => {
             expect(all[i].xrom, `Stat 1 entry at index ${i} should have xrom`).toBeTruthy();
             expect(all[i].xrom!.module, `Stat 1 entry at index ${i} should have module === 'Stat 1'`).toBe('Stat 1');
         }
-        for (let i = hp41cvCount + math1Count + stat1Count; i < all.length; i++) {
+        const timeStart = hp41cvCount + math1Count + stat1Count;
+        for (let i = timeStart; i < timeStart + timeCount; i++) {
             expect(all[i].xrom, `Time entry at index ${i} should have xrom`).toBeTruthy();
             expect(all[i].xrom!.module, `Time entry at index ${i} should have module === 'Time'`).toBe('Time');
+        }
+        const advStart = timeStart + timeCount;
+        for (let i = advStart; i < all.length; i++) {
+            expect(all[i].xrom, `Advantage entry at index ${i} should have xrom`).toBeTruthy();
+            expect([22, 24], `Advantage entry at index ${i} should have module_id 22 or 24`).toContain(all[i].xrom!.module_id);
         }
     });
 
@@ -115,6 +127,19 @@ describe('help_data', () => {
             // CRITICAL: module is "Time" (not "TIME", "Time Pac", or "TIME 2C") — D-39.9 / Pitfall 6
             expect(entry.xrom!.module).toBe('Time');
             expect(entry.xrom!.module_id).toBe(26);
+        }
+    });
+
+    it('helpEntriesAdvantage returns all entries from docs/hp41-advantage-functions.json (drift-catch)', () => {
+        const allAdvSource = advJson as unknown[];
+        expect(helpEntriesAdvantage().length).toBe(allAdvSource.length);
+        expect(helpEntriesAdvantage().length).toBeGreaterThanOrEqual(114);
+    });
+
+    it('helpEntriesAdvantage entries all have xrom field', () => {
+        for (const entry of helpEntriesAdvantage()) {
+            expect(entry.xrom, `entry ${entry.op_variant} should have xrom field`).toBeTruthy();
+            expect([22, 24]).toContain(entry.xrom!.module_id);
         }
     });
 
@@ -286,8 +311,8 @@ describe('HelpOverlay', () => {
         const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
         // Find the Math 1 Pac section heading button.
         const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
-        // There should be exactly 4 section heading buttons (updated from 3 in Phase 41 Plan 41-02).
-        expect(sectionButtons.length).toBe(4);
+        // 6 sections: HP-41CV, Math 1, Stat 1, Time, Advantage (XROM 22), Advantage (XROM 24).
+        expect(sectionButtons.length).toBe(6);
 
         const math1Button = Array.from(sectionButtons).find(b =>
             b.textContent?.includes('Math 1 Pac')

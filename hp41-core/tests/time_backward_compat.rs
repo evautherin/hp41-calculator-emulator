@@ -76,12 +76,13 @@ fn v31_save_loads_with_time_migration() {
     // LINT-EXEMPT: integer-equality -- xrom_modules is u8, not HpNum; literal comparison is exact
     assert_eq!(state.xrom_modules, 3u8);
 
-    // Apply the v3.1 → v3.2 migration (sets bit 2 = Time Module).
+    // Apply the v3.1 → v3.3 migration (sets bits 2 + 3 + 4 = Time Module + Advantage Pac).
     state.migrate_after_load();
 
-    // Post-migration: bits 0 (Math 1) + 1 (Stat 1) + 2 (Time Module) must all be set.
+    // Post-migration: bits 0+1+2+3+4 (Math 1+Stat 1+Time Module+ADV CONV+MTRX+ADV MATH+TVM)
+    // must all be set.
     // LINT-EXEMPT: integer-equality -- xrom_modules is u8, not HpNum; the bitmask is exact
-    assert_eq!(state.xrom_modules, 0b0000_0111u8);
+    assert_eq!(state.xrom_modules, 0b0001_1111u8);
 }
 
 // ── Test 2: Time fields default cleanly when absent ───────────────────────────

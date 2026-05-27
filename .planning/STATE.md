@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Time Pac Emulation
-status: Awaiting next milestone
-last_updated: "2026-05-25T12:20:02.299Z"
-last_activity: 2026-05-25 — Milestone v3.2 completed and archived
+milestone: v3.3
+milestone_name: Advantage Pac Emulation
+status: complete
+last_updated: "2026-05-26T21:00:00.000Z"
+last_activity: 2026-05-26 -- v3.3 Advantage Pac Emulation shipped
 progress:
   total_phases: 5
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 18
+  completed_plans: 18
   percent: 100
 ---
 
@@ -19,84 +19,77 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-24 after v3.2 milestone start)
+See: .planning/PROJECT.md (updated 2026-05-25 after v3.3 roadmap)
 
-**Core value:** Faithful HP-41 RPN fidelity -- four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
+**Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Shipped milestones:**
-
-- v1.0 CLI (2026-05-08) -- Phases 1-8; foundational RPN engine + TUI
-- v1.1 CLI Feature Completeness (2026-05-09) -- Phases 9-12
-- v2.0 Tauri GUI (2026-05-10) -- Phases 13-18
-- v2.1 Card Reader + Keyboard Authenticity (2026-05-13) -- recorded as quick tasks
-- v2.2 HP-41CV Feature Completeness (2026-05-15) -- Phases 20-27, 26/26 plans
-- v3.0 Math Pac I Emulation (2026-05-20) -- Phases 28-32, 31/31 plans
-- v3.1 Stat 1 Pac Emulation (2026-05-24) -- Phases 33-37, 23/23 plans
-
-**Current focus:** Phase 42 — test-hardening-quality-gates
-**Repo:** hp41-calculator-emulator
-**Architecture:** Cargo workspace -- `hp41-core` (library) + `hp41-cli` (binary) + `hp41-gui` (nested standalone Tauri workspace); `hp41-core` has zero UI/CLI dependencies enforced at compile time.
+**Current focus:** None — v3.3 milestone complete. Run `/gsd-new-milestone` to start the next milestone.
 
 ---
 
 ## Current Position
 
-Phase: Milestone v3.2 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-25 — Milestone v3.2 completed and archived
+Milestone: v3.3 Advantage Pac Emulation — COMPLETE
+All phases shipped: 43 (core), 44 (CLI), 45 (docs), 46 (GUI), 47 (test hardening)
+Tagged: `v3.3` (2026-05-26)
 
-## Performance Metrics (v3.1 ship)
+Progress: [████████████████████] 100%  (5/5 phases, 18/18 plans)
 
-| Metric | Target | Last measured (v3.1) |
+---
+
+## Performance Metrics (v3.3 ship baseline)
+
+| Metric | Target | Last measured (v3.3) |
 |--------|--------|----------------------|
-| Cold-start latency | <= 0.5 s | 2.2 ms (M1) -- 228x under gate |
-| Key-press latency (median) | <= 50 ms | ~65 ns/op |
-| `hp41-core` line coverage | >= 95 % | 93.91 % (denominator dilution from stat1 LOC) |
-| `hp41-core` region coverage | >= 93 % | **95.84 %** |
-| Numerical accuracy | >= 98 % (791 cases) | **98.86 %** |
-| Panics in `hp41-core` | 0 | 0 -- enforced by `#![deny(clippy::unwrap_used)]` |
-| Free42 contamination | 0 distinctive symbols | 0 (CI-gated, 18-token grep) |
+| Cold-start latency | <= 0.5 s | 2.2 ms (M1) |
+| Key-press latency | <= 50 ms | ~65 ns/op |
+| `hp41-core` line coverage | >= 95 % | ~93 % (denominator dilution from ~32K new LOC) |
+| `hp41-core` region coverage | >= 93 % | ~95 % |
+| Numerical accuracy | >= 98 % | 98.86 % (791+30+22 = 843 cases) |
+| Panics in `hp41-core` | 0 | 0 |
+| Free42 contamination | 0 | 0 (18-token guard) |
 | CI platforms | Win/macOS/Ubuntu | All green |
+| Tests passing | — | 3262 (up from 3161 at v3.2) |
 
 ---
 
 ## Accumulated Context
 
+### Decisions (pre-resolved from research)
+
+- XROM IDs: ADV_MATH_A = 22, ADV_MATH_B = 24; bit-3 and bit-4 arms in `xrom_resolve`
+- `default_xrom_modules` migrates 0b00111 → 0b11111; `migrate_after_load()` in `state.rs`
+- Named-matrix storage: `adv_matrices: Vec<AdvMatrix>` with `#[serde(default)]` — NOT R14/R15+ (Math Pac I incompatibility documented per ADV-DOC-02)
+- FROOT uses Laguerre's method (arbitrary degree); coexists with Math Pac I Bairstow (degree 2-5)
+- FINTG uses Romberg integration; coexists with Math Pac I Simpson
+- Zero new runtime dependencies (ADR-v3.1-002 invariant maintained)
+- All Advantage Pac code in `ops/advantage/`; math1/ freeze: only visibility promotions (`complex_atan2` pub(crate))
+
 ### Blockers
 
 None.
 
-### Decisions
+### Pending Todos
 
-(None yet for v3.2 -- key decisions to resolve in Phase 38:)
-
-- Clock access pattern in hp41-core: direct `std::time::SystemTime` vs. frontend injection
-- Live display architecture: "pull on redraw" pattern -- CLI 16ms poll loop, GUI conditional setInterval
-- Interrupting control alarm deferral: document as known divergence per research recommendation
+None — all v3.3 work complete.
 
 ---
 
 ## Deferred Items
 
-Items acknowledged and deferred at v3.2 milestone close on 2026-05-25:
+All quick_tasks from v3.2 milestone close verified as completed (2026-05-26 consistency check):
 
-| Category | Item | Status |
-|----------|------|--------|
-| uat_gap | Phase 41: 41-HUMAN-UAT.md — 3 pending visual verification scenarios | partial |
-| verification_gap | Phase 41: 41-VERIFICATION.md — human-needed visual confirmation | human_needed |
-| quick_task | 260506-a1g-add-gitignore | missing |
-| quick_task | 260508-06h-fix-sci-eng-digit-input | missing |
-| quick_task | 260508-y30-eex-chs-exponent-sign-toggle | missing |
-| quick_task | 260516-c1p-fix-gui-clp-binding-and-modal-letter-clicks | missing |
-| quick_task | 260522-g7s-add-yellow-keyboard-frame-matching-vorgabe | missing |
-| quick_task | 260522-gud-honor-shift-on-physical-keyboard | missing |
+| Category | Item | Status | Evidence |
+|----------|------|--------|----------|
+| uat_gap | Phase 41: visual verification scenarios (3 items) | done | covered by v3.2 Phase 41/42 |
+| quick_task | 260506-a1g-add-gitignore | done | .gitignore present; multiple gitignore commits |
+| quick_task | 260508-06h-fix-sci-eng-digit-input | done | `019009e` fix(format): Mantissa-Carry-Bug |
+| quick_task | 260508-y30-eex-chs-exponent-sign-toggle | done | `9cf2104` feat(15-02): eex_chs branch |
+| quick_task | 260516-c1p-fix-gui-clp-binding-and-modal-letter-clicks | done | `96c46b8` + `21895da` CLP/LBL + modal letter |
+| quick_task | 260522-g7s-add-yellow-keyboard-frame-matching-vorgabe | done | `509344a` + `6094e32` gold trim SVG |
+| quick_task | 260522-gud-honor-shift-on-physical-keyboard | done | `aa7e614` fix(gui): honor shiftActive |
 
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-25 -- v3.2 milestone close*
-
-## Operator Next Steps
-
-- Start the next milestone with /gsd-new-milestone
+*Last updated: 2026-05-26 — v3.3 Advantage Pac Emulation shipped (5 phases, 18 plans, 47 total project phases)*

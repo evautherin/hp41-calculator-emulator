@@ -352,19 +352,88 @@ pub struct CalcState {
     /// Transient — `#[serde(default, skip)]`.
     #[serde(default, skip)]
     pub alarm_catalog_mode: bool,
+
+    // ── Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) ─────────────────
+    /// Named matrices for the Advantage Pac ALPHA-register model (D-43.1).
+    ///
+    /// D-43.5 ISOLATION INVARIANT: This field has NO connection to
+    /// `state.matrix_dim` or `state.matrix_active_reg` (Math Pac I registers).
+    /// Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub adv_matrices: Vec<crate::ops::advantage::AdvMatrix>,
+
+    /// Current row index (0-based) into the active named matrix (D-43.4).
+    /// Default: 0. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub adv_matrix_i: u8,
+
+    /// Current column index (0-based) into the active named matrix (D-43.4).
+    /// Default: 0. Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub adv_matrix_j: u8,
+
+    /// Persistent TVM register state (D-43.11).
+    ///
+    /// ⚠️ UNIQUE SERDE SHAPE — carries `#[serde(default)]` WITHOUT `#[serde(skip)]`
+    /// so TVM register values survive save/load, following the `rand_seed` pattern
+    /// per ADR-v3.1-001. Adding `#[serde(skip)]` here would destroy TVM register
+    /// persistence silently (P20 trap — see comment on `rand_seed`).
+    #[serde(default)]
+    pub adv_tvm_state: Option<crate::ops::advantage::TvmState>,
+
+    /// Transient: name of the currently active named matrix (D-43.1).
+    /// None = no matrix active. Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub adv_current_matrix: Option<String>,
+
+    /// Transient: FROOT solver state (D-43.7 re-entrancy design).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub adv_froot_state: Option<crate::ops::advantage::FrootState>,
+
+    /// Transient: FINTG integrator state (D-43.7 re-entrancy design).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub adv_fintg_state: Option<crate::ops::advantage::AdvFintegState>,
+
+    /// Transient: FSOLVE solver state (D-43.7 re-entrancy design).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub adv_fsolve_state: Option<crate::ops::advantage::AdvFsolveState>,
+
+    /// Transient: FDIFEQ ODE solver state (D-43.7 re-entrancy design).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub adv_fdifeq_state: Option<crate::ops::advantage::AdvFdifeqState>,
+
+    /// Transient: matrix name captured during multi-step MATRX/MTR/MEDIT/CMEDIT workflow.
+    ///
+    /// Set by MatrixNamePrompt / MtrNamePrompt submit; cleared on workflow completion.
+    /// Follows the `pending_chisqd_nu` pattern (D-43 / T-43-14 — modal input validation).
+    /// Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub pending_adv_matrix_name: Option<String>,
+
+    /// Transient: row count captured during multi-step MATRX/MTR dimension entry.
+    ///
+    /// Set by MatrixDimRowPrompt submit; cleared when MatrixDimColPrompt is submitted
+    /// and op_adv_matdim is called. Transient — `#[serde(default, skip)]`.
+    #[serde(default, skip)]
+    pub pending_adv_matrix_rows: Option<u8>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
 
-/// Default value for `xrom_modules`: bit 0 = Math 1, bit 1 = Stat 1, bit 2 = Time Module,
-/// all pre-loaded per v3.2 scope (D-carried.5).
+/// Default value for `xrom_modules`: bits 0–4 all set — Math 1, Stat 1, Time Module,
+/// ADV CONV+MTRX (XROM 22), ADV MATH+TVM (XROM 24), all pre-loaded per v3.3 scope.
 ///
-/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flipped bit 1 on (D-33.2).
-/// v3.2 flips bit 2 on because Time Module (XROM 26) is part of this milestone
-/// (TIME-FW-01). Migration of v3.1 save files lacking bit 2 happens in
+/// v3.0 shipped with `0b0000_0001` (Math 1 only); v3.1 flipped bit 1 on (D-33.2);
+/// v3.2 flipped bit 2 on (TIME-FW-01).
+/// v3.3 flips bits 3+4 on because Advantage Pac (XROM 22 + XROM 24) is part of this
+/// milestone (ADV-FW-01). Migration of v3.2 save files lacking bits 3+4 happens in
 /// `CalcState::migrate_after_load()`.
 fn default_xrom_modules() -> u8 {
-    0b0000_0111
+    0b0001_1111
 }
 
 /// Default value for `cancel_requested`: a new Arc<AtomicBool> initialized to false.
@@ -429,6 +498,18 @@ impl CalcState {
             clock_active: false,
             stopwatch_keyboard_mode: false,
             alarm_catalog_mode: false,
+            // Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) fields
+            adv_matrices: Vec::new(),
+            adv_matrix_i: 0,
+            adv_matrix_j: 0,
+            adv_tvm_state: None,
+            adv_current_matrix: None,
+            adv_froot_state: None,
+            adv_fintg_state: None,
+            adv_fsolve_state: None,
+            adv_fdifeq_state: None,
+            pending_adv_matrix_name: None,
+            pending_adv_matrix_rows: None,
         }
     }
 }
@@ -474,6 +555,18 @@ impl CalcState {
         // Time Module silently disabled — `XEQ "TIME"` would return InvalidOp.
         if self.xrom_modules & 0b0000_0100 == 0 {
             self.xrom_modules |= 0b0000_0100;
+        }
+        // v3.2 → v3.3: ensure ADV_MATH_A bit (bit 3) is set.
+        // v3.2 save files persist `"xrom_modules": 7` (bits 0+1+2).
+        // Without this migration, v3.2 users opening a v3.3 binary would see
+        // Advantage Pac ADV CONV+MTRX silently disabled — `XEQ "BININ"` would return InvalidOp.
+        if self.xrom_modules & 0b0000_1000 == 0 {
+            self.xrom_modules |= 0b0000_1000;
+        }
+        // v3.2 → v3.3: ensure ADV_MATH_B bit (bit 4) is set.
+        // Advantage Pac ADV MATH+TVM (XROM 24) is always co-loaded with ADV CONV+MTRX.
+        if self.xrom_modules & 0b0001_0000 == 0 {
+            self.xrom_modules |= 0b0001_0000;
         }
         // D-38.6: freeze a Running stopwatch on load.
         // `stopwatch_start: Option<Instant>` is `#[serde(skip)]` and thus always
@@ -532,16 +625,18 @@ mod tests {
     use super::*;
     use std::sync::atomic::Ordering;
 
-    // Catches: default initializer regression for Phase 28 + Phase 33 + Phase 38 fields.
+    // Catches: default initializer regression for Phase 28 + Phase 33 + Phase 38 + Phase 43 fields.
     // Phase 33 (v3.1) flipped the default from `0b0000_0001` to `0b0000_0011`
-    // (D-33.2 / STAT-FW-02). Phase 38 (v3.2) flips bit 2 on (TIME-FW-01):
-    // Math 1 (bit 0) + Stat 1 (bit 1) + Time Module (bit 2) all pre-loaded.
+    // (D-33.2 / STAT-FW-02). Phase 38 (v3.2) flips bit 2 on (TIME-FW-01).
+    // Phase 43 (v3.3) flips bits 3+4 on (ADV-FW-01):
+    // Math 1 (bit 0) + Stat 1 (bit 1) + Time Module (bit 2) +
+    // ADV CONV+MTRX (bit 3) + ADV MATH+TVM (bit 4) all pre-loaded.
     #[test]
     fn default_construction_phase28_fields() {
         let state = CalcState::default();
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "Math 1 + Stat 1 + Time Module must be pre-loaded by default (v3.2 scope)"
+            state.xrom_modules, 0b0001_1111,
+            "Math 1 + Stat 1 + Time Module + Advantage Pac must be pre-loaded by default (v3.3 scope)"
         );
         assert!(!state.complex_mode, "complex_mode must default to false");
         assert_eq!(state.matrix_dim, None, "matrix_dim must default to None");
@@ -677,12 +772,12 @@ mod tests {
 
         let state: CalcState = serde_json::from_str(v22_json).unwrap();
 
-        // Phase 28 + Phase 33 + Phase 38 fields must default cleanly.
-        // Note: v3.2 flipped default_xrom_modules() to 0b0000_0111 (TIME-FW-01);
-        // a v2.2 save lacking the field therefore loads with all three bits set.
+        // Phase 28 + Phase 33 + Phase 38 + Phase 43 fields must default cleanly.
+        // Note: v3.3 flipped default_xrom_modules() to 0b0001_1111 (ADV-FW-01);
+        // a v2.2 save lacking the field therefore loads with all five bits set.
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "v2.2 save must get v3.2 default xrom_modules = 0b0000_0111"
+            state.xrom_modules, 0b0001_1111,
+            "v2.2 save must get v3.3 default xrom_modules = 0b0001_1111"
         );
         assert!(
             !state.complex_mode,
@@ -713,13 +808,13 @@ mod tests {
 
     // ── Phase 33 (v3.1): default flip + migration + rand_seed serde ─────────
 
-    // Catches: default_xrom_modules() regression — must be 0b0000_0111 after Phase 38 (TIME-FW-01).
+    // Catches: default_xrom_modules() regression — must be 0b0001_1111 after Phase 43 (ADV-FW-01).
     #[test]
     fn xrom_modules_default_is_seven() {
         let state = CalcState::new();
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "default_xrom_modules() must return 0b0000_0111 in v3.2 (Math 1 + Stat 1 + Time pre-loaded per TIME-FW-01)"
+            state.xrom_modules, 0b0001_1111,
+            "default_xrom_modules() must return 0b0001_1111 in v3.3 (Math 1 + Stat 1 + Time + Advantage Pac pre-loaded per ADV-FW-01)"
         );
     }
 
@@ -777,33 +872,33 @@ mod tests {
 
         state.migrate_after_load();
 
-        // Post-migration: bits 1+2 are now set (Stat 1 + Time Module reachable).
+        // Post-migration: bits 1+2+3+4 are now set (Stat 1 + Time Module + Advantage Pac reachable).
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "migrate_after_load() must set bits 1+2 on a v3.0 save (P24 trap + TIME-FW-02)"
+            state.xrom_modules, 0b0001_1111,
+            "migrate_after_load() must set bits 1+2+3+4 on a v3.0 save (P24 trap + TIME-FW-02 + ADV-FW-01)"
         );
     }
 
     // Catches: migrate_after_load not being idempotent — repeated calls must
     // not corrupt already-migrated state (CLI/GUI both call it on every load,
-    // and a re-saved v3.2 file gets migrated again on the next session).
+    // and a re-saved v3.3 file gets migrated again on the next session).
     #[test]
     fn migrate_after_load_idempotent() {
         let mut state = CalcState::new();
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "fresh CalcState::new() already has bits 0+1+2 set (v3.2 default)"
+            state.xrom_modules, 0b0001_1111,
+            "fresh CalcState::new() already has bits 0+1+2+3+4 set (v3.3 default)"
         );
 
         state.migrate_after_load();
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
+            state.xrom_modules, 0b0001_1111,
             "first migrate_after_load() on already-migrated state must be a no-op"
         );
 
         state.migrate_after_load();
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
+            state.xrom_modules, 0b0001_1111,
             "repeated migrate_after_load() must remain idempotent (no bit drift)"
         );
     }
@@ -980,10 +1075,10 @@ mod tests {
 
         state.migrate_after_load();
 
-        // After migration: bit 2 must be set (Time Module loaded).
+        // After migration: bits 2+3+4 must be set (Time Module + Advantage Pac loaded).
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "migrate_after_load() must set bit 2 on a v3.1 save (TIME-FW-02)"
+            state.xrom_modules, 0b0001_1111,
+            "migrate_after_load() must set bits 2+3+4 on a v3.1 save (TIME-FW-02 + ADV-FW-01)"
         );
     }
 
@@ -1039,10 +1134,10 @@ mod tests {
 
         let state = CalcState::new();
 
-        // xrom_modules must be 7 (all 3 module bits set).
+        // xrom_modules must be 31 (all 5 module bits set).
         assert_eq!(
-            state.xrom_modules, 0b0000_0111,
-            "CalcState::new() must have xrom_modules = 0b0000_0111 (Math 1 + Stat 1 + Time)"
+            state.xrom_modules, 0b0001_1111,
+            "CalcState::new() must have xrom_modules = 0b0001_1111 (Math 1 + Stat 1 + Time + Advantage Pac)"
         );
 
         // Time fields at correct defaults.

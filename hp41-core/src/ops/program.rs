@@ -15,7 +15,7 @@ use std::str::FromStr;
 
 use crate::error::HpError;
 use crate::num::HpNum;
-use crate::ops::math1::xrom::{XromModule, MATH_1, STAT_1, TIME_MODULE};
+use crate::ops::math1::xrom::{XromModule, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE};
 use crate::ops::{Op, TestKind};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
@@ -340,8 +340,8 @@ pub fn op_catalog(state: &mut CalcState, n: u8) -> Result<(), HpError> {
             // Phase 41 D-41.5: generic 3-module loop replaces the previous
             // parallel if-blocks (D-36.1 sibling block pattern). The loop
             // correctly handles any combination of modules and eliminates the
-            // latent else-if bug from the 2-module era. Fourth module (Advantage
-            // Pac) will extend this array automatically.
+            // latent else-if bug from the 2-module era. Phase 46: 5 XROM modules
+            // in registry (Advantage Pac ADV_MATH_A + ADV_MATH_B added).
             // Instant-scroll per W1 fix: single-pass synchronous push into
             // print_buffer — NO PSE-step, NO per-line yield (v2.2 CAT 1 shape;
             // D-31.12/D-31.14 PSE-step deferred per RESEARCH Open Q2).
@@ -349,6 +349,8 @@ pub fn op_catalog(state: &mut CalcState, n: u8) -> Result<(), HpError> {
                 (&MATH_1, 0b0000_0001),      // bit 0 — Math Pac I (XROM 7)
                 (&STAT_1, 0b0000_0010),      // bit 1 — Stat 1 Pac (XROM 2)
                 (&TIME_MODULE, 0b0000_0100), // bit 2 — Time Module (XROM 26)
+                (&ADV_MATH_A, 0b0000_1000),  // bit 3 — Advantage Pac ADV CONV+MTRX (XROM 22)
+                (&ADV_MATH_B, 0b0001_0000),  // bit 4 — Advantage Pac ADV MATH+TVM (XROM 24)
             ];
             let any_module = xrom_registry
                 .iter()
@@ -686,6 +688,21 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             }
             Op::Sol => {
                 crate::ops::math1::solve::op_sol_run_loop(state, program)?;
+            }
+            // ── Phase 43: ADV FSOLVE / FINTG / FDIFEQ run_loop arms ──────────
+            // These solver ops must run inside run_loop (not dispatch) to allow
+            // re-entrant user-program callbacks (D-43.7 cross-solver nesting).
+            // The dispatch arms return InvalidOp; the run_loop arms call the real
+            // implementations with the program slice (same pattern as Op::Integ /
+            // Op::Solve / Op::Difeq from Plans 28-07/08/09).
+            Op::AdvFsolveRunLoop => {
+                crate::ops::advantage::solvers::op_adv_fsolve_run_loop(state, program)?;
+            }
+            Op::AdvFintgRunLoop => {
+                crate::ops::advantage::solvers::op_adv_fintg_run_loop(state, program)?;
+            }
+            Op::AdvFdifeqRunLoop => {
+                crate::ops::advantage::solvers::op_adv_fdifeq_run_loop(state, program)?;
             }
             other => {
                 // All other ops execute without flush_entry_buf (no digit entry mid-program)
@@ -1102,6 +1119,124 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::TimeClalma => crate::ops::dispatch(state, Op::TimeClalma),
         Op::TimeClalmx => crate::ops::dispatch(state, Op::TimeClalmx),
         Op::TimeClralms => crate::ops::dispatch(state, Op::TimeClralms),
+        // ── Phase 43 (v3.3): Advantage Pac (XROM 22 + XROM 24) ─────────────
+        Op::AdvBinin => crate::ops::dispatch(state, Op::AdvBinin),
+        Op::AdvBinview => crate::ops::dispatch(state, Op::AdvBinview),
+        Op::AdvOctin => crate::ops::dispatch(state, Op::AdvOctin),
+        Op::AdvHexin => crate::ops::dispatch(state, Op::AdvHexin),
+        Op::AdvHexview => crate::ops::dispatch(state, Op::AdvHexview),
+        Op::AdvCvtview => crate::ops::dispatch(state, Op::AdvCvtview),
+        Op::AdvNot => crate::ops::dispatch(state, Op::AdvNot),
+        Op::AdvAnd => crate::ops::dispatch(state, Op::AdvAnd),
+        Op::AdvOr => crate::ops::dispatch(state, Op::AdvOr),
+        Op::AdvXor => crate::ops::dispatch(state, Op::AdvXor),
+        Op::AdvRotxy => crate::ops::dispatch(state, Op::AdvRotxy),
+        Op::AdvBitTest => crate::ops::dispatch(state, Op::AdvBitTest),
+        Op::AdvIPlus => crate::ops::dispatch(state, Op::AdvIPlus),
+        Op::AdvIMinus => crate::ops::dispatch(state, Op::AdvIMinus),
+        Op::AdvJPlus => crate::ops::dispatch(state, Op::AdvJPlus),
+        Op::AdvJMinus => crate::ops::dispatch(state, Op::AdvJMinus),
+        Op::AdvMr => crate::ops::dispatch(state, Op::AdvMr),
+        Op::AdvMs => crate::ops::dispatch(state, Op::AdvMs),
+        Op::AdvMrij => crate::ops::dispatch(state, Op::AdvMrij),
+        Op::AdvMsij => crate::ops::dispatch(state, Op::AdvMsij),
+        Op::AdvMsijr => crate::ops::dispatch(state, Op::AdvMsijr),
+        Op::AdvMrcPlus => crate::ops::dispatch(state, Op::AdvMrcPlus),
+        Op::AdvMrcMinus => crate::ops::dispatch(state, Op::AdvMrcMinus),
+        Op::AdvMrrPlus => crate::ops::dispatch(state, Op::AdvMrrPlus),
+        Op::AdvMrrMinus => crate::ops::dispatch(state, Op::AdvMrrMinus),
+        Op::AdvMsrPlus => crate::ops::dispatch(state, Op::AdvMsrPlus),
+        Op::AdvMscPlus => crate::ops::dispatch(state, Op::AdvMscPlus),
+        Op::AdvMswap => crate::ops::dispatch(state, Op::AdvMswap),
+        Op::AdvMnameQuery => crate::ops::dispatch(state, Op::AdvMnameQuery),
+        Op::AdvDimQuery => crate::ops::dispatch(state, Op::AdvDimQuery),
+        Op::AdvMatdim => crate::ops::dispatch(state, Op::AdvMatdim),
+        Op::AdvMp => crate::ops::dispatch(state, Op::AdvMp),
+        Op::AdvPiv => crate::ops::dispatch(state, Op::AdvPiv),
+        Op::AdvRExchangeR => crate::ops::dispatch(state, Op::AdvRExchangeR),
+        Op::AdvRGtRQuery => crate::ops::dispatch(state, Op::AdvRGtRQuery),
+        Op::AdvSum => crate::ops::dispatch(state, Op::AdvSum),
+        Op::AdvSumab => crate::ops::dispatch(state, Op::AdvSumab),
+        Op::AdvMax => crate::ops::dispatch(state, Op::AdvMax),
+        Op::AdvMaxab => crate::ops::dispatch(state, Op::AdvMaxab),
+        Op::AdvMin => crate::ops::dispatch(state, Op::AdvMin),
+        Op::AdvRmaxab => crate::ops::dispatch(state, Op::AdvRmaxab),
+        Op::AdvRnrm => crate::ops::dispatch(state, Op::AdvRnrm),
+        Op::AdvRsum => crate::ops::dispatch(state, Op::AdvRsum),
+        Op::AdvFnrm => crate::ops::dispatch(state, Op::AdvFnrm),
+        Op::AdvMdet => crate::ops::dispatch(state, Op::AdvMdet),
+        Op::AdvMinv => crate::ops::dispatch(state, Op::AdvMinv),
+        Op::AdvMsys => crate::ops::dispatch(state, Op::AdvMsys),
+        Op::AdvMMulM => crate::ops::dispatch(state, Op::AdvMMulM),
+        Op::AdvMatPlus => crate::ops::dispatch(state, Op::AdvMatPlus),
+        Op::AdvMatMinus => crate::ops::dispatch(state, Op::AdvMatMinus),
+        Op::AdvMatScalarMul => crate::ops::dispatch(state, Op::AdvMatScalarMul),
+        Op::AdvMatScalarDiv => crate::ops::dispatch(state, Op::AdvMatScalarDiv),
+        Op::AdvTrnps => crate::ops::dispatch(state, Op::AdvTrnps),
+        Op::AdvMmove => crate::ops::dispatch(state, Op::AdvMmove),
+        Op::AdvCExchangeC => crate::ops::dispatch(state, Op::AdvCExchangeC),
+        Op::AdvCmaxab => crate::ops::dispatch(state, Op::AdvCmaxab),
+        Op::AdvCnrm => crate::ops::dispatch(state, Op::AdvCnrm),
+        Op::AdvCsum => crate::ops::dispatch(state, Op::AdvCsum),
+        Op::AdvYcPlusC => crate::ops::dispatch(state, Op::AdvYcPlusC),
+        Op::AdvMatrx => crate::ops::dispatch(state, Op::AdvMatrx),
+        Op::AdvMtr => crate::ops::dispatch(state, Op::AdvMtr),
+        Op::AdvMedit => crate::ops::dispatch(state, Op::AdvMedit),
+        Op::AdvCmedit => crate::ops::dispatch(state, Op::AdvCmedit),
+        Op::AdvExpZ => crate::ops::dispatch(state, Op::AdvExpZ),
+        Op::AdvLnZ => crate::ops::dispatch(state, Op::AdvLnZ),
+        Op::AdvLogZ => crate::ops::dispatch(state, Op::AdvLogZ),
+        Op::AdvZPowN => crate::ops::dispatch(state, Op::AdvZPowN),
+        Op::AdvZPow1n => crate::ops::dispatch(state, Op::AdvZPow1n),
+        Op::AdvZPowW => crate::ops::dispatch(state, Op::AdvZPowW),
+        Op::AdvZPow1w => crate::ops::dispatch(state, Op::AdvZPow1w),
+        Op::AdvMagz => crate::ops::dispatch(state, Op::AdvMagz),
+        Op::AdvSinZ => crate::ops::dispatch(state, Op::AdvSinZ),
+        Op::AdvCosZ => crate::ops::dispatch(state, Op::AdvCosZ),
+        Op::AdvTanZ => crate::ops::dispatch(state, Op::AdvTanZ),
+        Op::AdvAPowZ => crate::ops::dispatch(state, Op::AdvAPowZ),
+        Op::AdvCPlus => crate::ops::dispatch(state, Op::AdvCPlus),
+        Op::AdvCMinus => crate::ops::dispatch(state, Op::AdvCMinus),
+        Op::AdvCinv => crate::ops::dispatch(state, Op::AdvCinv),
+        Op::AdvCMul => crate::ops::dispatch(state, Op::AdvCMul),
+        Op::AdvCDiv => crate::ops::dispatch(state, Op::AdvCDiv),
+        Op::AdvAip => crate::ops::dispatch(state, Op::AdvAip),
+        Op::AdvPly => crate::ops::dispatch(state, Op::AdvPly),
+        Op::AdvRts => crate::ops::dispatch(state, Op::AdvRts),
+        Op::AdvFsolve => crate::ops::dispatch(state, Op::AdvFsolve),
+        Op::AdvFintg => crate::ops::dispatch(state, Op::AdvFintg),
+        Op::AdvFdifeq => crate::ops::dispatch(state, Op::AdvFdifeq),
+        Op::AdvFroot => crate::ops::dispatch(state, Op::AdvFroot),
+        Op::AdvFsolveRunLoop => crate::ops::dispatch(state, Op::AdvFsolveRunLoop),
+        Op::AdvFintgRunLoop => crate::ops::dispatch(state, Op::AdvFintgRunLoop),
+        Op::AdvFdifeqRunLoop => crate::ops::dispatch(state, Op::AdvFdifeqRunLoop),
+        Op::AdvCfit => crate::ops::dispatch(state, Op::AdvCfit),
+        Op::AdvAs => crate::ops::dispatch(state, Op::AdvAs),
+        Op::AdvDs => crate::ops::dispatch(state, Op::AdvDs),
+        Op::AdvBfit => crate::ops::dispatch(state, Op::AdvBfit),
+        Op::AdvFit => crate::ops::dispatch(state, Op::AdvFit),
+        Op::AdvYQueryX => crate::ops::dispatch(state, Op::AdvYQueryX),
+        Op::AdvSzQuery => crate::ops::dispatch(state, Op::AdvSzQuery),
+        Op::AdvVPlus => crate::ops::dispatch(state, Op::AdvVPlus),
+        Op::AdvVMinus => crate::ops::dispatch(state, Op::AdvVMinus),
+        Op::AdvDot => crate::ops::dispatch(state, Op::AdvDot),
+        Op::AdvCross => crate::ops::dispatch(state, Op::AdvCross),
+        Op::AdvVc => crate::ops::dispatch(state, Op::AdvVc),
+        Op::AdvVs => crate::ops::dispatch(state, Op::AdvVs),
+        Op::AdvVr => crate::ops::dispatch(state, Op::AdvVr),
+        Op::AdvVe => crate::ops::dispatch(state, Op::AdvVe),
+        Op::AdvVxy => crate::ops::dispatch(state, Op::AdvVxy),
+        Op::AdvUv => crate::ops::dispatch(state, Op::AdvUv),
+        Op::AdvVMag => crate::ops::dispatch(state, Op::AdvVMag),
+        Op::AdvVStar => crate::ops::dispatch(state, Op::AdvVStar),
+        Op::AdvVd => crate::ops::dispatch(state, Op::AdvVd),
+        Op::AdvTr => crate::ops::dispatch(state, Op::AdvTr),
+        Op::AdvTvm => crate::ops::dispatch(state, Op::AdvTvm),
+        Op::AdvTvmN => crate::ops::dispatch(state, Op::AdvTvmN),
+        Op::AdvTvmPv => crate::ops::dispatch(state, Op::AdvTvmPv),
+        Op::AdvTvmPmt => crate::ops::dispatch(state, Op::AdvTvmPmt),
+        Op::AdvTvmFv => crate::ops::dispatch(state, Op::AdvTvmFv),
+        Op::AdvTvmStarI => crate::ops::dispatch(state, Op::AdvTvmStarI),
     }
 }
 
@@ -1218,8 +1353,10 @@ fn find_label_in_state(state: &CalcState, label: &str) -> Result<usize, HpError>
 /// `Op::Xeq` arm of `run_loop`. User `LBL "name"` matches take precedence,
 /// matching real HP-41 `XEQ "name"` resolution order.
 ///
-/// Deliberately *not* a general built-in dispatcher — Spec §"Out of Scope".
-pub(super) fn builtin_card_op(name: &str) -> Option<Op> {
+/// Covers ROM built-in ops reachable via XEQ-by-name on a real HP-41.
+/// Shared by CLI (`xeq_by_name_local_resolve`) and GUI (`op_xeq`) to
+/// ensure D-25.6 CLI↔GUI parity for name resolution.
+pub fn builtin_card_op(name: &str) -> Option<Op> {
     match name {
         // v2.1 Card Reader op names (regression preserved unchanged).
         "WPRGM" => Some(Op::Wprgm),
@@ -1227,8 +1364,6 @@ pub(super) fn builtin_card_op(name: &str) -> Option<Op> {
         "WDTA" => Some(Op::Wdta),
         "RDTA" => Some(Op::Rdta),
         // Phase 25 / D-25.8: 8 non-keyboard conditional-test mnemonics.
-        // Accept BOTH ASCII-pure (X<>Y?, X#Y?, X#0?, X<=0?, X>=0?) and
-        // Unicode-symbol (X≠Y?, X≠0?, X≤0?, X≥0?) spellings.
         "X<>Y?" | "X\u{2260}Y?" | "X#Y?" => Some(Op::Test(TestKind::XNeY)),
         "X<Y?" => Some(Op::Test(TestKind::XLtY)),
         "X>=Y?" | "X\u{2265}Y?" => Some(Op::Test(TestKind::XGeY)),
@@ -1237,12 +1372,74 @@ pub(super) fn builtin_card_op(name: &str) -> Option<Op> {
         "X>0?" => Some(Op::Test(TestKind::XGtZero)),
         "X<=0?" | "X\u{2264}0?" => Some(Op::Test(TestKind::XLeZero)),
         "X>=0?" | "X\u{2265}0?" => Some(Op::Test(TestKind::XGeZero)),
+        // ROM built-in ops (canonical HP-41 display names).
+        "SIN" => Some(Op::Sin),
+        "COS" => Some(Op::Cos),
+        "TAN" => Some(Op::Tan),
+        "ASIN" => Some(Op::Asin),
+        "ACOS" => Some(Op::Acos),
+        "ATAN" => Some(Op::Atan),
+        "LN" => Some(Op::Ln),
+        "LOG" => Some(Op::Log),
+        "E^X" => Some(Op::Exp),
+        "10^X" => Some(Op::TenPow),
+        "SQRT" => Some(Op::Sqrt),
+        "X^2" | "XSQ" => Some(Op::Sq),
+        "Y^X" => Some(Op::YPow),
+        "1/X" | "RECIP" => Some(Op::Recip),
+        "PI" => Some(Op::Pi),
+        "ABS" => Some(Op::Abs),
+        "INT" => Some(Op::Int),
+        "FRC" => Some(Op::Frc),
+        "SIGN" => Some(Op::Sign),
+        "N!" | "FACT" => Some(Op::Fact),
+        "MOD" => Some(Op::Mod),
+        "RND" => Some(Op::Rnd),
+        "P->R" | "P\u{2192}R" => Some(Op::PolarToRect),
+        "R->P" | "R\u{2192}P" => Some(Op::RectToPolar),
+        "HMS->H" | "HMS\u{2192}H" => Some(Op::HmsToH),
+        "H->HMS" | "H\u{2192}HMS" => Some(Op::HToHms),
+        "HMS+" => Some(Op::HmsAdd),
+        "HMS-" => Some(Op::HmsSub),
+        "DEG" => Some(Op::SetDeg),
+        "RAD" => Some(Op::SetRad),
+        "GRAD" => Some(Op::SetGrad),
+        "R^" | "R\u{2191}" | "RUP" => Some(Op::Rup),
+        "CLST" => Some(Op::Clst),
+        "CLREG" => Some(Op::Clreg),
+        "CLA" => Some(Op::Cla),
+        "SIGMA+" | "\u{03A3}+" => Some(Op::SigmaPlus),
+        "SIGMA-" | "\u{03A3}-" => Some(Op::SigmaMinus),
+        "MEAN" => Some(Op::Mean),
+        "SDEV" => Some(Op::Sdev),
+        "L.R." | "LR" => Some(Op::LR),
+        "YHAT" => Some(Op::Yhat),
+        "CORR" => Some(Op::Corr),
+        "CL SIGMA" | "CL\u{03A3}" | "CLSIGMA" => Some(Op::ClSigmaStat),
+        "AVIEW" => Some(Op::AView),
+        "PROMPT" => Some(Op::Prompt),
+        "AON" => Some(Op::Aon),
+        "AOFF" => Some(Op::Aoff),
+        "CLD" => Some(Op::Cld),
+        "BEEP" => Some(Op::Beep),
+        "CLRALPHA" => Some(Op::AlphaClear),
+        "ATOX" => Some(Op::Atox),
+        "XTOA" => Some(Op::Xtoa),
+        "AROT" => Some(Op::Arot),
+        "POSA" => Some(Op::Posa),
+        "RTN" => Some(Op::Rtn),
+        "STOP" => Some(Op::Stop),
+        "PSE" => Some(Op::Pse),
+        "PACK" => Some(Op::Pack),
+        "INS" => Some(Op::Ins),
+        "PRX" => Some(Op::PRX),
+        "PRA" => Some(Op::PRA),
+        "PRSTK" => Some(Op::PRSTK),
         _ => None,
     }
 }
 
-/// Test-only re-export of `builtin_card_op` for integration tests in `tests/xrom_shadowing.rs`.
-/// Production visibility stays `pub(super)` — this shim keeps prod API narrow.
+/// Legacy test-only alias — kept for backward compatibility with existing test call sites.
 #[cfg(test)]
 pub fn __test_builtin_card_op(name: &str) -> Option<Op> {
     builtin_card_op(name)

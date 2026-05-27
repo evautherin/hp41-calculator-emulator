@@ -441,4 +441,58 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
             );
         }
     });
+
+    // Plan 47-01 / ADV-QUAL-03 — Advantage Pac E2E smoke (BININ base conversion).
+    //
+    // Click-strategy: BROWSER.EXECUTE FALLBACK for all dispatches. Uses AIP
+    // (Append Immediate to Alpha, ASCII-code-from-X) to build the binary string
+    // "1010" in alpha_reg, then dispatches BININ to convert to decimal 10.
+    //
+    // Workflow: CLA → AIP(49='1') → AIP(48='0') → AIP(49='1') → AIP(48='0')
+    //           → BININ → assert display_str === '10.0000'.
+    //
+    // AIP reads the truncated ASCII code from X register. Each digit sequence
+    // (e.g. '4', '9' → entry_buf "49") is flushed to X when xeq_AIP fires.
+    // AIP has LiftEffect::Neutral, so lift_enabled is preserved between calls.
+    // Stack carries intermediate values in X/Y but alpha_reg accumulates cleanly.
+    //
+    // BININ parses alpha_reg as a binary string → X = 10 in FIX 4 = "10.0000".
+    //
+    // Assertion: invokeBackend returns CalcStateView directly (D-11 — no React poll).
+    it('XEQ "BININ" converts binary "1010" to 10 (Advantage Pac base conversion)', async () => {
+        const display = await $('[data-testid="lcd-display"]');
+        await display.waitForExist({ timeout: 10000 });
+
+        // Clear alpha register first.
+        await invokeBackend('dispatch_op', { keyId: 'xeq_CLA' });
+
+        // AIP(49) → append '1' (ASCII 49 = '1').
+        await invokeBackend('dispatch_op', { keyId: '4' });
+        await invokeBackend('dispatch_op', { keyId: '9' });
+        await invokeBackend('dispatch_op', { keyId: 'xeq_AIP' });
+
+        // AIP(48) → append '0' (ASCII 48 = '0').
+        await invokeBackend('dispatch_op', { keyId: '4' });
+        await invokeBackend('dispatch_op', { keyId: '8' });
+        await invokeBackend('dispatch_op', { keyId: 'xeq_AIP' });
+
+        // AIP(49) → append '1'.
+        await invokeBackend('dispatch_op', { keyId: '4' });
+        await invokeBackend('dispatch_op', { keyId: '9' });
+        await invokeBackend('dispatch_op', { keyId: 'xeq_AIP' });
+
+        // AIP(48) → append '0'. alpha_reg = "1010".
+        await invokeBackend('dispatch_op', { keyId: '4' });
+        await invokeBackend('dispatch_op', { keyId: '8' });
+        await invokeBackend('dispatch_op', { keyId: 'xeq_AIP' });
+
+        // BININ: parse alpha_reg "1010" as binary → X = 10.
+        // FIX 4 format: "10.0000".
+        const view = await invokeBackend('dispatch_op', { keyId: 'xeq_BININ' });
+        if (view.display_str !== '10.0000') {
+            throw new Error(
+                `expected dispatch_op('xeq_BININ').display_str='10.0000', got '${view.display_str}'`,
+            );
+        }
+    });
 });

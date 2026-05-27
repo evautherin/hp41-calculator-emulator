@@ -313,25 +313,19 @@ fn xeq_by_name_unicode_form_works() {
     );
 }
 
-// ── 4 v2.1 card-reader names — fall through to hp41-core::builtin_card_op ────
+// ── 4 v2.1 card-reader names — resolved by core builtin_card_op ────
 
 #[test]
-fn xeq_by_name_falls_through_to_card_reader() {
-    // The CLI-local resolver returns None for the 4 v2.1 names — the modal
-    // Enter-arm falls through to `Op::Xeq(acc)` which routes through
-    // hp41-core::builtin_card_op (the Op::Xeq match arm at line ~73 of
-    // ops/program.rs since is_running=false). dispatch then resolves to
-    // Op::Wprgm.
-    assert_eq!(xeq_by_name_local_resolve("WPRGM", 0b0000_0001), None);
+fn xeq_by_name_resolves_card_reader() {
+    assert!(
+        xeq_by_name_local_resolve("WPRGM", 0b0000_0001).is_some(),
+        "WPRGM must resolve via builtin_card_op"
+    );
 
     let (_app, _tmp, msg) = type_name_and_enter("WPRGM");
-    // WPRGM dispatch sets a card-op pending state but does NOT push an error
-    // message — i.e. the resolver found the name. Without an actual card
-    // file the side effect surfaces elsewhere; here we just assert that no
-    // InvalidOp diagnostic was raised.
     assert!(
         !msg.as_deref().unwrap_or("").contains("InvalidOp"),
-        "WPRGM resolved by core builtin_card_op should not error as InvalidOp; got {msg:?}"
+        "WPRGM should not error as InvalidOp; got {msg:?}"
     );
 }
 
@@ -537,19 +531,10 @@ fn cli_resolver_matches_core_resolver() {
 
 #[test]
 fn cli_resolver_returns_none_for_card_reader_names() {
-    // CLI-local resolver covers ONLY the 8 conditional tests and the 45
-    // Math Pac I XROM ops via `xrom_resolve`. For the 4 v2.1 card-reader
-    // names (WPRGM/RDPRGM/WDTA/RDTA), BOTH the conditional-test arms AND
-    // `xrom_resolve(name, 0b0000_0001)` return None — the card-reader
-    // names are not part of MATH_1.ops. The fall-through to `Op::Xeq` →
-    // `builtin_card_op` happens at the call site (`xeq_by_name` modal
-    // Enter handler), not inside xeq_by_name_local_resolve itself.
-    // (WR-08: doc-comment updated for the Phase 29 resolver chain.)
     for name in &["WPRGM", "RDPRGM", "WDTA", "RDTA"] {
-        assert_eq!(
-            xeq_by_name_local_resolve(name, 0b0000_0001),
-            None,
-            "CLI-local resolver MUST return None for v2.1 card-reader name {name}"
+        assert!(
+            xeq_by_name_local_resolve(name, 0b0000_0001).is_some(),
+            "card-reader name {name} must resolve via builtin_card_op"
         );
         // End-to-end: typing the name into the modal and pressing Enter
         // does NOT surface an InvalidOp diagnostic — proving the core
