@@ -165,7 +165,22 @@ Plans:
   4. XROM instructions survive a round-trip import/export without corruption
   5. CLI users can import and export `.raw` files via `--import-raw` and `--export-raw` flags
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 50-01-PLAN.md — Core codec: decode_all_programs, DecodedProgram, picker_label + multi-program tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 50-02-PLAN.md — GUI backend: tauri-plugin-dialog, 5 Tauri commands, permission TOMLs, default.json
+- [ ] 50-04-PLAN.md — CLI flags: --import-raw, --export-raw, --import-data, --export-data, --batch + integration tests
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 50-03-PLAN.md — GUI frontend: App.tsx dialog wiring, RawPickerOverlay component, CSS, visual checkpoint
+
+**UI hint**: yes
 
 ### Phase 51: X-MEM Core
 
@@ -203,10 +218,10 @@ Plans:
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
-| 50. .raw File I/O | 0/? | Not started | - |
+| 50. .raw File I/O | 0/4 | Planned | - |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-05-27 — Phase 49 planned (4 plans, 3 waves)*
+*Last updated: 2026-05-27 — Phase 50 planned (4 plans, 3 waves)*
