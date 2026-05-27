@@ -21,9 +21,16 @@ use crate::persistence;
 use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
+use hp41_core::cardreader::{
+    capture_data_card, decode_all_programs, decode_data, encode_data, encode_program,
+    insert_program_ops, load_data_card, picker_label,
+};
 use hp41_core::ops::dispatch;
 use hp41_core::CalcState;
+use serde::Serialize;
+use tauri::AppHandle;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 
 #[cfg(test)]
 use std::path::Path;
@@ -476,6 +483,339 @@ pub fn save_state(state: State<'_, AppState>) -> Result<(), String> {
     let snapshot = state.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let path = persistence::default_state_path();
     persistence::save_state(&path, &snapshot).map_err(|e| e.to_string())
+}
+
+// ── Phase 50: .raw / .card.json file dialog I/O ──────────────────────────────
+
+/// Structured info for a single program in a multi-program `.raw` archive.
+/// Returned as part of `ImportRawResponse::Multi` so the frontend can render
+/// a picker (RawPickerOverlay). Per D-50.4 / D-50.5.
+#[derive(Debug, Serialize)]
+pub struct MultiProgramInfo {
+    /// Human-readable label: "LBL NAME (N bytes)" or "Program N (N bytes)".
+    pub label: String,
+    /// Zero-based index in the decoded archive (passed back to import_selected_programs).
+    pub index: usize,
+    /// Byte count of this program's segment (informational; also in label).
+    pub byte_len: usize,
+}
+
+/// Response variants for `import_raw_dialog`.
+///
+/// - `Single`: exactly one program found — imported immediately, view + message returned.
+/// - `Multi`: 2+ programs found — NOT imported; returns metadata for the frontend picker.
+/// - `Cancelled`: user dismissed the dialog — current state returned unchanged.
+/// - `Empty`: file contains no programs (e.g., empty file or only END markers).
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+pub enum ImportRawResponse {
+    Single {
+        view: CalcStateView,
+        message: String,
+    },
+    Multi {
+        programs: Vec<MultiProgramInfo>,
+        file_path: String,
+    },
+    Cancelled {
+        view: CalcStateView,
+    },
+    Empty {
+        view: CalcStateView,
+        message: String,
+    },
+}
+
+/// Tauri command: open a native OS file dialog, decode the selected `.raw` file,
+/// and import the program(s) into calculator memory.
+///
+/// Anti-deadlock pattern (RESEARCH Pitfall 1): dialog and file I/O happen BEFORE
+/// any AppState lock is acquired. AppState is only locked for state mutation.
+///
+/// Returns:
+/// - `Single` — one program decoded + inserted; ready for frontend to display.
+/// - `Multi` — 2+ programs; frontend must show picker; call import_selected_programs next.
+/// - `Cancelled` — user dismissed dialog; current state returned.
+/// - `Empty` — file had no programs.
+#[tauri::command]
+pub fn import_raw_dialog(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ImportRawResponse, GuiError> {
+    // Phase 1 (no lock): open file dialog
+    let file_result = app
+        .dialog()
+        .file()
+        .set_title("Import HP-41 Program")
+        .add_filter("HP-41 Program", &["raw"])
+        .add_filter("All Files", &["*"])
+        .blocking_pick_file();
+
+    let Some(file_path) = file_result else {
+        // User cancelled
+        let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+        let view = handle_get_state(&mut calc)?;
+        return Ok(ImportRawResponse::Cancelled { view });
+    };
+
+    // Phase 2 (no lock): file I/O + decode
+    let path_buf = file_path
+        .into_path()
+        .map_err(|e| GuiError { message: format!("path error: {e}") })?;
+
+    // T-50-04: validate file_path is a regular file before reading
+    if !path_buf.is_file() {
+        return Err(GuiError {
+            message: format!(
+                "not a regular file: {}",
+                path_buf.display()
+            ),
+        });
+    }
+
+    let bytes = std::fs::read(&path_buf)
+        .map_err(|e| GuiError { message: format!("io: read failed: {e}") })?;
+
+    // T-50-07: decode_all_programs returns HpError::CardData on malformed input
+    let programs = decode_all_programs(&bytes).map_err(GuiError::from)?;
+
+    match programs.len() {
+        0 => {
+            // Empty file or only whitespace — no programs to import
+            let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+            let view = handle_get_state(&mut calc)?;
+            Ok(ImportRawResponse::Empty {
+                view,
+                message: "No programs found in file".to_string(),
+            })
+        }
+        1 => {
+            // Phase 3 (lock for state mutation): single program — import immediately
+            let decoded = programs.into_iter().next().expect("len == 1");
+            let ops_count = decoded.ops.len();
+            let label = picker_label(0, &decoded.ops, decoded.byte_len);
+            let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+            insert_program_ops(&mut calc, decoded.ops);
+            let view = handle_get_state(&mut calc)?;
+            Ok(ImportRawResponse::Single {
+                view,
+                message: format!("Imported {} ({} steps)", label, ops_count),
+            })
+        }
+        _ => {
+            // Multi-program: return metadata for the frontend picker; DO NOT import yet
+            let programs_info: Vec<MultiProgramInfo> = programs
+                .iter()
+                .enumerate()
+                .map(|(idx, p)| MultiProgramInfo {
+                    label: picker_label(idx, &p.ops, p.byte_len),
+                    index: idx,
+                    byte_len: p.byte_len,
+                })
+                .collect();
+            let file_path_str = path_buf.to_string_lossy().to_string();
+            Ok(ImportRawResponse::Multi {
+                programs: programs_info,
+                file_path: file_path_str,
+            })
+        }
+    }
+}
+
+/// Tauri command: import user-selected programs from a previously decoded `.raw` archive.
+///
+/// Called by the frontend picker after `import_raw_dialog` returns `Multi`.
+/// Re-reads and re-decodes the file (fast; avoids caching `Vec<Op>` in IPC).
+/// Inserts each selected program sequentially via `insert_program_ops`.
+///
+/// Parameter ordering: `file_path` and `indices` precede `state` (Tauri v2 convention).
+///
+/// T-50-04 mitigation: validates that `file_path` is an absolute path to a regular file.
+#[tauri::command]
+pub fn import_selected_programs(
+    file_path: String,
+    indices: Vec<usize>,
+    state: State<'_, AppState>,
+) -> Result<CalcStateView, GuiError> {
+    // Phase 1 (no lock): validate + file I/O + decode
+    let path_buf = std::path::Path::new(&file_path);
+
+    // T-50-04: reject non-absolute or non-file paths to prevent path traversal
+    if !path_buf.is_absolute() {
+        return Err(GuiError {
+            message: format!("expected an absolute path, got: {file_path}"),
+        });
+    }
+    if !path_buf.is_file() {
+        return Err(GuiError {
+            message: format!("not a regular file: {file_path}"),
+        });
+    }
+
+    let bytes = std::fs::read(path_buf)
+        .map_err(|e| GuiError { message: format!("io: read failed: {e}") })?;
+    let programs = decode_all_programs(&bytes).map_err(GuiError::from)?;
+
+    // Phase 2 (lock for state mutation): insert selected programs sequentially
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    let mut imported = 0usize;
+    for idx in &indices {
+        if let Some(decoded) = programs.get(*idx) {
+            insert_program_ops(&mut calc, decoded.ops.clone());
+            imported += 1;
+        }
+    }
+    drop(programs); // explicit: allow early free before view build
+
+    let view = handle_get_state(&mut calc)?;
+    // Note: frontend shows "Imported N programs" toast using the returned view
+    let _ = imported; // frontend handles the count from indices.len()
+    Ok(view)
+}
+
+/// Tauri command: export the current program to a user-chosen `.raw` file via native
+/// OS save dialog.
+///
+/// Anti-deadlock pattern (RESEARCH Pitfall 1): snapshot program under lock, then
+/// release lock BEFORE opening the save dialog (dialog is blocking + can take long).
+/// File write happens after dialog returns, with no lock held.
+#[tauri::command]
+pub fn export_raw_dialog(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, GuiError> {
+    // Phase 1 (brief lock): snapshot program bytes — released before dialog
+    let encoded = {
+        let calc = state.lock().unwrap_or_else(|e| e.into_inner());
+        encode_program(&calc.program).map_err(GuiError::from)?
+    };
+
+    // Phase 2 (no lock): open save dialog
+    let save_result = app
+        .dialog()
+        .file()
+        .set_title("Export HP-41 Program")
+        .set_file_name("program.raw")
+        .add_filter("HP-41 Program", &["raw"])
+        .add_filter("All Files", &["*"])
+        .blocking_save_file();
+
+    let Some(save_path) = save_result else {
+        return Ok(serde_json::json!({"cancelled": true}));
+    };
+
+    // Phase 3 (no lock): write to disk
+    let path_buf = save_path
+        .into_path()
+        .map_err(|e| GuiError { message: format!("path error: {e}") })?;
+
+    std::fs::write(&path_buf, &encoded)
+        .map_err(|e| GuiError { message: format!("io: write failed: {e}") })?;
+
+    let filename = path_buf
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "program.raw".to_string());
+
+    Ok(serde_json::json!({ "message": format!("Saved {}", filename) }))
+}
+
+/// Tauri command: open a native OS file dialog, decode the selected `.card.json` file,
+/// and load the data card into calculator registers.
+///
+/// Handles `.card.json` files per D-50.7. Anti-deadlock pattern: dialog + decode
+/// happen BEFORE AppState lock.
+#[tauri::command]
+pub fn import_data_dialog(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, GuiError> {
+    // Phase 1 (no lock): open file dialog
+    let file_result = app
+        .dialog()
+        .file()
+        .set_title("Import HP-41 Data Card")
+        .add_filter("HP-41 Data Card", &["json"])
+        .add_filter("All Files", &["*"])
+        .blocking_pick_file();
+
+    let Some(file_path) = file_result else {
+        let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+        let view = handle_get_state(&mut calc)?;
+        return Ok(serde_json::json!({ "view": view, "cancelled": true }));
+    };
+
+    // Phase 2 (no lock): file I/O + decode
+    let path_buf = file_path
+        .into_path()
+        .map_err(|e| GuiError { message: format!("path error: {e}") })?;
+
+    if !path_buf.is_file() {
+        return Err(GuiError {
+            message: format!("not a regular file: {}", path_buf.display()),
+        });
+    }
+
+    let bytes = std::fs::read(&path_buf)
+        .map_err(|e| GuiError { message: format!("io: read failed: {e}") })?;
+
+    let card = decode_data(&bytes).map_err(GuiError::from)?;
+
+    // Phase 3 (lock for state mutation): load data card
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    load_data_card(&mut calc, card);
+    let view = handle_get_state(&mut calc)?;
+
+    Ok(serde_json::json!({
+        "view": view,
+        "message": "Loaded data card"
+    }))
+}
+
+/// Tauri command: export current data registers to a user-chosen `.card.json` file via
+/// native OS save dialog.
+///
+/// Per D-50.7. Anti-deadlock pattern: snapshot data under lock, release, then open dialog.
+#[tauri::command]
+pub fn export_data_dialog(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<serde_json::Value, GuiError> {
+    // Phase 1 (brief lock): snapshot data card — released before dialog
+    let encoded = {
+        let calc = state.lock().unwrap_or_else(|e| e.into_inner());
+        let card = capture_data_card(&calc);
+        encode_data(&card).map_err(GuiError::from)?
+    };
+
+    // Phase 2 (no lock): open save dialog
+    let save_result = app
+        .dialog()
+        .file()
+        .set_title("Export HP-41 Data Card")
+        .set_file_name("data.card.json")
+        .add_filter("HP-41 Data Card", &["json"])
+        .add_filter("All Files", &["*"])
+        .blocking_save_file();
+
+    let Some(save_path) = save_result else {
+        return Ok(serde_json::json!({"cancelled": true}));
+    };
+
+    // Phase 3 (no lock): write to disk
+    let path_buf = save_path
+        .into_path()
+        .map_err(|e| GuiError { message: format!("path error: {e}") })?;
+
+    std::fs::write(&path_buf, &encoded)
+        .map_err(|e| GuiError { message: format!("io: write failed: {e}") })?;
+
+    let filename = path_buf
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "data.card.json".to_string());
+
+    Ok(serde_json::json!({ "message": format!("Saved {}", filename) }))
 }
 
 #[cfg(test)]
