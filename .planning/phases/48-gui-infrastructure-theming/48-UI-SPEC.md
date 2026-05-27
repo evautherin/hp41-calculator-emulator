@@ -1,7 +1,8 @@
 ---
 phase: 48
 slug: gui-infrastructure-theming
-status: draft
+status: approved
+reviewed_at: 2026-05-27
 shadcn_initialized: false
 preset: none
 created: 2026-05-27
