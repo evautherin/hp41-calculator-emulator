@@ -50,3 +50,4 @@ graphify-out/
 .planning/graphs/graph.html
 .planning/graphs/.last-build-snapshot.json
 .gbrain-source
+.grepai/
