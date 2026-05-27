@@ -173,8 +173,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 50-02-PLAN.md — GUI backend: tauri-plugin-dialog, 5 Tauri commands, permission TOMLs, default.json
-- [ ] 50-04-PLAN.md — CLI flags: --import-raw, --export-raw, --import-data, --export-data, --batch + integration tests
+- [x] 50-02-PLAN.md — GUI backend: tauri-plugin-dialog, 5 Tauri commands, permission TOMLs, default.json
+- [x] 50-04-PLAN.md — CLI flags: --import-raw, --export-raw, --import-data, --export-data, --batch + integration tests
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -218,7 +218,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
-| 50. .raw File I/O | 1/4 | In Progress|  |
+| 50. .raw File I/O | 3/4 | In Progress|  |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
