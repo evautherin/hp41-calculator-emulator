@@ -138,7 +138,7 @@ These constrain future development. For the full narrative see `docs/architectur
 - **Time clock access:** `SystemTime::now()` called directly in hp41-core; `time_offset_secs: i64` stores delta (ADR-v3.2-001). Stopwatch frozen to Stopped on save; `migrate_after_load()` enforces.
 - **Interrupting control alarms DEFERRED:** data model stores them but execution requires call-stack re-entrancy not yet supported. Documented in `docs/hp41-time-divergences.md`.
 - **36-bit `ADV_WORD_MASK`:** bitwise operands silently truncated — hardware-faithful HP-41 base-N behavior.
-- **`ModalProgram` enum pattern:** each module adds a variant (`Math1(Math1Step)`, `Stat1(Stat1Step)`, `Time(TimeStep)`); dispatch lives in the module's own `modal.rs`, outside the math1/ freeze.
+- **`ModalProgram` enum pattern:** each module adds a variant (`Math1(Math1Step)`, `Stat1(Stat1Step)`, `Time(TimeStep)`, `Advantage(AdvantageStep)`); dispatch lives in the module's own `modal.rs`, outside the math1/ freeze.
 - **Distribution primitives (v3.1):** 3 hand-coded f64-bridge functions in `stat1/distributions.rs` (~140 LOC); `statrs` rejected per ADR-v3.1-002.
 - **OM register layout transcription:** `stat1/mod.rs` header + ~30 named consts (`STAT1_AOV_*_REG`, etc.); all register accesses through named consts (ADR-v3.1-003).
 
@@ -154,10 +154,10 @@ These constrain future development. For the full narrative see `docs/architectur
 
 ## Quality Gates (current targets)
 
-| Gate | Target | Current (v3.0) |
+| Gate | Target | Current (v3.3) |
 |------|--------|----------------|
-| `hp41-core` coverage | ≥ 95 % lines / ≥ 93 % regions | 95.39 % / 94.26 % |
-| Numerical accuracy | ≥ 98 % | 99.3 % (763 / 768) |
+| `hp41-core` coverage | ≥ 95 % lines / ≥ 93 % regions | 93.72 % / 95.63 % |
+| Numerical accuracy | ≥ 98 % | 98.86 % (791+ cases) |
 | Panics in `hp41-core` | 0 | 0 |
 | Cold-start | ≤ 0.5 s | 2.2 ms (M1) |
 | Key latency | ≤ 50 ms median | ~65 ns/op |

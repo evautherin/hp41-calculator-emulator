@@ -24,6 +24,12 @@
 //   - helpEntriesTime() drift-catch + xrom-field assertions
 //   - helpEntriesAll() updated from 3-pool to 4-pool length assertion
 //   - sectionButtons.length updated from 3 to 4
+//
+// Phase 46 additions (ADV-GUI-03):
+//   - Fifth+sixth sections "Advantage Pac (XROM 22)" and "Advantage Pac (XROM 24)"
+//   - helpEntriesAdvantage() drift-catch + xrom-field assertions
+//   - helpEntriesAll() updated from 4-pool to 5-pool length assertion
+//   - sectionButtons.length updated from 4 to 6
 
 import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
@@ -87,6 +93,7 @@ describe('help_data', () => {
         const advStart = timeStart + timeCount;
         for (let i = advStart; i < all.length; i++) {
             expect(all[i].xrom, `Advantage entry at index ${i} should have xrom`).toBeTruthy();
+            expect([22, 24], `Advantage entry at index ${i} should have module_id 22 or 24`).toContain(all[i].xrom!.module_id);
         }
     });
 
