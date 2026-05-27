@@ -35,7 +35,7 @@ Declared values (multiples of 4 only). Pre-populated from existing CSS in `App.c
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, annunciator row padding, inline button padding |
-| sm | 8px | Panel content padding, gap between nav buttons, list item padding |
+| sm | 8px | Panel content padding, gap between nav buttons, list item padding, picker list row top/bottom padding |
 | md | 16px | Panel horizontal padding, settings panel padding, section gutter |
 | lg | 24px | Overlay header padding (top+bottom combined), modal vertical rhythm |
 | xl | 32px | — (not yet used; reserved for future layout expansion) |
@@ -43,9 +43,9 @@ Declared values (multiples of 4 only). Pre-populated from existing CSS in `App.c
 | 3xl | 64px | — (not yet used; reserved) |
 
 Exceptions:
-- Picker list rows: 6px top/bottom padding (matches `.settings-radio-row` 6px pattern)
-- Toast overlay: 6px top + 14px side (existing `.toast` rule — reuse unchanged)
 - Min touch target for all buttons: 28×28px (matches `.settings-gear-btn` / `.help-icon-btn`)
+
+Note: The existing `.toast` rule (inherited unchanged) uses non-scale padding internally. Because it is reused without modification, its internal padding is not declared here.
 
 ---
 
@@ -56,15 +56,16 @@ Pre-populated from `App.css` and existing component CSS. No new type roles added
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body / prose | 14px | 400 (regular) | 1.5 |
-| Label / secondary data | 12px | 400 (regular) | 1.4 |
-| Section heading | 13–14px | 700 (bold) | 1.2 |
-| Monospace display | 12–13px | 400 (regular) | 1.4 |
+| Section heading | 14px | 700 (bold) | 1.2 |
+| Secondary label | 13px | 400 (regular) | 1.4 |
+| Monospace display | 12px | 400 (regular) | 1.4 |
 
 Rules:
 - Prose content (picker body, confirmation copy): `system-ui, sans-serif` at 14px/400.
-- All data values, program step labels, LBL names: `'Courier New', Courier, monospace` at 12–13px.
-- Section headings inside overlays/panels: `system-ui, sans-serif` at 13–14px/700, uppercase, `letter-spacing: 0.1em`, `color: var(--accent)`.
-- Two weights only: 400 (regular) and 700 (bold). No 500, 600, or 600-semibold.
+- Section headings inside overlays/panels: `system-ui, sans-serif` at 14px/700, ALL CAPS, `letter-spacing: 0.1em`, `color: var(--accent)`. Headings are distinguished from body text by weight and case, not by size.
+- Secondary labels (count chips, size badges, captions): `system-ui, sans-serif` at 13px/400.
+- All data values, program step labels, LBL names: `'Courier New', Courier, monospace` at 12px/400.
+- Two weights only: 400 (regular) and 700 (bold). No 500, 600, or semibold.
 
 ---
 
@@ -99,13 +100,14 @@ New components introduced by Phase 50 (to be built using established patterns):
 ### 1. Multi-Program Picker Overlay (`RawPickerOverlay`)
 
 - **Pattern basis:** `.help-overlay` (absolute position, `z-index: 60`, `var(--overlay-bg)` background, flex column). Reuses `.wizard-overlay` positioning and `.help-overlay-header` header bar.
+- **Focal point:** The "SELECT PROGRAMS" heading in the header bar is the primary visual anchor — rendered at 14px/700/ALL CAPS in `var(--accent)` against the secondary-color header bar, drawing the eye immediately on overlay open.
 - **Trigger:** WPRGM or RDPRGM card reader op fires with empty ALPHA register; Tauri backend returns a list of decoded programs.
 - **Layout:**
-  - Header bar: "SELECT PROGRAMS" heading (13–14px/700 uppercase, accent) + count chip + close button (`×`, 22px, accent on hover).
+  - Header bar: "SELECT PROGRAMS" heading (14px/700 uppercase, accent) + count chip + close button (`×`, 22px, accent on hover).
   - List body: scrollable, `max-height` fills remaining overlay space minus header + footer.
   - Each row: `display: grid; grid-template-columns: 24px 1fr 80px;` — checkbox | program name | size badge.
-  - Footer: "Import Selected (N)" primary button + "Cancel" secondary button.
-- **Program name format:** `QUAD (47 bytes)` or `Program 2 (23 bytes)` — monospace font, 13px.
+  - Footer: "Import Selected (N)" primary button + "Cancel Import" secondary button.
+- **Program name format:** `QUAD (47 bytes)` or `Program 2 (23 bytes)` — monospace font, 12px.
 - **Multi-select:** Standard HTML `<input type="checkbox">` per row. "Import Selected" button shows count in label.
 - **Empty list:** Shows "No programs found in this file." in `var(--text-secondary)` at 14px.
 - **z-index:** 60 (same level as `.help-overlay` and `.wizard-overlay` — mutually exclusive with both).
@@ -137,7 +139,7 @@ New components introduced by Phase 50 (to be built using established patterns):
 6. Programs inserted sequentially via `insert_program_ops`.
 7. Toast: `"Imported {N} programs"`.
 8. Auto-save triggered.
-9. On "Cancel": overlay dismisses, calculator state unchanged.
+9. On "Cancel Import": overlay dismisses, calculator state unchanged.
 
 ### Import error flow (GUI)
 
@@ -179,7 +181,7 @@ Source: CONTEXT.md D-50.8, D-50.9, D-50.10.
 | Primary CTA — import multi-select | "Import Selected (N)" where N = checkbox count |
 | Primary CTA — export | "Save Program" |
 | Picker overlay heading | "SELECT PROGRAMS" |
-| Picker secondary dismiss | "Cancel" |
+| Picker secondary dismiss | "Cancel Import" |
 | Toast — import success (single) | "Imported {LABEL} ({N} steps)" |
 | Toast — import success (multi) | "Imported {N} programs" |
 | Toast — export success | "Saved {LABEL}.raw" |
@@ -199,12 +201,14 @@ Rules:
 - Picker heading ALL CAPS (matches existing `.settings-section-heading` uppercase pattern).
 - Program names in all caps (HP-41 label convention): "QUAD", "STAT", "TVM".
 - Fallback program name when no LBL found: "Program N" (capital P, ordinal number).
+- Secondary dismiss labels use verb + noun form to disambiguate the action scope ("Cancel Import", not bare "Cancel").
 
 ---
 
 ## Accessibility
 
 - Picker overlay must have `role="dialog"` and `aria-label="Select Programs"` (matches `SettingsPanel` pattern).
+- Picker close button (`×`) must have `aria-label="Close picker"`.
 - Checkboxes must have visible labels via adjacent `<label>` element or `aria-label`.
 - "Import Selected" button disabled state when zero checkboxes checked (`disabled` attribute + `opacity: 0.5`).
 - Focus management: on picker open, focus the first checkbox. On close, return focus to the triggering element.
