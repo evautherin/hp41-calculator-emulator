@@ -753,3 +753,149 @@
   padding: 4px 0;
   vertical-align: top;
 }
+
+/* ── Phase 50-03: RawPickerOverlay — multi-program import picker ──────────── */
+/* D-50.4 / D-50.5 / D-50.6: Full-cover overlay, z-index: 60 (same as help and wizard).
+   Mutually exclusive with help-overlay and wizard-overlay — only one can be open.
+   All color values use CSS custom properties — no hardcoded hex. */
+
+.raw-picker-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+  color: var(--display-text);
+}
+
+/* Header bar: heading + count chip + close button */
+.raw-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/* "SELECT PROGRAMS" heading — 14px/700/uppercase/accent per UI-SPEC Typography */
+.raw-picker-heading {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin: 0;
+  flex: 1;
+}
+
+/* Program count chip — secondary label style (13px, secondary color) */
+.raw-picker-count {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Close button — 22px glyph, accent on hover, min touch target 28×28px */
+.raw-picker-close {
+  background: none;
+  border: none;
+  color: var(--display-text);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.raw-picker-close:hover {
+  color: var(--accent);
+}
+
+/* Scrollable list body */
+.raw-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+}
+
+/* Empty state paragraph */
+.raw-picker-empty {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 16px 0;
+  margin: 0;
+}
+
+/* Each program row: 24px checkbox | 1fr name | 80px size badge */
+.raw-picker-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 80px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Program name label — monospace 12px, pointer cursor (entire row clickable) */
+.raw-picker-name {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: var(--display-text);
+  cursor: pointer;
+}
+
+/* Size badge — 13px secondary, right-aligned */
+.raw-picker-size {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Footer: secondary + primary buttons, end-justified */
+.raw-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+  background: var(--panel-header-bg);
+  border-top: 1px solid var(--panel-border);
+}
+
+/* Base footer button */
+.raw-picker-footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: system-ui, sans-serif;
+  min-height: 28px;
+}
+
+/* Primary button — "Import Selected (N)": accent background, panel text */
+.raw-picker-btn-primary {
+  background: var(--accent);
+  color: var(--panel-bg);
+  border: 1px solid var(--accent);
+  font-weight: 700;
+}
+
+.raw-picker-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary button — "Cancel Import": transparent, display text, 1px border */
+.raw-picker-btn-secondary {
+  background: transparent;
+  color: var(--display-text);
+  border: 1px solid var(--display-text);
+}
