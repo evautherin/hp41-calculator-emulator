@@ -4,7 +4,9 @@
 // (no explicit close button, per D-48.4). Returns null when closed to avoid
 // DOM overhead (matches HelpOverlay early-return pattern).
 //
-// Phase 49 will add an Onboarding section below the Theme section (D-48.3 shell).
+// Phase 49 Plan 04 — Extended with Quick Start section (D-48.3 / D-49.8 / D-49.9):
+// - onShowOnboarding prop added to SettingsPanelProps
+// - Quick Start section with "Show Guide" button added below Theme section
 
 import { useRef, useEffect } from 'react';
 
@@ -13,6 +15,7 @@ export type SettingsPanelProps = {
     onClose: () => void;
     currentTheme: string;
     onThemeChange: (theme: string) => void;
+    onShowOnboarding: () => void;  // D-49.8 / D-49.9: re-open wizard from settings
 };
 
 const THEMES = [
@@ -22,7 +25,7 @@ const THEMES = [
     { id: 'high-contrast', label: 'High Contrast' },
 ] as const;
 
-export function SettingsPanel({ open, onClose, currentTheme, onThemeChange }: SettingsPanelProps) {
+export function SettingsPanel({ open, onClose, currentTheme, onThemeChange, onShowOnboarding }: SettingsPanelProps) {
     const panelRef = useRef<HTMLDivElement>(null);
 
     // Click-outside dismiss — only register listener when open (D-48.4).
@@ -63,7 +66,17 @@ export function SettingsPanel({ open, onClose, currentTheme, onThemeChange }: Se
                     </label>
                 ))}
             </section>
-            {/* Phase 49 will add an Onboarding section here (D-48.3 shell). */}
+            <hr className="settings-section-divider" />
+            <section className="settings-section">
+                <h3 className="settings-section-heading">Quick Start</h3>
+                {/* D-49.9: clicking "Show Guide" closes settings first, then opens the onboarding wizard */}
+                <button
+                    className="settings-action-btn"
+                    onClick={() => { onClose(); onShowOnboarding(); }}
+                >
+                    Show Guide
+                </button>
+            </section>
         </div>
     );
 }
