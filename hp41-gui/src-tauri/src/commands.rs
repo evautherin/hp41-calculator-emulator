@@ -17,8 +17,9 @@
 
 use crate::cards;
 use crate::key_map;
+use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs};
 use crate::types::{CalcStateView, GuiError};
-use crate::{AppState, CancelFlag};
+use crate::{AppState, CancelFlag, PrefsState};
 use hp41_core::ops::dispatch;
 use hp41_core::CalcState;
 use tauri::State;
@@ -405,6 +406,50 @@ pub fn handle_run_stop(calc: &mut CalcState) -> Result<CalcStateView, GuiError> 
     let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
     let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
     Ok(CalcStateView::from_state(calc, print_lines, event_lines))
+}
+
+/// Tauri command: return the current GUI preferences (Phase 48 / INFRA-01).
+///
+/// Locks `PrefsState` (separate from `AppState`) with poisoned-lock recovery,
+/// clones and returns the `GuiPrefs`. The frontend calls this once on startup
+/// to initialize theme state (48-03 plan).
+///
+/// No CalcState involved — preference reads never touch calculator state (P59/THEME-05).
+#[tauri::command]
+pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
+    prefs.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+/// Tauri command: validate and persist a single GUI preference by key/value.
+///
+/// Parameter ordering follows Tauri v2 convention: custom params (`key`, `value`)
+/// precede the State extractor (`prefs`).
+///
+/// # Supported keys
+/// - `"theme"`: one of `"dark"` | `"light"` | `"classic-beige"` | `"high-contrast"`.
+///
+/// Returns `Err(String)` for unknown keys or invalid theme values (T-48-01 threat mitigation).
+/// Persists immediately to `~/.hp41/prefs.json` via `save_prefs` after updating in-memory state.
+///
+/// P59/THEME-05: never touches `CalcState` or `autosave.json`.
+#[tauri::command]
+pub fn set_pref(
+    key: String,
+    value: String,
+    prefs: State<'_, PrefsState>,
+) -> Result<(), String> {
+    let mut p = prefs.lock().unwrap_or_else(|e| e.into_inner());
+    match key.as_str() {
+        "theme" => {
+            const VALID_THEMES: &[&str] = &["dark", "light", "classic-beige", "high-contrast"];
+            if !VALID_THEMES.contains(&value.as_str()) {
+                return Err(format!("unknown theme: {value}"));
+            }
+            p.theme = value;
+        }
+        _ => return Err(format!("unknown pref key: {key}")),
+    }
+    save_prefs(&default_prefs_path(), &*p).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

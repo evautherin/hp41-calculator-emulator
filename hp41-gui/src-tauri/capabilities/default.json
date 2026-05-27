@@ -13,6 +13,8 @@
     "allow-submit-modal",
     "allow-cancel-modal",
     "allow-submit-modal-with-label",
-    "allow-tick-time"
+    "allow-tick-time",
+    "allow-get-prefs",
+    "allow-set-pref"
   ]
 }
