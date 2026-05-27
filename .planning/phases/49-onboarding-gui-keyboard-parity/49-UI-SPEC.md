@@ -34,9 +34,9 @@ Declared values (multiples of 4, consistent with existing `App.css`):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, annunciator row padding, inline padding |
-| sm | 8px | Panel content padding, radio row vertical padding, gap between overlay search and close button |
-| md | 16px | Settings panel padding, overlay content horizontal padding, section heading margins |
+| xs | 4px | Icon gaps, annunciator row padding, inline padding, shortcut-row vertical padding |
+| sm | 8px | Panel content padding, radio row vertical padding, gap between overlay search and close button, shortcut-row gap |
+| md | 16px | Settings panel padding, overlay content horizontal padding, section heading margins, wizard nav button horizontal padding |
 | lg | 24px | Wizard panel body vertical padding |
 | xl | 32px | Wizard panel lateral margins on mobile-equivalent viewport |
 | 2xl | 48px | Not used in this phase |
@@ -50,19 +50,21 @@ Exceptions:
 
 ## Typography
 
+Exactly 4 sizes declared. Weights: regular (400) and bold (700) only.
+
 | Role | Size | Weight | Line Height | Family |
 |------|------|--------|-------------|--------|
-| Body / function description | 12px | 400 (regular) | 1.4 | monospace |
-| Label / radio row / settings | 14px | 400 (regular) | 1.4 | system-ui |
-| Section heading / category heading | 13–14px | 700 (bold) | 1.2 | monospace |
+| Body / function description / examples / notes | 12px | 400 (regular) | 1.4 | monospace |
+| Section / category heading (existing App.css pattern) | 13px | 700 (bold) | 1.2 | monospace |
+| Label / radio row / settings / wizard body / buttons | 14px | 400 (regular) | 1.4 | system-ui |
 | Display text (calc display) | 22px | 400 (regular) | — | monospace |
 
 Notes (sourced from `App.css`):
-- Body (help overlay rows, print lines): 12px at weight 400, line-height 1.4 — matches `.help-overlay-content` and `.print-line`.
-- Label (settings radio rows, wizard button text): 14px at weight 400, line-height 1.4 — matches `.settings-radio-row` and `.help-overlay-search`.
-- Section heading: 14px at weight 700, uppercase, letter-spacing 0.1em — matches `.help-overlay-section-heading`. Category headings inside sections use 13px at weight 400.
-- Wizard panel headers (panel title like "1. Welcome to HP-41C"): 14px at weight 700, uppercase, using `var(--accent)` color — same rule as `.help-overlay-section-heading`.
-- Do not introduce new font sizes or weights; re-use the two established weights (400, 700).
+- 12px at weight 400, line-height 1.4 — used for all body text: help overlay rows, print lines, shortcut key/function columns, expand toggle button glyphs, example text, and notes text. The former 10px and 11px values are consolidated into 12px.
+- 13px at weight 700 — existing `.settings-section-heading` and category heading pattern; reused for the "Quick Start" settings section heading and the "KEYBOARD SHORTCUTS" overlay section heading.
+- 14px at weight 400 — labels, settings radio rows, wizard body paragraphs, wizard panel headers (headers use weight 700), wizard nav button text, "Show Guide" button text.
+- Wizard panel headers: 14px at weight 700, uppercase, `var(--accent)` color — same rule as `.help-overlay-section-heading`.
+- Do not introduce new font sizes or weights; re-use only the four declared sizes and two weights (400, 700).
 
 ---
 
@@ -87,6 +89,11 @@ Accent (`var(--accent)`) reserved for:
 3. Function name (`op_variant`) in expandable example blocks
 4. "Show Guide" button label text (not background — accent text on `var(--panel-bg)` background)
 5. Focus ring on the wizard's Next/Back buttons and the help-overlay search input (existing `.help-overlay-search:focus` pattern: `outline: 1px solid var(--accent)`)
+6. `.wizard-nav-btn-primary` border and text color — the primary navigation button on each wizard panel
+
+### Focal Point Declaration
+
+Wizard primary screen (panel 1 "Welcome to HP-41C"): the dominant focal point is the panel header text rendered at 14px bold uppercase in `var(--accent)`, paired with the primary navigation button (`.wizard-nav-btn-primary`) whose border and label text also use `var(--accent)`. All other text uses `var(--text-secondary)` to create clear visual hierarchy. No competing accent elements appear between the header and the primary button.
 
 Dark theme reference values (for implementation verification only — always use variables):
 - `--accent` dark: `#f5a423`
@@ -113,13 +120,13 @@ Full-cover overlay (same layering as `.help-overlay`, z-index 60) with 5 panels.
 .wizard-panel-counter      — step indicator "N of 5", font-size: 12px, color: var(--accent), margin-left: auto
 .wizard-panel-body         — prose content, font-size: 14px, color: var(--text-secondary), line-height: 1.5, font-family: system-ui
 .wizard-panel-nav          — button row, display: flex, gap: 8px, justify-content: space-between, padding: 12px 16px
-.wizard-nav-btn            — Back/Next buttons, font-size: 14px, padding: 6px 16px, background: var(--panel-bg), border: 1px solid var(--panel-border), color: var(--text-secondary), border-radius: 4px, cursor: pointer
+.wizard-nav-btn            — Back/Next buttons, font-size: 14px, padding: 8px 16px, background: var(--panel-bg), border: 1px solid var(--panel-border), color: var(--text-secondary), border-radius: 4px, cursor: pointer
 .wizard-nav-btn:hover      — color: var(--accent)
 .wizard-nav-btn-primary    — Next/Start button variant, color: var(--accent), border-color: var(--accent)
 .wizard-dismiss-link       — "Skip" text button, font-size: 12px, color: var(--text-muted), background: none, border: none, cursor: pointer, text-decoration: underline
 .wizard-stack-diagram      — monospace pre block for the X/Y/Z/T stack diagram, background: var(--display-bg), color: var(--display-text), padding: 8px 12px, border-radius: 4px, font-size: 12px, border: 1px solid var(--display-border)
 .wizard-shortcut-table     — two-column table for top-10 shortcuts, width: 100%, border-collapse: collapse
-.wizard-shortcut-row       — tr, padding: 3px 0, border-bottom: 1px solid var(--panel-border)
+.wizard-shortcut-row       — tr, padding: 4px 0, border-bottom: 1px solid var(--panel-border)
 .wizard-shortcut-key       — td, color: var(--accent), font-family: monospace, width: 120px
 .wizard-shortcut-fn        — td, color: var(--display-text)
 ```
@@ -142,7 +149,7 @@ A new top-level section inserted as first entry in the `SECTIONS` array (id: `'s
 
 ```
 .shortcut-table            — two-column table, width: 100%, border-collapse: collapse, font-family: monospace
-.shortcut-row              — tr, display: grid, grid-template-columns: 140px 1fr, gap: 10px, padding: 3px 4px, border-radius: 2px
+.shortcut-row              — tr, display: grid, grid-template-columns: 140px 1fr, gap: 8px, padding: 4px, border-radius: 2px
 .shortcut-row:hover        — background: rgba(200, 230, 201, 0.08) (matches .help-overlay-row:hover)
 .shortcut-key-col          — td, color: var(--accent), font-size: 12px
 .shortcut-fn-col           — td, color: var(--display-text), font-size: 12px, font-weight: 700
@@ -162,10 +169,10 @@ Entries with `example` or `notes` fields in the JSON gain an expand toggle.
 **New CSS classes to add to `App.css`:**
 
 ```
-.help-entry-expand-btn     — inline toggle "▶" / "▼", font-size: 10px, color: var(--text-muted), background: none, border: none, cursor: pointer, margin-right: 4px
-.help-entry-detail         — expanded detail block, display: block, margin: 4px 0 8px 100px (indented to align with description column), background: var(--panel-bg), border-left: 2px solid var(--accent), padding: 6px 10px, border-radius: 0 4px 4px 0
-.help-entry-example        — monospace example text, font-size: 11px, color: var(--display-text), line-height: 1.5
-.help-entry-notes          — notes text, font-size: 11px, color: var(--text-secondary), font-style: italic, margin-top: 4px
+.help-entry-expand-btn     — inline toggle "▶" / "▼", font-size: 12px, color: var(--text-muted), background: none, border: none, cursor: pointer, margin-right: 4px
+.help-entry-detail         — expanded detail block, display: block, margin: 4px 0 8px 96px (indented to align with description column), background: var(--panel-bg), border-left: 2px solid var(--accent), padding: 8px 12px, border-radius: 0 4px 4px 0
+.help-entry-example        — monospace example text, font-size: 12px, color: var(--display-text), line-height: 1.5
+.help-entry-notes          — notes text, font-size: 12px, color: var(--text-secondary), font-style: italic, margin-top: 4px
 ```
 
 **Behavior:**
@@ -182,7 +189,7 @@ Inserted below the "Theme" section at the Phase 49 placeholder (line 66).
 
 ```
 .settings-section-divider  — hr, border: none, border-top: 1px solid var(--panel-border), margin: 12px 0
-.settings-action-btn       — button, width: 100%, text-align: left, padding: 6px 8px, font-size: 14px, color: var(--text-secondary), background: none, border: 1px solid var(--panel-border), border-radius: 4px, cursor: pointer, font-family: system-ui
+.settings-action-btn       — button, width: 100%, text-align: left, padding: 8px, font-size: 14px, color: var(--text-secondary), background: none, border: 1px solid var(--panel-border), border-radius: 4px, cursor: pointer, font-family: system-ui
 .settings-action-btn:hover — color: var(--accent), border-color: var(--accent)
 ```
 
@@ -304,7 +311,7 @@ No component library or third-party registry is used. All components are vanilla
 |----------|--------|
 | No shadcn / no Tailwind | Codebase scan — no `components.json`, no `tailwind.config.*` found |
 | Spacing scale (4/8/12/16px values) | `App.css` measured padding/gap values |
-| Typography sizes and weights | `App.css` — 11/12/13/14/22px sizes, weight 400/700 |
+| Typography sizes and weights | `App.css` — consolidated to 12/13/14/22px (4 sizes), weight 400/700 |
 | Color tokens (CSS variables) | `themes.css` — all 4 theme blocks extracted |
 | Overlay pattern (z-index 60, full-cover) | `App.css` — `.help-overlay` rule |
 | Wizard 5-panel structure | `49-CONTEXT.md` D-49.1 |
@@ -321,6 +328,9 @@ No component library or third-party registry is used. All components are vanilla
 | Ctrl+S manual save | `49-CONTEXT.md` D-49.13 |
 | Keyboard Shortcuts collapsed by default | `49-CONTEXT.md` §Specific Ideas — `?` as definitive reference, wizard as teaser |
 | Wizard Esc/click-outside behavior | `49-CONTEXT.md` §Code Context — HelpOverlay/SettingsPanel pattern + phase-specific first-run constraint |
+| Typography consolidation 10/11px → 12px | checker revision 2026-05-27 — max 4 sizes rule |
+| Spacing corrections (6px→8px, 3px→4px, 10px→8px, 100px→96px) | checker revision 2026-05-27 — multiples-of-4 rule |
+| Wizard focal point declaration | checker revision 2026-05-27 — Dimension 2 focal point requirement |
 
 ---
 
