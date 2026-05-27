@@ -97,67 +97,88 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 ## Phase Details
 
 ### Phase 48: GUI Infrastructure + Theming
+
 **Goal**: Users can personalize the calculator's appearance and preferences persist across restarts
 **Depends on**: Nothing (first v4.0 phase; zero hp41-core changes)
 **Requirements**: INFRA-01, INFRA-02, THEME-01, THEME-02, THEME-03, THEME-04, THEME-05
 **Success Criteria** (what must be TRUE):
+
   1. User can open a theme selector and switch between dark, light, classic beige, and high-contrast themes without restarting
   2. Selected theme is still active the next time the user launches the app
   3. Key press animations work correctly in all four themes (press animation visible, not broken)
   4. High-contrast theme passes WCAG AA contrast ratio for all key labels and display text
   5. Theme preference is stored in `~/.hp41/prefs.json` — it never appears in `autosave.json`
+
 **Plans**: 3 plans
 Plans:
+**Wave 1**
+
 - [ ] 48-01-PLAN.md — Tauri backend: prefs.rs, get_prefs/set_pref commands, permission TOMLs
 - [ ] 48-02-PLAN.md — CSS theme system: themes.css with 4 data-theme blocks, App.css color migration
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 48-03-PLAN.md — Frontend integration: SettingsPanel, Keyboard gradient props, App.tsx wiring, tests
+
 **UI hint**: yes
 
 ### Phase 49: Onboarding + GUI Keyboard Parity
+
 **Goal**: New users can get started immediately and power users can discover every keyboard shortcut
 **Depends on**: Phase 48 (prefs.rs backend required for seen-flag and future preference storage)
 **Requirements**: ONBOARD-01, ONBOARD-02, ONBOARD-03, ONBOARD-04, ONBOARD-05, KBD-01, KBD-02, KBD-03, KBD-04
 **Success Criteria** (what must be TRUE):
+
   1. First-run shows a quick-start overlay covering RPN entry, stack, and how to XEQ a function; it does not appear again on subsequent launches
   2. User can reopen the quick-start guide from the `?` overlay or help menu at any time
   3. Searchable in-app reference covers all ~350 functions (built-in + all 5 XROM modules) with usage examples
   4. Card reader shortcuts (Ctrl+W/R/D/F) and F5 manual save work in the GUI physical keyboard
   5. The `?` overlay lists all GUI physical keyboard shortcuts alongside function names
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 50: .raw File I/O
+
 **Goal**: Users can exchange HP-41 programs with the HP-41 community via standard `.raw` files
 **Depends on**: Nothing (codec already in hp41-core; independent of Phases 48–49)
 **Requirements**: RAW-01, RAW-02, RAW-03, RAW-04, RAW-05, RAW-06
 **Success Criteria** (what must be TRUE):
+
   1. User can import a `.raw` file via a native OS file dialog and the program appears in calculator memory
   2. User can export a program to a `.raw` file via a native OS file dialog
   3. A multi-program `.raw` archive either imports all programs or shows a clear error — never silently truncates
   4. XROM instructions survive a round-trip import/export without corruption
   5. CLI users can import and export `.raw` files via `--import-raw` and `--export-raw` flags
+
 **Plans**: TBD
 
 ### Phase 51: X-MEM Core
+
 **Goal**: Users can store and retrieve named programs and data sets in Extended Memory, mirroring HP-41CX behavior
 **Depends on**: Phase 50 (SAVEP/GETP delegate to the `.raw` codec for serialization)
 **Requirements**: XMEM-01, XMEM-02, XMEM-03, XMEM-04, XMEM-05, XMEM-06, XMEM-07
 **Success Criteria** (what must be TRUE):
+
   1. `EMDIR` displays a catalog of all named files in extended memory with names, types (program/data), and sizes
   2. `EMROOM` reports the number of available extended memory registers as a numeric value on the stack
   3. `SAVEP` / `GETP` round-trips a program through extended memory and retrieves it intact
   4. `SAVED` / `GETD` round-trips data registers through extended memory and retrieves them intact
   5. `EMREG` accesses register N within the active X-MEM file, returning the stored value
+
 **Plans**: TBD
 
 ### Phase 52: Test Hardening + Documentation
+
 **Goal**: Extended Memory is production-ready — backward-compatible, isolated, and fully integrated across CLI, GUI, and test suite
 **Depends on**: Phase 51 (X-MEM core ops required before integration and testing)
 **Requirements**: XMEM-08, XMEM-09, XMEM-10
 **Success Criteria** (what must be TRUE):
+
   1. A v3.3 save file loads without error in v4.0 and `xmem_files` is empty (not missing/erroring)
   2. X-MEM operations never read from or write to `state.regs` or `adv_matrices` — verified by targeted isolation tests
   3. XEQ "EMDIR", XEQ "SAVEP", and all X-MEM functions are reachable from both CLI and GUI and appear in the `?` help overlay
+
 **Plans**: TBD
 
 ---
