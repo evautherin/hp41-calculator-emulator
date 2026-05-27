@@ -162,9 +162,19 @@ function getDisplayText(container: HTMLElement): string {
   return el?.getAttribute('data-displaytext') ?? '';
 }
 
+// Default mock prefs (Phase 49 Plan 04): onboarding_done=true so the wizard
+// does NOT open during tests (which would block keyboard dispatch).
+// Tests that specifically need to test first-run behavior can override.
+const DEFAULT_PREFS = { theme: 'dark', onboarding_done: true };
+
 beforeEach(() => {
   mockInvoke.mockReset();
-  mockInvoke.mockResolvedValue(makeEmptyView());
+  // Route get_prefs to return DEFAULT_PREFS so the onboarding wizard stays
+  // closed in tests (Phase 49 Plan 04: wizard blocks keyboard dispatch when open).
+  mockInvoke.mockImplementation((cmd: string) => {
+    if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+    return Promise.resolve(makeEmptyView());
+  });
 });
 
 // =====================================================================
