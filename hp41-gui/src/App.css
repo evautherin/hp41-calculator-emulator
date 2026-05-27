@@ -492,3 +492,264 @@
   color: var(--text-secondary);
   font-family: system-ui, sans-serif;
 }
+
+/* ── Phase 49-03: Settings Quick Start section ─────────────────────────── */
+/* D-48.3 shell: "Quick Start" section added to SettingsPanel per UI-SPEC §4. */
+
+.settings-section-divider {
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 12px 0;
+}
+
+/* Settings action button — "Show Guide" (and future one-shot actions) */
+.settings-action-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+}
+
+.settings-action-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Phase 49-03: Keyboard Shortcuts section in HelpOverlay ──────────────── */
+/* Phase 49 D-49.10 / KBD-03: Shortcut table styles.
+   Rendered as a separate collapsible block above function sections; not searchable. */
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+.shortcut-row:hover {
+  background: rgba(200, 230, 201, 0.08);
+}
+
+.shortcut-key-col {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.shortcut-fn-col {
+  color: var(--display-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Phase 49-03: Expandable entry detail in HelpOverlay ─────────────────── */
+/* Phase 49 D-49.6 / ONBOARD-03: Toggle and detail block for entries with
+   example/notes enrichment fields from the JSON data files. */
+
+.help-entry-expand-btn {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 4px;
+  padding: 0;
+  line-height: 1;
+}
+
+.help-entry-detail {
+  display: block;
+  margin: 4px 0 8px 96px;
+  background: var(--panel-bg);
+  border-left: 2px solid var(--accent);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+}
+
+.help-entry-example {
+  font-size: 12px;
+  color: var(--display-text);
+  line-height: 1.5;
+  font-family: 'Courier New', Courier, monospace;
+  display: block;
+}
+
+.help-entry-notes {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+  display: block;
+}
+
+/* ── Phase 49-03: OnboardingWizard overlay ───────────────────────────────── */
+/* ONBOARD-01 / D-49.1 / D-49.3: Full-cover overlay, same z-index as help-overlay.
+   Wizard and help overlay are mutually exclusive — only one open at a time.
+   Uses system-ui font (prose content, not monospace). */
+
+.wizard-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+  color: var(--display-text);
+  overflow-y: auto;
+}
+
+/* Panel container — flex column, padded content area */
+.wizard-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 12px 16px;
+}
+
+/* Panel title row: 14px bold uppercase accent text + panel counter */
+.wizard-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+/* Step indicator "N of 5" — accent color, small, margin-left auto handled by flex parent */
+.wizard-panel-counter {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Prose content — system-ui, 14px, secondary text color, generous line-height */
+.wizard-panel-body {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-family: system-ui, sans-serif;
+  overflow-y: auto;
+}
+
+.wizard-panel-body p {
+  margin: 0 0 8px 0;
+}
+
+.wizard-panel-body ol,
+.wizard-panel-body ul {
+  margin: 0 0 8px 0;
+}
+
+/* Navigation footer: Back + Next/Finish + Skip */
+.wizard-panel-nav {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 4px 0;
+  border-top: 1px solid var(--panel-border);
+  margin-top: 12px;
+}
+
+/* Base nav button — Back / Next */
+.wizard-nav-btn {
+  font-size: 14px;
+  padding: 8px 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+}
+
+.wizard-nav-btn:hover {
+  color: var(--accent);
+}
+
+/* Primary variant — Next / Start Using HP-41C: accent border + text */
+.wizard-nav-btn-primary {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Skip link — small muted underlined text button */
+.wizard-dismiss-link {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: system-ui, sans-serif;
+  padding: 0;
+}
+
+.wizard-dismiss-link:hover {
+  color: var(--accent);
+}
+
+/* Monospace ASCII stack diagram block — display-like appearance */
+.wizard-stack-diagram {
+  background: var(--display-bg);
+  color: var(--display-text);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid var(--display-border, var(--panel-border));
+  white-space: pre;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+/* Two-column shortcut table inside wizard panel 4 */
+.wizard-shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wizard-shortcut-row {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.wizard-shortcut-key {
+  color: var(--accent);
+  font-family: 'Courier New', Courier, monospace;
+  width: 120px;
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+  font-size: 12px;
+}
+
+.wizard-shortcut-fn {
+  color: var(--display-text);
+  font-size: 14px;
+  padding: 4px 0;
+  vertical-align: top;
+}

@@ -31,7 +31,7 @@
 // Search spans all five JSON pools via helpEntriesAll() 5-pool chain in help_data.ts.
 
 import { useState, useEffect, useMemo } from 'react';
-import { helpEntriesAll, type HelpEntry } from './help_data';
+import { helpEntriesAll, getKeyboardShortcuts, type HelpEntry } from './help_data';
 
 export type HelpOverlayProps = {
     open: boolean;
@@ -113,11 +113,22 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
         adv24: true,
     });
 
+    // Phase 49 D-49.10 / KBD-03: Keyboard Shortcuts section — standalone state (D-49.10 / PATTERNS.md divergence).
+    // Collapsed by default per UI-SPEC (shortcuts are for power users; function sections lead).
+    // NOT part of the SECTIONS array — different content shape and not searchable.
+    const [kbdExpanded, setKbdExpanded] = useState(false);
+
+    // Phase 49 D-49.6 / ONBOARD-03: Per-entry expand state for example/notes detail.
+    // Tracks op_variant keys of expanded entries. Resets on overlay close/open.
+    const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+
     // Reset query and expand state whenever overlay opens (clean-slate UX).
     useEffect(() => {
         if (open) {
             setQuery('');
             setExpanded({ hp41cv: true, math1: true, stat1: true, time: true, adv22: true, adv24: true });
+            setKbdExpanded(false);
+            setExpandedEntries(new Set());
         }
     }, [open]);
 
@@ -186,7 +197,21 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
         setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
+    // Phase 49 D-49.6: Toggle individual entry expand/collapse state.
+    const toggleEntry = (opVariant: string) => {
+        setExpandedEntries(prev => {
+            const next = new Set(prev);
+            if (next.has(opVariant)) {
+                next.delete(opVariant);
+            } else {
+                next.add(opVariant);
+            }
+            return next;
+        });
+    };
+
     const totalFiltered = filtered.length;
+    const shortcuts = getKeyboardShortcuts();
 
     return (
         <div className="help-overlay" role="dialog" aria-label="HP-41 function reference">
@@ -212,6 +237,39 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
                 {totalFiltered === 0 && query !== '' && (
                     <div className="help-overlay-empty">No functions match "{query}".</div>
                 )}
+                {/* Phase 49 D-49.10 / KBD-03: Keyboard Shortcuts section.
+                    Rendered BEFORE the function sections, collapsed by default.
+                    NOT filtered by search query — physical key mappings have different
+                    semantics from function lookup (D-49.10 / UI-SPEC §KBD). */}
+                <div className="help-overlay-section">
+                    <button
+                        className="help-overlay-section-heading"
+                        onClick={() => setKbdExpanded(prev => !prev)}
+                        aria-expanded={kbdExpanded ? "true" : "false"}
+                    >
+                        KEYBOARD SHORTCUTS
+                    </button>
+                    {kbdExpanded && (
+                        <div className="help-overlay-section-body">
+                            {shortcuts.length === 0 ? (
+                                <div className="help-overlay-empty">No shortcuts listed.</div>
+                            ) : (
+                                <div className="shortcut-table" role="table">
+                                    <div role="row" className="shortcut-row">
+                                        <span role="columnheader" className="shortcut-key-col"><strong>Key</strong></span>
+                                        <span role="columnheader" className="shortcut-fn-col"><strong>Function</strong></span>
+                                    </div>
+                                    {shortcuts.map((sc, idx) => (
+                                        <div key={idx} role="row" className="shortcut-row">
+                                            <span role="cell" className="shortcut-key-col">{sc.key}</span>
+                                            <span role="cell" className="shortcut-fn-col">{sc.op} — {sc.description}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
                 {sectionGroups.map(({ section, groups, count }) => (
                     <div key={section.id} className="help-overlay-section">
                         {/* Top-level collapsible section heading (D-31.8 / UI-SPEC §Accessibility) */}
@@ -229,13 +287,39 @@ export function HelpOverlay({ open, onClose }: HelpOverlayProps) {
                                 {groups.map(([category, entries]) => (
                                     <div key={category} className="help-overlay-category">
                                         <h3 className="help-overlay-category-heading">{category}</h3>
-                                        {entries.map(entry => (
-                                            <div key={entry.op_variant} className="help-overlay-row">
-                                                <span className="help-overlay-key">{entry.key_path}</span>
-                                                <span className="help-overlay-op">{entry.display_name}</span>
-                                                <span className="help-overlay-desc">{entry.description}</span>
-                                            </div>
-                                        ))}
+                                        {entries.map(entry => {
+                                            const hasDetail = !!(entry.example || entry.notes);
+                                            const isEntryExpanded = expandedEntries.has(entry.op_variant);
+                                            return (
+                                                <div key={entry.op_variant}>
+                                                    <div className="help-overlay-row">
+                                                        {hasDetail ? (
+                                                            <button
+                                                                className="help-entry-expand-btn"
+                                                                onClick={() => toggleEntry(entry.op_variant)}
+                                                                aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                                aria-label={`Show example for ${entry.display_name}`}
+                                                            >
+                                                                {isEntryExpanded ? '▼' : '▶'}
+                                                            </button>
+                                                        ) : null}
+                                                        <span className="help-overlay-key">{entry.key_path}</span>
+                                                        <span className="help-overlay-op">{entry.display_name}</span>
+                                                        <span className="help-overlay-desc">{entry.description}</span>
+                                                    </div>
+                                                    {hasDetail && isEntryExpanded && (
+                                                        <div className="help-entry-detail">
+                                                            {entry.example && (
+                                                                <span className="help-entry-example">{entry.example}</span>
+                                                            )}
+                                                            {entry.notes && (
+                                                                <span className="help-entry-notes">{entry.notes}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 ))}
                                 {groups.length === 0 && query !== '' && (

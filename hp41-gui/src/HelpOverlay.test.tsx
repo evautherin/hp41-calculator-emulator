@@ -311,8 +311,8 @@ describe('HelpOverlay', () => {
         const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
         // Find the Math 1 Pac section heading button.
         const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
-        // 6 sections: HP-41CV, Math 1, Stat 1, Time, Advantage (XROM 22), Advantage (XROM 24).
-        expect(sectionButtons.length).toBe(6);
+        // 7 sections: KEYBOARD SHORTCUTS (Phase 49) + HP-41CV + Math 1 + Stat 1 + Time + Adv (XROM 22) + Adv (XROM 24).
+        expect(sectionButtons.length).toBe(7);
 
         const math1Button = Array.from(sectionButtons).find(b =>
             b.textContent?.includes('Math 1 Pac')
@@ -453,5 +453,112 @@ describe('HelpOverlay', () => {
             rowTexts.some(t => t.includes('SETIME')),
             `Expected at least one row containing 'SETIME'; found rows: ${rowTexts.slice(0, 5).join(' | ')}`
         ).toBe(true);
+    });
+
+    // Phase 49 D-49.10 / KBD-03 — Keyboard Shortcuts section tests
+
+    it('renders Keyboard Shortcuts section heading when open', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const sectionButtons = container.querySelectorAll('.help-overlay-section-heading');
+        const buttonTexts = Array.from(sectionButtons).map(b => b.textContent ?? '');
+        expect(
+            buttonTexts.some(t => t.toUpperCase().includes('KEYBOARD SHORTCUTS')),
+            `Expected "KEYBOARD SHORTCUTS" heading; found: ${buttonTexts.join(', ')}`
+        ).toBe(true);
+    });
+
+    it('keyboard shortcuts section is collapsed by default', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        // Find the KEYBOARD SHORTCUTS heading button.
+        const kbdBtn = Array.from(container.querySelectorAll('.help-overlay-section-heading')).find(
+            b => b.textContent?.toUpperCase().includes('KEYBOARD SHORTCUTS')
+        ) as HTMLButtonElement | undefined;
+        expect(kbdBtn, 'KEYBOARD SHORTCUTS heading button must exist').toBeTruthy();
+        // Must be collapsed by default (aria-expanded = "false").
+        expect(kbdBtn!.getAttribute('aria-expanded')).toBe('false');
+        // Shortcut rows should not be visible (table not rendered).
+        const shortcutRows = container.querySelectorAll('.shortcut-row');
+        // The header row should not be present when collapsed.
+        expect(shortcutRows.length).toBe(0);
+    });
+
+    it('clicking Keyboard Shortcuts heading expands the section', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const kbdBtn = Array.from(container.querySelectorAll('.help-overlay-section-heading')).find(
+            b => b.textContent?.toUpperCase().includes('KEYBOARD SHORTCUTS')
+        ) as HTMLButtonElement;
+        expect(kbdBtn).toBeTruthy();
+        // Initially collapsed.
+        expect(kbdBtn.getAttribute('aria-expanded')).toBe('false');
+        // Click to expand.
+        fireEvent.click(kbdBtn);
+        expect(kbdBtn.getAttribute('aria-expanded')).toBe('true');
+        // Shortcut rows now visible.
+        const shortcutRows = container.querySelectorAll('.shortcut-row');
+        expect(shortcutRows.length).toBeGreaterThan(0);
+    });
+
+    it('shortcut entries show key and op columns when expanded', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const kbdBtn = Array.from(container.querySelectorAll('.help-overlay-section-heading')).find(
+            b => b.textContent?.toUpperCase().includes('KEYBOARD SHORTCUTS')
+        ) as HTMLButtonElement;
+        fireEvent.click(kbdBtn);
+        // Verify at least one shortcut-key-col and shortcut-fn-col exist and have content.
+        const keyCols = container.querySelectorAll('.shortcut-key-col');
+        const fnCols = container.querySelectorAll('.shortcut-fn-col');
+        expect(keyCols.length).toBeGreaterThan(0);
+        expect(fnCols.length).toBeGreaterThan(0);
+        // At least one key col should have non-empty content (e.g. "Enter").
+        const keyTexts = Array.from(keyCols).map(c => c.textContent ?? '');
+        expect(keyTexts.some(t => t.trim().length > 0)).toBe(true);
+    });
+
+    // Phase 49 D-49.6 / ONBOARD-03 — Expandable entry tests
+
+    it('entries with example field show expand toggle button', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        // The hp41cv-functions.json has 30 enriched entries (Plan 02 output).
+        // The HP-41CV section is expanded by default, so expand toggles should be visible.
+        const expandBtns = container.querySelectorAll('.help-entry-expand-btn');
+        expect(
+            expandBtns.length,
+            'Expected at least one expand toggle button for entries with example/notes'
+        ).toBeGreaterThan(0);
+    });
+
+    it('clicking expand toggle reveals example text', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        // Find the first expand toggle.
+        const expandBtn = container.querySelector('.help-entry-expand-btn') as HTMLButtonElement | null;
+        expect(expandBtn, 'Expand button must exist').not.toBeNull();
+        // Initially collapsed — no .help-entry-detail visible.
+        expect(container.querySelector('.help-entry-detail')).toBeNull();
+        // Click to expand.
+        fireEvent.click(expandBtn!);
+        // Detail block now visible.
+        const detail = container.querySelector('.help-entry-detail');
+        expect(detail, '.help-entry-detail must be visible after clicking expand toggle').not.toBeNull();
+        // At least example or notes span must be present.
+        const exampleSpan = detail?.querySelector('.help-entry-example');
+        const notesSpan = detail?.querySelector('.help-entry-notes');
+        expect(
+            exampleSpan || notesSpan,
+            '.help-entry-example or .help-entry-notes must be present in detail block'
+        ).toBeTruthy();
+    });
+
+    it('entries without example/notes have no expand toggle', () => {
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        // All .help-overlay-row entries should be checked: rows without a toggle button
+        // should exist (not every entry is enriched).
+        const rows = container.querySelectorAll('.help-overlay-row');
+        const rowsWithoutToggle = Array.from(rows).filter(
+            row => !row.querySelector('.help-entry-expand-btn')
+        );
+        expect(
+            rowsWithoutToggle.length,
+            'Expected at least one row without an expand toggle (non-enriched entry)'
+        ).toBeGreaterThan(0);
     });
 });

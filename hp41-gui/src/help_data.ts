@@ -30,6 +30,10 @@ import math1Functions from '../../docs/hp41-math1-functions.json';
 import stat1Functions from '../../docs/hp41-stat1-functions.json';
 import timeFunctions from '../../docs/hp41-time-functions.json';
 import advantageFunctions from '../../docs/hp41-advantage-functions.json';
+// Phase 49 D-49.11 — keyboard shortcuts single source of truth.
+// Vite static JSON-import: baked into the production bundle at build time.
+// Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
+import keyboardShortcutsData from '../../docs/keyboard-shortcuts.json';
 
 /// XROM module reference attached to Math Pac I (and future v3.1+ pac) entries.
 /// Matches the `xrom` object shape in docs/hp41-math1-functions.json (ADR-005 /
@@ -73,6 +77,11 @@ export interface HelpEntry {
     /// v2.2 built-in entries. Used by HelpOverlay.tsx to partition entries
     /// into "HP-41CV (built-in)" vs "Math 1 Pac (XROM 7)" sections (D-31.8).
     xrom?: XromEntry;
+    /// Phase 49 D-49.5 — optional enrichment fields for expandable rows (ONBOARD-03).
+    /// One-line terse example, e.g. "3 ENTER 4 + → 7". <= 60 chars.
+    example?: string;
+    /// Phase 49 D-49.5 — factual behavioral notes: stack lift, LASTX, domain errors.
+    notes?: string;
 }
 
 /// Lazy-init cache. Vite's static `import` is itself the cache (module
@@ -191,6 +200,28 @@ export function helpEntriesTime(): readonly HelpEntry[] {
 ///                    xrom.module === "Adv Math" (XROM 24, 51 entries).
 export function helpEntriesAdvantage(): readonly HelpEntry[] {
     return advantageFunctions as readonly HelpEntry[];
+}
+
+/// Phase 49 D-49.11: Keyboard shortcut entry — one row in the physical keyboard reference.
+///
+/// Sourced from `docs/keyboard-shortcuts.json` via Vite static JSON-import.
+/// Rendered in the Keyboard Shortcuts section of HelpOverlay (KBD-03).
+export interface KeyboardShortcut {
+    /// Human-readable key label, e.g. "Enter", "Tab", "Ctrl+S".
+    key: string;
+    /// HP-41 op mnemonic as shown in the shortcut table, e.g. "ENTER", "SHIFT".
+    op: string;
+    /// <= 80 chars, suitable for the shortcut table description column.
+    description: string;
+}
+
+/// Phase 49 D-49.11: All keyboard shortcut entries from docs/keyboard-shortcuts.json.
+///
+/// Vite static JSON-import: baked into the production bundle at build time.
+/// Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
+/// Mirrors the 5-pool accessor pattern: no OnceLock needed (module evaluation is one-shot).
+export function getKeyboardShortcuts(): readonly KeyboardShortcut[] {
+    return keyboardShortcutsData as readonly KeyboardShortcut[];
 }
 
 /// Phase 46 Plan 46-02: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac entries.
