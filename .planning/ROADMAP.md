@@ -113,8 +113,8 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 Plans:
 **Wave 1**
 
-- [ ] 48-01-PLAN.md — Tauri backend: prefs.rs, get_prefs/set_pref commands, permission TOMLs
-- [ ] 48-02-PLAN.md — CSS theme system: themes.css with 4 data-theme blocks, App.css color migration
+- [x] 48-01-PLAN.md — Tauri backend: prefs.rs, get_prefs/set_pref commands, permission TOMLs
+- [x] 48-02-PLAN.md — CSS theme system: themes.css with 4 data-theme blocks, App.css color migration
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -187,7 +187,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 48. GUI Infrastructure + Theming | 0/3 | Planned | - |
+| 48. GUI Infrastructure + Theming | 2/3 | In Progress|  |
 | 49. Onboarding + GUI Keyboard Parity | 0/? | Not started | - |
 | 50. .raw File I/O | 0/? | Not started | - |
 | 51. X-MEM Core | 0/? | Not started | - |
