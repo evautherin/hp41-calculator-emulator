@@ -34,6 +34,7 @@ pub type CancelFlag = std::sync::Arc<std::sync::atomic::AtomicBool>;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init()) // Phase 50 — file dialog plugin for .raw/.card.json import/export
         .setup(|app| {
             // D-03: attempt to load ~/.hp41/autosave.json; fall back to fresh state on any error.
             // D-04: load_state() always resets is_running = false (Pitfall 4 guard).
@@ -111,6 +112,12 @@ pub fn run() {
             commands::get_prefs,               // Phase 48 INFRA-01 — read GUI preferences
             commands::set_pref,                // Phase 48 INFRA-02 — write/persist a GUI preference
             commands::save_state,              // Phase 49 KBD-02 — on-demand save (Ctrl+S / F5 in GUI)
+            // Phase 50 — .raw file I/O via native OS file dialog
+            commands::import_raw_dialog,
+            commands::export_raw_dialog,
+            commands::import_data_dialog,
+            commands::export_data_dialog,
+            commands::import_selected_programs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

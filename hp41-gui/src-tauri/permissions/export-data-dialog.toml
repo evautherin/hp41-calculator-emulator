@@ -1,0 +1,6 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-export-data-dialog"
+description = "Allows the export_data_dialog command."
+commands.allow = ["export_data_dialog"]
