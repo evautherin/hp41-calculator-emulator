@@ -1,0 +1,197 @@
+/*
+ * HP-41 Calculator Emulator — Theme System
+ *
+ * D-48.9  CSS custom properties + data-theme attribute on <body>
+ * D-48.11 Four theme presets: dark, light, classic-beige, high-contrast
+ * D-48.12 Instant theme switch — NO CSS color animation properties allowed here
+ *
+ * P51 WARNING: The SVG animation properties (fill-box / center transform) must
+ * remain in App.css under .key only — never placed in any [data-theme] block,
+ * or SVG press animations will break.
+ *
+ * Usage: Set document.body.setAttribute('data-theme', 'dark'|'light'|'classic-beige'|'high-contrast')
+ * Each block is fully self-contained — no inheritance between theme blocks (D-48.7 full re-skin).
+ */
+
+/* ── Dark Theme (default — matches current App.css hardcoded values, D-48.8) ── */
+
+[data-theme="dark"] {
+  --calc-bg:            #0d0d0d;
+  --calc-border:        #333333;
+  --panel-bg:           #1a1a1a;
+  --panel-header-bg:    #252525;
+  --panel-border:       #3a3a3a;
+  --display-bg:         #111111;
+  --display-text:       #c8e6c9;
+  --display-border:     #222222;
+  --key-face-top:       #303030;
+  --key-face-mid:       #181818;
+  --key-face-bot:       #080808;
+  --key-label:          #e8e8e8;
+  --key-pressed-shadow: #000000;
+  --key-stroke:         #0a0a0a;
+  --enter-face-top:     #346034;
+  --enter-face-mid:     #1a3a1a;
+  --enter-face-bot:     #0a180a;
+  --shift-label:        #d68a1c;
+  --shift-face-top:     #d68a1c;
+  --shift-face-mid:     #b06811;
+  --shift-face-bot:     #7a4708;
+  --shift-armed-top:    #ffb742;
+  --shift-armed-mid:    #f5a423;
+  --shift-armed-bot:    #c97d10;
+  --alpha-label:        #5b8fb9;
+  --alpha-label-active: #7fb9e0;
+  --gold-trim:          #c8b878;
+  --error-bg:           #3a1a1a;
+  --error-text:         #ffb4a8;
+  --toast-bg:           rgba(20, 20, 20, 0.92);
+  --toast-text:         #f5a423;
+  --accent:             #f5a423;
+  --overlay-bg:         rgba(20, 20, 20, 0.94);
+  --text-secondary:     #888888;
+  --text-muted:         #666666;
+  --annunciator-active: #e8e8c0;
+  --annunciator-shift-active: #d68a1c;
+  --step-active-bg:     #1e3a1e;
+  --step-active-text:   #c8e6c9;
+}
+
+/* ── Light Theme ─────────────────────────────────────────────────────────── */
+
+[data-theme="light"] {
+  --calc-bg:            #e8e8e8;
+  --calc-border:        #aaaaaa;
+  --panel-bg:           #d4d4d4;
+  --panel-header-bg:    #c4c4c4;
+  --panel-border:       #bbbbbb;
+  --display-bg:         #c8d8c8;
+  --display-text:       #1a3a1a;
+  --display-border:     #aaaaaa;
+  --key-face-top:       #c8c8c8;
+  --key-face-mid:       #a8a8a8;
+  --key-face-bot:       #888888;
+  --key-label:          #111111;
+  --key-pressed-shadow: #888888;
+  --key-stroke:         #666666;
+  --enter-face-top:     #4a8a4a;
+  --enter-face-mid:     #2e6a2e;
+  --enter-face-bot:     #1a4a1a;
+  --shift-label:        #c07010;
+  --shift-face-top:     #c07010;
+  --shift-face-mid:     #9a5808;
+  --shift-face-bot:     #6a3a04;
+  --shift-armed-top:    #f5a423;
+  --shift-armed-mid:    #e09010;
+  --shift-armed-bot:    #b87010;
+  --alpha-label:        #3a6a9a;
+  --alpha-label-active: #2a5a8a;
+  --gold-trim:          #b8a060;
+  --error-bg:           #f8d8d8;
+  --error-text:         #8a1a1a;
+  --toast-bg:           rgba(240, 240, 240, 0.92);
+  --toast-text:         #c07010;
+  --accent:             #c07010;
+  --overlay-bg:         rgba(240, 240, 240, 0.96);
+  --text-secondary:     #444444;
+  --text-muted:         #888888;
+  --annunciator-active: #3a5a3a;
+  --annunciator-shift-active: #c07010;
+  --step-active-bg:     #b8d8b8;
+  --step-active-text:   #1a3a1a;
+}
+
+/* ── Classic Beige Theme (D-48.5 — real HP-41C body color) ──────────────── */
+
+[data-theme="classic-beige"] {
+  --calc-bg:            #c8b890;
+  --calc-border:        #8a7050;
+  --panel-bg:           #b8a880;
+  --panel-header-bg:    #a89870;
+  --panel-border:       #988860;
+  --display-bg:         #4a5030;
+  --display-text:       #d8d890;
+  --display-border:     #383820;
+  --key-face-top:       #3a3020;
+  --key-face-mid:       #282010;
+  --key-face-bot:       #181008;
+  --key-label:          #f0e8d0;
+  --key-pressed-shadow: #181008;
+  --key-stroke:         #181008;
+  --enter-face-top:     #2a5028;
+  --enter-face-mid:     #1a3818;
+  --enter-face-bot:     #0e200c;
+  --shift-label:        #c8780a;
+  --shift-face-top:     #c8780a;
+  --shift-face-mid:     #a85e08;
+  --shift-face-bot:     #784206;
+  --shift-armed-top:    #f5a030;
+  --shift-armed-mid:    #e08818;
+  --shift-armed-bot:    #b86010;
+  --alpha-label:        #6080b0;
+  --alpha-label-active: #80a0d0;
+  --gold-trim:          #c8a848;
+  --error-bg:           #5a2010;
+  --error-text:         #f0c0a0;
+  --toast-bg:           rgba(40, 28, 10, 0.92);
+  --toast-text:         #f5a030;
+  --accent:             #c8780a;
+  --overlay-bg:         rgba(40, 32, 18, 0.94);
+  --text-secondary:     #786858;
+  --text-muted:         #988870;
+  --annunciator-active: #d8c870;
+  --annunciator-shift-active: #c8780a;
+  --step-active-bg:     #3a4820;
+  --step-active-text:   #d8d890;
+}
+
+/* ── High-Contrast Theme (D-48.6 — WCAG AAA white-on-black) ─────────────── */
+/*
+ * Contrast ratios (WCAG):
+ *   #ffffff on #000000 → 21:1 (AAA)
+ *   #ffaa00 on #000000 → 9.7:1 (AAA)
+ *   #55aaff on #000000 → 5.9:1 (AA)
+ *   #ffffff on #222222 → 14.7:1 (AAA)
+ */
+
+[data-theme="high-contrast"] {
+  --calc-bg:            #000000;
+  --calc-border:        #ffffff;
+  --panel-bg:           #000000;
+  --panel-header-bg:    #111111;
+  --panel-border:       #ffffff;
+  --display-bg:         #000000;
+  --display-text:       #ffffff;
+  --display-border:     #ffffff;
+  --key-face-top:       #222222;
+  --key-face-mid:       #111111;
+  --key-face-bot:       #000000;
+  --key-label:          #ffffff;
+  --key-pressed-shadow: #ffffff;
+  --key-stroke:         #ffffff;
+  --enter-face-top:     #003300;
+  --enter-face-mid:     #002200;
+  --enter-face-bot:     #001100;
+  --shift-label:        #ffaa00;
+  --shift-face-top:     #aa6600;
+  --shift-face-mid:     #884400;
+  --shift-face-bot:     #662200;
+  --shift-armed-top:    #ffcc00;
+  --shift-armed-mid:    #ffaa00;
+  --shift-armed-bot:    #dd8800;
+  --alpha-label:        #55aaff;
+  --alpha-label-active: #88ccff;
+  --gold-trim:          #ffff00;
+  --error-bg:           #000000;
+  --error-text:         #ff4444;
+  --toast-bg:           rgba(0, 0, 0, 0.95);
+  --toast-text:         #ffaa00;
+  --accent:             #ffaa00;
+  --overlay-bg:         rgba(0, 0, 0, 0.98);
+  --text-secondary:     #cccccc;
+  --text-muted:         #aaaaaa;
+  --annunciator-active: #ffffff;
+  --annunciator-shift-active: #ffaa00;
+  --step-active-bg:     #003300;
+  --step-active-text:   #ffffff;
+}
