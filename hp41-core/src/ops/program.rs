@@ -1353,8 +1353,10 @@ fn find_label_in_state(state: &CalcState, label: &str) -> Result<usize, HpError>
 /// `Op::Xeq` arm of `run_loop`. User `LBL "name"` matches take precedence,
 /// matching real HP-41 `XEQ "name"` resolution order.
 ///
-/// Deliberately *not* a general built-in dispatcher — Spec §"Out of Scope".
-pub(super) fn builtin_card_op(name: &str) -> Option<Op> {
+/// Covers ROM built-in ops reachable via XEQ-by-name on a real HP-41.
+/// Shared by CLI (`xeq_by_name_local_resolve`) and GUI (`op_xeq`) to
+/// ensure D-25.6 CLI↔GUI parity for name resolution.
+pub fn builtin_card_op(name: &str) -> Option<Op> {
     match name {
         // v2.1 Card Reader op names (regression preserved unchanged).
         "WPRGM" => Some(Op::Wprgm),
@@ -1362,8 +1364,6 @@ pub(super) fn builtin_card_op(name: &str) -> Option<Op> {
         "WDTA" => Some(Op::Wdta),
         "RDTA" => Some(Op::Rdta),
         // Phase 25 / D-25.8: 8 non-keyboard conditional-test mnemonics.
-        // Accept BOTH ASCII-pure (X<>Y?, X#Y?, X#0?, X<=0?, X>=0?) and
-        // Unicode-symbol (X≠Y?, X≠0?, X≤0?, X≥0?) spellings.
         "X<>Y?" | "X\u{2260}Y?" | "X#Y?" => Some(Op::Test(TestKind::XNeY)),
         "X<Y?" => Some(Op::Test(TestKind::XLtY)),
         "X>=Y?" | "X\u{2265}Y?" => Some(Op::Test(TestKind::XGeY)),
@@ -1372,12 +1372,74 @@ pub(super) fn builtin_card_op(name: &str) -> Option<Op> {
         "X>0?" => Some(Op::Test(TestKind::XGtZero)),
         "X<=0?" | "X\u{2264}0?" => Some(Op::Test(TestKind::XLeZero)),
         "X>=0?" | "X\u{2265}0?" => Some(Op::Test(TestKind::XGeZero)),
+        // ROM built-in ops (canonical HP-41 display names).
+        "SIN" => Some(Op::Sin),
+        "COS" => Some(Op::Cos),
+        "TAN" => Some(Op::Tan),
+        "ASIN" => Some(Op::Asin),
+        "ACOS" => Some(Op::Acos),
+        "ATAN" => Some(Op::Atan),
+        "LN" => Some(Op::Ln),
+        "LOG" => Some(Op::Log),
+        "E^X" => Some(Op::Exp),
+        "10^X" => Some(Op::TenPow),
+        "SQRT" => Some(Op::Sqrt),
+        "X^2" | "XSQ" => Some(Op::Sq),
+        "Y^X" => Some(Op::YPow),
+        "1/X" | "RECIP" => Some(Op::Recip),
+        "PI" => Some(Op::Pi),
+        "ABS" => Some(Op::Abs),
+        "INT" => Some(Op::Int),
+        "FRC" => Some(Op::Frc),
+        "SIGN" => Some(Op::Sign),
+        "N!" | "FACT" => Some(Op::Fact),
+        "MOD" => Some(Op::Mod),
+        "RND" => Some(Op::Rnd),
+        "P->R" | "P\u{2192}R" => Some(Op::PolarToRect),
+        "R->P" | "R\u{2192}P" => Some(Op::RectToPolar),
+        "HMS->H" | "HMS\u{2192}H" => Some(Op::HmsToH),
+        "H->HMS" | "H\u{2192}HMS" => Some(Op::HToHms),
+        "HMS+" => Some(Op::HmsAdd),
+        "HMS-" => Some(Op::HmsSub),
+        "DEG" => Some(Op::SetDeg),
+        "RAD" => Some(Op::SetRad),
+        "GRAD" => Some(Op::SetGrad),
+        "R^" | "R\u{2191}" | "RUP" => Some(Op::Rup),
+        "CLST" => Some(Op::Clst),
+        "CLREG" => Some(Op::Clreg),
+        "CLA" => Some(Op::Cla),
+        "SIGMA+" | "\u{03A3}+" => Some(Op::SigmaPlus),
+        "SIGMA-" | "\u{03A3}-" => Some(Op::SigmaMinus),
+        "MEAN" => Some(Op::Mean),
+        "SDEV" => Some(Op::Sdev),
+        "L.R." | "LR" => Some(Op::LR),
+        "YHAT" => Some(Op::Yhat),
+        "CORR" => Some(Op::Corr),
+        "CL SIGMA" | "CL\u{03A3}" | "CLSIGMA" => Some(Op::ClSigmaStat),
+        "AVIEW" => Some(Op::AView),
+        "PROMPT" => Some(Op::Prompt),
+        "AON" => Some(Op::Aon),
+        "AOFF" => Some(Op::Aoff),
+        "CLD" => Some(Op::Cld),
+        "BEEP" => Some(Op::Beep),
+        "CLRALPHA" => Some(Op::AlphaClear),
+        "ATOX" => Some(Op::Atox),
+        "XTOA" => Some(Op::Xtoa),
+        "AROT" => Some(Op::Arot),
+        "POSA" => Some(Op::Posa),
+        "RTN" => Some(Op::Rtn),
+        "STOP" => Some(Op::Stop),
+        "PSE" => Some(Op::Pse),
+        "PACK" => Some(Op::Pack),
+        "INS" => Some(Op::Ins),
+        "PRX" => Some(Op::PRX),
+        "PRA" => Some(Op::PRA),
+        "PRSTK" => Some(Op::PRSTK),
         _ => None,
     }
 }
 
-/// Test-only re-export of `builtin_card_op` for integration tests in `tests/xrom_shadowing.rs`.
-/// Production visibility stays `pub(super)` — this shim keeps prod API narrow.
+/// Legacy test-only alias — kept for backward compatibility with existing test call sites.
 #[cfg(test)]
 pub fn __test_builtin_card_op(name: &str) -> Option<Op> {
     builtin_card_op(name)
