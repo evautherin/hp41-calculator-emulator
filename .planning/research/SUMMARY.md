@@ -1,72 +1,72 @@
-# Project Research Summary
+# Research Summary: v4.0 Platform Maturity
 
-**Project:** HP-41 Calculator Emulator -- v3.3 Advantage Pac Emulation
-**Domain:** Behavioral emulation of the HP-41 Advantage Pac (XROM 22 + XROM 24, OM 00041-90482) -- the fourth XROM application module, completing all remaining HP-41 module emulation
-**Researched:** 2026-05-25
-**Confidence:** MEDIUM-HIGH
+**Synthesized:** 2026-05-27
+**Sources:** STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
+**Confidence:** HIGH (Phases 1-3) / MEDIUM (Phase 4 — X-MEM spec gap)
 
 ## Executive Summary
 
-The HP-41 Advantage Pac (released July 1985) is HP's first 12K bank-switched ROM module, occupying two XROM IDs (22 and 24) with ~117 functions across four sections: ADV CONV (12 bitwise/base-conversion ops), ADV MTRX (~52 named-matrix ops), ADV MATH (~47 complex/solver/polynomial/curve-fit ops), and ADV TVM (6 financial time-value-of-money ops). This is the largest XROM module milestone to date.
+v4.0 adds five orthogonal platform capabilities to a feature-complete HP-41 emulator. All five areas are additive — none require redesigning existing subsystems. The recommended approach: shared GUI preferences infrastructure first (theme + onboarding flag), then `.raw` file I/O (the codec already fully exists in `hp41-core/src/cardreader/raw.rs`), and finally the Extended Memory model as the one genuinely novel core feature.
 
-**Critical scope clarification:** The "Advanced Matrix Pac" referenced in PROJECT.md is a community hobbyist ROM by Angel Martin (XROM 12), NOT an official HP product. All matrix targets listed in PROJECT.md (M+, MAT*, INV-as-transpose, V+, VDOT, IDN) are present in the official Advantage Pac XROM 22 ADV MTRX section. Implementing the full Advantage Pac automatically covers all "Advanced Matrix" targets. No separate XROM module is needed.
+**Key finding:** The `.raw` codec is already fully implemented. The v4.0 `.raw` feature is almost entirely a frontend integration task — wire existing `encode_program`/`decode_program` to a Tauri file dialog and CLI flags.
 
 ## Stack Additions
 
-**Zero new Rust runtime dependencies.** All algorithms (Laguerre for FROOT, Romberg for FINTG, Newton for TVM *I, Brent for FSOLVE) are implementable from primary sources in under 200 LOC each. The ADR-v3.1-002 zero-new-runtime-deps invariant holds across v3.3.
+| Addition | Version | Why |
+|----------|---------|-----|
+| `@tauri-apps/plugin-dialog` | 2.7.1 (npm) / 2.4.2 (Rust) | Native file picker for `.raw` I/O; only new dep |
+| CSS custom properties + `data-theme` | — | Theming with zero libraries |
+| `prefs.rs` (hand-coded) | — | `GuiPrefs { theme, onboarding_done }` via `serde_json` |
 
-**XROM registration:** Two new `XromModule` constants (`ADV_MATH_A` id=22, `ADV_MATH_B` id=24) registered in `math1/xrom.rs` freeze carve-out. `xrom_resolve` gains bit-3 and bit-4 arms (XROM 22 and 24 respectively). `default_xrom_modules()` changes from `0b0000_0111` to `0b0001_1111`. `migrate_after_load()` sets bits 3+4 for v3.2 save files.
+**What NOT to add:** Tailwind (dormant in devDeps, not worth migrating 394 lines of CSS). React Joyride (SVG keyboard has no clean DOM anchors). `tauri-plugin-store` (overkill for 2 fields).
 
-**New CalcState fields:**
-- `adv_matrices: Vec<AdvMatrix>` (`#[serde(default)]`) -- X-MEM named-matrix storage (incompatible with Math Pac I's R14/R15+ register layout)
-- `adv_tvm_state: Option<TvmState>` (`#[serde(default)]`) -- TVM register persistence
+## Feature Table Stakes vs Differentiators
 
-**Visibility promotions in math1/ (freeze carve-outs, not algorithm changes):**
-- `complex_atan2` in `math1/complex.rs`: `pub(super)` -> `pub(crate)` (share with `advantage/complex.rs`)
-- `USER_CALLBACK_MAX_STEPS` in `math1/mod.rs`: promote to `pub(crate)` if needed by FSOLVE/FINTG
+| Feature | Table Stakes | Differentiator |
+|---------|-------------|----------------|
+| Themes | Dark + light preset | Classic beige + high-contrast (WCAG AA) |
+| Onboarding | — | First-run RPN guide (no HP-41 emulator has this) |
+| `.raw` I/O | Import single-program files | Multi-program archives; XROM 2-byte encoding |
+| Keyboard parity | Ctrl+W/R/D/F card reader, F5 save | Shortcut reference in `?` overlay |
+| X-MEM | EMDIR/EMROOM, SAVEP/GETP, SAVED/GETD | Full file-type catalog |
 
-## Feature Table Stakes
+## Architecture — New/Modified Components
 
-| Section | Function Count | Complexity | Dependencies |
-|---------|---------------|------------|--------------|
-| ADV CONV | 12 | LOW | Pure integer ops, no existing overlap |
-| ADV MTRX | ~52 | MEDIUM-HIGH | New X-MEM named-matrix model (NOT R14/R15+) |
-| ADV MATH | ~47 | HIGH | Extends complex stack, new FROOT/FINTG/FSOLVE |
-| ADV TVM | 6 | MEDIUM | Newton's method for *I; self-contained |
+1. `hp41-gui/src-tauri/src/prefs.rs` (NEW) — preferences load/save, separate from CalcState
+2. `hp41-gui/src/App.css` (MODIFY) — ~22 CSS custom properties, 4 `[data-theme]` blocks
+3. `hp41-gui/src/Keyboard.tsx` (MODIFY) — SVG `fill` → CSS variable refs; theme props for gradient stops
+4. `hp41-core/src/ops/xmem.rs` (NEW) — `ExtendedMemory` + `XMemFile`; isolated from `state.regs`
+5. `hp41-gui/src-tauri/src/commands.rs` (MODIFY) — `import_raw`, `export_raw`, `get_prefs`, `set_pref`
 
-**Key function overlaps with Math Pac I (coexist, not replace):**
-- FROOT (Laguerre, arbitrary degree) vs POLY/ROOTS (Bairstow, degree 2-5)
-- FINTG/INTEG (Romberg) vs INTG (Simpson)
-- FSOLVE (Brent) vs SOLVE (modified secant)
-- New complex ops (e^Z, LNZ, SINZ, COSZ, TANZ, Z^N, Z^W) extend Math Pac I complex stack
+## Critical Pitfalls
 
-## Watch Out For
+| ID | Risk | Prevention |
+|----|------|------------|
+| P51 | SVG animation broken by theme CSS | Preserve `transform-box: fill-box` in every theme block |
+| P52 | `.raw` multi-program files silently rejected | Implement `decode_all_programs()` or clear error |
+| P53 | X-MEM missing `#[serde(default)]` breaks saves | CI fixture test with pinned v3.3 save file |
+| P55 | SVG `<defs>` gradient stops ignore CSS vars | Pass theme config as React props to `<Keyboard>` |
+| P56 | X-MEM shares address space with `state.regs` | Dedicated `xmem_files: Vec<XmemFile>` field |
+| P59 | Theme/onboarding flag in CalcState | Must live in `~/.hp41/prefs.json`, not `autosave.json` |
 
-1. **math1/ freeze violation (CRITICAL):** All Advantage Pac code must go in `advantage/`, not extend `math1/`. Only sanctioned carve-outs (visibility promotions in xrom.rs, modal.rs, complex.rs) are permitted.
-2. **PROOT algorithm choice (CRITICAL):** Math Pac I Bairstow deflation fails for degree 6+ repeated roots. Use Laguerre's method. Derive oracle test cases from scipy/numpy BEFORE writing Rust.
-3. **INTG vs INTEG mnemonic collision (HIGH):** One letter difference. `xrom_shadowing.rs` CI gate catches it, but verify against OM first.
-4. **Matrix register layout conflict (HIGH):** ADVMTRX uses named X-MEM files, NOT R14/R15+. Never touch `state.matrix_dim` or `state.matrix_active_reg` from Advantage Pac code.
-5. **Complex stack sharing (HIGH):** Promote `complex_atan2` to `pub(crate)` rather than duplicating the Pitfall-6 fix.
+## Suggested Phase Order
 
-## Open Questions (resolve in Phase 43 pre-work)
+1. **GUI Infrastructure + Theming** — `prefs.rs`, CSS variables, theme presets; zero core changes
+2. **Onboarding + GUI Keyboard Parity** — depends on Phase 1 prefs; purely frontend
+3. **`.raw` File I/O** — wire existing codec to Tauri commands + CLI flags; one new dep
+4. **X-MEM Core + CLI/GUI Integration** — novel core feature; depends on Phase 3 codec
+5. **Test Hardening + Documentation** — round-trip tests, backward compat, ADRs
 
-1. FROOT calling convention: degree from X register vs modal prompt?
-2. Complete ADVMTRX 52-op list with exact XROM 22 sub-numbers
-3. CATALOG 2 exact display strings for XROM 22 + XROM 24
-4. NOT/AND/OR/XOR integer word size (user-settable WS?)
-5. Complex stack convention in ADVMATH: same as Math Pac I (Y=Im, X=Re)?
-6. FSOLVE/FINTG mutual nesting architecture (defer if complex)
-7. TVM register persistence model
+**Phase ordering rationale:**
+- Phase 1 before 2: `prefs.rs` backend shared by theme and onboarding
+- Phase 3 before 4: X-MEM SAVEP/GETP delegate to `.raw` codec
+- Phases 1+2 independent of 3+4 — can parallel if desired
 
-## Build Order
+## Research Gaps
 
-5-phase structure (Phases 43-47), mirroring v3.1 and v3.2:
-
-1. **Phase 43 -- hp41-core:** XROM registration + all ~117 Op variants + ADV CONV + ADV MTRX + ADV MATH + ADV TVM. Largest core phase. Pre-work required: resolve 7 open questions from OM 00041-90482.
-2. **Phase 44 -- hp41-cli:** 5th JSON pool (`hp41-advantage-functions.json`), `op_display_name` arms, `?` overlay "Advantage Pac" section, xrom_shadowing extension.
-3. **Phase 45 -- Documentation:** ADRs (named-matrix model, FROOT algorithm, dual-XROM design), divergences catalog, function matrix, CLAUDE.md v3.3 additions block.
-4. **Phase 46 -- hp41-gui:** `op_display_name` arms, HelpOverlay 5th section, CATALOG 2 entries for XROM 22+24.
-5. **Phase 47 -- Test Hardening:** Unified meta-gates, FROOT accuracy oracles, backward compat (v3.2->v3.3), E2E smoke.
+- **X-MEM byte-level format:** HP-41CX Extended Functions/Memory Module OM (CHM 102650266) not web-accessible; data model sound but internal nibble layout unverified
+- **XROM nibble encoding for `.raw` export:** verify against HP-41 Synthetic QRG before Phase 3
+- **`.raw` import semantics:** replace vs append vs replace-matching-label needs explicit decision
 
 ---
-*Synthesized from STACK.md + FEATURES.md + ARCHITECTURE.md + PITFALLS.md on 2026-05-25*
+*Synthesized from STACK.md + FEATURES.md + ARCHITECTURE.md + PITFALLS.md on 2026-05-27*

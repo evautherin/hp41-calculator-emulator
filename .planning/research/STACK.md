@@ -1,165 +1,201 @@
 # Stack Research
 
-**Domain:** HP-41 Advantage Pac (XROM 22 + 24) behavioral emulation
-**Researched:** 2026-05-25
-**Confidence:** HIGH (XROM IDs from calc.fjk.ch hardware database + HP Museum archives; architecture from existing codebase inspection)
+**Domain:** HP-41 Calculator Emulator v4.0 — Platform Maturity (theming, onboarding, keyboard parity, .raw import/export, X-MEM model)
+**Researched:** 2026-05-27
+**Confidence:** HIGH for CSS theming + .raw (existing code inspected); MEDIUM for X-MEM model (spec reconstructed from secondary sources; primary HP-41CX manual not directly readable); HIGH for dialog plugin version
 
 ---
 
-## Critical Pre-Research Finding: Scope Clarification
+## Critical Pre-Research Finding: .raw Codec Already Exists
 
-The PROJECT.md mentions both "Advantage Pac" and "Advanced Matrix Pac" as v3.3 targets. Research reveals:
+**`hp41-core/src/cardreader/raw.rs` implements encode_program() and decode_program() today.**
 
-**The "Advanced Matrix Pac" is NOT an official HP product.** It is a third-party hobbyist custom ROM created by community members (combining Advantage Pac ADVMTRX functions with the ALGEBRA module and adding a new matrix input mode). It surfaces in HP Museum forum archives (thread 184196) as a Clonix/MLDL user project. It has no independently assigned hardware XROM ID — it reuses the Advantage Pac's XROM slots.
+The codec is fully functional — END marker `C0 00 0D`, alpha-string instructions with `F<len>` prefix, two-byte STO/RCL, single-byte FOCAL ops. It was built for WPRGM/RDPRGM card-reader ops.
 
-This is a direct parallel to the v3.0 scope discovery (PROJECT.md §Scope-Korrektur 2026-05-16): "Math Pac I ist user-code in ROM (multi-step Modal-Workflows), nicht Nut-CPU-microcode (one-shot Stack-Ops)." The same pattern applies here: the functions listed in the PROJECT.md target list (M+, MAT\*, INV-as-transpose, V+, VDOT, IDN) are all in the official Advantage Pac XROM 22 ADVMTRX section — not in a separate "Advanced Matrix Pac."
+What is missing for RAW-01/RAW-02 is NOT the codec — it is:
+1. A Tauri GUI command that opens a native file-picker dialog and calls the existing codec.
+2. A CLI `--import-raw` / `--export-raw` subcommand (or interactive key) that drives the same codec.
+3. Both are thin adapter layers over the existing `encode_program` / `decode_program` functions.
 
-**Recommendation:** Implement the official HP Advantage Pac (XROM 22 + 24) only. The "Advanced Matrix Pac" is out of scope as a behavioral emulation target; it is not an HP Owner's Manual product.
+This means the `.raw` feature is primarily a **frontend integration task**, not a new algorithmic task. No new runtime dep is needed for the codec.
 
 ---
 
 ## Recommended Stack
 
-### XROM Module Registration
+### Core Technologies — No Changes
 
-| Module | Hardware XROM ID | CATALOG 2 Name | Source |
-|--------|-----------------|----------------|--------|
-| Advantage Pac (ROM A) | 22 | "ADV 1A" | calc.fjk.ch hardware DB, HP Museum XROM table |
-| Advantage Pac (ROM B) | 24 | "ADV 1B" (cont'd) | calc.fjk.ch hardware DB, HP Museum XROM table |
-| Math Pac I (existing) | 7 | "MATH 1A" | Already in xrom.rs |
-| Stat 1 Pac (existing) | 2 | "STAT 1B" | Already in xrom.rs |
-| Time Module (existing) | 26 | "TIME 2C" | Already in xrom.rs |
+All existing core technologies are unchanged. This section only documents net-new additions needed for v4.0 features.
 
-**The Advantage Pac physically occupies TWO XROM module IDs** because it is HP's first 12K ROM (all prior ROMs were 4K/8K). Bank-switching makes it transparent to the user — both XROM 22 and XROM 24 are presented as one logical module in CATALOG 2. This requires registering two `XromModule` constants in `xrom.rs` and adding two new resolver arms to `xrom_resolve()`.
+| Technology | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| Rust stable / MSRV 1.88 | 1.88 | hp41-core, hp41-cli, hp41-gui backend | Unchanged |
+| rust_decimal 1.42 | 1.42 | HpNum BCD arithmetic | Unchanged |
+| ratatui 0.30 + crossterm 0.29 | 0.30 / 0.29 | CLI TUI | Unchanged |
+| serde / serde_json | 1 | CalcState persistence + IPC | Unchanged |
+| Tauri v2.11 | 2.11 | Desktop app shell | Unchanged |
+| React 19.2 + TypeScript + Vite 8 | 19.2 / 8.0 | GUI frontend | Unchanged |
+| Tailwind CSS v4.3 | 4.3 | In devDependencies already; NOT yet active in any CSS file | Present but dormant |
 
-**XROM bit assignment for `xrom_modules` u8 field:**
+---
 
-| Bit | Module | XROM ID |
-|-----|--------|---------|
-| 0 | MATH_1 | 7 |
-| 1 | STAT_1 | 2 |
-| 2 | TIME_MODULE | 26 |
-| 3 | ADV_A (new) | 22 |
-| 4 | ADV_B (new) | 24 |
+### New Dependencies — GUI Frontend (hp41-gui)
 
-The current `default_xrom_modules() = 0b0000_0111`. After v3.3: `0b0001_1111` (all five modules). The `migrate_after_load()` pattern sets bits 3+4 for v3.2 save files.
+#### 1. tauri-plugin-dialog — File Open/Save Dialogs for .raw Import/Export
 
-**Design decision — one bit or two bits for Advantage:**
-Because XROM 22 and XROM 24 are a single physical ROM with always-linked presence (you cannot have one without the other), use a single "loaded" flag but register two separate `XromModule` consts. The resolver fires both arms when the Advantage bit is set. This matches hardware behavior: CATALOG 2 shows one entry, not two.
+**Purpose:** Native OS file picker for `.raw` file import/export (RAW-01, RAW-02). Required because `window.showOpenFilePicker` is not available in Tauri's sandboxed webview on all platforms.
 
-### Function Set: Official HP Advantage Pac
+| Package | Version | Side |
+|---------|---------|------|
+| `@tauri-apps/plugin-dialog` | 2.7.1 (npm) | JavaScript/TypeScript |
+| `tauri-plugin-dialog` | 2.4.2 (Rust crate) | Tauri backend |
 
-**XROM 22 — /ADVCONV (12 functions) + /ADVMTRX (52 functions) = 64 total**
+**Why this and not web File API:** Tauri v2's webview does not expose `window.showOpenFilePicker` cross-platform. The dialog plugin provides native OS file pickers with extension filtering, consistent behavior on Windows/macOS/Linux, and integrates with Tauri's permission model.
 
-ADVCONV (base/boolean): BININ, BINVIEW, OCTIN, CVTVIEW, HEXIN, HEXVIEW, NOT, AND, OR, XOR, ROTXY, BIT?
+**Integration point:** New Tauri command `import_raw_program` and `export_raw_program` in `commands.rs`. Command signature:
+- Import: opens dialog filtered to `*.raw`, reads bytes, calls `hp41_core::cardreader::decode_program()`, calls `insert_program_ops()`.
+- Export: calls `hp41_core::cardreader::encode_program()`, opens save dialog filtered to `*.raw`, writes bytes.
 
-ADVMTRX (matrix/vector, M-code from CCD ROM): C<>C, CMAXAB, CNRM, CSUM, DIM?, FNRM, I+, I-, J+, J-, M\*M, MAT\*, MAT+, MAT-, MAT/, MATDIM, MAX, MAXAB, MDET, MIN, MINV, MMOVE, MNAME?, MSIJ, MRIJ, MSR+, MRR, MSIR, MSC, MROW, MCOL, MSWAP, MRSWAP, MCSWAP, MATRX (matrix editor), MTR (transpose), ANRM, ANUM, IDN, MEDT, MSIZE, MLIFT, MLOWER, VDOT, V+, V\*, MSYS, R<>R, plus utility functions to 52 total.
+**Permissions:** Requires new TOML in `hp41-gui/src-tauri/permissions/import-raw-program.toml` and `export-raw-program.toml` following established Tauri v2.11 inline-command permission pattern. Also requires `fs:allow-write-text-file` and `fs:allow-read-file` scope entries.
 
-**XROM 24 — /ADVMATH (47 functions) + /ADVTVM (6 functions) = 53 total**
-
-ADVMATH complex arithmetic and transcendentals (HP-15C Solve/Integrate port + complex number set):
-MATRX (24,0), MTR (24,1), SOLVE (24,3), INTEG (24,4), SILOOP (24,5), SIRIN (24,6),
-Z^N (24,7), MAGZ (24,8), e^Z (24,9), LNZ (24,10), Z^1/N (24,11),
-SINZ (24,12), COSZ (24,13), TANZ (24,14), a^Z (24,15), LOGZ (24,16),
-Z^1/W (24,17), Z^W (24,18), C+ (24,19),
-CABS, CARG, CCHS, CCONJ, CY^X (complex unary/binary ops),
-PROOT (arbitrary-degree polynomial roots — distinct from Math Pac I POLY which is degree 2-5),
-FROOT (root finding entry for user programs, HP-15C SOLVE port),
-plus additional complex arithmetic and curve-fitting functions to reach 47.
-
-ADVTVM: TVM, N, PV, PMT, FV, \*I
-
-**Total: ~117 XEQ entry point functions** across XROM 22 and 24.
-
-### Core Technologies (No Changes Needed)
-
-| Technology | Version | Purpose | Applies To |
-|------------|---------|---------|------------|
-| rust_decimal 1.42 | 1.42 | HpNum BCD-accurate arithmetic | All numeric ops |
-| serde / serde_json | existing | CalcState persistence | New CalcState fields |
-| XromModule struct | existing in xrom.rs | XROM registry | Two new consts: ADV_A, ADV_B |
-| ModalProgram enum | existing | Multi-step workflow routing | New ModalProgram::Advantage(AdvantageStep) variant |
-| run_loop re-entrancy | existing | User-callback (SOLVE/INTEG) | Advantage SOLVE + INTEG reuse the same infrastructure |
-
-### Supporting Libraries (No New Runtime Dependencies)
-
-**Zero new Rust crates required.** This is a hard constraint per project invariant (ADR-v3.1-002 zero-new-runtime-deps policy; `statrs` was rejected in v3.1; same applies here).
-
-All numerical algorithms needed for the Advantage Pac are derivable from primary sources:
-- Matrix operations: extend existing Gauss-Jordan infrastructure from `hp41-core/src/ops/math1/` (DET, INV, SIMEQ already implemented for 14×14)
-- SOLVE/INTEG: the Advantage Pac SOLVE and INTEG are HP-15C ports — `Op::Solve` and `Op::Integ` in Math Pac I are the same algorithm family; Advantage variants differ in UI/prompt flow, not core math
-- Complex arithmetic: CABS, CARG, CCHS, CCONJ, CY^X are extensions of existing complex infrastructure in `hp41-core/src/ops/math1/`
-- TVM: Time Value of Money — standard financial math (Newton's method for \*I), no external library needed
-- Base conversions: pure integer arithmetic (BIN/OCT/HEX), trivially implemented
-- Boolean operations: NOT, AND, OR, XOR on integer register values, trivially implemented
-- PROOT: arbitrary-degree polynomial root-finding — Laguerre's method (~100-150 LOC) derivable from primary sources (HP OM 00041-90482 + Numerical Recipes)
-
-### Existing Infrastructure Reuse
-
-| Existing Component | v3.3 Reuse |
-|---------------------|------------|
-| Complex stack overlay (C+, C-, C×, C÷, REAL, MAGZ, CINV, Z^N, SINZ, COSZ, TANZ…) in `math1/` | Advantage CABS, CARG, CCHS, CCONJ, CY^X are extensions; same X/Y/Z/T complex overlay convention |
-| MATRIX workflow (Gauss-Jordan DET/INV/SIMEQ, 14×14, column-major R15+) in `math1/` | Advantage ADVMTRX extends this; MAT\*, MDET, MINV, MSYS reuse the same register layout |
-| `Op::Solve` / `Op::Integ` with run_loop re-entrancy (4-deep call stack cap) | Advantage SOLVE/INTEG/FROOT/SILOOP are same algorithm family + same re-entrancy model |
-| `ModalProgram` enum + `TimeStep`/`Stat1Step` patterns (ADR-v3.1-005) | `ModalProgram::Advantage(AdvantageStep)` follows the same pattern |
-| `xrom.rs` `XromModule` struct + `xrom_resolve()` bit-arm pattern | Add bit-3 arm (ADV_A / XROM 22) + bit-4 arm (ADV_B / XROM 24) |
-| `migrate_after_load()` in `state.rs` | Extend: if bits 3+4 clear, set them (v3.2 save → v3.3 upgrade) |
-| JSON help pipeline (4 pools: cv, math1, stat1, time) | Add 5th pool: `docs/hp41-advantage-functions.json` |
-| `scripts/docs-matrix` 4-invocation renderer | Add 5th invocation for Advantage function matrix (4-line basename dispatch branch) |
-| Free42 GPL contamination guard (`scripts/check-free42-contamination.sh`) | Extend to cover `advantage/` source tree |
-
-### New Files Expected
-
-Following the established pattern from v3.0 through v3.2:
-
-```
-hp41-core/src/ops/advantage/
-    mod.rs          # /ADVCONV ops (base conversions, boolean) + module wiring
-    matrix.rs       # /ADVMTRX: MAT*, MDET, MINV, IDN, V+, VDOT, MSYS, traversal ops
-    complex.rs      # CABS, CARG, CCHS, CCONJ, CY^X (extends math1/ complex overlay)
-    solve_integ.rs  # SOLVE/INTEG/FROOT/SILOOP/SIRIN (thin wrapper on run_loop)
-    tvm.rs          # TVM, N, PV, PMT, FV, *I
-    proot.rs        # PROOT: arbitrary-degree polynomial roots (Laguerre or DK method)
-    modal.rs        # AdvantageStep enum (lives OUTSIDE math1/ freeze boundary)
-
-docs/hp41-advantage-functions.json       # 5th JSON canonical source of truth
-docs/hp41-advantage-function-matrix.md  # Generated via just docs-matrix
-docs/hp41-advantage-divergences.md      # 3-bucket divergences catalog
-docs/adr/v3.3-001-*.md ...              # ADRs for key decisions
+**Installation:**
+```bash
+# In hp41-gui/
+npm add @tauri-apps/plugin-dialog
+cargo add tauri-plugin-dialog   # in hp41-gui/src-tauri/
 ```
 
-### Key Architectural Decisions
+**Confidence:** HIGH — current npm latest confirmed 2.7.1 (published ~8 days ago per npm search); Rust crate 2.4.2 (published 2026-05-02 per docs.rs). Both are in active release cadence aligned with Tauri v2.
 
-**1. Two XROM IDs, one logical module (HIGH confidence)**
+---
 
-Register `ADV_A: XromModule { id: 22 }` and `ADV_B: XromModule { id: 24 }` as separate consts in `xrom.rs`, but gate both on a single `xrom_modules` bit (bit 3). The resolver fires both arms when bit 3 is set. This matches hardware: the Advantage Pac is one physical module occupying two XROM slots due to 12K bank-switching. CATALOG 2 shows one entry, not two.
+#### 2. CSS Custom Properties — No New Library for Theming
 
-Alternative considered: two separate bits (3 and 4). Rejected: the two halves are never independently loaded in hardware; single-bit gating is faithful to hardware behavior and avoids spurious partial-load states.
+**Purpose:** THEME-01 — 3-4 built-in skin presets (dark, light, classic beige, high-contrast).
 
-**2. PROOT is in XROM 24 ADVMATH, not absent from HP-41 (MEDIUM confidence)**
+**Approach:** Pure CSS custom properties (CSS variables) with `data-theme` attribute on the `.calculator` container div. No JavaScript theme library needed. No Tailwind activation needed.
 
-The HP Museum XROM table and community sources place PROOT in the Advantage Pac's ADVMATH section (XROM 24). Web search initially surfaced confusion with the HP-71B's PROOT function (same name, different product line) — that confusion is a research pitfall, not a real finding. The HP-41 Advantage Pac manual (OM 00041-90482, 156 pages) documents PROOT for arbitrary-degree polynomial roots. Confidence is MEDIUM (not HIGH) because the full XROM 24 function listing is partially obscured by hpmuseum.org 403 blocks — the manual PDF was not fully readable during research. The PROJECT.md lists PROOT as a target feature, and multiple community sources confirm it is in XROM 24.
+```css
+/* In App.css — add theme variable blocks */
+.calculator[data-theme="dark"] {       /* existing default */
+  --bg-body: #0d0d0d;
+  --bg-display: #111;
+  --color-lcd: #c8e6c9;
+  --color-key-top: #1e1e1e;
+  /* ... */
+}
+.calculator[data-theme="light"] {
+  --bg-body: #d4c9a8;
+  --bg-display: #c8b97a;
+  --color-lcd: #2a1f0a;
+  /* ... */
+}
+.calculator[data-theme="beige"] {      /* HP-41C authentic */
+  --bg-body: #c8b97a;
+  /* ... */
+}
+.calculator[data-theme="high-contrast"] {
+  --bg-body: #000;
+  --color-lcd: #ffff00;
+  /* ... */
+}
+```
 
-**3. Advantage SOLVE/INTEG reuse Math Pac I infrastructure (HIGH confidence)**
+**Persistence:** `localStorage.setItem('hp41-theme', themeName)` — synchronous, no async ceremony, survives Tauri app restarts because Tauri uses a fixed app identifier `ch.talent-factory.hp41` so the webview localStorage domain is stable across launches.
 
-Multiple authoritative sources (Valentín Albillo article, HP Museum archives, Advantage Pac product descriptions) describe the Advantage Pac's SOLVE and INTEG as "ported from the HP-15C." Math Pac I already implements these HP-15C algorithms in `Op::Solve` and `Op::Integ` with `run_loop` re-entrancy. The Advantage variants differ only in entry-point naming (FROOT for root-finding, SILOOP/SIRIN for iterative loops) — the core convergence algorithm is unchanged.
+**React integration:** Single `useState<string>` in `App.tsx`, applied via `data-theme={theme}` on the `.calculator` div. No context API needed for single-calculator layout.
 
-**4. Extended matrix ops extend, not replace, Math Pac I matrix (HIGH confidence)**
+**Why NOT tauri-plugin-store for theme persistence:** tauri-plugin-store is async and requires Rust-side setup. For a single preference value like theme, `localStorage` is simpler, synchronous, and has zero additional dependencies. The risk of localStorage domain instability (documented for `localhost:port` changes during dev) does not apply in production since the Tauri app uses `tauri://localhost` as the origin.
 
-Math Pac I MATRIX workflow (Gauss-Jordan, 14×14, column-major R15+) is frozen since Plan 25-01. Advantage ADVMTRX adds ~52 new ops using the same register layout convention. Key extensions: MAT\* (matrix multiply), MAT+/MAT-/MAT/ (element-wise arithmetic), MDET (determinant), MINV (inverse), IDN (identity matrix), V+/VDOT (vector operations), MSYS (system solver), plus index traversal ops (I+, I-, J+, J-, MSR+, MRR, MSIJ). These do NOT conflict with existing Math Pac I ops — different XEQ names, different XROM slots.
+**Why NOT Tailwind CSS v4 for theming:** Tailwind v4 is already in devDependencies but no CSS file imports it. Activating Tailwind solely for theming would require migrating the entire App.css (which is well-structured vanilla CSS with 395 lines and deliberate component boundaries). The CSS custom property approach achieves the same result with zero additional complexity. Tailwind should only be activated in a future milestone if utility-class-based layout refactoring is explicitly planned.
 
-**5. No new runtime Rust crates (HIGH confidence)**
+**Confidence:** HIGH — CSS custom properties + data-attribute theming is the dominant pattern (CSS-Tricks article, multiple 2024-2025 sources). localStorage stability in Tauri confirmed by Aptabase blog post on persistent state.
 
-All mathematical primitives needed are either already implemented or implementable from OM algorithms in under 200 LOC each. The zero-new-runtime-deps invariant (ADR-v3.1-002) holds.
+---
 
-### Development Tools (No Changes)
+#### 3. No Onboarding Library — Custom Modal Panel
 
-| Tool | Status |
-|------|--------|
-| `just` | Sole task runner; all new recipes follow existing pattern |
-| `cargo-llvm-cov` | Coverage gate; existing ≥ 95% lines / ≥ 93% regions target |
-| `scripts/check-free42-contamination.sh` | Extend to cover `advantage/` source tree |
-| `scripts/docs-matrix` | Add 5th invocation (4-line basename dispatch branch) |
+**Purpose:** ONBOARD-01 (first-run quick-start guide) and ONBOARD-02 (searchable in-app function reference).
+
+**Approach:** Custom React components reusing existing overlay infrastructure:
+- First-run guide: A `<OnboardingModal>` component sharing the `.help-overlay` CSS class pattern. Shown when `localStorage.getItem('hp41-onboarded')` is null. Four-step card carousel (RPN basics, key layout, ALPHA mode, XROM functions). Dismissed permanently on "Got it" — sets `hp41-onboarded=1` in localStorage.
+- Extended function reference: Extend the existing `<HelpOverlay>` component (already has search + sectioned XROM display). Add example column to help data JSON files. The existing `help_entries_all()` 5-pool chain in `help_data.ts` already supports this.
+
+**Why NOT react-joyride, Shepherd.js, or Intro.js:**
+- All three require DOM element targeting via `data-step` or CSS selector anchors. The calculator's SVG keyboard does not expose clean DOM targets for tooltip anchoring.
+- The existing `<HelpOverlay>` component (460+ LOC) already handles search, categories, and XROM sections. A tour library would duplicate this architecture.
+- Joyride is 5.1K stars and 2.5× more npm downloads than alternatives but adds ~40KB gzipped for a use case that 4 static cards can serve with ~20 LOC of React.
+- Zero new runtime deps invariant does NOT apply to the GUI (only to hp41-core), but the simpler approach is clearly better here.
+
+**Confidence:** HIGH — codebase inspection shows existing overlay infrastructure is directly reusable.
+
+---
+
+### New Dependencies — hp41-core (Rust)
+
+#### 4. Zero New Runtime Dependencies — X-MEM Model
+
+**Purpose:** XMEM-01 — Extended Memory file model (EMDIR, EMROOM, EMREG).
+
+**Approach:** New `CalcState` field `xmem_files: Vec<XMemFile>` with `#[serde(default)]` for backward-compat auto-upgrade. Pure Rust data structure, no external crate.
+
+**X-MEM model specification (reconstructed from secondary sources — MEDIUM confidence):**
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum XMemFileType {
+    Program = 0,    // User program
+    Key = 1,        // Key assignment file
+    Data = 2,       // Data registers
+    Ascii = 3,      // Text file
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct XMemFile {
+    pub name: String,           // Up to 7 FOCAL chars
+    pub file_type: XMemFileType,
+    pub registers: u16,         // Size in registers (each = 7 bytes / ~2 data items)
+    pub content: Vec<u8>,       // Raw content bytes (program: .raw bytes; data: HpValue serde)
+}
+
+// In CalcState:
+// #[serde(default)]
+// pub xmem_files: Vec<XMemFile>,
+```
+
+**EMDIR behavior:** Lists files in `xmem_files` to the display/print buffer, format: `<name>  <type>  <regs>`. EMDIRX (look up file by index in X register): returns name + type for file at given position.
+
+**EMROOM behavior:** Returns total free registers = `xmem_capacity - sum(file.registers)`. Standard HP-41CX capacity: 319 registers (base), extensible to 600 with two extended memory modules. Emulator initial capacity: 319 (configurable as a constant).
+
+**EMREG behavior:** Returns number of registers in the current/named file.
+
+**New XMEM commands needed (from finseth.com HP-41CX function list):**
+- `CRFLAS` / `CRFLD` — create ASCII / data file
+- `CLFL` / `PURFL` — clear / purge file
+- `FLSIZE` / `RESZFL` — file size query / resize
+- `EMDIR` / `EMDIRX` — directory listing
+- `EMROOM` — free space
+- `SEEKPT` / `SEEPTA` — file pointer navigation
+- `APPREC` / `DELREC` / `INSREC` / `GETREC` / `ARCLREC` — record operations
+- `SAVER` / `SAVERX` / `SAVEX` / `GETX` / `GETR` / `GETRX` — register copy in/out of XMEM
+
+**Op variant additions:** ~20-25 new `Op` variants, all subject to the 4-way exhaustive-match invariant.
+
+**Why no new crate:** All operations are pure data structure manipulation (Vec access, string matching, integer arithmetic). Same pattern as `adv_matrices: Vec<AdvMatrix>` added in v3.3 (ADR-v3.3-001) — validated approach for named collection fields in CalcState.
+
+**Confidence for X-MEM spec:** MEDIUM. The HP-41CX Extended Functions/Memory Module manual is not directly readable online (403 errors from hpmuseum.org). Specification reconstructed from: finseth.com HP-41CX function listing (authoritative for function names), HP Museum forum discussions (file type semantics), and indirect Emu41 documentation references. The file type enum (0-3) is confirmed by AMC_OS/X type table (secondary). Register capacity of 319 (base 41CX) is confirmed by hpmuseum.org archive posts. Function names are confirmed by finseth.com. Internal byte layout needs validation against primary manual before implementation.
+
+**Recommendation:** Flag X-MEM implementation for a deeper research phase before coding begins. The data model design above is sound, but the exact byte-level XMEM register format needs verification from the HP-41CX Extended Functions/Memory Module Owner's Manual (CHM catalog item 102650266).
+
+---
+
+### CLI — No New Dependencies
+
+All v4.0 CLI changes are within existing ratatui/crossterm infrastructure:
+
+- **KBD-01 keyboard parity:** Extend the `MAP: Record<string, string>` equivalent in `hp41-cli/src/keys.rs` — new entries in `key_to_op()` and `shifted_key_to_op()`. No new crates.
+- **.raw import/export:** CLI uses `Ctrl+W/R` pattern from v2.1 card reader. Add `--import-raw <file>` and `--export-raw <file>` to the `clap` 4.x argument parser. Calls existing `encode_program` / `decode_program` directly. No new crates.
+- **Onboarding:** CLI shows a `--help-rpn` / `?rpn` overlay using ratatui Paragraph widgets. No new crates.
 
 ---
 
@@ -167,11 +203,14 @@ All mathematical primitives needed are either already implemented or implementab
 
 | Recommended | Alternative | Why Not |
 |-------------|-------------|---------|
-| Two XROM IDs (22 + 24), single `xrom_modules` bit | Two independent bits (3 and 4) | Hardware never loads them separately; single bit is faithful to hardware semantics |
-| Extend Math Pac I matrix register layout for ADVMTRX | Separate matrix storage scheme for Advantage | R14=order, R15+ column-major already established and tested; one layout is simpler |
-| Re-derive PROOT from HP OM (Laguerre/Durand-Kerner) | Use a Rust polynomial crate | Zero-deps invariant; also re-derivation is the established Free42-guard-safe pattern |
-| Single `ModalProgram::Advantage(AdvantageStep)` | Separate `ModalProgram::AdvMatrix` + `ModalProgram::AdvMath` | ADR-v3.1-005 pattern uses one variant per module; consistent across all pacs |
-| Official HP Advantage Pac (XROM 22+24) only | Include "Advanced Matrix Pac" (hobbyist ROM) | Not an official HP product; no Owner's Manual; outside project scope |
+| CSS custom properties + `data-theme` | CSS-in-JS (styled-components, emotion) | Zero runtime overhead; no new dep; existing 395-line App.css is well-structured vanilla CSS; no build-time complexity |
+| CSS custom properties + `data-theme` | Tailwind CSS v4 `@theme` directive | Tailwind is in devDependencies but dormant; activating it requires migrating all existing CSS classes; disproportionate effort for theming alone |
+| localStorage for theme persistence | tauri-plugin-store | tauri-plugin-store is async, requires Rust registration, overkill for a single string value |
+| Custom onboarding modal (reuse existing overlay CSS) | react-joyride / Shepherd.js / Intro.js | SVG keyboard has no clean DOM targets for tooltip anchoring; existing HelpOverlay is directly reusable; zero new dep |
+| tauri-plugin-dialog for file picker | `window.showOpenFilePicker` (web API) | Not available cross-platform in Tauri webview; tauri-plugin-dialog is the official Tauri solution |
+| tauri-plugin-dialog for file picker | Tauri `dialog.open()` via `@tauri-apps/api` core | `dialog` was moved to a plugin in Tauri v2; the core API no longer exposes file dialogs directly |
+| `Vec<XMemFile>` in CalcState | Separate JSON sidecar file for X-MEM | Consistency: all CalcState persisted in `autosave.json`; sidecar introduces sync complexity |
+| Pure Rust X-MEM data structure | External crate for named file storage | Zero-new-runtime-deps invariant; Vec<XMemFile> is <30 LOC |
 
 ---
 
@@ -179,39 +218,84 @@ All mathematical primitives needed are either already implemented or implementab
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| "Advanced Matrix Pac" as emulation target | Third-party hobbyist ROM, no HP OM, no stable hardware XROM ID | Official HP Advantage Pac covers all the matrix functions cited in PROJECT.md |
-| New Rust crates for TVM computation | Zero-deps invariant; TVM is ~50 LOC closed-form plus Newton for rate | Implement from OM spec |
-| New Rust crates for polynomial roots | Zero-deps invariant; PROOT is ~100-150 LOC Laguerre or Durand-Kerner | Re-derive from OM spec + primary algorithmic sources |
-| Treating PROOT as "absent from HP-41" | PROOT is confirmed in XROM 24 ADVMATH; confusion with HP-71B PROOT is a web search pitfall | Implement as XROM 24 function |
-| `async` in `hp41-core` | Frozen invariant: no async | Advantage SOLVE/INTEG reuse synchronous run_loop re-entrancy |
-| Complex matrix operations (complex-valued matrix elements) | Out of scope for behavioral emulation of base Advantage Pac OM | ADVMTRX operates on real matrices; complex matrix support is in third-party modules |
+| react-joyride, Shepherd.js, Intro.js | No clean DOM anchor points in SVG keyboard; existing overlay CSS is sufficient; adds ~40-100KB | Custom `<OnboardingModal>` reusing `.help-overlay` CSS pattern |
+| Tailwind CSS v4 activation | Would require migrating 395-line App.css; Tailwind conflicts with existing BEM-style class names | CSS custom properties with `data-theme` — simpler, faster, zero overhead |
+| tauri-plugin-store | Async, needs Rust registration, overkill for theme string | `localStorage.setItem('hp41-theme', name)` |
+| Any new crate in `hp41-core` | Zero-new-runtime-deps invariant held since v3.0 | Hand-implement from primary specification |
+| New `.raw` codec implementation | Codec already exists in `hp41-core/src/cardreader/raw.rs` | Wire existing `encode_program` / `decode_program` to new Tauri commands |
+| CSS custom property polyfills | MSRV is 1.88 Rust + modern React; Tauri targets macOS 12+/Win10+/Ubuntu 22.04+; all three support CSS custom properties natively | None needed |
+
+---
+
+## Installation — Net New Packages
+
+```bash
+# In hp41-gui/ (JavaScript side)
+npm add @tauri-apps/plugin-dialog
+
+# In hp41-gui/src-tauri/ (Rust side)
+cargo add tauri-plugin-dialog
+```
+
+**All other v4.0 features require zero new package installations.**
 
 ---
 
 ## Version Compatibility
 
-| Concern | Approach |
-|---------|----------|
-| v3.2 save files (`xrom_modules = 0b0000_0111`) | `migrate_after_load()` sets bits 3+4: v3.2 saves auto-upgrade to `0b0001_1111` |
-| `default_xrom_modules()` | Change from `0b0000_0111` to `0b0001_1111` in v3.3 Phase 43 (core) |
-| 4-way exhaustive-match invariant | All Advantage `Op` variants land in `dispatch()` + `execute_op()` (Phase 43) before `hp41-cli` (Phase 44) and `hp41-gui` (Phase 46) |
-| Math Pac I matrix register layout (R14=order, R15+) | Advantage ADVMTRX uses the same layout — confirmed by community sources |
-| XROM shadowing test | Extend `tests/xrom_shadowing.rs` to cover both `ADV_A.ops` and `ADV_B.ops` |
-| Free42 contamination guard | Extend `scripts/check-free42-contamination.sh` to scan `advantage/` subtree |
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| `@tauri-apps/plugin-dialog` | 2.7.1 | Tauri v2.11, `@tauri-apps/api` ^2.11 | Plugin ecosystem version tracks Tauri core; 2.x plugins work with 2.x core |
+| `tauri-plugin-dialog` | 2.4.2 | tauri 2.11, Rust 1.77.2+ | MSRV 1.77.2 < project MSRV 1.88 — compatible |
+| CSS custom properties | n/a | macOS 12+, Win10+, Ubuntu 22.04+ | Full support since 2017; no polyfill needed |
+| `localStorage` | n/a | Tauri v2 WebView | Stable in Tauri; domain is `tauri://localhost` in production builds, so no port-change instability |
+| `Vec<XMemFile>` + `#[serde(default)]` | n/a | v1.0–v3.3 save files | Same backward-compat pattern as `adv_tvm_state` and `rand_seed` — auto-defaults to empty Vec on old save load |
+
+---
+
+## Phase-Specific Integration Points
+
+### Phase A — Theming (THEME-01)
+- **Files to modify:** `hp41-gui/src/App.css` (add 4 `[data-theme]` blocks with CSS custom property overrides), `hp41-gui/src/App.tsx` (add theme state + localStorage read/write + `data-theme` prop on `.calculator` div), add `<ThemeSelector>` component or settings button in the UI.
+- **No new files in hp41-core or hp41-cli.**
+
+### Phase B — .raw Import/Export (RAW-01, RAW-02)
+- **GUI:** New Tauri commands `import_raw_program` / `export_raw_program` in `commands.rs`. New permission TOMLs. Register `tauri_plugin_dialog::init()` in `lib.rs`.
+- **CLI:** Extend clap arg parser in `hp41-cli/src/main.rs` with `--import-raw <path>` and `--export-raw <path>` flags. Wire to existing `encode_program` / `decode_program`.
+- **Core:** No changes — codec exists.
+
+### Phase C — Onboarding (ONBOARD-01, ONBOARD-02)
+- **GUI:** New `<OnboardingModal>` component in `hp41-gui/src/`. Add localStorage check in `App.tsx` effect.
+- **Extend:** `HelpOverlay.tsx` — add `example` column rendering (update `HelpEntry` type in `help_data.ts`); add examples to all 5 JSON function files.
+- **Core/CLI:** CLI adds `?rpn` command for quick-start RPN intro using ratatui Paragraph.
+
+### Phase D — GUI Keyboard Parity (KBD-01)
+- **GUI:** Extend `resolveKeyId()` in `App.tsx`. Review CLI `key_to_op()` vs GUI `MAP` for gaps.
+- **No new deps.**
+
+### Phase E — X-MEM Model (XMEM-01)
+- **Core:** New `xmem: Vec<XMemFile>` field in `CalcState` with `#[serde(default)]`. New `XMemFile`, `XMemFileType` types in a new `hp41-core/src/ops/xmem/` directory. ~20-25 new `Op` variants (4-way exhaustive-match invariant applies). `migrate_after_load()` extension.
+- **CLI + GUI:** Integration phases follow standard XROM pattern (new `op_display_name` arms, new JSON help entries, new GUI key wiring).
+- **Flag:** Needs deeper research before coding — X-MEM file format byte layout not fully verified. See PITFALLS.md for details.
 
 ---
 
 ## Sources
 
-- [calc.fjk.ch HP-41 Module Database](https://calc.fjk.ch/db/hp41mod.php) — XROM 22 "HP-41 Advantage Pac 1A/1B" confirmed; XROM 24 confirmed; also XROM 2 (Stat Pac), XROM 26 (Time Module) verified as cross-check. HIGH confidence.
-- [HP Museum XROM Numbers table](https://www.hpmuseum.org/software/xroms.htm) — XROM 22 function names (BININ..MNAME?) and XROM 24 function names (MATRX..C+..TVM..FV) confirmed from web search result excerpts (page returns 403, but content was indexed). HIGH confidence.
-- [Valentín Albillo "Long Live the Advantage ROM"](https://albillo.hpcalc.org/articles/HP%20Article%20VA008%20-%20Long%20Live%20the%20Advantage%20ROM.pdf) — Full PDF read. Describes 12K bank-switched ROM, MATDIM/MSYS/MSIJ/MRIJ/MSR+/MRR matrix conventions, 52 ADVMTRX routines from CCD ROM, SOLVE/INTEG from HP-15C. HIGH confidence.
-- [HP Museum forum thread 184196 — "HP-41 Advanced Matrix Pac"](https://www.hpmuseum.org/cgi-bin/archv020.cgi?read=184196) — Confirms "Advanced Matrix Pac" is a hobbyist custom ROM, not an official HP product. HIGH confidence (403 during fetch, confirmed via web search excerpt + archived.hpcalc.org excerpt).
-- [hpcalc.org literature items 759/761](https://literature.hpcalc.org/items/759) — Official HP Advantage Pac manual (OM 00041-90482 English, 156 pages, July 1985) and German edition confirmed. PDF too large to fetch during research (71 MB). Part number confirmed. HIGH confidence on existence.
-- [Ángel M. Martin "Advantage Math ROM" (Systemyde PDF)](https://www.systemyde.com/pdf/Advantage_Math_Manual.pdf) — Full PDF read (pages 1-10). Confirmed this is XROM 12, a third-party module by Ángel Martin, published under GNU license, NOT the official HP Advantage Pac. MEDIUM confidence as supplementary context for official Advantage Pac functions.
-- `hp41-core/src/ops/math1/xrom.rs` inspected directly — Confirms `XromModule` struct, `MATH_1.id=7`, `STAT_1.id=2`, `TIME_MODULE.id=26`, existing resolver bit-arm pattern (bit-0/1/2). HIGH confidence.
-- `hp41-core/src/state.rs` inspected directly — Confirms `xrom_modules: u8`, `default_xrom_modules() = 0b0000_0111`, `migrate_after_load()` structure. HIGH confidence.
+- `hp41-core/src/cardreader/raw.rs` inspected directly — confirmed `encode_program` / `decode_program` exist, END marker is `C0 00 0D`, codec is feature-complete for core HP-41 ops. HIGH confidence.
+- `hp41-core/src/cardreader/mod.rs` inspected directly — confirmed `CardOpRequest`, `insert_program_ops`. HIGH confidence.
+- `hp41-gui/package.json` inspected directly — confirmed tailwindcss v4.3 in devDependencies but NOT imported in any CSS file. HIGH confidence.
+- `hp41-gui/src/App.css` inspected directly — 395-line vanilla CSS, no CSS custom properties yet, well-structured BEM-style classes. HIGH confidence.
+- `hp41-gui/src/App.tsx` inspected directly — `resolveKeyId()` MAP, `window.addEventListener('keydown')` pattern, `localStorage` not yet used. HIGH confidence.
+- [`@tauri-apps/plugin-dialog` on npm](https://www.npmjs.com/package/@tauri-apps/plugin-dialog) — latest 2.7.1, published ~8 days ago. HIGH confidence.
+- [`tauri-plugin-store` on docs.rs](https://docs.rs/crate/tauri-plugin-store/latest) — v2.4.3, published 2026-05-02. HIGH confidence.
+- [CSS-Tricks: Easy Dark Mode and Multiple Color Themes in React](https://css-tricks.com/easy-dark-mode-and-multiple-color-themes-in-react/) — `data-theme` + CSS custom properties pattern. HIGH confidence.
+- [Aptabase: Persistent state in Tauri apps](https://aptabase.com/blog/persistent-state-tauri-apps) — localStorage stable in Tauri production builds (fixed `tauri://localhost` origin). MEDIUM confidence.
+- [finseth.com HP-41CX function list](https://www.finseth.com/hpdata/hp41cx.php) — EMDIR, EMDIRX, EMROOM, CRFLAS, CRFLD, CLFL, PURFL, FLSIZE, APPREC, etc. confirmed. HIGH confidence on function names.
+- [HP Museum forum archives on XMEM file types](https://www.hpmuseum.org/forum/thread-13684.html) — file types (Program/Key/Data/ASCII) confirmed. MEDIUM confidence (page blocked 403 during fetch; confirmed via search excerpts).
+- [Ángel Martin AMC_OS/X extended memory type table](https://slideplayer.com/slide/15657204/) — file type IDs 01=Program, 02=Data, 03=ASCII confirmed. MEDIUM confidence (secondary source; third-party extension system, not original HP).
+- [5 Best React Onboarding Libraries — OnboardJS](https://onboardjs.com/blog/5-best-react-onboarding-libraries-in-2025-compared) — react-joyride 5.1K stars, 2.5× download lead over shepherd.js. Evaluated and rejected for this use case. HIGH confidence on ecosystem state.
 
 ---
-*Stack research for: HP-41 Advantage Pac (XROM 22 + 24) emulation (v3.3)*
-*Researched: 2026-05-25*
+*Stack research for: HP-41 Calculator Emulator v4.0 Platform Maturity*
+*Researched: 2026-05-27*
