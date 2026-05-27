@@ -148,7 +148,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 1 + Wave 2 completion)*
 
-- [ ] 49-04-PLAN.md — Wiring: App.tsx onboarding state, Ctrl+key bindings, SettingsPanel Quick Start, visual checkpoint
+- [x] 49-04-PLAN.md — Wiring: App.tsx onboarding state, Ctrl+key bindings, SettingsPanel Quick Start, visual checkpoint
 
 **UI hint**: yes
 
@@ -202,7 +202,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
-| 49. Onboarding + GUI Keyboard Parity | 2/4 | In Progress|  |
+| 49. Onboarding + GUI Keyboard Parity | 3/4 | In Progress|  |
 | 50. .raw File I/O | 0/? | Not started | - |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
