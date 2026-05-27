@@ -461,6 +461,8 @@
 /* Settings panel popover — absolutely positioned above the help overlay */
 .settings-panel {
   position: absolute;
+  top: 100%;
+  right: 0;
   z-index: 70;
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
