@@ -64,12 +64,19 @@ fn round_trip_import_export_raw() {
         ])
         .status()
         .expect("hp41 binary must be executable");
-    assert!(status.success(), "hp41 --import-raw --export-raw --batch must exit 0");
+    assert!(
+        status.success(),
+        "hp41 --import-raw --export-raw --batch must exit 0"
+    );
 
     // Read the output and decode — must match original ops.
     let output_bytes = std::fs::read(&output_path).unwrap();
     let programs = decode_all_programs(&output_bytes).unwrap();
-    assert_eq!(programs.len(), 1, "output .raw must contain exactly 1 program");
+    assert_eq!(
+        programs.len(),
+        1,
+        "output .raw must contain exactly 1 program"
+    );
     assert_eq!(
         programs[0].ops, original_ops,
         "round-tripped ops must match original"
@@ -144,7 +151,11 @@ fn import_raw_multi_program_loads_all() {
     // The exported file must decode back to a merged program containing all ops.
     let output_bytes = std::fs::read(&output_path).unwrap();
     let programs = decode_all_programs(&output_bytes).unwrap();
-    assert_eq!(programs.len(), 1, "exported file is a single merged program");
+    assert_eq!(
+        programs.len(),
+        1,
+        "exported file is a single merged program"
+    );
     // All ops from both programs must be present (insert_program_ops inserts program 2
     // after state.pc=0, so order is: ops1[0], then ops2..., then ops1[1..]).
     // We verify all ops are present rather than checking exact order.
@@ -193,7 +204,10 @@ fn round_trip_import_export_data() {
         ])
         .status()
         .expect("hp41 binary must be executable");
-    assert!(status.success(), "--import-data --export-data --batch must exit 0");
+    assert!(
+        status.success(),
+        "--import-data --export-data --batch must exit 0"
+    );
 
     // Decoded output must have the same register values.
     use hp41_core::cardreader::decode_data;

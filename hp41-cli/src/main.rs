@@ -122,8 +122,7 @@ fn main() -> std::io::Result<()> {
             return Ok(());
         }
         for (i, program) in programs.iter().enumerate() {
-            let label =
-                hp41_core::cardreader::raw::picker_label(i, &program.ops, program.byte_len);
+            let label = hp41_core::cardreader::raw::picker_label(i, &program.ops, program.byte_len);
             let n = program.ops.len();
             hp41_core::cardreader::insert_program_ops(&mut initial_state, program.ops.clone());
             eprintln!("Imported {} ({} steps)", label, n);
@@ -214,10 +213,8 @@ mod main_tests {
 
     #[test]
     fn write_file_or_stdout_bad_dir_returns_error() {
-        let result = write_file_or_stdout(
-            "/nonexistent/dir/that/does/not/exist/out.raw",
-            b"content",
-        );
+        let result =
+            write_file_or_stdout("/nonexistent/dir/that/does/not/exist/out.raw", b"content");
         assert!(result.is_err(), "writing to a missing dir must return Err");
     }
 
