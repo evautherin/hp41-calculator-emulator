@@ -7,6 +7,8 @@
         "phase": "28",
         "key_path": "XEQ \"SINH\"",
         "description": "Hyperbolic sine: X <- sinh(X)",
+        "example": "XEQ SINH (X=1) -> 1.175201194",
+        "notes": "Enter value in X, then XEQ \"SINH\". Result replaces X. Stack lift enabled.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 1 }
     },
     {
@@ -17,6 +19,8 @@
         "phase": "28",
         "key_path": "XEQ \"COSH\"",
         "description": "Hyperbolic cosine: X <- cosh(X)",
+        "example": "XEQ COSH (X=0) -> 1.0000",
+        "notes": "cosh(0) = 1. Symmetric around x=0. Stack lift enabled.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 2 }
     },
     {
@@ -27,6 +31,8 @@
         "phase": "28",
         "key_path": "XEQ \"TANH\"",
         "description": "Hyperbolic tangent: X <- tanh(X)",
+        "example": "XEQ TANH (X=1) -> 0.7615941560",
+        "notes": "Result always in (-1, 1). Inverse: ATANH. Stack lift enabled.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 3 }
     },
     {
@@ -237,6 +243,8 @@
         "phase": "28",
         "key_path": "XEQ \"POLY\"",
         "description": "Polynomial evaluation/root solver workflow (prompts for degree N)",
+        "example": "XEQ POLY -> DEGREE=? prompt; enter N, then coefficients",
+        "notes": "Enter N coefficients a_N..a_0 when prompted. Then XEQ ROOTS to find roots.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 24 }
     },
     {
@@ -247,6 +255,8 @@
         "phase": "28",
         "key_path": "XEQ \"ROOTS\"",
         "description": "Find polynomial roots after POLY workflow completes coefficient entry",
+        "example": "XEQ ROOTS -> displays U=re V=im pairs for each root",
+        "notes": "Run after POLY coefficient entry. Complex roots displayed as U=real, V=imaginary pairs.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 25 }
     },
     {
@@ -257,6 +267,8 @@
         "phase": "28",
         "key_path": "XEQ \"MATRIX\"",
         "description": "Matrix workflow opener: prompts for ORDER=? (rows x cols)",
+        "example": "XEQ MATRIX -> ORDER=? (enter rows, then cols)",
+        "notes": "Max ORDER=14. Elements stored column-major from R15. Sets R14 = order.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 26 }
     },
     {
@@ -297,6 +309,8 @@
         "phase": "28",
         "key_path": "XEQ \"DET\"",
         "description": "Matrix determinant: det(A) -> X register",
+        "example": "XEQ DET -> det(A) in X",
+        "notes": "Requires square matrix set up via MATRIX workflow. Stack lift enabled after.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 30 }
     },
     {
@@ -307,6 +321,8 @@
         "phase": "28",
         "key_path": "XEQ \"INV\"",
         "description": "Matrix inverse: A^-1 in place (non-singular square matrix required)",
+        "example": "XEQ INV -> overwrites A with A^-1",
+        "notes": "Gauss-Jordan method. NO SOLUTION if singular. Modifies matrix in place (registers).",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 31 }
     },
     {
@@ -337,6 +353,8 @@
         "phase": "28",
         "key_path": "XEQ \"INTG\"",
         "description": "Numerical integration: prompts for function name, lower/upper bounds",
+        "example": "XEQ INTG -> FN NAME? a=? b=? (Gaussian quadrature)",
+        "notes": "Calls user program LBL for each sample point; max 4-deep call stack. Accuracy scales with FIX setting.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 34 }
     },
     {
@@ -347,6 +365,8 @@
         "phase": "28",
         "key_path": "XEQ \"SOLVE\"",
         "description": "Root-find workflow: prompts for function name and two initial guesses",
+        "example": "XEQ SOLVE -> FN NAME? X1=? X2=? prompts; root -> X",
+        "notes": "Requires two initial guesses bracketing the root. Calls user program. Max 4-deep call stack.",
         "xrom": { "module": "Math 1", "module_id": 7, "function_id": 35 }
     },
     {
