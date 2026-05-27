@@ -7,6 +7,8 @@
         "phase": "43",
         "key_path": "XEQ \"BININ\"",
         "description": "Input binary number from ALPHA register into X",
+        "example": "\"1010\" ALPHA, XEQ BININ -> X = 10",
+        "notes": "Set ALPHA to binary string first. 36-bit max. Use BINVIEW to display result back.",
         "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 1 }
     },
     {
@@ -447,6 +449,8 @@
         "phase": "43",
         "key_path": "XEQ \"MDET\"",
         "description": "Determinant of current matrix into X",
+        "example": "Set current matrix via MP, then XEQ MDET -> X = det",
+        "notes": "Requires square matrix. Uses LU decomposition. Stack lift enabled after.",
         "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 45 }
     },
     {
@@ -457,6 +461,8 @@
         "phase": "43",
         "key_path": "XEQ \"MINV\"",
         "description": "Invert current matrix in place",
+        "example": "Set current matrix via MP, then XEQ MINV -> A^-1 in place",
+        "notes": "Overwrites matrix with its inverse. DATA ERROR if singular. Named matrices (AdvMatrix).",
         "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 46 }
     },
     {
@@ -837,6 +843,8 @@
         "phase": "43",
         "key_path": "XEQ \"FSOLVE\"",
         "description": "Find root of f(x)=0 via Brent's method; calls user program label",
+        "example": "Store LBL in ALPHA, set X1/X2 guesses, XEQ FSOLVE",
+        "notes": "Calls user program for each f(x) evaluation. Brent's method; bracket required. Max 4-deep call stack.",
         "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 21 }
     },
     {
@@ -847,6 +855,8 @@
         "phase": "43",
         "key_path": "XEQ \"FINTG\"",
         "description": "Integrate f(x) via Romberg quadrature; calls user program label",
+        "example": "Store LBL in ALPHA, set a and b bounds, XEQ FINTG",
+        "notes": "Romberg integration; accuracy scales with FIX setting. Calls user program. Cross-nesting allowed with FSOLVE.",
         "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 22 }
     },
     {
@@ -1087,6 +1097,8 @@
         "phase": "43",
         "key_path": "XEQ \"TVM\"",
         "description": "Time Value of Money solver: interactive menu for N/I/PV/PMT/FV",
+        "example": "XEQ TVM -> interactive N/I/PV/PMT/FV menu",
+        "notes": "Enter 4 of 5 TVM variables; solve for the 5th. State persists across save/load. Cash flow sign: inflows positive.",
         "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 46 }
     },
     {
