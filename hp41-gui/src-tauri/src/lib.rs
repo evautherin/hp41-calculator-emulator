@@ -42,6 +42,13 @@ pub fn run() {
             // a missing file is the normal first-run case (silent); an existing-but-
             // unreadable file means the user lost a session, so log to stderr instead
             // of silently dropping it.
+            // Phase 48: load GUI preferences FIRST (before CalcState) — preferences are
+            // completely independent of CalcState (P59/THEME-05). A missing prefs.json
+            // is normal (first-run); load_prefs() silently returns GuiPrefs::default().
+            let prefs_path = prefs::default_prefs_path();
+            let initial_prefs = prefs::load_prefs(&prefs_path);
+            app.manage(Mutex::new(initial_prefs));
+
             let save_path = persistence::default_state_path();
             let initial_state = match persistence::load_state(&save_path) {
                 Ok(state) => state,
@@ -101,6 +108,8 @@ pub fn run() {
             commands::cancel_modal,             // Phase 31 Plan 31-03 — Esc cancel modal
             commands::submit_modal_with_label,  // Phase 31 Plan 31-03 — XEQ-by-name FUNCTION NAME? step
             commands::tick_time,               // Phase 41 D-41.1 — 100ms periodic tick for live display
+            commands::get_prefs,               // Phase 48 INFRA-01 — read GUI preferences
+            commands::set_pref,                // Phase 48 INFRA-02 — write/persist a GUI preference
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

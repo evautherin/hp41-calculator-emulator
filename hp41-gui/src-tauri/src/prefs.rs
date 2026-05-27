@@ -1,8 +1,8 @@
 //! GUI preference persistence for hp41-gui.
 //!
 //! Stores user-facing preferences in `~/.hp41/prefs.json` — completely separate from
-//! `~/.hp41/autosave.json` which holds CalcState. This separation is a hard constraint
-//! (P59 / THEME-05): theme preference MUST NEVER appear in CalcState or autosave.json.
+//! `~/.hp41/autosave.json` which holds the calculator state. This separation is a hard
+//! constraint (P59 / THEME-05): theme preference MUST NEVER appear in the autosave file.
 //!
 //! Design mirrors `persistence.rs` but with two key differences:
 //! 1. No `StateFile` version wrapper — prefs.json is simpler (just the struct, pretty-printed).
@@ -20,7 +20,8 @@ use serde::{Deserialize, Serialize};
 
 /// User-facing GUI preferences. Stored in `~/.hp41/prefs.json`.
 ///
-/// THEME-05: This struct must NEVER be embedded in CalcState or autosave.json.
+/// THEME-05: This struct must NEVER be embedded in the autosave file or shared with
+/// the core calculator state — preferences are fully orthogonal to calculator memory.
 ///
 /// # Field notes
 /// - `theme`: one of "dark" | "light" | "classic-beige" | "high-contrast" (D-48.8).
@@ -81,7 +82,7 @@ pub fn save_prefs(path: &Path, prefs: &GuiPrefs) -> std::io::Result<()> {
 /// - Missing file → `GuiPrefs::default()` (normal first-run case).
 /// - Corrupt JSON → `GuiPrefs::default()` (safe fallback; logs nothing, caller is silent).
 ///
-/// P59 / THEME-05: this function must never touch `CalcState` or `autosave.json`.
+/// P59 / THEME-05: this function is fully isolated from the calculator state and autosave.json.
 pub fn load_prefs(path: &Path) -> GuiPrefs {
     fs::File::open(path)
         .ok()
