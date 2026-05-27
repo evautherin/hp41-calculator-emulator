@@ -8,6 +8,11 @@
 //   5. Displays correct theme labels (Dark, Light, Classic Beige, High Contrast)
 //   6. Has correct accessibility attributes (role="dialog", aria-label="Settings")
 //
+// Phase 49 Plan 04 — Extended tests for Quick Start section (D-49.8 / D-49.9):
+//   7. Renders Quick Start section with "Show Guide" button
+//   8. Clicking "Show Guide" calls onClose then onShowOnboarding
+//   (All existing tests updated with required onShowOnboarding prop)
+//
 // Tauri invoke is mocked via vi.mock('@tauri-apps/api/core') following the
 // HelpOverlay.test.tsx pattern.
 
@@ -28,6 +33,7 @@ describe('SettingsPanel', () => {
                 onClose={() => {}}
                 currentTheme="dark"
                 onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
             />
         );
         expect(container.firstChild).toBeNull();
@@ -40,6 +46,7 @@ describe('SettingsPanel', () => {
                 onClose={() => {}}
                 currentTheme="dark"
                 onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
             />
         );
         const radios = container.querySelectorAll('input[type="radio"]');
@@ -53,6 +60,7 @@ describe('SettingsPanel', () => {
                 onClose={() => {}}
                 currentTheme="dark"
                 onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
             />
         );
         const darkRadio = container.querySelector('input[type="radio"][value="dark"]') as HTMLInputElement;
@@ -68,6 +76,7 @@ describe('SettingsPanel', () => {
                 onClose={() => {}}
                 currentTheme="dark"
                 onThemeChange={mockFn}
+                onShowOnboarding={vi.fn()}
             />
         );
         const lightRadio = container.querySelector('input[type="radio"][value="light"]') as HTMLInputElement;
@@ -83,6 +92,7 @@ describe('SettingsPanel', () => {
                 onClose={() => {}}
                 currentTheme="dark"
                 onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
             />
         );
         const text = container.textContent ?? '';
@@ -99,10 +109,49 @@ describe('SettingsPanel', () => {
                 onClose={() => {}}
                 currentTheme="dark"
                 onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
             />
         );
         const panel = container.querySelector('[role="dialog"]') as HTMLElement;
         expect(panel).not.toBeNull();
         expect(panel.getAttribute('aria-label')).toBe('Settings');
+    });
+
+    // Phase 49 Plan 04 — Quick Start section tests (D-49.8 / D-49.9)
+
+    it('renders Quick Start section with "Show Guide" button', () => {
+        const { container } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+            />
+        );
+        const text = container.textContent ?? '';
+        expect(text).toContain('Quick Start');
+        const btn = container.querySelector('button.settings-action-btn') as HTMLButtonElement;
+        expect(btn).not.toBeNull();
+        expect(btn.textContent).toBe('Show Guide');
+    });
+
+    it('clicking "Show Guide" calls onClose then onShowOnboarding', () => {
+        const onClose = vi.fn();
+        const onShowOnboarding = vi.fn();
+        const { container } = render(
+            <SettingsPanel
+                open={true}
+                onClose={onClose}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={onShowOnboarding}
+            />
+        );
+        const btn = container.querySelector('button.settings-action-btn') as HTMLButtonElement;
+        expect(btn).not.toBeNull();
+        fireEvent.click(btn);
+        expect(onClose).toHaveBeenCalledOnce();
+        expect(onShowOnboarding).toHaveBeenCalledOnce();
     });
 });

@@ -5,6 +5,7 @@ import { Keyboard, KEY_DEFS, THEME_GRADIENTS, type KeyDef } from './Keyboard';
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
+import OnboardingWizard from './OnboardingWizard';
 import {
   handleModalKey,
   renderModalLcd,
@@ -107,6 +108,24 @@ async function invokeForKey(
 }
 
 function resolveKeyId(e: KeyboardEvent, state: CalcStateView | null): string | null {
+  // Phase 49 D-49.12/D-49.13 — Ctrl+key / Cmd+key bindings (T-49-07 mitigation).
+  // MUST come BEFORE the F7/F8 checks and the letter MAP to prevent Ctrl+W/R/D/F/S
+  // from falling through to the letter map (D-07: never silently discard).
+  // metaKey = macOS Cmd (mirrors the Ctrl behavior per RESEARCH A1).
+  if (e.ctrlKey || e.metaKey) {
+    switch (e.key.toLowerCase()) {
+      case 'w': return 'xeq_WPRGM';   // KBD-01: card reader write program
+      case 'r': return 'xeq_RDPRGM';  // KBD-01: card reader read program
+      case 'd': return 'xeq_WDTA';    // KBD-01: card reader write data
+      case 'f': return 'xeq_RDTA';    // KBD-01: card reader read data
+      case 's': return '__save_state__'; // KBD-02: manual save
+      default: return null; // other Ctrl/Cmd combos — do NOT fall through to letter map
+    }
+  }
+  // Phase 49 KBD-02 — F5: manual save (GUI-only deliberate divergence from CLI).
+  // CLI F5 = run_program("A"). GUI F5 = save (D-49.13). e.preventDefault() called
+  // in handleKey to prevent the Tauri WebView from reloading (T-49-09).
+  if (e.key === 'F5') return '__save_state__';
   // Phase 18 D-07: F7/F8 → SST/BST keyboard bindings
   // Use e.code (physical key) so macOS media-key remapping doesn't block these
   if (e.key === 'F7' || e.code === 'F7') return 'sst';
@@ -239,6 +258,11 @@ function App() {
   // Theme defaults to 'dark'; overridden by get_prefs on mount.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<string>('dark');
+  // Phase 49 D-49.4/D-49.8/ONBOARD-01 — onboarding wizard overlay state.
+  // onboardingOpen: wizard visible; isFirstRun: true when auto-opened on first launch
+  //   (Esc blocked in first-run mode per D-49.9), false when re-opened from settings.
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [isFirstRun, setIsFirstRun] = useState(false);
   // Toast overlay for GuiError responses (single-toast policy, 2s auto-dismiss).
   // The monotonic `seq` is required because two clicks on the same stubbed
   // key produce identical message strings — setting state to the same value
@@ -269,6 +293,26 @@ function App() {
     invoke('set_pref', { key: 'theme', value: newTheme }).catch(() => {
       // Persistence failure is non-fatal — theme applies visually regardless.
     });
+  }, []);
+
+  // Phase 49 ONBOARD-01/ONBOARD-05 — close handler for the onboarding wizard.
+  // Marks onboarding_done=true via fire-and-forget IPC (D-48.13 pattern).
+  // Value passed as string "true" per RESEARCH Pitfall 3 (Tauri IPC boolean encoding).
+  const handleOnboardingClose = useCallback(() => {
+    setOnboardingOpen(false);
+    setIsFirstRun(false);
+    invoke('set_pref', { key: 'onboarding_done', value: 'true' }).catch(() => {
+      // Persistence failure is non-fatal — wizard closes regardless.
+    });
+  }, []);
+
+  // Phase 49 D-49.8/D-49.9 — re-open wizard from Settings panel.
+  // Closes settings first, then opens wizard in re-open mode (isFirstRun=false).
+  // isFirstRun=false allows Esc to close the wizard (not first-run — D-49.9).
+  const handleShowOnboarding = useCallback(() => {
+    setSettingsOpen(false);
+    setIsFirstRun(false);  // re-open mode: Esc allowed to close wizard
+    setOnboardingOpen(true);
   }, []);
 
   // Phase 41 D-41.2/D-41.3/D-41.8: start/stop the 100ms live-display interval.
@@ -305,18 +349,27 @@ function App() {
       .catch(err => setErrorMessage(`Load failed: ${err}`));
   }, []);
 
-  // Phase 48 D-48.13 — load persisted theme preference on mount.
+  // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
   // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
-  // Silently falls back to 'dark' if prefs.json is missing (first run) or
-  // if the IPC call fails for any reason (D-48.8 / UI-SPEC copywriting).
+  // Checks onboarding_done to auto-open wizard on first run (P59: lives in prefs.json,
+  // NEVER in autosave.json). Silently falls back to 'dark' and opens wizard if prefs.json
+  // is missing (first-run fallback — D-49.4 / RESEARCH Pitfall 3).
   useEffect(() => {
-    invoke<{ theme: string }>('get_prefs')
+    invoke<{ theme: string; onboarding_done: boolean }>('get_prefs')
       .then(prefs => {
         setTheme(prefs.theme);
         document.body.dataset.theme = prefs.theme;
+        if (!prefs.onboarding_done) {
+          // First launch: auto-open wizard in first-run mode (Esc blocked per D-49.9).
+          setIsFirstRun(true);
+          setOnboardingOpen(true);
+        }
       })
       .catch(() => {
         document.body.dataset.theme = 'dark';
+        // prefs.json missing → first run. Open wizard in first-run mode.
+        setIsFirstRun(true);
+        setOnboardingOpen(true);
       });
   }, []);
 
@@ -523,18 +576,21 @@ function App() {
     if (e.key === '?' && !alphaOn && !helpOpen) {
       e.preventDefault();
       setHelpOpen(true);
-      setSettingsOpen(false);  // Phase 48: close settings when help opens
+      setSettingsOpen(false);    // Phase 48: close settings when help opens
+      setOnboardingOpen(false);  // Phase 49: mutual exclusion — close wizard when help opens
       return;
     }
 
-    // Esc precedence (D-26.8 + D-26.4 + D-31.2 + D-39.3 + D-39.4):
+    // Esc precedence (D-26.8 + D-26.4 + D-31.2 + D-39.3 + D-39.4 + D-49.9):
     //   -1. Clock display (D-39.3: any key exits — clear and fall through).
     //   0. Stopwatch keyboard mode (exits sw mode via sw_exit dispatch).
-    //   1. Help overlay (closes on Esc; doesn't clear modal/shift).
-    //   2. pendingInput (closes the modal, clears shiftActive).
-    //   3. modal_program_active → cancel_modal.
-    //   4. is_running → request_cancel.
-    //   5. shiftActive last (clears the one-shot SHIFT prefix).
+    //   1. Onboarding wizard in re-open mode (D-49.9: Esc closes; first-run blocks Esc).
+    //   2. Settings overlay (closes on Esc).
+    //   3. Help overlay (closes on Esc; doesn't clear modal/shift).
+    //   4. pendingInput (closes the modal, clears shiftActive).
+    //   5. modal_program_active → cancel_modal.
+    //   6. is_running → request_cancel.
+    //   7. shiftActive last (clears the one-shot SHIFT prefix).
     if (e.key === 'Escape') {
       if (calcState?.clock_active || calcState?.stopwatch_keyboard_mode) {
         if (!busyRef.current) {
@@ -545,6 +601,14 @@ function App() {
             .finally(() => { busyRef.current = false; });
         }
         if (calcState?.stopwatch_keyboard_mode) return;
+      }
+      // D-49.9: Esc closes wizard in re-open mode; first-run mode blocks Esc
+      // (wizard handles first-run Esc internally by ignoring it).
+      // The OnboardingWizard component also has its own Esc handler; this branch
+      // provides the App-level mutual-exclusion guarantee.
+      if (onboardingOpen && !isFirstRun) {
+        handleOnboardingClose();
+        return;
       }
       if (settingsOpen) {
         setSettingsOpen(false);
@@ -599,6 +663,10 @@ function App() {
     // calculator state in the background. Esc and '?' are already
     // handled above; this is the third gate layer.
     if (helpOpen) return;
+    // Phase 49 D-49.9 — when the onboarding wizard is open, block keyboard
+    // dispatch to the calculator. The wizard owns keyboard events while visible.
+    // (Esc is handled above in the Esc precedence block per D-49.9.)
+    if (onboardingOpen) return;
 
     // D-39.4/D-39.5 mirror: stopwatch keyboard mode intercepts all keys.
     // Space/Enter → RUNSW/STOPSW toggle, 's' → split, 'r' → reset, Esc → exit.
@@ -647,6 +715,18 @@ function App() {
     let keyId = resolveKeyId(e, calcState);
     if (keyId === null) return;  // unmapped or modal-trigger key — silent ignore
 
+    // Phase 49 D-49.13/KBD-02 — intercept __save_state__ BEFORE dispatchKeyId.
+    // T-49-08 mitigation: the backend key_map.rs errors on unknown key IDs (D-07),
+    // so __save_state__ must NEVER reach dispatch_op. Also calls e.preventDefault()
+    // to block browser save-page (T-49-10) and F5 browser reload (T-49-09).
+    if (keyId === '__save_state__') {
+      e.preventDefault();
+      invoke<void>('save_state')
+        .then(() => showToast('Saved'))
+        .catch(err => showToast(`Save failed: ${extractErrMessage(err)}`));
+      return;
+    }
+
     // Quick-task 260522-gud — honor `shiftActive` on the physical-keyboard
     // path so Tab + 0 → π (and every other `f`-prefix combo) matches the
     // on-screen-click behavior in `handleClick` (rule 3, line 324). Mirrors
@@ -672,7 +752,7 @@ function App() {
 
     e.preventDefault();
     dispatchKeyId(keyId);
-  }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, showToast]);
+  }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, onboardingOpen, isFirstRun, handleOnboardingClose, showToast]);
 
   // Register keyboard listener — cleanup required for React StrictMode (D-12)
   useEffect(() => {
@@ -807,7 +887,7 @@ function App() {
         <button
           className="help-icon-btn"
           aria-label="Open function reference"
-          onClick={() => { setHelpOpen(true); setSettingsOpen(false); }}
+          onClick={() => { setHelpOpen(true); setSettingsOpen(false); setOnboardingOpen(false); }}
         >
           ?
         </button>
@@ -824,6 +904,7 @@ function App() {
           onClose={() => setSettingsOpen(false)}
           currentTheme={theme}
           onThemeChange={handleThemeChange}
+          onShowOnboarding={handleShowOnboarding}
         />
       </div>
       <div className="annunciators">
@@ -898,6 +979,16 @@ function App() {
           inside `.calculator` (position: relative) so the overlay's `position:
           absolute` covers the calculator footprint only, not the page. */}
       <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* Phase 49 ONBOARD-01 — first-run onboarding wizard overlay.
+          Mutual exclusion with help/settings enforced via onboardingOpen state.
+          isFirstRun=true blocks Esc dismiss (D-49.9); re-open mode allows it.
+          Full 5-panel implementation provided by Plan 49-03; this plan wires
+          the state management and renders the component. */}
+      <OnboardingWizard
+        open={onboardingOpen}
+        onClose={handleOnboardingClose}
+        isFirstRun={isFirstRun}
+      />
     </div>
   );
 }
