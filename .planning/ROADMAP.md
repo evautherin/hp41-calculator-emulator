@@ -106,7 +106,11 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
   3. Key press animations work correctly in all four themes (press animation visible, not broken)
   4. High-contrast theme passes WCAG AA contrast ratio for all key labels and display text
   5. Theme preference is stored in `~/.hp41/prefs.json` — it never appears in `autosave.json`
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 48-01-PLAN.md — Tauri backend: prefs.rs, get_prefs/set_pref commands, permission TOMLs
+- [ ] 48-02-PLAN.md — CSS theme system: themes.css with 4 data-theme blocks, App.css color migration
+- [ ] 48-03-PLAN.md — Frontend integration: SettingsPanel, Keyboard gradient props, App.tsx wiring, tests
 **UI hint**: yes
 
 ### Phase 49: Onboarding + GUI Keyboard Parity
@@ -162,7 +166,7 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 48. GUI Infrastructure + Theming | 0/? | Not started | - |
+| 48. GUI Infrastructure + Theming | 0/3 | Planned | - |
 | 49. Onboarding + GUI Keyboard Parity | 0/? | Not started | - |
 | 50. .raw File I/O | 0/? | Not started | - |
 | 51. X-MEM Core | 0/? | Not started | - |
@@ -170,4 +174,4 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 
 ---
 
-*Last updated: 2026-05-27 — v4.0 Platform Maturity roadmap created (Phases 48–52, 32 requirements)*
+*Last updated: 2026-05-27 — Phase 48 planned (3 plans, 2 waves)*
