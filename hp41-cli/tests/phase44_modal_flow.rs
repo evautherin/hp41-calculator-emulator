@@ -245,13 +245,11 @@ fn advantage_medit_element_prompt_format() {
     });
     assert!(
         prompt.contains('3'),
-        "MeditElementPrompt(3, 7) prompt '{}' must contain row index '3'",
-        prompt
+        "MeditElementPrompt(3, 7) prompt '{prompt}' must contain row index '3'"
     );
     assert!(
         prompt.contains('7'),
-        "MeditElementPrompt(3, 7) prompt '{}' must contain col index '7'",
-        prompt
+        "MeditElementPrompt(3, 7) prompt '{prompt}' must contain col index '7'"
     );
     assert!(
         !prog.requires_alpha_label(),
@@ -268,13 +266,11 @@ fn advantage_cmedit_element_prompt_format() {
     });
     assert!(
         prompt.contains('1'),
-        "CmeditElementPrompt(1, 2) prompt '{}' must contain row index '1'",
-        prompt
+        "CmeditElementPrompt(1, 2) prompt '{prompt}' must contain row index '1'"
     );
     assert!(
         prompt.contains('2'),
-        "CmeditElementPrompt(1, 2) prompt '{}' must contain col index '2'",
-        prompt
+        "CmeditElementPrompt(1, 2) prompt '{prompt}' must contain col index '2'"
     );
     assert!(
         !prog.requires_alpha_label(),
@@ -291,8 +287,7 @@ fn advantage_ve_component_prompt_format() {
         .unwrap_or_else(|| panic!("VeComponentPrompt(2).current_prompt() must return Some(...)"));
     assert!(
         prompt.contains('2'),
-        "VeComponentPrompt(2) prompt '{}' must contain component index '2'",
-        prompt
+        "VeComponentPrompt(2) prompt '{prompt}' must contain component index '2'"
     );
     assert!(
         !prog.requires_alpha_label(),
