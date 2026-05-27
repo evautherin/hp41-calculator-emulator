@@ -135,7 +135,21 @@ Plans:
   4. Card reader shortcuts (Ctrl+W/R/D/F) and F5 manual save work in the GUI physical keyboard
   5. The `?` overlay lists all GUI physical keyboard shortcuts alongside function names
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 49-01-PLAN.md — Rust backend: onboarding_done pref, save_state command, keyboard-shortcuts.json
+- [ ] 49-02-PLAN.md — Data files: enrich ~50 function entries with example/notes across 5 JSONs
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 49-03-PLAN.md — Components: OnboardingWizard, HelpOverlay KBD section + expandable entries, CSS
+
+**Wave 3** *(blocked on Wave 1 + Wave 2 completion)*
+
+- [ ] 49-04-PLAN.md — Wiring: App.tsx onboarding state, Ctrl+key bindings, SettingsPanel Quick Start, visual checkpoint
+
 **UI hint**: yes
 
 ### Phase 50: .raw File I/O
@@ -188,11 +202,11 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
-| 49. Onboarding + GUI Keyboard Parity | 0/? | Not started | - |
+| 49. Onboarding + GUI Keyboard Parity | 0/4 | Not started | - |
 | 50. .raw File I/O | 0/? | Not started | - |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-05-27 — Phase 48 planned (3 plans, 2 waves)*
+*Last updated: 2026-05-27 — Phase 49 planned (4 plans, 3 waves)*
