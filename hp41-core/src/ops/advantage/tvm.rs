@@ -551,8 +551,7 @@ mod tests {
         let result = op_adv_tvm_star_i(&mut state);
         assert!(
             result.is_ok(),
-            "*I must converge for standard mortgage: {:?}",
-            result
+            "*I must converge for standard mortgage: {result:?}"
         );
 
         // X should contain monthly rate in percent ≈ 0.5% (6%/12)
@@ -590,8 +589,7 @@ mod tests {
         let result = op_adv_tvm_star_i(&mut state);
         assert!(
             result.is_ok(),
-            "*I must converge for N=1,PV=-100,FV=110: {:?}",
-            result
+            "*I must converge for N=1,PV=-100,FV=110: {result:?}"
         );
 
         let i_pct = x_as_f64(&state);

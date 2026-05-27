@@ -392,7 +392,7 @@ pub fn submit_step(state: &mut CalcState, step: AdvantageStep) -> Result<(), HpE
                     state.modal_program = Some(ModalProgram::Advantage(
                         AdvantageStep::MeditElementPrompt(nr, nc),
                     ));
-                    state.modal_prompt = Some(format!("[{},{}]=?", nr, nc));
+                    state.modal_prompt = Some(format!("[{nr},{nc}]=?"));
                 }
                 None => {
                     // Last element — clear modal
@@ -450,7 +450,7 @@ pub fn submit_step(state: &mut CalcState, step: AdvantageStep) -> Result<(), HpE
                     state.modal_program = Some(ModalProgram::Advantage(
                         AdvantageStep::CmeditElementPrompt(nr, nc),
                     ));
-                    state.modal_prompt = Some(format!("C[{},{}]=?", nr, nc));
+                    state.modal_prompt = Some(format!("C[{nr},{nc}]=?"));
                 }
                 None => {
                     state.modal_program = None;
@@ -478,7 +478,7 @@ pub fn submit_step(state: &mut CalcState, step: AdvantageStep) -> Result<(), HpE
                 state.modal_program = Some(ModalProgram::Advantage(
                     AdvantageStep::VeComponentPrompt(next_k),
                 ));
-                state.modal_prompt = Some(format!("V[{}]=?", next_k));
+                state.modal_prompt = Some(format!("V[{next_k}]=?"));
             } else {
                 // All 3 components entered — clear modal
                 state.modal_program = None;
@@ -951,8 +951,7 @@ mod tests {
             // LINT-EXEMPT: pure-f64 tolerance on to_f64() extraction of exact test values, no iterative computation
             assert!(
                 (mat.data[i].inner().to_f64().unwrap() - v).abs() < 1e-9,
-                "element {} mismatch",
-                i
+                "element {i} mismatch"
             );
         }
     }
