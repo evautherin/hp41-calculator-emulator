@@ -6,6 +6,7 @@ import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
 import OnboardingWizard from './OnboardingWizard';
+import RawPickerOverlay from './RawPickerOverlay';
 import {
   handleModalKey,
   renderModalLcd,
@@ -14,6 +15,19 @@ import {
   type PendingInput,
   type ModalKeyResult,
 } from './pending_input';
+
+// D-50.4/D-50.5: multi-program entry from the backend picker response
+interface ProgramEntry {
+  label: string;
+  index: number;
+  byte_len: number;
+}
+
+// D-50.4: picker state — set when import_raw_dialog returns a multi-program archive
+interface PickerData {
+  programs: ProgramEntry[];
+  filePath: string;
+}
 
 interface Annunciators {
   user: boolean;
@@ -263,6 +277,9 @@ function App() {
   //   (Esc blocked in first-run mode per D-49.9), false when re-opened from settings.
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [isFirstRun, setIsFirstRun] = useState(false);
+  // Phase 50 D-50.4/D-50.6 — multi-program picker overlay state.
+  // null when picker is closed; set when import_raw_dialog returns a multi-program archive.
+  const [pickerData, setPickerData] = useState<PickerData | null>(null);
   // Toast overlay for GuiError responses (single-toast policy, 2s auto-dismiss).
   // The monotonic `seq` is required because two clicks on the same stubbed
   // key produce identical message strings — setting state to the same value
@@ -313,6 +330,118 @@ function App() {
     setSettingsOpen(false);
     setIsFirstRun(false);  // re-open mode: Esc allowed to close wizard
     setOnboardingOpen(true);
+  }, []);
+
+  // Phase 50 D-50.1/D-50.3/D-50.4 — file dialog functions for card reader ops with empty ALPHA.
+  // All dialog functions guard with busyRef. The Tauri backend opens the native OS dialog,
+  // so the frontend does NOT import @tauri-apps/plugin-dialog JS API directly.
+
+  // importRawDialog: opens OS file picker for .raw import.
+  // Single-program response: setCalcState + toast per D-50.3.
+  // Multi-program response: setPickerData to open the picker overlay per D-50.4.
+  const importRawDialog = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      const resp = await invoke<{
+        type: string;
+        view?: CalcStateView;
+        message?: string;
+        programs?: ProgramEntry[];
+        file_path?: string;
+      }>('import_raw_dialog');
+      if (resp.type === 'Single' && resp.view && resp.message) {
+        setCalcState(resp.view);
+        setErrorMessage(null);
+        showToast(resp.message);
+      } else if (resp.type === 'Multi' && resp.programs && resp.file_path) {
+        // Multi-program: open picker; busyRef released so picker can dispatch
+        setPickerData({ programs: resp.programs, filePath: resp.file_path });
+      } else if (resp.type === 'Empty') {
+        showToast('No programs found in file');
+      }
+      // Cancelled: no feedback (silent per UI-SPEC)
+    } catch (err) {
+      showToast(extractErrMessage(err));
+    } finally {
+      busyRef.current = false;
+    }
+  }, [showToast]);
+
+  // exportRawDialog: opens OS save dialog for .raw export.
+  const exportRawDialog = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      const resp = await invoke<{ message?: string; cancelled?: boolean }>('export_raw_dialog');
+      if (resp.message) {
+        showToast(resp.message);
+      }
+      // cancelled: silent no-op per UI-SPEC
+    } catch (err) {
+      showToast(extractErrMessage(err));
+    } finally {
+      busyRef.current = false;
+    }
+  }, [showToast]);
+
+  // importDataDialog: opens OS file picker for .card.json data card import (D-50.7).
+  const importDataDialog = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      const resp = await invoke<{ view: CalcStateView; message: string }>('import_data_dialog');
+      setCalcState(resp.view);
+      setErrorMessage(null);
+      showToast(resp.message);
+    } catch (err) {
+      showToast(extractErrMessage(err));
+    } finally {
+      busyRef.current = false;
+    }
+  }, [showToast]);
+
+  // exportDataDialog: opens OS save dialog for .card.json data card export (D-50.7).
+  const exportDataDialog = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      const resp = await invoke<{ message?: string; cancelled?: boolean }>('export_data_dialog');
+      if (resp.message) {
+        showToast(resp.message);
+      }
+      // cancelled: silent no-op per UI-SPEC
+    } catch (err) {
+      showToast(extractErrMessage(err));
+    } finally {
+      busyRef.current = false;
+    }
+  }, [showToast]);
+
+  // handlePickerConfirm: imports selected programs from the multi-program archive (D-50.6).
+  const handlePickerConfirm = useCallback(async (selectedIndices: number[]) => {
+    if (!pickerData) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      const result = await invoke<CalcStateView>('import_selected_programs', {
+        filePath: pickerData.filePath,
+        indices: selectedIndices,
+      });
+      setCalcState(result);
+      setErrorMessage(null);
+      showToast(`Imported ${selectedIndices.length} program${selectedIndices.length === 1 ? '' : 's'}`);
+      setPickerData(null);
+    } catch (err) {
+      showToast(extractErrMessage(err));
+    } finally {
+      busyRef.current = false;
+    }
+  }, [pickerData, showToast]);
+
+  // handlePickerClose: dismisses the picker without importing (UI-SPEC: silent dismiss).
+  const handlePickerClose = useCallback(() => {
+    setPickerData(null);
   }, []);
 
   // Phase 41 D-41.2/D-41.3/D-41.8: start/stop the 100ms live-display interval.
@@ -727,6 +856,18 @@ function App() {
       return;
     }
 
+    // Phase 50 D-50.1 — card reader key intercept: when ALPHA annunciator is false
+    // (no ALPHA content), open the native OS file dialog instead of using ~/.hp41/cards/.
+    // When ALPHA is active, fall through to normal dispatch (backend uses alpha register
+    // as the file name in cards_dir — existing behavior preserved).
+    const alphaAnnOn = calcState?.annunciators.alpha ?? false;
+    if (!alphaAnnOn) {
+      if (keyId === 'xeq_RDPRGM') { e.preventDefault(); void importRawDialog(); return; }
+      if (keyId === 'xeq_WPRGM')  { e.preventDefault(); void exportRawDialog(); return; }
+      if (keyId === 'xeq_RDTA')   { e.preventDefault(); void importDataDialog(); return; }
+      if (keyId === 'xeq_WDTA')   { e.preventDefault(); void exportDataDialog(); return; }
+    }
+
     // Quick-task 260522-gud — honor `shiftActive` on the physical-keyboard
     // path so Tab + 0 → π (and every other `f`-prefix combo) matches the
     // on-screen-click behavior in `handleClick` (rule 3, line 324). Mirrors
@@ -768,7 +909,7 @@ function App() {
 
     e.preventDefault();
     dispatchKeyId(keyId);
-  }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, onboardingOpen, isFirstRun, handleOnboardingClose, showToast]);
+  }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, onboardingOpen, isFirstRun, handleOnboardingClose, showToast, importRawDialog, exportRawDialog, importDataDialog, exportDataDialog]);
 
   // Register keyboard listener — cleanup required for React StrictMode (D-12)
   useEffect(() => {
@@ -995,6 +1136,16 @@ function App() {
           inside `.calculator` (position: relative) so the overlay's `position:
           absolute` covers the calculator footprint only, not the page. */}
       <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* Phase 50 D-50.4/D-50.6 — multi-program picker overlay (mutually exclusive
+          with help and wizard overlays, same z-index: 60). Renders when pickerData
+          is non-null (set by importRawDialog on multi-program .raw archive response). */}
+      {pickerData && (
+        <RawPickerOverlay
+          programs={pickerData.programs}
+          onConfirm={handlePickerConfirm}
+          onClose={handlePickerClose}
+        />
+      )}
       {/* Phase 49 ONBOARD-01 — first-run onboarding wizard overlay.
           Mutual exclusion with help/settings enforced via onboardingOpen state.
           isFirstRun=true blocks Esc dismiss (D-49.9); re-open mode allows it.
