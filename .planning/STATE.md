@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: Advantage Pac Emulation
-status: complete
-last_updated: "2026-05-26T21:00:00.000Z"
-last_activity: 2026-05-26 -- v3.3 Advantage Pac Emulation shipped
+milestone: v4.0
+milestone_name: Platform Maturity
+status: planning
+last_updated: "2026-05-27T09:15:25.257Z"
+last_activity: 2026-05-27
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,13 +29,10 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 ## Current Position
 
-Milestone: v3.3 Advantage Pac Emulation — COMPLETE
-All phases shipped: 43 (core), 44 (CLI), 45 (docs), 46 (GUI), 47 (test hardening)
-Tagged: `v3.3` (2026-05-26)
-
-Progress: [████████████████████] 100%  (5/5 phases, 18/18 plans)
-
----
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-27 — Milestone v4.0 started
 
 ## Performance Metrics (v3.3 ship baseline)
 

@@ -1,10 +1,15 @@
 # HP-41 Calculator Emulator
 
-## Current State
+## Current Milestone: v4.0 Platform Maturity
 
-**Latest shipped:** v3.3 Advantage Pac Emulation (2026-05-26)
+**Goal:** Evolve the emulator from feature-complete XROM emulation to a polished, user-friendly platform with visual themes, comprehensive onboarding, GUI keyboard parity, and HP-41 community file exchange (`.raw` + Extended Memory).
 
-**No active milestone.** Run `/gsd-new-milestone` to start the next cycle.
+**Target features:**
+- Built-in skin themes (3-4 presets: dark, light, classic beige, high-contrast)
+- First-run quick-start guide + searchable in-app function reference
+- GUI keyboard parity — close physical keyboard shortcut gaps with CLI
+- `.raw` program file import/export (HP-41 community standard)
+- Extended Memory model (EMDIR, EMROOM, EMREG)
 
 <details>
 <summary>v3.3 Advantage Pac Emulation (shipped 2026-05-26 — see <code>milestones/v3.3-ROADMAP.md</code>)</summary>
@@ -241,7 +246,13 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 
 ### Active
 
-No active milestone. Run `/gsd-new-milestone` to start the next cycle.
+- [ ] THEME-01: User can select from 3-4 built-in skin themes (dark, light, classic beige, high-contrast)
+- [ ] ONBOARD-01: First-run quick-start guide introduces RPN basics, key layout, and function access
+- [ ] ONBOARD-02: Searchable in-app function reference with examples (beyond `?` overlay)
+- [ ] KBD-01: GUI physical keyboard shortcuts reach parity with CLI
+- [ ] RAW-01: User can import `.raw` HP-41 program files
+- [ ] RAW-02: User can export programs to `.raw` format
+- [ ] XMEM-01: Extended Memory file model (EMDIR, EMROOM, EMREG)
 
 ### Out of Scope
 
@@ -344,4 +355,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-05-27 — v3.3 Advantage Pac Emulation shipped (47 total phases, 8 milestones, 101K Rust LOC, 3,371 tests). No active milestone.*
+*Last updated: 2026-05-27 — v4.0 Platform Maturity milestone started after v3.3 Advantage Pac shipped*
