@@ -17,7 +17,7 @@
 
 use crate::cards;
 use crate::key_map;
-use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs};
+use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
 use hp41_core::ops::dispatch;
@@ -441,7 +441,6 @@ pub fn set_pref(
     let mut p = prefs.lock().unwrap_or_else(|e| e.into_inner());
     match key.as_str() {
         "theme" => {
-            const VALID_THEMES: &[&str] = &["dark", "light", "classic-beige", "high-contrast"];
             if !VALID_THEMES.contains(&value.as_str()) {
                 return Err(format!("unknown theme: {value}"));
             }

@@ -83,11 +83,17 @@ pub fn save_prefs(path: &Path, prefs: &GuiPrefs) -> std::io::Result<()> {
 /// - Corrupt JSON → `GuiPrefs::default()` (safe fallback; logs nothing, caller is silent).
 ///
 /// P59 / THEME-05: this function is fully isolated from the calculator state and autosave.json.
+pub const VALID_THEMES: &[&str] = &["dark", "light", "classic-beige", "high-contrast"];
+
 pub fn load_prefs(path: &Path) -> GuiPrefs {
-    fs::File::open(path)
+    let mut prefs: GuiPrefs = fs::File::open(path)
         .ok()
         .and_then(|file| serde_json::from_reader(file).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if !VALID_THEMES.contains(&prefs.theme.as_str()) {
+        prefs.theme = default_theme();
+    }
+    prefs
 }
 
 #[cfg(test)]
@@ -142,6 +148,21 @@ mod tests {
     fn test_default_theme_is_dark() {
         let prefs = GuiPrefs::default();
         assert_eq!(prefs.theme, "dark", "GuiPrefs::default() must have theme 'dark'");
+    }
+
+    #[test]
+    fn test_unknown_theme_falls_back_to_default() {
+        let path = temp_path("prefs_unknown_theme");
+        let prefs = GuiPrefs {
+            theme: "neon-pink".to_string(),
+        };
+        save_prefs(&path, &prefs).unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.theme, "dark",
+            "unknown theme in prefs.json must fall back to 'dark'"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 
     #[test]

@@ -546,6 +546,10 @@ function App() {
         }
         if (calcState?.stopwatch_keyboard_mode) return;
       }
+      if (settingsOpen) {
+        setSettingsOpen(false);
+        return;
+      }
       if (helpOpen) {
         setHelpOpen(false);
         return;
