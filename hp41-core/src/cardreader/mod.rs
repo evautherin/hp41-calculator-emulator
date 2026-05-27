@@ -15,7 +15,7 @@ pub mod data;
 pub mod raw;
 
 pub use data::{decode_data, encode_data, DataCard};
-pub use raw::{decode_program, encode_program};
+pub use raw::{decode_all_programs, decode_program, encode_program, picker_label, DecodedProgram};
 
 use crate::ops::Op;
 use crate::state::CalcState;
