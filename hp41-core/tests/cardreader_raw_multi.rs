@@ -7,13 +7,13 @@
 //! - XROM `Op::SyntheticByte` round-trip (RAW-05)
 //! - `picker_label` formatting per D-50.5
 
-#[allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used)]
+
 use hp41_core::cardreader::raw::{decode_all_programs, encode_program, picker_label};
 use hp41_core::error::HpError;
 use hp41_core::ops::Op;
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn decode_all_single_program_returns_vec_of_one() {
     let bytes = encode_program(&[Op::Add, Op::Sub]).unwrap();
     let programs = decode_all_programs(&bytes).unwrap();
@@ -35,7 +35,6 @@ fn decode_all_single_program_returns_vec_of_one() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn decode_all_two_programs_yields_correct_segments() {
     let bytes1 = encode_program(&[Op::Add]).unwrap();
     let bytes2 = encode_program(&[Op::Sub, Op::Mul]).unwrap();
@@ -65,7 +64,6 @@ fn decode_all_two_programs_yields_correct_segments() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn decode_all_three_programs_yields_vec_of_three() {
     let bytes1 = encode_program(&[Op::Add]).unwrap();
     let bytes2 = encode_program(&[Op::Sub]).unwrap();
@@ -86,7 +84,6 @@ fn decode_all_three_programs_yields_vec_of_three() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn decode_all_empty_input_returns_empty_vec() {
     let programs = decode_all_programs(&[]).unwrap();
     assert!(
@@ -96,7 +93,6 @@ fn decode_all_empty_input_returns_empty_vec() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn decode_all_truncated_no_end_marker_returns_error() {
     // Two raw bytes with no END marker — truncated stream.
     let bytes = vec![0x40, 0x41];
@@ -108,7 +104,6 @@ fn decode_all_truncated_no_end_marker_returns_error() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn xrom_synthetic_byte_round_trip_through_decode_all() {
     // RAW-05: XROM bytes survive encode + decode_all_programs.
     // 0xAA is outside the reserved-prefix set → stored as Op::SyntheticByte(0xAA).
@@ -128,7 +123,6 @@ fn xrom_synthetic_byte_round_trip_through_decode_all() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn picker_label_with_lbl_op_returns_name_and_byte_count() {
     // D-50.5: picker_label must extract the first LBL name.
     let ops = vec![Op::Lbl("QUAD".to_string()), Op::Add, Op::Rtn];
@@ -148,7 +142,6 @@ fn picker_label_with_lbl_op_returns_name_and_byte_count() {
 }
 
 #[test]
-#[allow(clippy::unwrap_used)]
 fn picker_label_without_lbl_op_returns_program_n_and_byte_count() {
     // D-50.5: fallback when no LBL op is present.
     let ops = vec![Op::Add, Op::Rtn];
