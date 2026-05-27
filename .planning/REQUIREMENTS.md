@@ -91,44 +91,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| THEME-01 | — | Pending |
-| THEME-02 | — | Pending |
-| THEME-03 | — | Pending |
-| THEME-04 | — | Pending |
-| THEME-05 | — | Pending |
-| ONBOARD-01 | — | Pending |
-| ONBOARD-02 | — | Pending |
-| ONBOARD-03 | — | Pending |
-| ONBOARD-04 | — | Pending |
-| ONBOARD-05 | — | Pending |
-| KBD-01 | — | Pending |
-| KBD-02 | — | Pending |
-| KBD-03 | — | Pending |
-| KBD-04 | — | Pending |
-| RAW-01 | — | Pending |
-| RAW-02 | — | Pending |
-| RAW-03 | — | Pending |
-| RAW-04 | — | Pending |
-| RAW-05 | — | Pending |
-| RAW-06 | — | Pending |
-| XMEM-01 | — | Pending |
-| XMEM-02 | — | Pending |
-| XMEM-03 | — | Pending |
-| XMEM-04 | — | Pending |
-| XMEM-05 | — | Pending |
-| XMEM-06 | — | Pending |
-| XMEM-07 | — | Pending |
-| XMEM-08 | — | Pending |
-| XMEM-09 | — | Pending |
-| XMEM-10 | — | Pending |
+| INFRA-01 | Phase 48 | Pending |
+| INFRA-02 | Phase 48 | Pending |
+| THEME-01 | Phase 48 | Pending |
+| THEME-02 | Phase 48 | Pending |
+| THEME-03 | Phase 48 | Pending |
+| THEME-04 | Phase 48 | Pending |
+| THEME-05 | Phase 48 | Pending |
+| ONBOARD-01 | Phase 49 | Pending |
+| ONBOARD-02 | Phase 49 | Pending |
+| ONBOARD-03 | Phase 49 | Pending |
+| ONBOARD-04 | Phase 49 | Pending |
+| ONBOARD-05 | Phase 49 | Pending |
+| KBD-01 | Phase 49 | Pending |
+| KBD-02 | Phase 49 | Pending |
+| KBD-03 | Phase 49 | Pending |
+| KBD-04 | Phase 49 | Pending |
+| RAW-01 | Phase 50 | Pending |
+| RAW-02 | Phase 50 | Pending |
+| RAW-03 | Phase 50 | Pending |
+| RAW-04 | Phase 50 | Pending |
+| RAW-05 | Phase 50 | Pending |
+| RAW-06 | Phase 50 | Pending |
+| XMEM-01 | Phase 51 | Pending |
+| XMEM-02 | Phase 51 | Pending |
+| XMEM-03 | Phase 51 | Pending |
+| XMEM-04 | Phase 51 | Pending |
+| XMEM-05 | Phase 51 | Pending |
+| XMEM-06 | Phase 51 | Pending |
+| XMEM-07 | Phase 51 | Pending |
+| XMEM-08 | Phase 52 | Pending |
+| XMEM-09 | Phase 52 | Pending |
+| XMEM-10 | Phase 52 | Pending |
 
 **Coverage:**
 - v4.0 requirements: 32 total
-- Mapped to phases: 0
-- Unmapped: 32 ⚠️
+- Mapped to phases: 32
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-27*
-*Last updated: 2026-05-27 after initial definition*
+*Last updated: 2026-05-27 — traceability filled during roadmap creation (all 32 requirements mapped)*

@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-05-27T09:15:25.257Z"
 last_activity: 2026-05-27
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,16 +23,31 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** None — v3.3 milestone complete. Run `/gsd-new-milestone` to start the next milestone.
+**Current focus:** v4.0 Platform Maturity — roadmap defined (Phases 48–52), ready to plan Phase 48.
 
 ---
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 48 (not yet started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-27 — Milestone v4.0 started
+Status: Roadmap defined — awaiting `/gsd-plan-phase 48`
+Last activity: 2026-05-27 — Roadmap created for v4.0
+
+## Progress Bar
+
+```
+v4.0 Platform Maturity
+Phase 48 ░░░░░░░░░░ 0%
+```
+
+| Phase | Goal | Status |
+|-------|------|--------|
+| 48 | GUI Infrastructure + Theming | Not started |
+| 49 | Onboarding + GUI Keyboard Parity | Not started |
+| 50 | .raw File I/O | Not started |
+| 51 | X-MEM Core | Not started |
+| 52 | Test Hardening + Documentation | Not started |
 
 ## Performance Metrics (v3.3 ship baseline)
 
@@ -54,13 +69,25 @@ Last activity: 2026-05-27 — Milestone v4.0 started
 
 ### Decisions (pre-resolved from research)
 
-- XROM IDs: ADV_MATH_A = 22, ADV_MATH_B = 24; bit-3 and bit-4 arms in `xrom_resolve`
-- `default_xrom_modules` migrates 0b00111 → 0b11111; `migrate_after_load()` in `state.rs`
-- Named-matrix storage: `adv_matrices: Vec<AdvMatrix>` with `#[serde(default)]` — NOT R14/R15+ (Math Pac I incompatibility documented per ADV-DOC-02)
-- FROOT uses Laguerre's method (arbitrary degree); coexists with Math Pac I Bairstow (degree 2-5)
-- FINTG uses Romberg integration; coexists with Math Pac I Simpson
-- Zero new runtime dependencies (ADR-v3.1-002 invariant maintained)
-- All Advantage Pac code in `ops/advantage/`; math1/ freeze: only visibility promotions (`complex_atan2` pub(crate))
+- **Preferences backend:** `prefs.rs` in `hp41-gui/src-tauri/src/` — hand-coded `GuiPrefs { theme, onboarding_done }` via `serde_json`, stored in `~/.hp41/prefs.json` (separate from `autosave.json`). `tauri-plugin-store` rejected (overkill for 2 fields).
+- **Theme implementation:** CSS custom properties + `data-theme` attribute on `<body>` — zero libraries. 4 presets: dark, light, classic-beige, high-contrast.
+- **SVG animation safety (P51):** Every `[data-theme]` CSS block must preserve `transform-box: fill-box` + `transform-origin: center` on `.key`. Verified per pitfall.
+- **SVG gradient stops (P55):** `<defs>` gradient stops do not inherit CSS variables — pass theme config as React props to `<Keyboard>`.
+- **.raw codec:** Already fully implemented in `hp41-core/src/cardreader/raw.rs`. Phase 50 is a frontend integration task — wire `encode_program`/`decode_program` to Tauri commands + CLI flags. New dep: `tauri-plugin-dialog` 2.4.2 (Rust) / 2.7.1 (npm).
+- **X-MEM storage isolation (P56):** `xmem_files: Vec<XmemFile>` on `CalcState` with `#[serde(default)]` — NEVER touches `state.regs` or `adv_matrices` (D-43.5 pattern repeated).
+- **X-MEM + .raw dependency:** SAVEP/GETP delegate to the `.raw` codec; Phase 51 depends on Phase 50.
+- **Zero new runtime deps:** Policy from v3.0 continues. `tauri-plugin-dialog` is a Tauri plugin (frontend dep), not a new `hp41-core` runtime dep — policy unbroken.
+
+### Pitfalls to watch
+
+| ID | Description |
+|----|-------------|
+| P51 | SVG animation broken by theme CSS — preserve `transform-box: fill-box` in every theme block |
+| P52 | `.raw` multi-program files silently rejected — implement `decode_all_programs()` or clear error |
+| P53 | X-MEM missing `#[serde(default)]` breaks saves — CI fixture test with pinned v3.3 save file |
+| P55 | SVG `<defs>` gradient stops ignore CSS vars — pass theme config as React props to `<Keyboard>` |
+| P56 | X-MEM shares address space with `state.regs` — use dedicated `xmem_files: Vec<XmemFile>` |
+| P59 | Theme/onboarding flag in CalcState — must live in `~/.hp41/prefs.json`, not `autosave.json` |
 
 ### Blockers
 
@@ -68,25 +95,20 @@ None.
 
 ### Pending Todos
 
-None — all v3.3 work complete.
+- Run `/gsd-plan-phase 48` to start Phase 48: GUI Infrastructure + Theming
 
 ---
 
 ## Deferred Items
 
-All quick_tasks from v3.2 milestone close verified as completed (2026-05-26 consistency check):
+From v3.3 milestone close — all confirmed complete:
 
-| Category | Item | Status | Evidence |
-|----------|------|--------|----------|
-| uat_gap | Phase 41: visual verification scenarios (3 items) | done | covered by v3.2 Phase 41/42 |
-| quick_task | 260506-a1g-add-gitignore | done | .gitignore present; multiple gitignore commits |
-| quick_task | 260508-06h-fix-sci-eng-digit-input | done | `019009e` fix(format): Mantissa-Carry-Bug |
-| quick_task | 260508-y30-eex-chs-exponent-sign-toggle | done | `9cf2104` feat(15-02): eex_chs branch |
-| quick_task | 260516-c1p-fix-gui-clp-binding-and-modal-letter-clicks | done | `96c46b8` + `21895da` CLP/LBL + modal letter |
-| quick_task | 260522-g7s-add-yellow-keyboard-frame-matching-vorgabe | done | `509344a` + `6094e32` gold trim SVG |
-| quick_task | 260522-gud-honor-shift-on-physical-keyboard | done | `aa7e614` fix(gui): honor shiftActive |
+| Category | Item | Status |
+|----------|------|--------|
+| Deferred | Interrupting control alarm execution | Still deferred; data model ready (D-38.4); requires call-stack re-entrancy |
+| Deferred | Signed binary releases (cargo-dist + tauri-action) | Deferred post-v4.0 |
 
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-26 — v3.3 Advantage Pac Emulation shipped (5 phases, 18 plans, 47 total project phases)*
+*Last updated: 2026-05-27 — v4.0 roadmap created (5 phases, 32 requirements, starting at Phase 48)*
