@@ -685,17 +685,19 @@ Based on reading `hp41-cli/src/app.rs` and `hp41-gui/src/App.tsx`:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Ctrl+S vs Cmd+S on macOS**
    - What we know: Web standard is `e.ctrlKey` for Windows/Linux, `e.metaKey` for macOS Cmd key.
    - What's unclear: Should Cmd+S also trigger save on macOS? Ctrl+W/R/D/F can stay Ctrl-only (they're obscure shortcuts).
    - Recommendation: Add `(e.ctrlKey || e.metaKey)` check only for Ctrl+S; keep Ctrl-only for Ctrl+W/R/D/F.
+   - RESOLVED: Plan 49-04 Task 2 implements `e.ctrlKey || e.metaKey` for Ctrl+S per this recommendation; Ctrl+W/R/D/F remain Ctrl-only (D-49.12).
 
 2. **F5 divergence from CLI**
    - What we know: CONTEXT.md D-49.13 + KBD-02 assign F5 = manual save in GUI. CLI F5 = run_program("A").
    - What's unclear: Is this intentional divergence or a mistake in requirements?
    - Recommendation: CONTEXT.md is authoritative — implement F5=save, add a comment in the code noting the CLI divergence.
+   - RESOLVED: CONTEXT.md D-49.13 + KBD-02 are authoritative. Plan 49-04 Task 2 implements F5=save with inline comment documenting the deliberate CLI divergence.
 
 ---
 
