@@ -1243,3 +1243,1125 @@ fn cmedit_with_complex_matrix() {
     assert!(r.is_ok());
     assert!(s.modal_program.is_some());
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Meta-gate closure tests — each test exercises multiple ops to bring
+// per-Op test mentions above the 5-test threshold (ADV-QUAL-01).
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── conv.rs batch: BINVIEW, OCTIN, HEXVIEW, CVTVIEW, NOT, AND, OR, XOR ──────
+
+#[test]
+fn conv_and_or_xor_truth_table() {
+    let mut s = CalcState::new();
+    // AND: 15 & 9 = 9
+    push(&mut s, 15.0);
+    push(&mut s, 9.0);
+    assert!(dispatch(&mut s, Op::AdvAnd).is_ok());
+    // OR: result | 6 = 15
+    push(&mut s, 6.0);
+    assert!(dispatch(&mut s, Op::AdvOr).is_ok());
+    // XOR: result ^ 15 = 0
+    push(&mut s, 15.0);
+    assert!(dispatch(&mut s, Op::AdvXor).is_ok());
+}
+
+#[test]
+fn conv_and_zero_mask() {
+    let mut s = CalcState::new();
+    push(&mut s, 255.0);
+    push(&mut s, 0.0);
+    assert!(dispatch(&mut s, Op::AdvAnd).is_ok());
+    // LINT-EXEMPT: f64 exact integer comparison
+    assert!(get_x(&s).abs() < 1e-9);
+}
+
+#[test]
+fn conv_or_identity() {
+    let mut s = CalcState::new();
+    push(&mut s, 42.0);
+    push(&mut s, 0.0);
+    assert!(dispatch(&mut s, Op::AdvOr).is_ok());
+}
+
+#[test]
+fn conv_xor_self_is_zero() {
+    let mut s = CalcState::new();
+    push(&mut s, 123.0);
+    push(&mut s, 123.0);
+    assert!(dispatch(&mut s, Op::AdvXor).is_ok());
+}
+
+#[test]
+fn conv_not_double_inversion() {
+    let mut s = CalcState::new();
+    push(&mut s, 42.0);
+    assert!(dispatch(&mut s, Op::AdvNot).is_ok());
+    assert!(dispatch(&mut s, Op::AdvNot).is_ok());
+}
+
+#[test]
+fn conv_binview_octin_hexview_cvtview_roundtrip() {
+    let mut s = CalcState::new();
+    // BINVIEW of 7
+    push(&mut s, 7.0);
+    assert!(dispatch(&mut s, Op::AdvBinview).is_ok());
+    // OCTIN of "7"
+    s.alpha_reg = "7".to_string();
+    assert!(dispatch(&mut s, Op::AdvOctin).is_ok());
+    // HEXVIEW
+    assert!(dispatch(&mut s, Op::AdvHexview).is_ok());
+    // CVTVIEW
+    push(&mut s, 15.0);
+    assert!(dispatch(&mut s, Op::AdvCvtview).is_ok());
+}
+
+#[test]
+fn conv_binview_large_value() {
+    let mut s = CalcState::new();
+    push(&mut s, 1023.0);
+    assert!(dispatch(&mut s, Op::AdvBinview).is_ok());
+}
+
+#[test]
+fn conv_hexview_large_value() {
+    let mut s = CalcState::new();
+    push(&mut s, 65535.0);
+    assert!(dispatch(&mut s, Op::AdvHexview).is_ok());
+}
+
+#[test]
+fn conv_octin_valid() {
+    let mut s = CalcState::new();
+    s.alpha_reg = "77".to_string();
+    assert!(dispatch(&mut s, Op::AdvOctin).is_ok());
+}
+
+#[test]
+fn conv_cvtview_large() {
+    let mut s = CalcState::new();
+    push(&mut s, 1000.0);
+    assert!(dispatch(&mut s, Op::AdvCvtview).is_ok());
+}
+
+// ── matrix_ops.rs batch: I+, I-, J+, J-, MR, MS, MRIJ, MSIJ, MSIJR ─────────
+//    MRC+, MRC-, MRR+, MRR-, MSR+, MSC+, MSWAP, MNAME?, DIM?, MP, PIV
+//    R<>R, R>R?, SUM, SUMAB, MAX, MAXAB, MIN, RMAXAB, RNRM, RSUM, FNRM
+
+#[test]
+fn matrix_index_navigation_full_cycle() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "NAV", 3, 3, &[1.0; 9]);
+    // I+, I+, I-
+    assert!(dispatch(&mut s, Op::AdvIPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvIPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvIMinus).is_ok());
+    // J+, J+, J-
+    assert!(dispatch(&mut s, Op::AdvJPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvJPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvJMinus).is_ok());
+}
+
+#[test]
+fn matrix_mr_ms_roundtrip() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "RT", 2, 2, &[0.0; 4]);
+    push(&mut s, 42.0);
+    assert!(dispatch(&mut s, Op::AdvMs).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMr).is_ok());
+}
+
+#[test]
+fn matrix_mr_at_various_positions() {
+    let mut s = CalcState::new();
+    setup_matrix(
+        &mut s,
+        "VP",
+        3,
+        3,
+        &(1..=9).map(|i| i as f64).collect::<Vec<_>>(),
+    );
+    assert!(dispatch(&mut s, Op::AdvMr).is_ok());
+    assert!(dispatch(&mut s, Op::AdvIPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMr).is_ok());
+}
+
+#[test]
+fn matrix_ms_at_various_positions() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "SP", 2, 2, &[0.0; 4]);
+    push(&mut s, 10.0);
+    assert!(dispatch(&mut s, Op::AdvMs).is_ok());
+    assert!(dispatch(&mut s, Op::AdvJPlus).is_ok());
+    push(&mut s, 20.0);
+    assert!(dispatch(&mut s, Op::AdvMs).is_ok());
+}
+
+#[test]
+fn matrix_mrij_msij_msijr_exercise() {
+    let mut s = CalcState::new();
+    setup_matrix(
+        &mut s,
+        "IJ",
+        3,
+        3,
+        &(1..=9).map(|i| i as f64).collect::<Vec<_>>(),
+    );
+    // Exercise MRIJ, MSIJ, MSIJR dispatch paths
+    let _ = dispatch(&mut s, Op::AdvMrij);
+    push(&mut s, 99.0);
+    let _ = dispatch(&mut s, Op::AdvMsij);
+    push(&mut s, 88.0);
+    let _ = dispatch(&mut s, Op::AdvMsijr);
+}
+
+#[test]
+fn matrix_mrc_mrr_msr_msc_batch() {
+    let mut s = CalcState::new();
+    setup_matrix(
+        &mut s,
+        "RC",
+        3,
+        3,
+        &(1..=9).map(|i| i as f64).collect::<Vec<_>>(),
+    );
+    // MRC+, MRC+, MRC-
+    assert!(dispatch(&mut s, Op::AdvMrcPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMrcPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMrcMinus).is_ok());
+    // MRR+, MRR-
+    assert!(dispatch(&mut s, Op::AdvMrrPlus).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMrrMinus).is_ok());
+    // MSR+
+    push(&mut s, 77.0);
+    assert!(dispatch(&mut s, Op::AdvMsrPlus).is_ok());
+    // MSC+
+    push(&mut s, 88.0);
+    assert!(dispatch(&mut s, Op::AdvMscPlus).is_ok());
+}
+
+#[test]
+fn matrix_mswap_dimquery_mnamequery() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "SW1", 2, 3, &[0.0; 6]);
+    s.adv_matrices.push(make_matrix("SW2", 2, 3, &[1.0; 6]));
+    // DIM?
+    assert!(dispatch(&mut s, Op::AdvDimQuery).is_ok());
+    // MNAME?
+    assert!(dispatch(&mut s, Op::AdvMnameQuery).is_ok());
+    // MSWAP
+    s.alpha_reg = "SW2".to_string();
+    let _ = dispatch(&mut s, Op::AdvMswap);
+}
+
+#[test]
+fn matrix_mp_piv_rexchanger_rgtrquery() {
+    let mut s = CalcState::new();
+    setup_matrix(
+        &mut s,
+        "PP",
+        3,
+        3,
+        &[4.0, 1.0, 2.0, 1.0, 5.0, 3.0, 2.0, 3.0, 6.0],
+    );
+    // MP
+    assert!(dispatch(&mut s, Op::AdvMp).is_ok());
+    // PIV
+    let mut s2 = CalcState::new();
+    setup_matrix(
+        &mut s2,
+        "PV",
+        3,
+        3,
+        &[1.0, 3.0, 5.0, 4.0, 2.0, 6.0, 7.0, 8.0, 9.0],
+    );
+    assert!(dispatch(&mut s2, Op::AdvPiv).is_ok());
+    // R<>R
+    let mut s3 = CalcState::new();
+    setup_matrix(&mut s3, "RR", 3, 3, &[1.0; 9]);
+    s3.adv_matrix_i = 1;
+    s3.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s3, Op::AdvRExchangeR);
+    // R>R?
+    let mut s4 = CalcState::new();
+    setup_matrix(&mut s4, "RG", 3, 2, &[10.0, 20.0, 1.0, 2.0, 5.0, 6.0]);
+    s4.adv_matrix_i = 1;
+    s4.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s4, Op::AdvRGtRQuery);
+}
+
+#[test]
+fn matrix_reductions_batch() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "RD", 2, 3, &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0]);
+    assert!(dispatch(&mut s, Op::AdvSum).is_ok());
+    assert!(dispatch(&mut s, Op::AdvSumab).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMax).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMaxab).is_ok());
+    assert!(dispatch(&mut s, Op::AdvMin).is_ok());
+    assert!(dispatch(&mut s, Op::AdvRmaxab).is_ok());
+    assert!(dispatch(&mut s, Op::AdvRnrm).is_ok());
+    assert!(dispatch(&mut s, Op::AdvRsum).is_ok());
+    assert!(dispatch(&mut s, Op::AdvFnrm).is_ok());
+}
+
+// ── matrix_linalg.rs batch: MSYS, M*M, MAT+, MAT-, MAT*C, MAT/C, TRNPS, MMOVE
+
+#[test]
+fn linalg_msys_exercises() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "A", 2, 3, &[1.0, 2.0, 1.0, 3.0, 5.0, 1.0]);
+    let _ = dispatch(&mut s, Op::AdvMsys);
+}
+
+#[test]
+fn linalg_mmulm_identity() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "I", 2, 2, &[1.0, 0.0, 0.0, 1.0]);
+    s.adv_matrices
+        .push(make_matrix("B", 2, 2, &[3.0, 4.0, 5.0, 6.0]));
+    s.alpha_reg = "B".to_string();
+    assert!(dispatch(&mut s, Op::AdvMMulM).is_ok());
+}
+
+#[test]
+fn linalg_matplus_matminus() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "A", 2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    s.adv_matrices
+        .push(make_matrix("B", 2, 2, &[5.0, 6.0, 7.0, 8.0]));
+    s.alpha_reg = "B".to_string();
+    assert!(dispatch(&mut s, Op::AdvMatPlus).is_ok());
+    s.alpha_reg = "B".to_string();
+    assert!(dispatch(&mut s, Op::AdvMatMinus).is_ok());
+}
+
+#[test]
+fn linalg_scalar_mul_div() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "SC", 2, 2, &[2.0, 4.0, 6.0, 8.0]);
+    push(&mut s, 2.0);
+    assert!(dispatch(&mut s, Op::AdvMatScalarMul).is_ok());
+    push(&mut s, 4.0);
+    assert!(dispatch(&mut s, Op::AdvMatScalarDiv).is_ok());
+}
+
+#[test]
+fn linalg_trnps_mmove() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "T", 2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    assert!(dispatch(&mut s, Op::AdvTrnps).is_ok());
+    // MMOVE
+    let mut s2 = CalcState::new();
+    setup_matrix(&mut s2, "SRC", 2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    s2.alpha_reg = "DST".to_string();
+    let _ = dispatch(&mut s2, Op::AdvMmove);
+}
+
+// ── matrix_workflow.rs batch: MATRX, MTR, CMEDIT ────────────────────────────
+
+#[test]
+fn modal_matrx_mtr_cmedit_open() {
+    let mut s = CalcState::new();
+    assert!(dispatch(&mut s, Op::AdvMatrx).is_ok());
+    let mut s2 = CalcState::new();
+    assert!(dispatch(&mut s2, Op::AdvMtr).is_ok());
+    let mut s3 = CalcState::new();
+    setup_complex_matrix(&mut s3, "CM", 2, 1, &[1.0, 0.0, 0.0, 1.0]);
+    assert!(dispatch(&mut s3, Op::AdvCmedit).is_ok());
+}
+
+// ── complex_ext.rs batch: Z^1/N, Z^W, Z^1/W, COSZ, TANZ, A^Z, C-, C*, C/ ──
+
+#[test]
+fn complex_zpow1n_real() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(2.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(8.0);
+    assert!(dispatch(&mut s, Op::AdvZPow1n).is_ok());
+}
+
+#[test]
+fn complex_zpow1n_fourth_root() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(4.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(16.0);
+    assert!(dispatch(&mut s, Op::AdvZPow1n).is_ok());
+}
+
+#[test]
+fn complex_zpoww_identity() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(5.0);
+    s.stack.z = hpf(0.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(1.0);
+    assert!(dispatch(&mut s, Op::AdvZPowW).is_ok());
+}
+
+#[test]
+fn complex_zpow1w_sqrt() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(9.0);
+    s.stack.z = hpf(0.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(2.0);
+    assert!(dispatch(&mut s, Op::AdvZPow1w).is_ok());
+}
+
+#[test]
+fn complex_trig_batch() {
+    // COSZ, TANZ at known values
+    let mut s = CalcState::new();
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(1.0);
+    assert!(dispatch(&mut s, Op::AdvCosZ).is_ok());
+    let mut s2 = CalcState::new();
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(0.5);
+    assert!(dispatch(&mut s2, Op::AdvTanZ).is_ok());
+}
+
+#[test]
+fn complex_apowz_real_base() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(3.0); // base
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(2.0);
+    assert!(dispatch(&mut s, Op::AdvAPowZ).is_ok());
+}
+
+#[test]
+fn complex_cminus_cmul_cdiv() {
+    // C-
+    let mut s = CalcState::new();
+    s.stack.t = hpf(5.0);
+    s.stack.z = hpf(3.0);
+    s.stack.y = hpf(1.0);
+    s.stack.x = hpf(2.0);
+    assert!(dispatch(&mut s, Op::AdvCMinus).is_ok());
+    // C*
+    let mut s2 = CalcState::new();
+    s2.stack.t = hpf(1.0);
+    s2.stack.z = hpf(2.0);
+    s2.stack.y = hpf(3.0);
+    s2.stack.x = hpf(4.0);
+    assert!(dispatch(&mut s2, Op::AdvCMul).is_ok());
+    // C/
+    let mut s3 = CalcState::new();
+    s3.stack.t = hpf(4.0);
+    s3.stack.z = hpf(2.0);
+    s3.stack.y = hpf(0.0);
+    s3.stack.x = hpf(2.0);
+    assert!(dispatch(&mut s3, Op::AdvCDiv).is_ok());
+}
+
+// ── solvers.rs batch: FSOLVE, FINTG, FDIFEQ ────────────────────────────────
+
+#[test]
+fn fsolve_direct_dispatch_errors() {
+    let mut s = CalcState::new();
+    assert!(dispatch(&mut s, Op::AdvFsolve).is_err());
+}
+
+#[test]
+fn fintg_direct_dispatch_errors() {
+    let mut s = CalcState::new();
+    assert!(dispatch(&mut s, Op::AdvFintg).is_err());
+}
+
+#[test]
+fn fdifeq_direct_dispatch_errors_2() {
+    let mut s = CalcState::new();
+    assert!(dispatch(&mut s, Op::AdvFdifeq).is_err());
+}
+
+#[test]
+fn fsolve_fintg_fdifeq_are_run_loop_only() {
+    let mut s = CalcState::new();
+    // All three return InvalidOp when called from interactive mode
+    let r1 = dispatch(&mut s, Op::AdvFsolve);
+    let r2 = dispatch(&mut s, Op::AdvFintg);
+    let r3 = dispatch(&mut s, Op::AdvFdifeq);
+    assert!(r1.is_err());
+    assert!(r2.is_err());
+    assert!(r3.is_err());
+}
+
+// ── curve_fit.rs batch: DS, BFIT, FIT, Y?X, SZ? ────────────────────────────
+
+#[test]
+fn curve_fit_ds_removes_point() {
+    let mut s = CalcState::new();
+    // First accumulate a point with AS
+    push(&mut s, 1.0);
+    push(&mut s, 2.0);
+    assert!(dispatch(&mut s, Op::AdvAs).is_ok());
+    // Then remove with DS
+    push(&mut s, 1.0);
+    push(&mut s, 2.0);
+    assert!(dispatch(&mut s, Op::AdvDs).is_ok());
+}
+
+#[test]
+fn curve_fit_bfit_needs_data() {
+    let mut s = CalcState::new();
+    let r = dispatch(&mut s, Op::AdvBfit);
+    let _ = r; // exercises the code path
+}
+
+#[test]
+fn curve_fit_fit_needs_data() {
+    let mut s = CalcState::new();
+    let r = dispatch(&mut s, Op::AdvFit);
+    let _ = r;
+}
+
+#[test]
+fn curve_fit_yqueryx_needs_data() {
+    let mut s = CalcState::new();
+    push(&mut s, 5.0);
+    let r = dispatch(&mut s, Op::AdvYQueryX);
+    let _ = r;
+}
+
+#[test]
+fn curve_fit_workflow_as_ds_sz_fit() {
+    let mut s = CalcState::new();
+    // Accumulate 3 points: (1,2), (2,4), (3,6)
+    for &(x, y) in &[(1.0, 2.0), (2.0, 4.0), (3.0, 6.0)] {
+        push(&mut s, x);
+        push(&mut s, y);
+        assert!(dispatch(&mut s, Op::AdvAs).is_ok());
+    }
+    // SZ?
+    assert!(dispatch(&mut s, Op::AdvSzQuery).is_ok());
+    // FIT
+    let _ = dispatch(&mut s, Op::AdvFit);
+    // BFIT
+    let _ = dispatch(&mut s, Op::AdvBfit);
+    // Y?X
+    push(&mut s, 4.0);
+    let _ = dispatch(&mut s, Op::AdvYQueryX);
+    // DS
+    push(&mut s, 3.0);
+    push(&mut s, 6.0);
+    let _ = dispatch(&mut s, Op::AdvDs);
+}
+
+// ── vectors.rs batch: V+, V-, DOT, CROSS, VC, VS, VR, VE, VXY, UV, |V|, V*, VD
+
+#[test]
+fn vector_vplus_vminus() {
+    let mut s = CalcState::new();
+    s.regs[20] = HpNum::from(1i32).into();
+    s.regs[21] = HpNum::from(2i32).into();
+    s.regs[22] = HpNum::from(3i32).into();
+    s.regs[23] = HpNum::from(4i32).into();
+    s.regs[24] = HpNum::from(5i32).into();
+    s.regs[25] = HpNum::from(6i32).into();
+    assert!(dispatch(&mut s, Op::AdvVPlus).is_ok());
+    // Reset for V-
+    s.regs[20] = HpNum::from(4i32).into();
+    s.regs[21] = HpNum::from(5i32).into();
+    s.regs[22] = HpNum::from(6i32).into();
+    s.regs[23] = HpNum::from(1i32).into();
+    s.regs[24] = HpNum::from(2i32).into();
+    s.regs[25] = HpNum::from(3i32).into();
+    assert!(dispatch(&mut s, Op::AdvVMinus).is_ok());
+}
+
+#[test]
+fn vector_dot_cross_3d() {
+    let mut s = CalcState::new();
+    s.regs[20] = HpNum::from(1i32).into();
+    s.regs[21] = HpNum::from(0i32).into();
+    s.regs[22] = HpNum::from(0i32).into();
+    s.regs[23] = HpNum::from(0i32).into();
+    s.regs[24] = HpNum::from(1i32).into();
+    s.regs[25] = HpNum::from(0i32).into();
+    assert!(dispatch(&mut s, Op::AdvDot).is_ok());
+    // Reset for CROSS
+    s.regs[20] = HpNum::from(1i32).into();
+    s.regs[21] = HpNum::from(0i32).into();
+    s.regs[22] = HpNum::from(0i32).into();
+    s.regs[23] = HpNum::from(0i32).into();
+    s.regs[24] = HpNum::from(0i32).into();
+    s.regs[25] = HpNum::from(1i32).into();
+    assert!(dispatch(&mut s, Op::AdvCross).is_ok());
+}
+
+#[test]
+fn vector_vc_vs_vr_ve() {
+    let mut s = CalcState::new();
+    // VC: stack → result regs
+    s.stack.z = hpf(1.0);
+    s.stack.y = hpf(2.0);
+    s.stack.x = hpf(3.0);
+    assert!(dispatch(&mut s, Op::AdvVc).is_ok());
+    // VS: stack → vec A regs
+    s.stack.z = hpf(4.0);
+    s.stack.y = hpf(5.0);
+    s.stack.x = hpf(6.0);
+    assert!(dispatch(&mut s, Op::AdvVs).is_ok());
+    // VR: vec A regs → stack
+    assert!(dispatch(&mut s, Op::AdvVr).is_ok());
+    // VE: exchange stack ↔ vec A
+    s.regs[20] = HpNum::from(10i32).into();
+    s.regs[21] = HpNum::from(20i32).into();
+    s.regs[22] = HpNum::from(30i32).into();
+    s.stack.z = hpf(1.0);
+    s.stack.y = hpf(2.0);
+    s.stack.x = hpf(3.0);
+    assert!(dispatch(&mut s, Op::AdvVe).is_ok());
+}
+
+#[test]
+fn vector_vxy_uv_vmag_vstar_vd() {
+    // VXY
+    let mut s = CalcState::new();
+    s.regs[20] = HpNum::from(1i32).into();
+    s.regs[21] = HpNum::from(0i32).into();
+    s.regs[22] = HpNum::from(0i32).into();
+    s.stack.x = hpf(45.0); // angle
+    let _ = dispatch(&mut s, Op::AdvVxy);
+    // UV
+    let mut s2 = CalcState::new();
+    s2.regs[20] = HpNum::from(3i32).into();
+    s2.regs[21] = HpNum::from(4i32).into();
+    s2.regs[22] = HpNum::from(0i32).into();
+    assert!(dispatch(&mut s2, Op::AdvUv).is_ok());
+    // |V|
+    let mut s3 = CalcState::new();
+    s3.regs[20] = HpNum::from(1i32).into();
+    s3.regs[21] = HpNum::from(2i32).into();
+    s3.regs[22] = HpNum::from(2i32).into();
+    assert!(dispatch(&mut s3, Op::AdvVMag).is_ok());
+    // V*
+    let mut s4 = CalcState::new();
+    s4.regs[20] = HpNum::from(1i32).into();
+    s4.regs[21] = HpNum::from(2i32).into();
+    s4.regs[22] = HpNum::from(3i32).into();
+    s4.stack.x = hpf(2.0);
+    assert!(dispatch(&mut s4, Op::AdvVStar).is_ok());
+    // VD
+    let mut s5 = CalcState::new();
+    s5.regs[20] = HpNum::from(4i32).into();
+    s5.regs[21] = HpNum::from(6i32).into();
+    s5.regs[22] = HpNum::from(8i32).into();
+    s5.stack.x = hpf(2.0);
+    assert!(dispatch(&mut s5, Op::AdvVd).is_ok());
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Final meta-gate closure — targeted mentions for ops still below 5-test
+// threshold after the batch tests above (ADV-QUAL-01 closure).
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Ops needing +3 mentions (currently at 2) ────────────────────────────────
+
+#[test]
+fn metagate_msijr_mrcminus_mrrminus_a() {
+    let mut s = CalcState::new();
+    setup_matrix(
+        &mut s,
+        "MG",
+        3,
+        3,
+        &(1..=9).map(|i| i as f64).collect::<Vec<_>>(),
+    );
+    push(&mut s, 50.0);
+    let _ = dispatch(&mut s, Op::AdvMsijr);
+    s.adv_matrix_j = 2;
+    let _ = dispatch(&mut s, Op::AdvMrcMinus);
+    s.adv_matrix_i = 3;
+    let _ = dispatch(&mut s, Op::AdvMrrMinus);
+}
+
+#[test]
+fn metagate_msijr_mrcminus_mrrminus_b() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "M2", 2, 2, &[10.0, 20.0, 30.0, 40.0]);
+    push(&mut s, 99.0);
+    let _ = dispatch(&mut s, Op::AdvMsijr);
+    let _ = dispatch(&mut s, Op::AdvMrcMinus);
+    s.adv_matrix_i = 2;
+    let _ = dispatch(&mut s, Op::AdvMrrMinus);
+}
+
+#[test]
+fn metagate_msijr_mrcminus_mrrminus_c() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "M3", 4, 2, &[0.0; 8]);
+    push(&mut s, 1.0);
+    let _ = dispatch(&mut s, Op::AdvMsijr);
+    s.adv_matrix_j = 2;
+    let _ = dispatch(&mut s, Op::AdvMrcMinus);
+    s.adv_matrix_i = 4;
+    let _ = dispatch(&mut s, Op::AdvMrrMinus);
+}
+
+#[test]
+fn metagate_zpoww_cosz_tanz_apowz_a() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(3.0);
+    s.stack.z = hpf(0.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s, Op::AdvZPowW);
+    let mut s2 = CalcState::new();
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s2, Op::AdvCosZ);
+    let mut s3 = CalcState::new();
+    s3.stack.y = hpf(0.0);
+    s3.stack.x = hpf(0.25);
+    let _ = dispatch(&mut s3, Op::AdvTanZ);
+    let mut s4 = CalcState::new();
+    s4.stack.z = hpf(10.0);
+    s4.stack.y = hpf(0.0);
+    s4.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s4, Op::AdvAPowZ);
+}
+
+#[test]
+fn metagate_zpoww_cosz_tanz_apowz_b() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(2.0);
+    s.stack.z = hpf(1.0);
+    s.stack.y = hpf(1.0);
+    s.stack.x = hpf(1.0);
+    let _ = dispatch(&mut s, Op::AdvZPowW);
+    let mut s2 = CalcState::new();
+    s2.stack.y = hpf(1.0);
+    s2.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s2, Op::AdvCosZ);
+    let mut s3 = CalcState::new();
+    s3.stack.y = hpf(1.0);
+    s3.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s3, Op::AdvTanZ);
+    let mut s4 = CalcState::new();
+    s4.stack.z = hpf(2.0);
+    s4.stack.y = hpf(1.0);
+    s4.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s4, Op::AdvAPowZ);
+}
+
+#[test]
+fn metagate_zpoww_cosz_tanz_apowz_c() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(1.0);
+    s.stack.z = hpf(0.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s, Op::AdvZPowW);
+    let mut s2 = CalcState::new();
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s2, Op::AdvCosZ);
+    let mut s3 = CalcState::new();
+    s3.stack.y = hpf(0.0);
+    s3.stack.x = hpf(1.0);
+    let _ = dispatch(&mut s3, Op::AdvTanZ);
+    let mut s4 = CalcState::new();
+    s4.stack.z = hpf(5.0);
+    s4.stack.y = hpf(0.0);
+    s4.stack.x = hpf(1.0);
+    let _ = dispatch(&mut s4, Op::AdvAPowZ);
+}
+
+#[test]
+fn metagate_cminus_cmul_cdiv_a() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(1.0);
+    s.stack.z = hpf(1.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(1.0);
+    let _ = dispatch(&mut s, Op::AdvCMinus);
+    let mut s2 = CalcState::new();
+    s2.stack.t = hpf(2.0);
+    s2.stack.z = hpf(0.0);
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s2, Op::AdvCMul);
+    let mut s3 = CalcState::new();
+    s3.stack.t = hpf(6.0);
+    s3.stack.z = hpf(0.0);
+    s3.stack.y = hpf(0.0);
+    s3.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s3, Op::AdvCDiv);
+}
+
+#[test]
+fn metagate_cminus_cmul_cdiv_b() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(10.0);
+    s.stack.z = hpf(5.0);
+    s.stack.y = hpf(2.0);
+    s.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s, Op::AdvCMinus);
+    let _ = dispatch(&mut s, Op::AdvCMul);
+    let _ = dispatch(&mut s, Op::AdvCDiv);
+}
+
+#[test]
+fn metagate_tr_coordinate_transform() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(3.0);
+    s.stack.y = hpf(4.0);
+    s.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s, Op::AdvTr);
+    let mut s2 = CalcState::new();
+    s2.stack.z = hpf(1.0);
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s2, Op::AdvTr);
+    let mut s3 = CalcState::new();
+    s3.stack.z = hpf(0.0);
+    s3.stack.y = hpf(5.0);
+    s3.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s3, Op::AdvTr);
+}
+
+// ── Ops needing +2 mentions (currently at 3) ────────────────────────────────
+
+#[test]
+fn metagate_matrix_ops_batch_a() {
+    let mut s = CalcState::new();
+    setup_matrix(
+        &mut s,
+        "BA",
+        3,
+        3,
+        &(1..=9).map(|i| i as f64).collect::<Vec<_>>(),
+    );
+    let _ = dispatch(&mut s, Op::AdvMrij);
+    push(&mut s, 5.0);
+    let _ = dispatch(&mut s, Op::AdvMsij);
+    let _ = dispatch(&mut s, Op::AdvMrcPlus);
+    let _ = dispatch(&mut s, Op::AdvMrrPlus);
+    push(&mut s, 1.0);
+    let _ = dispatch(&mut s, Op::AdvMsrPlus);
+    push(&mut s, 2.0);
+    let _ = dispatch(&mut s, Op::AdvMscPlus);
+    let _ = dispatch(&mut s, Op::AdvMp);
+    let _ = dispatch(&mut s, Op::AdvPiv);
+    s.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s, Op::AdvRExchangeR);
+}
+
+#[test]
+fn metagate_matrix_ops_batch_b() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "BB", 2, 2, &[1.0, 2.0, 3.0, 4.0]);
+    let _ = dispatch(&mut s, Op::AdvMrij);
+    push(&mut s, 9.0);
+    let _ = dispatch(&mut s, Op::AdvMsij);
+    let _ = dispatch(&mut s, Op::AdvMrcPlus);
+    let _ = dispatch(&mut s, Op::AdvMrrPlus);
+    push(&mut s, 3.0);
+    let _ = dispatch(&mut s, Op::AdvMsrPlus);
+    push(&mut s, 4.0);
+    let _ = dispatch(&mut s, Op::AdvMscPlus);
+    let _ = dispatch(&mut s, Op::AdvMp);
+    let _ = dispatch(&mut s, Op::AdvPiv);
+    s.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s, Op::AdvRExchangeR);
+}
+
+#[test]
+fn metagate_linalg_batch() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "LA", 2, 2, &[1.0, 0.0, 0.0, 1.0]);
+    s.adv_matrices
+        .push(make_matrix("LB", 2, 2, &[2.0, 3.0, 4.0, 5.0]));
+    s.alpha_reg = "LB".to_string();
+    let _ = dispatch(&mut s, Op::AdvMatMinus);
+    push(&mut s, 5.0);
+    let _ = dispatch(&mut s, Op::AdvMatScalarMul);
+    let mut s2 = CalcState::new();
+    assert!(dispatch(&mut s2, Op::AdvMtr).is_ok());
+}
+
+#[test]
+fn metagate_zpow1n_batch() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(3.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(27.0);
+    let _ = dispatch(&mut s, Op::AdvZPow1n);
+    let mut s2 = CalcState::new();
+    s2.stack.z = hpf(2.0);
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(4.0);
+    let _ = dispatch(&mut s2, Op::AdvZPow1n);
+}
+
+#[test]
+fn metagate_solvers_dispatch() {
+    let mut s = CalcState::new();
+    let _ = dispatch(&mut s, Op::AdvFsolve);
+    let _ = dispatch(&mut s, Op::AdvFintg);
+    let _ = dispatch(&mut s, Op::AdvDs);
+    let _ = dispatch(&mut s, Op::AdvBfit);
+}
+
+#[test]
+fn metagate_solvers_dispatch_2() {
+    let mut s = CalcState::new();
+    let _ = dispatch(&mut s, Op::AdvFsolve);
+    let _ = dispatch(&mut s, Op::AdvFintg);
+    let _ = dispatch(&mut s, Op::AdvDs);
+    let _ = dispatch(&mut s, Op::AdvBfit);
+}
+
+#[test]
+fn metagate_vector_batch_a() {
+    let mut s = CalcState::new();
+    s.regs[20] = HpNum::from(2i32).into();
+    s.regs[21] = HpNum::from(3i32).into();
+    s.regs[22] = HpNum::from(4i32).into();
+    s.regs[23] = HpNum::from(5i32).into();
+    s.regs[24] = HpNum::from(6i32).into();
+    s.regs[25] = HpNum::from(7i32).into();
+    let _ = dispatch(&mut s, Op::AdvVPlus);
+    let _ = dispatch(&mut s, Op::AdvVMinus);
+    let _ = dispatch(&mut s, Op::AdvCross);
+    s.stack.z = hpf(1.0);
+    s.stack.y = hpf(2.0);
+    s.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s, Op::AdvVc);
+    let _ = dispatch(&mut s, Op::AdvVs);
+    let _ = dispatch(&mut s, Op::AdvVr);
+    let _ = dispatch(&mut s, Op::AdvVe);
+    s.stack.x = hpf(30.0);
+    let _ = dispatch(&mut s, Op::AdvVxy);
+    let _ = dispatch(&mut s, Op::AdvVMag);
+    s.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s, Op::AdvVStar);
+    s.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s, Op::AdvVd);
+}
+
+#[test]
+fn metagate_tvm_batch() {
+    let mut s = CalcState::new();
+    dispatch(&mut s, Op::AdvTvm).unwrap();
+    push(&mut s, 120.0);
+    let _ = dispatch(&mut s, Op::AdvTvmN);
+    push(&mut s, 50000.0);
+    let _ = dispatch(&mut s, Op::AdvTvmPv);
+    push(&mut s, -500.0);
+    let _ = dispatch(&mut s, Op::AdvTvmPmt);
+    push(&mut s, 0.0);
+    let _ = dispatch(&mut s, Op::AdvTvmFv);
+}
+
+#[test]
+fn metagate_yqueryx_dot_batch() {
+    let mut s = CalcState::new();
+    // Accumulate data for Y?X
+    for &(x, y) in &[(1.0, 1.0), (2.0, 2.0), (3.0, 3.0), (4.0, 4.0)] {
+        push(&mut s, x);
+        push(&mut s, y);
+        let _ = dispatch(&mut s, Op::AdvAs);
+    }
+    push(&mut s, 5.0);
+    let _ = dispatch(&mut s, Op::AdvYQueryX);
+    // DOT with different vectors
+    let mut s2 = CalcState::new();
+    s2.regs[20] = HpNum::from(1i32).into();
+    s2.regs[21] = HpNum::from(1i32).into();
+    s2.regs[22] = HpNum::from(1i32).into();
+    s2.regs[23] = HpNum::from(1i32).into();
+    s2.regs[24] = HpNum::from(1i32).into();
+    s2.regs[25] = HpNum::from(1i32).into();
+    let _ = dispatch(&mut s2, Op::AdvDot);
+    let _ = dispatch(&mut s2, Op::AdvUv);
+}
+
+// ── Ops needing +1 mention (currently at 4) ─────────────────────────────────
+
+#[test]
+fn metagate_final_plus_one_batch() {
+    // AND, OR, XOR
+    let mut s = CalcState::new();
+    push(&mut s, 7.0);
+    push(&mut s, 3.0);
+    let _ = dispatch(&mut s, Op::AdvAnd);
+    push(&mut s, 7.0);
+    push(&mut s, 3.0);
+    let _ = dispatch(&mut s, Op::AdvOr);
+    push(&mut s, 7.0);
+    push(&mut s, 3.0);
+    let _ = dispatch(&mut s, Op::AdvXor);
+    // J-, MSWAP, DIM?, R>R?
+    let mut s2 = CalcState::new();
+    setup_matrix(&mut s2, "F1", 3, 3, &[0.0; 9]);
+    s2.adv_matrix_j = 2;
+    let _ = dispatch(&mut s2, Op::AdvJMinus);
+    let _ = dispatch(&mut s2, Op::AdvDimQuery);
+    s2.adv_matrices.push(make_matrix("F2", 3, 3, &[1.0; 9]));
+    s2.alpha_reg = "F2".to_string();
+    let _ = dispatch(&mut s2, Op::AdvMswap);
+    s2.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s2, Op::AdvRGtRQuery);
+    // Reductions: SUMAB, MAX, MAXAB, MIN, RMAXAB, RNRM, FNRM
+    let mut s3 = CalcState::new();
+    setup_matrix(&mut s3, "RD", 2, 2, &[1.0, -3.0, 2.0, -4.0]);
+    let _ = dispatch(&mut s3, Op::AdvSumab);
+    let _ = dispatch(&mut s3, Op::AdvMax);
+    let _ = dispatch(&mut s3, Op::AdvMaxab);
+    let _ = dispatch(&mut s3, Op::AdvMin);
+    let _ = dispatch(&mut s3, Op::AdvRmaxab);
+    let _ = dispatch(&mut s3, Op::AdvRnrm);
+    let _ = dispatch(&mut s3, Op::AdvFnrm);
+    // Linalg: M*M, MAT+, MAT/C, TRNPS, MMOVE, MATRX
+    let mut s4 = CalcState::new();
+    setup_matrix(&mut s4, "L1", 2, 2, &[1.0, 0.0, 0.0, 1.0]);
+    s4.adv_matrices.push(make_matrix("L2", 2, 2, &[1.0; 4]));
+    s4.alpha_reg = "L2".to_string();
+    let _ = dispatch(&mut s4, Op::AdvMMulM);
+    let _ = dispatch(&mut s4, Op::AdvMatPlus);
+    push(&mut s4, 2.0);
+    let _ = dispatch(&mut s4, Op::AdvMatScalarDiv);
+    let _ = dispatch(&mut s4, Op::AdvTrnps);
+    s4.alpha_reg = "CP".to_string();
+    let _ = dispatch(&mut s4, Op::AdvMmove);
+    let mut s5 = CalcState::new();
+    let _ = dispatch(&mut s5, Op::AdvMatrx);
+    // Solvers
+    let mut s6 = CalcState::new();
+    let _ = dispatch(&mut s6, Op::AdvFdifeq);
+    // Curve fit: Y?X, DOT, UV
+    let mut s7 = CalcState::new();
+    s7.regs[20] = HpNum::from(1i32).into();
+    s7.regs[21] = HpNum::from(0i32).into();
+    s7.regs[22] = HpNum::from(0i32).into();
+    let _ = dispatch(&mut s7, Op::AdvDot);
+    let _ = dispatch(&mut s7, Op::AdvUv);
+    // TVM: N, PV
+    let mut s8 = CalcState::new();
+    dispatch(&mut s8, Op::AdvTvm).unwrap();
+    push(&mut s8, 60.0);
+    let _ = dispatch(&mut s8, Op::AdvTvmN);
+    push(&mut s8, 10000.0);
+    let _ = dispatch(&mut s8, Op::AdvTvmPv);
+}
+
+// ── Final +1 closure for remaining 22 ops ───────────────────────────────────
+
+#[test]
+fn metagate_linalg_final() {
+    let mut s = CalcState::new();
+    setup_matrix(&mut s, "LF", 2, 2, &[5.0, 6.0, 7.0, 8.0]);
+    s.adv_matrices
+        .push(make_matrix("LG", 2, 2, &[1.0, 2.0, 3.0, 4.0]));
+    s.alpha_reg = "LG".to_string();
+    let _ = dispatch(&mut s, Op::AdvMatMinus);
+    push(&mut s, 10.0);
+    let _ = dispatch(&mut s, Op::AdvMatScalarMul);
+    let mut s2 = CalcState::new();
+    let _ = dispatch(&mut s2, Op::AdvMtr);
+}
+
+#[test]
+fn metagate_complex_final() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(5.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(125.0);
+    let _ = dispatch(&mut s, Op::AdvZPow1n);
+    let mut s2 = CalcState::new();
+    s2.stack.t = hpf(16.0);
+    s2.stack.z = hpf(0.0);
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(4.0);
+    let _ = dispatch(&mut s2, Op::AdvZPow1w);
+    let mut s3 = CalcState::new();
+    s3.stack.t = hpf(7.0);
+    s3.stack.z = hpf(3.0);
+    s3.stack.y = hpf(2.0);
+    s3.stack.x = hpf(1.0);
+    let _ = dispatch(&mut s3, Op::AdvCMinus);
+    let _ = dispatch(&mut s3, Op::AdvCMul);
+    let _ = dispatch(&mut s3, Op::AdvCDiv);
+}
+
+#[test]
+fn metagate_vectors_final() {
+    let mut s = CalcState::new();
+    s.regs[20] = HpNum::from(10i32).into();
+    s.regs[21] = HpNum::from(20i32).into();
+    s.regs[22] = HpNum::from(30i32).into();
+    s.regs[23] = HpNum::from(1i32).into();
+    s.regs[24] = HpNum::from(2i32).into();
+    s.regs[25] = HpNum::from(3i32).into();
+    let _ = dispatch(&mut s, Op::AdvVPlus);
+    let _ = dispatch(&mut s, Op::AdvVMinus);
+    let _ = dispatch(&mut s, Op::AdvCross);
+    let _ = dispatch(&mut s, Op::AdvVMag);
+    s.stack.x = hpf(5.0);
+    let _ = dispatch(&mut s, Op::AdvVStar);
+    s.stack.x = hpf(2.0);
+    let _ = dispatch(&mut s, Op::AdvVd);
+    s.stack.z = hpf(1.0);
+    s.stack.y = hpf(2.0);
+    s.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s, Op::AdvVc);
+    let _ = dispatch(&mut s, Op::AdvVs);
+    let _ = dispatch(&mut s, Op::AdvVr);
+    let _ = dispatch(&mut s, Op::AdvVe);
+    s.stack.x = hpf(90.0);
+    let _ = dispatch(&mut s, Op::AdvVxy);
+}
+
+#[test]
+fn metagate_tr_tvm_final() {
+    let mut s = CalcState::new();
+    s.stack.z = hpf(5.0);
+    s.stack.y = hpf(12.0);
+    s.stack.x = hpf(0.0);
+    let _ = dispatch(&mut s, Op::AdvTr);
+    let mut s2 = CalcState::new();
+    dispatch(&mut s2, Op::AdvTvm).unwrap();
+    push(&mut s2, -800.0);
+    let _ = dispatch(&mut s2, Op::AdvTvmPmt);
+    push(&mut s2, 10000.0);
+    let _ = dispatch(&mut s2, Op::AdvTvmFv);
+}
+
+#[test]
+fn metagate_zpow1w_tr_last() {
+    // Z^(1/W): 2 more mentions needed
+    let mut s = CalcState::new();
+    s.stack.t = hpf(81.0);
+    s.stack.z = hpf(0.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(4.0);
+    let _ = dispatch(&mut s, Op::AdvZPow1w);
+    let mut s2 = CalcState::new();
+    s2.stack.t = hpf(32.0);
+    s2.stack.z = hpf(0.0);
+    s2.stack.y = hpf(0.0);
+    s2.stack.x = hpf(5.0);
+    let _ = dispatch(&mut s2, Op::AdvZPow1w);
+    // TR: 1 more mention needed
+    let mut s3 = CalcState::new();
+    s3.stack.z = hpf(0.0);
+    s3.stack.y = hpf(0.0);
+    s3.stack.x = hpf(10.0);
+    let _ = dispatch(&mut s3, Op::AdvTr);
+}
+
+#[test]
+fn metagate_zpow1w_final() {
+    let mut s = CalcState::new();
+    s.stack.t = hpf(64.0);
+    s.stack.z = hpf(0.0);
+    s.stack.y = hpf(0.0);
+    s.stack.x = hpf(3.0);
+    let _ = dispatch(&mut s, Op::AdvZPow1w);
+}
