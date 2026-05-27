@@ -448,7 +448,7 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
     // (Append Immediate to Alpha, ASCII-code-from-X) to build the binary string
     // "1010" in alpha_reg, then dispatches BININ to convert to decimal 10.
     //
-    // Workflow: CLA → AIP(49='1') → AIP(48='0') → AIP(49='1') → AIP(48='0')
+    // Workflow: cla → AIP(49='1') → AIP(48='0') → AIP(49='1') → AIP(48='0')
     //           → BININ → assert display_str === '10.0000'.
     //
     // AIP reads the truncated ASCII code from X register. Each digit sequence
@@ -463,8 +463,8 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         const display = await $('[data-testid="lcd-display"]');
         await display.waitForExist({ timeout: 10000 });
 
-        // Clear alpha register first.
-        await invokeBackend('dispatch_op', { keyId: 'xeq_CLA' });
+        // Clear alpha register first (use direct key ID, not xeq_CLA).
+        await invokeBackend('dispatch_op', { keyId: 'cla' });
 
         // AIP(49) → append '1' (ASCII 49 = '1').
         await invokeBackend('dispatch_op', { keyId: '4' });
