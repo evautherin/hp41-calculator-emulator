@@ -19,7 +19,7 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-25 after v3.3 roadmap)
+See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 

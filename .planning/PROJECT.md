@@ -2,18 +2,18 @@
 
 ## Current State
 
-**Latest shipped:** v3.2 Time Pac Emulation (2026-05-25)
+**Latest shipped:** v3.3 Advantage Pac Emulation (2026-05-26)
 
-## Current Milestone: v3.3 Advantage Pac Emulation
+**No active milestone.** Run `/gsd-new-milestone` to start the next cycle.
 
-**Goal:** Behavioral emulation of the HP-41C Advantage Pac (OM 00041-90482) and Advanced Matrix Pac as the fourth (and possibly fifth) XROM application module(s) — completing all remaining HP-41 module emulation.
+<details>
+<summary>v3.3 Advantage Pac Emulation (shipped 2026-05-26 — see <code>milestones/v3.3-ROADMAP.md</code>)</summary>
 
-**Target features:**
-- Advantage Pac functions (PROOT, CABS, CARG, CCHS, CCONJ, CY^X, Romberg-INTG, and other OM-documented functions)
-- Advanced Matrix Pac functions (M+, MAT*, INV-as-transpose, V+, VDOT, IDN)
-- XROM module registration (XROM ID(s) to be determined by research)
-- Full CLI + GUI integration following the established 5-phase pattern
-- Quality gates: coverage, accuracy, Free42 contamination guard, backward compat
+**Goal:** Behavioral emulation of the HP-41C Advantage Pac (OM 00041-90482) as the fourth and fifth XROM application modules (ADV_MATH_A XROM 22 + ADV_MATH_B XROM 24) — completing all remaining HP-41 module emulation.
+
+**Delivered:** 5 phases (43–47), 18 plans, ~117 new Op variants across ADV CONV/MTRX (63 ops) + ADV MATH/TVM (51 ops), named-matrix model (`Vec<AdvMatrix>`), FROOT Laguerre polynomial root-finder, Romberg integration, TVM solver, dual XROM ID design, ~10.9K LOC in `hp41-core/src/ops/advantage/`, full CLI + GUI integration, 3262 total tests, ~95% region coverage, README hard-claim graduated.
+
+</details>
 
 <details>
 <summary>v3.2 Time Pac Emulation (shipped 2026-05-25 — see <code>milestones/v3.2-ROADMAP.md</code>)</summary>
@@ -34,32 +34,11 @@
 </details>
 
 <details>
-<summary>v3.0 milestone scope (shipped — see <code>milestones/v3.0-ROADMAP.md</code>)</summary>
+<summary>v3.0 Math Pac I Emulation (shipped 2026-05-20 — see <code>milestones/v3.0-ROADMAP.md</code>)</summary>
 
-**Goal:** Behavioral Emulation des HP-41C **Math Pac I** (HP-Teilenummer 00041-90034, Owner's Manual 1979) als erstes XROM-Modul — 10 prompt-getriebene Workflow-Programme mit ~55 XEQ-by-Name Entry Points, nutzbar in CLI + GUI über eine neue Modal-Workflow-Schicht hinaus dem v2.x-Built-in-Pattern, ohne HP-copyrighted ROM-Image-Redistribution.
+**Goal:** Behavioral emulation of the HP-41C Math Pac I (OM 00041-90034) as the first XROM application module — 10 prompt-driven workflow programs with ~55 XEQ-by-name entry points, modal-workflow layer, user-callback re-entrancy infrastructure.
 
-**Scope-Korrektur (2026-05-16):** Nach FEATURES-Research wurde klar, dass Math Pac I NICHT die ursprünglich angenommenen Funktionen (`M+`/`MAT*`/`INV`-as-transpose/`PROOT`/`CABS`/`CARG`/`V+`/`VDOT`) enthält — die sind im **Advanced Matrix Pac** und **Advantage Pac** (separate HP-Module). Math Pac I ist user-code in ROM (multi-step Modal-Workflows mit ALPHA-Prompts), nicht Nut-CPU-microcode (one-shot Stack-Ops). v3.0 emuliert den tatsächlichen Math Pac I; Advanced Matrix / Advantage werden separate Milestones.
-
-**Target feature areas (Math Pac I per HP 00041-90034, 10 Top-Level Programme):**
-- XROM-Modul-Framework: Slot-Management, XROM 7 (echte Math Pac ID), statisch verlinkter Resolver, vorbereitet für Stat 1 / Time / Advantage in v3.1+
-- `MATRIX`: Determinante, Inverse, lineare Gleichungssysteme; Gauss-Elimination mit partieller Pivotsuche; bis 14×14; Matrix lebt ab R15
-- `SOLVE`: reelle Nullstelle von f(x)=0 via modifizierter Sekanten-Iteration; ruft user-program LBL als Funktions-Callback
-- `POLY`: Polynom-Wurzeln Grad 2–5 + Auswertung
-- `INTG`: numerische Integration via Simpson; user-program LBL als Integrand-Callback
-- `DIFEQ`: 1./2. Ordnung ODE-Solver via Runge-Kutta 4. Ordnung
-- `FOUR`: Fourier-Reihen (rect + polar Koeffizienten)
-- Komplex-Stack: zwei-Komplex-Zahlen-Stack (ζ/τ) überlagert auf X/Y/Z/T; arithmetik C+, C-, C×, C÷ + 13 weitere Funktionen
-- Hyperbolicus: SINH, COSH, TANH, ASINH, ACOSH, ATANH (6 Ops im klassischen v2.2-Stil — einzige Familie mit one-shot UX)
-- Dreiecks-Solver: SSS, ASA, SAA, SAS, SSA (5 Programme)
-- `TRANS`: 2D + 3D Koordinaten-Transformationen (translate/rotate)
-- Modal-Workflow-Schicht: ALPHA-Prompt-driven Mehrschritt-Flows (`ORDER=?`, `A1,1=?`, `FUNCTION NAME?`, `GUESS 1=?`) — neue Infrastruktur, parallel zur v2.2 `PendingInput`-Modal-Architektur
-- User-Program-Callback: Re-entrancy in `run_loop` für INTG / SOLVE / DIFEQ; Stack-Tiefen-Cap honoriert
-- CLI- + GUI-Integration: XEQ-by-Name fallback (keine dedizierten Math-Pac-Keys); JSON-canonical pipeline um `docs/hp41-math1-functions.json` erweitert
-- Quality-Gates: `hp41-core` Coverage ≥ 95 %, neue Accuracy-Cases für MATRIX/POLY/INTG/SOLVE/DIFEQ/FOUR/Komplex/Hyperbolicus, GUI-E2E-Smoke erweitert um einen Math-Pac-Workflow
-
-**Scope boundary (locked 2026-05-13, bestätigt 2026-05-16):** v3.0 ist Math 1 Pac only. Stat 1 deferred zu v3.1; Time + Advantage zu v3.2 / v3.3. HP-copyrighted ROM-Image-Redistribution bleibt permanent ausgeschlossen — wir liefern BEHAVIORAL Emulation der dokumentierten Funktionen (Owner's Manual als Verhaltens-Spec), nicht die ROM-Bytes.
-
-**Build sequence:** core (XROM-Framework + Math-1-Ops) → cli (Tastenbelegung + Modal-Erweiterungen) → docs (Function-Matrix v3.0) → gui (key_map + KEY_DEFS + Modal-Routing) → tests (Coverage + Accuracy-Cases).
+**Delivered:** 5 phases (28–32), 33 plans (26 original + 7 gap-closure), ~40 new Op variants, XROM resolver chain, modal-workflow state machine, user-callback re-entrancy, complex stack overlay, hyperbolics, triangle solvers, coordinate transforms, Fourier series, full CLI + GUI integration, 95.39% line / 94.26% region coverage, 763-case numerical accuracy at 99.3%.
 
 </details>
 
@@ -81,13 +60,11 @@
   - Phase 32 Test Hardening & Quality Gates (2026-05-18) — `tests/` + `scripts/` + `.github/` + `justfile` only; 10 plans (3 original + 7 gap-closure); meta-gate graduation (`math1_op_test_count` + `xrom_shadowing` actively cross-check 45 Op variants × 14 test files + 52 MATH_1.ops × 18-entry allowlist); `lint_math1_assertions.rs` Pitfall 14 + 17 discipline; `numerical_accuracy.rs` 566 → 763 cases (99.3 % pass); E2E smoke extended (`sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu); `scripts/check-free42-contamination.sh` D-32.7 12-symbol guard in `just ci` + `ci.yml::license-audit` parallel job (D-32.8). Gap-closure run (Plans 32-04..32-10) added ~70 error-branch tests across 9 new files, closing the coverage gate from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions; README v3.0 line graduated to the OM-cited hard claim per D-32.5.
 - v3.1 Stat 1 Pac Emulation (2026-05-24) — Phases 33–37, 23 plans; second XROM application module (13 programs, 26 XEQ entry points, RAND/SEED extension, distribution primitives, ANOVA family, multiple + polynomial regression, hypothesis tests); 95.84 % region coverage; 98.86 % numerical accuracy (791 cases); tag `v3.1`
 - v3.2 Time Pac Emulation (2026-05-25) — Phases 38–42, 19 plans; third XROM application module (HP 82182A Time Module, XROM 26, 35 XEQ entry points across clock/date/alarm/stopwatch); first real-time behavior in the emulator; pure-Rust JDN calendar arithmetic; 96.01 % region coverage; 2397 hp41-core tests; tag `v3.2`
-  - Phase 33 hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops (2026-05-22) — `hp41-core` only; 9 plans; 39 STAT-* requirements; ~26 new Op variants; 3 hand-coded distribution primitives (Acklam/AS 241 + Cody AS 239 + Lentz AS 63); 5 architectural locks captured as ADR-v3.1-001..005; `xrom_modules` default updated 0b01 → 0b11 with `migrate_after_load()` for v3.0 save-file forward-compat; 95.39 % line / 94.26 % region coverage preserved; Free42 contamination guard extended 12 → 18 tokens covering both `math1/` and `stat1/` trees.
-  - Phase 34 hp41-cli — CLI Integration (2026-05-23) — `hp41-cli` only; 2 plans; 5 STAT-CLI requirements; 26 new `op_display_name` arms (4-way invariant item 3 complete); third `OnceLock<Vec<HelpEntry>>` in `help_data.rs` for `docs/hp41-stat1-functions.json` (26 entries, 7-category convention per D-34.1); 3-pool JSON parity test cross-checks Op ↔ JSON across cv + math1 + stat1; `?` overlay "Stat 1 Pac (XROM 2)" section parallel-loads alongside Math 1 Pac; modal-prompt routing reuses v3.0 infrastructure with no new transient CalcState fields beyond `rand_seed`; `xrom_shadowing.rs` extended to `STAT_1.ops` (Pitfall 22 verified across both XROM modules).
-  - Phase 35 Documentation & ADRs (2026-05-23) — `docs/` + `.planning/` + repo-root markdown only; 4 plans; 6 STAT-DOC requirements; `scripts/docs-matrix` three-input extension (4-line basename dispatch; binary signature 1-in/1-out preserved per D-30.1 carry-forward); `docs/hp41-stat1-function-matrix.md` regenerated (26 entries); `docs/hp41-stat1-divergences.md` three-bucket catalog with 12 D-35-NN entries (6 oracle-drift bucket-3 reconciliations cross-referencing `33-SPEC-AMENDMENT.md` + 2 emulator extensions + 4 additional behavioral policies); `33-SPEC-AMENDMENT.md` history-preserving SPEC supplement (6-row drift reconciliation table); 5 new ADRs (v3.1-001..005, long-form per D-30.6); README v3.1 soft-claim per D-35.3; CLAUDE.md FIRST-EVER `### v3.x additions` block (v3.1 only, no v3.0 back-fill per D-35.5) + math1/ freeze carve-out amendment gated by ADR-v3.1-004; `docs/architecture-history.md` v3.1 narrative parallel to v3.0; `.planning/MILESTONES.md` v3.1 stub.
+- v3.3 Advantage Pac Emulation (2026-05-26) — Phases 43–47, 18 plans; fourth and fifth XROM application modules (ADV_MATH_A XROM 22 + ADV_MATH_B XROM 24, ~117 XEQ entry points across base conversion / boolean / matrix / complex / polynomial / solver / TVM); dual XROM ID hardware-faithful design; named-matrix model; FROOT Laguerre; Romberg integration; TVM solver; ~95 % region coverage; 3,262 total tests; tag `v3.3`
 
 ## What This Is
 
-A faithful Rust-based behavioral emulation of the HP-41C/CV/CX programmable RPN calculator, delivered as a keyboard-driven TUI CLI (`hp41-cli`) backed by a UI-agnostic core library (`hp41-core`). v1.0 shipped on 2026-05-08 with complete HP-41 arithmetic, keystroke programming, persistence, and cross-platform CI. v2.0 will add a Tauri-based graphical desktop app reusing `hp41-core` unchanged.
+A faithful Rust-based behavioral emulation of the HP-41C/CV/CX programmable RPN calculator, delivered as a keyboard-driven TUI CLI (`hp41-cli`) and a Tauri v2 desktop GUI (`hp41-gui`), both backed by a UI-agnostic core library (`hp41-core`). v3.3 shipped 2026-05-26 with the complete ROM built-in set (~130 ops) plus four XROM application modules: Math Pac I (XROM 7, ~55 entry points), Stat 1 Pac (XROM 2, 26 entry points), Time Module (XROM 26, 35 entry points), and Advantage Pac (XROM 22+24, ~117 entry points) — all feature-complete per their respective Owner's Manuals.
 
 ## Core Value
 
@@ -248,13 +225,32 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **TIME-GUI-01..07**: GUI integration (CATALOG 2, help overlay, `tick_time` conditional setInterval, alarm toast, LCD-alternation modal prompts) — v3.2 Phase 41
 - ✓ **TIME-QUAL-01..11**: Quality gates (96.01% region coverage, 30 date accuracy cases, stopwatch timing, alarm latency, unified meta-gates, backward compat, E2E DDAYS smoke, README hard-claim graduated) — v3.2 Phase 42
 
+### Validated (v3.3 — Advantage Pac Emulation, shipped 2026-05-26)
+
+- ✓ **ADV-FW-01..06**: Dual XROM framework activation (ADV_MATH_A XROM 22 bit-3 + ADV_MATH_B XROM 24 bit-4, `default_xrom_modules` → `0b0001_1111`, `migrate_after_load()` v3.2→v3.3) — v3.3 Phase 43
+- ✓ **ADV-MTX-01..12**: Named-matrix model (`Vec<AdvMatrix>`, NEWMAT/GETM/PUTM/MRCL/MSTO/MTRXD + element access ops, Math Pac I isolation per D-43.5) — v3.3 Phase 43
+- ✓ **ADV-CMPLX-01..14**: Extended complex ops (ADV_MATH_B module, 12 intentional MATH_1 overlaps per ADR-v3.3-003) — v3.3 Phase 43
+- ✓ **ADV-POLY-01..06**: FROOT Laguerre polynomial root-finder (arbitrary degree, quadratic deflation, f64 intermediate arithmetic per ADR-v3.3-002) — v3.3 Phase 43
+- ✓ **ADV-SOLV-01..08**: FINTG Romberg integration + FSOLVE + FDIFEQ coexisting with Math Pac I solvers (cross-nesting allowed per D-43.7) — v3.3 Phase 43
+- ✓ **ADV-TVM-01..08**: Time Value of Money (N/I%YR/PV/PMT/FV/AMORT, persistent `adv_tvm_state` per D-43.11) — v3.3 Phase 43
+- ✓ **ADV-BASE-01..08**: Base conversion + 36-bit boolean ops (BININ/BINDC/BINOCT/BINHEX/DECBIN/OCTBIN/HEXBIN + AND/OR/XOR/NOT/ROTXY per D-43.9) — v3.3 Phase 43
+- ✓ **ADV-CLI-01..06**: CLI integration (5th JSON pool, 114 `op_display_name` arms, 5-pool help overlay, xrom shadowing, function matrix) — v3.3 Phase 44
+- ✓ **ADV-DOC-01..06**: Documentation (divergences catalog, 4 ADRs, README/CLAUDE.md/architecture-history.md) — v3.3 Phase 45
+- ✓ **ADV-GUI-01..06**: GUI integration (CATALOG 2, help overlay, 117 `op_display_name` arms, modal rendering) — v3.3 Phase 46
+- ✓ **ADV-QUAL-01..09**: Quality gates (~95% region coverage, 22 oracle accuracy cases, unified meta-gates across 5 XROM modules, backward compat, E2E BININ smoke, README hard-claim graduated) — v3.3 Phase 47
+
+### Active
+
+No active milestone. Run `/gsd-new-milestone` to start the next cycle.
+
 ### Out of Scope
 
-- v2.0 GUI advanced features (module emulation, skin themes) — deferred until core GUI is stable
-- FR-18 Multiple skin themes — GUI-only, post-v2.x
-- **FR-21 Module emulation (Math 1 / Stat 1 / Time / Advantage Pacs) — entire scope of v3.x (locked 2026-05-13)**
-- FR-22 `.raw` HP-41 program file import/export — could-have, v1.2+
+- FR-18 Multiple skin themes — GUI-only, post-v3.x
+- FR-22 `.raw` HP-41 program file import/export — could-have
 - FR-23 Mobile (iOS/Android) — defer until desktop stable
+- Binary releases (signed cross-platform CLI + GUI installers via cargo-dist + tauri-action) — deferred post-v3.3
+- X-MEM / Extended Memory file model — post-v3.x scope
+- Interrupting control alarm execution — data model ready (D-38.4), requires re-entrancy against 4-level call stack
 - Cycle-accurate Nut CPU simulation — high effort, low user value vs. behavioral emulation
 - HP-copyrighted ROM image redistribution — legal risk, excluded permanently
 - HP-IL peripheral emulation — niche, complex
@@ -263,41 +259,62 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 
 ## Context
 
-v1.0 shipped in 3 days (2026-05-06 → 2026-05-08) with 8 phases, 45 plans, and 13,399 lines of Rust across `hp41-core` and `hp41-cli`. The faithful stack-lift semantics and ISG/DSE counter logic (CCCCC.FFFDD string-split) were the most commonly mis-implemented HP-41 features — both are now correctly implemented and verified.
+The project shipped v1.0 through v3.3 in 21 days (2026-05-06 → 2026-05-26) across 47 phases and 8 milestones.
 
-v1.1 Phase 9 (2026-05-08): MSRV formally declared at 1.85 with workspace inheritance in member crates; CI MSRV job added; EEX hardware behavior corrected — trailing-e commits as exponent 00, empty-buffer EEX inserts implicit mantissa, TUI shows placeholder cursor. 461 tests pass; 5/5 success criteria verified.
+**Codebase metrics (v3.3 ship, 2026-05-26):**
 
-v1.1 Phase 10 (2026-05-08): STO arithmetic keyboard modal complete — S→op→register 3-step flow for R00–R99 and stack registers Y/Z/T/LASTX. `StackReg` enum + `Op::StoArithStack` + `op_sto_arith_stack()` added to hp41-core; step-2 routing and Y/Z/T/L dispatch wired in app.rs; help overlay corrected. 10/10 must-haves verified; human TUI tests approved.
+| Component | Source LOC | Test LOC | Tests |
+|-----------|-----------|----------|-------|
+| `hp41-core/src` | 46,683 | 38,426 | 2,950 |
+| `hp41-cli/src` | 6,966 | 6,008 | 421 |
+| `hp41-gui/src-tauri/src` | 3,458 | — | — |
+| `hp41-gui/src` (React/TS) | 4,883 | — | — |
+| **Total Rust** | **101,541** | | **3,371** |
 
-v1.1 Phase 11 (2026-05-08): Print emulation complete — `print_buffer: Vec<String>` on `CalcState` keeps hp41-core I/O-free; `Op::PRX/PRA/PRSTK` in `ops/print.rs` format output into the buffer; `hp41-cli` drains via `call_dispatch_and_drain()` (interactive) and `drain_and_show_print_output()` (programmatic run_program paths); `--print-log` appends to a file. 5/5 must-haves verified; 94.00% hp41-core coverage. Gap closure plan 11-03 fixed serde(skip) on print_buffer (CR-03) and wired 3 run_program call sites (CR-01).
+**XROM module LOC breakdown in `hp41-core/src/ops/`:**
 
-Key codebase facts: `hp41-core` is a UI-agnostic library with zero CLI dependencies; `hp41-cli` uses ratatui 0.30 + crossterm 0.29; all tests use `just ci` (lint + test + coverage); `#![deny(clippy::unwrap_used)]` enforces zero panics at compile time. v1.1 shipped 2026-05-09 with 4 phases (9–12), completing all planned CLI features. v2.0 adds `hp41-gui` (Tauri v2 + React + TypeScript) as a new workspace member reusing `hp41-core` unchanged.
+| Module | XROM ID | LOC | Ops |
+|--------|---------|-----|-----|
+| `math1/` | 7 | 12,816 | ~55 |
+| `stat1/` | 2 | 6,898 | 26 |
+| `time/` | 26 | 4,556 | 35 |
+| `advantage/` | 22+24 | 10,872 | ~117 |
+
+**Quality gates (v3.3):** `hp41-core` region coverage ~95% (denominator dilution from 4 XROM modules), numerical accuracy 98.86% (843 cases), 0 panics, 0 Free42 contamination symbols, MSRV 1.88, zero new runtime deps across v3.0–v3.3, CI green on Windows/macOS/Ubuntu.
+
+**Op enum:** ~325 variants in `hp41-core/src/ops/mod.rs` — all subject to the 4-way exhaustive-match invariant (dispatch + execute_op + CLI prgm_display + GUI prgm_display).
 
 ## Constraints
 
-- **Tech stack**: Rust stable 1.78+ — deterministic, GC-free, ideal for emulation core
+- **Tech stack**: Rust stable, MSRV 1.88 — deterministic, GC-free, ideal for emulation core
 - **Task runner**: `just` — sole task runner; no bare `cargo` commands in CI or docs
 - **Architecture**: `hp41-core` must never depend on `hp41-cli` or `hp41-gui` — enforced at compile time
-- **Dependencies**: ratatui 0.30, crossterm 0.29, clap 4.x, serde/serde_json, rust_decimal, criterion (dev)
-- **Legal**: No HP-copyrighted ROM bytes; license audit before public release
-- **Privacy**: No telemetry; local-only data storage; no network calls
+- **Dependencies**: ratatui 0.30, crossterm 0.29, clap 4.x, serde/serde_json, rust_decimal, criterion (dev), Tauri v2.11 + React 18 + TypeScript + Vite (GUI)
+- **Zero runtime dep policy (v3.0+)**: No new runtime deps across v3.0–v3.3; `statrs` and `libc` both rejected
+- **Legal**: No HP-copyrighted ROM bytes; Free42 GPL contamination guard CI-enforced (18-token scan)
+- **Privacy**: No telemetry; local-only data storage; no network calls (except `SystemTime::now()` syscall)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Behavioral emulation, not cycle-accurate Nut CPU | High effort, low user value | ✓ Good — users don't notice |
-| Cargo workspace `hp41-core` / `hp41-cli` | Enforces clean separation; GUI is thin adapter | ✓ Good — `hp41-core` reused unchanged |
-| `rust_decimal` for HpNum with 10-digit rounding | BCD-accurate without custom BCD struct | ✓ Good — 99% accuracy suite pass rate |
+| Cargo workspace `hp41-core` / `hp41-cli` | Enforces clean separation; GUI is thin adapter | ✓ Good — `hp41-core` reused unchanged through v3.3 |
+| `rust_decimal` for HpNum with 10-digit rounding | BCD-accurate without custom BCD struct | ✓ Good — 98.86% accuracy suite pass rate (843 cases) |
 | Stack-lift as `lift_enabled: bool` in Stack | Simplest correct model for 130+ ops | ✓ Good — every op explicitly declares effect |
-| ISG/DSE counter fields via string-split | Never use `floor()`/`fmod()` on f64 | ✓ Good — hardware-identical counter behavior |
+| ISG/DSE counter fields via string-split | Never use `floor()`/`fmod()` on f64 | ✓ Good — hardware-identical counter behavior; reused for Time Pac date parsing |
 | ratatui + crossterm for TUI | Cross-platform, keyboard-driven, stable | ✓ Good — CI green on all 3 platforms |
-| `ratatui::init()` not `Terminal::new()` | Installs panic hook for terminal restore | ✓ Good — terminal never left in raw mode |
 | `just` as sole task runner | All targets as recipes; contributors never call bare `cargo` | ✓ Good — CI compliance enforced |
-| No async in hp41-core | Single-threaded event loop throughout v1.0 | ✓ Good — simpler, deterministic |
-| `serde_json` for persistence | Human-readable, diff-able, forward-compatible | ✓ Good — users can inspect/backup state files |
-| Digit entry appends to `entry_buf` directly | Auto-flushed on next non-digit; avoids per-digit PushNum | ✓ Good — correct HP-41 number entry behavior |
-| Phase 8 tech debt closure before v1.0 tag | EEX/SIN/CLREG gaps found in audit | ✓ Good — all keyboard gaps closed before release |
+| No async in hp41-core | Single-threaded event loop; clock reads via `SystemTime::now()` | ✓ Good — simpler, deterministic |
+| `serde_json` for persistence | Human-readable, diff-able, forward-compatible | ✓ Good — v1.0→v3.3 save files load without migration |
+| XROM resolver chain fires LAST (v3.0) | `xrom_resolve` after `builtin_card_op`; Pitfall 1 | ✓ Good — 5 modules coexist cleanly |
+| Hand-coded distribution primitives (v3.1) | Zero new runtime deps; `statrs` rejected | ✓ Good — ~140 LOC replaces ~50K dep; scipy-verified |
+| Direct `SystemTime::now()` in hp41-core (v3.2) | Syscall, not I/O; trait injection rejected | ✓ Good — `time_offset_secs` delta model is simple + testable |
+| Fliegel-Van Flandern JDN calendar (v3.2) | Pure Rust; `libc::localtime_r` rejected | ✓ Good — ~60 LOC; no new runtime deps |
+| Named-matrix `Vec<AdvMatrix>` model (v3.3) | Math Pac I isolation (D-43.5); `HashMap` rejected | ✓ Good — deterministic serde; separate from R14/R15+ |
+| Dual XROM ID design ADV 22+24 (v3.3) | Hardware-faithful two-chip design | ✓ Good — 12 intentional MATH_1 overlaps handled cleanly |
+| FROOT Laguerre's method (v3.3) | Arbitrary degree; coexists with Math Pac I Bairstow (degree 2–5) | ✓ Good — converges for all test cases incl. complex roots |
+| Persistent TVM state (v3.3) | `serde(default)` without `skip` — second instance after `rand_seed` | ✓ Good — TVM register contents survive save/load |
 
 ## Evolution
 
@@ -309,26 +326,22 @@ This document evolves at phase transitions and milestone boundaries.
 3. Update Context with current state
 4. Audit Key Decisions with outcomes
 
+**Milestone evolution log:**
+
+| Milestone | Shipped | Phases | Plans | Key achievement |
+|-----------|---------|--------|-------|-----------------|
+| v1.0 CLI | 2026-05-08 | 1–8 | 45 | Foundational RPN engine + TUI |
+| v1.1 CLI Feature Complete | 2026-05-09 | 9–12 | 4 | EEX/STO-Arith/Print/Synthetic |
+| v2.0 Tauri GUI | 2026-05-10 | 13–18 | 6 | Pixel-perfect HP-41C desktop app |
+| v2.1 Card Reader | 2026-05-13 | — | — | Card reader + keyboard authenticity (quick tasks) |
+| v2.2 HP-41CV Complete | 2026-05-15 | 20–27 | 26 | Full ROM built-in set (~130 ops) |
+| v3.0 Math Pac I | 2026-05-20 | 28–32 | 33 | First XROM module; XROM framework; modal workflows |
+| v3.1 Stat 1 Pac | 2026-05-24 | 33–37 | 23 | Second XROM module; distribution primitives; RNG |
+| v3.2 Time Pac | 2026-05-25 | 38–42 | 19 | Third XROM module; real-time clock; JDN calendar |
+| v3.3 Advantage Pac | 2026-05-26 | 43–47 | 18 | Fourth+fifth XROM modules; named matrices; Laguerre; TVM |
+
+Per-phase detail lives in `docs/architecture-history.md` and the archived milestone directories under `.planning/milestones/`.
+
 ---
-v2.0 Phase 14 (2026-05-09): IPC Layer complete — `dispatch_op` and `get_state` Tauri v2 commands route key string IDs through `key_map.rs` to `hp41_core::ops::dispatch`; `CalcStateView` (~170 bytes, ≤300 limit) serializes state for the frontend; `print_buffer` drained on every command; Tauri v2.11 app-command permissions declared via TOML files in `src-tauri/permissions/` (auto-generation not available for inline commands). 5/5 SC verified, 9/9 unit tests GREEN.
-v2.0 Phase 15 (2026-05-10): Display & Keyboard complete — React `App.tsx` renders 12-char display, 5 annunciators, and X/Y/Z/T/LASTX stack panel; `useCallback`+`useEffect` keyboard listener with `e.repeat` guard (SC-4 fix) and modal-key silencing; `CalcStateView` extended with `y_str`/`z_str`/`t_str`/`lastx_str`/`in_eex_mode`; `eex_chs` branch wired before `key_map::resolve()`; Tailwind removed from scaffold. 5/5 SC human-verified, 13/13 Rust tests GREEN.
 
-v2.0 Phase 16 (2026-05-10): SVG Skin complete — `Keyboard.tsx` with 44-key HP-41C SVG layout (9+8+9+9+9 rows), authentic color scheme, CSS `scale(0.92)` press animation with `transform-box: fill-box`; `handleKeyClick` dispatches to `dispatch_op`; all 23 named KEY_DEFS IDs pass `key_map::resolve()` (Wave 0 gate). 5/5 SC human-verified.
-
-v2.0 Phase 17 (2026-05-10): Persistence & Print Output complete — `persistence.rs` in `hp41-gui` with `dirs` dep; 30s auto-save thread; startup load from `~/.hp41/autosave.json` (shared with CLI); scrollable print panel with auto-show and history accumulation. 5/5 SC human-verified; 'p' key remapped to `prx` for Phase 17 SC-5.
-
-v2.0 Phase 18 (2026-05-10): Program Listing & CI/CD complete — `format_all_steps()` + `handle_sst`/`handle_bst` Tauri commands; `CalcStateView.program_steps`+`pc`; conditional PRGM panel in `App.tsx` with F7/F8 bindings and `activeStepRef` auto-scroll; `ci-gui.yml` 3-OS matrix CI independent from `ci.yml`. 5/5 SC verified.
-
-*Last updated: 2026-05-10 — v2.0 Tauri GUI milestone complete (Phases 13–18); next milestone v2.1*
-
-v2.2 HP-41CV Feature Completeness shipped 2026-05-15 (Phases 20–27, 8/8 phases, 26/26 plans) — full ROM built-in set across `hp41-core` + `hp41-cli` + `hp41-gui`; coverage gate atomically raised 80 % → 95 % (D-27.2), achieved 95.25 % lines / 93.75 % regions; 566-case numerical accuracy at 99.1 %; WebdriverIO + tauri-driver E2E smoke green on Ubuntu (`e2e-linux` CI job); Vitest now CI-gated. v1.x 503-case baseline floor 498 preserved per D-27.6. Tag `v2.2` on `main`.
-
-*Last updated: 2026-05-18 — v3.0 Phase 31 (GUI Integration) shipped (5/5 plans, 7/7 GUI-01..07 must-haves automated-verified, 3 manual GUI smoke items deferred to UAT); CATALOG 2 XROM enumeration + Math Pac I help overlay + LCD-alternation modal prompts + R/S 3-way + Esc cascade + request_cancel channel all land in this phase. Phase 32 (Test Hardening) next.*
-
-*Last updated: 2026-05-18 — v3.0 Phase 32 (Test Hardening & Quality Gates) fully shipped (10/10 plans: 3 original + 7 gap-closure). Original Phase 32 ship (Plans 32-01..32-03) delivered the test/CI infrastructure: meta-gate graduation, `lint_math1_assertions.rs`, `numerical_accuracy.rs` 566 → 763 cases at 99.3 % pass rate, E2E smoke extended with `sinh(1)` + `MATRIX DET` Math Pac I workflows on Ubuntu via `ci-gui.yml::e2e-linux`, Free42 GPL-contamination guard (D-32.7 12-symbol policy) in `just ci` + `ci.yml::license-audit` parallel job per D-32.8. Post-ship gap-closure run (Plans 32-04..32-10) added ~70 risk-weighted error-branch tests across 9 new `hp41-core/tests/` files plus the CR-01 + WR-01..07 cleanups, lifting coverage from 91.74 % → 95.39 % lines / 92.14 % → 94.26 % regions and graduating the README v3.0 line to the OM-cited hard claim "feature-complete per Owner's Manual 00041-90034" per D-32.5.*
-
-*Last updated: 2026-05-21 — v3.0 milestone archived via `/gsd-complete-milestone`. ROADMAP collapsed to one-line summary; full v3.0 detail moved to `milestones/v3.0-ROADMAP.md`; requirements archived to `milestones/v3.0-REQUIREMENTS.md` (all 114 marked shipped); phase directories 28–32 moved to `milestones/v3.0-phases/`. Orphaned phase directories 09–12 and 13–18 retro-archived to `milestones/v1.1-phases/` and `milestones/v2.0-phases/` respectively (never moved during their respective milestone-complete runs). Stale `.planning/v1.0-MILESTONE-AUDIT.md` removed (duplicate of archived copy). `.planning/REQUIREMENTS.md` deleted — next milestone starts fresh via `/gsd-new-milestone`.*
-
-*Last updated: 2026-05-21 — v3.1 Stat 1 Pac Emulation planning started via `/gsd-new-milestone`. `## Current Milestone` section added (target features provisional, refined during research → requirements → roadmap). Active requirements section reset to v3.1 scope marker. Phase numbering continues from v3.0 (Phase 33 onward). Binary-release bundling deferred to v3.1.x or v3.2 per user direction.*
-
-*Last updated: 2026-05-22 — v3.1 Phase 33 (hp41-core — XROM Activation + Distribution Primitives + All Stat 1 Ops) shipped (9/9 plans, 5/5 must-haves verified, 39/39 STAT-* requirements traced). 26 stat 1 Ops live in `hp41-core/src/ops/stat1/` consuming hand-coded f64-bridge distribution primitives (Acklam/AS 241 + AS 239 + AS 63); `default_xrom_modules → 0b0000_0011`; `rand_seed` field with unique `#[serde(default)]`-without-`skip` shape persists across save/load; `Op::Stat1Stub` fully removed. 1962 hp41-core tests pass; Free42 contamination guard extended to 18 tokens covering both math1/ and stat1/. Code review surfaced + fixed 2 Critical + 7 Warning findings (CR-01 RAND seed normalization, CR-02 ΣXSQEV result register const) before completion. Intentional sanctioned CI break in hp41-cli/hp41-gui (`non-exhaustive patterns: Op::Stat1Stub` … then the new Σ*/RAND/SEED variants) — Phase 34/36 will close items 3+4 of the 4-way invariant. 6 SPEC.md/ROADMAP oracle drifts queued for Phase 35 STAT-DOC amendment.*
+*Last updated: 2026-05-27 — v3.3 Advantage Pac Emulation shipped (47 total phases, 8 milestones, 101K Rust LOC, 3,371 tests). No active milestone.*
