@@ -614,22 +614,13 @@ async function importRaw() {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`decode_all_programs()` segment boundary correctness**
-   - What we know: `decode_program()` errors on trailing bytes after END marker; segment sliced as `[offset..end_pos + 3]` is a valid single-program stream.
-   - What's unclear: Whether there are edge cases where an LBL alpha-string payload contains `C0 00 0D` as part of its character bytes.
-   - Recommendation: Add a specific unit test `decode_all_programs_does_not_false_split_on_alpha_payload()` in Wave 0. In practice, alpha strings are ASCII and `0x0D` is a valid ASCII byte (carriage return), so this is a real risk.
+1. **`decode_all_programs()` segment boundary correctness** — RESOLVED: Alpha-string payloads are ASCII (0x20–0x7E range per HP-41 character set). While `0x0D` (CR) is theoretically a valid ASCII byte, HP-41 alpha strings do not contain control characters — the character set maps bytes 0x00–0x7E to printable glyphs. The 3-byte END marker `C0 00 0D` cannot appear inside an alpha payload because `0xC0` is outside the alpha byte range. A regression test `decode_all_programs_does_not_false_split_on_alpha_payload()` is included in Plan 01 Task 2 as defense-in-depth.
 
-2. **Toast feedback format for import (D-50.3)**
-   - What we know: D-50.3 requires "Imported QUAD (47 steps)". `CalcStateView` does not currently carry import metadata.
-   - What's unclear: Whether to add a transient field to `CalcStateView` or return a dedicated result type from the new commands.
-   - Recommendation: Add `last_import_message: Option<String>` to `CalcStateView` (with `#[serde(default)]` if added to CalcState — but this is GUI-only state, so it should be in the command return type, not CalcState itself). The simplest approach: new commands return a custom struct `{ view: CalcStateView; message: String }`.
+2. **Toast feedback format for import (D-50.3)** — RESOLVED: New dialog commands return a custom JSON struct `{ view: CalcStateView, message: String }` instead of bare `CalcStateView`. The `message` field carries the toast text (e.g., "Imported QUAD (47 steps)"). This avoids polluting `CalcState`/`CalcStateView` with transient GUI-only state. Implemented in Plan 02 Task 2.
 
-3. **`--batch` vs `--no-tui` naming (D-50.9)**
-   - What we know: D-50.9 specifies `--batch` or `--no-tui`.
-   - What's unclear: Which name to use; consistency with other CLI tools.
-   - Recommendation: Use `--batch` (shorter, conventional for scripting modes).
+3. **`--batch` vs `--no-tui` naming (D-50.9)** — RESOLVED: Using `--batch` (shorter, conventional for scripting modes, consistent with Unix tooling patterns). Implemented in Plan 04.
 
 ---
 
