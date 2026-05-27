@@ -1,0 +1,6 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-import-selected-programs"
+description = "Allows the import_selected_programs command."
+commands.allow = ["import_selected_programs"]
