@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Platform Maturity
-status: planning
-last_updated: "2026-05-27T09:15:25.257Z"
-last_activity: 2026-05-27
+status: Roadmap defined — awaiting `/gsd-plan-phase 48`
+last_updated: "2026-05-27T10:36:57.097Z"
+last_activity: 2026-05-27 — Roadmap created for v4.0
 progress:
   total_phases: 5
   completed_phases: 0
