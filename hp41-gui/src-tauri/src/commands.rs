@@ -17,6 +17,7 @@
 
 use crate::cards;
 use crate::key_map;
+use crate::persistence;
 use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
@@ -446,9 +447,35 @@ pub fn set_pref(
             }
             p.theme = value;
         }
+        // T-49-01: parse value as bool via string comparison — any non-"true" value is false
+        // (safe coercion; unknown boolean strings silently become false rather than erroring,
+        // which matches the HP-41 philosophy of safe fallbacks).
+        "onboarding_done" => {
+            p.onboarding_done = value == "true";
+        }
         _ => return Err(format!("unknown pref key: {key}")),
     }
     save_prefs(&default_prefs_path(), &*p).map_err(|e| e.to_string())
+}
+
+/// Tauri command: persist the current CalcState to disk on demand (Ctrl+S / F5 in GUI).
+///
+/// Mirrors the CLI's Ctrl+S handler (`hp41-cli/src/app.rs` lines 324-330). Follows
+/// CR-01 clone-under-lock pattern: clones the CalcState while holding the Mutex lock,
+/// then releases the lock before performing disk I/O so the UI is never blocked longer
+/// than necessary.
+///
+/// Uses `persistence::save_state` (module-qualified) to avoid name shadowing with
+/// this function. Returns `Err(String)` on I/O failure (serialized to GuiError by Tauri).
+///
+/// GUI divergence (KBD-02 / D-49.13): F5 triggers save in the GUI; CLI uses F5 for
+/// `run_program("A")`. This is intentional and documented — desktop keyboard idiom.
+#[tauri::command]
+pub fn save_state(state: State<'_, AppState>) -> Result<(), String> {
+    // CR-01: clone under lock, then release lock before disk I/O.
+    let snapshot = state.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let path = persistence::default_state_path();
+    persistence::save_state(&path, &snapshot).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
