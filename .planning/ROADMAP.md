@@ -87,7 +87,7 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 ### v4.0 Platform Maturity (Phases 48–52)
 
 - [x] **Phase 48: GUI Infrastructure + Theming** — prefs.rs backend, 4 skin themes, CSS custom properties (completed 2026-05-27)
-- [ ] **Phase 49: Onboarding + GUI Keyboard Parity** — first-run guide, searchable reference, keyboard shortcuts
+- [x] **Phase 49: Onboarding + GUI Keyboard Parity** — first-run guide, searchable reference, keyboard shortcuts (completed 2026-05-27)
 - [ ] **Phase 50: .raw File I/O** — import/export via Tauri file dialog and CLI flags
 - [ ] **Phase 51: X-MEM Core** — EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG ops in hp41-core
 - [ ] **Phase 52: Test Hardening + Documentation** — backward compat, full CLI+GUI integration, ADRs, coverage
@@ -144,7 +144,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 49-03-PLAN.md — Components: OnboardingWizard, HelpOverlay KBD section + expandable entries, CSS
+- [x] 49-03-PLAN.md — Components: OnboardingWizard, HelpOverlay KBD section + expandable entries, CSS
 
 **Wave 3** *(blocked on Wave 1 + Wave 2 completion)*
 
@@ -202,7 +202,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
-| 49. Onboarding + GUI Keyboard Parity | 3/4 | In Progress|  |
+| 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 0/? | Not started | - |
 | 51. X-MEM Core | 0/? | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
