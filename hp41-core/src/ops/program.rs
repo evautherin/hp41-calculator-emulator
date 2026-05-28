@@ -1444,6 +1444,15 @@ pub fn builtin_card_op(name: &str) -> Option<Op> {
         "PRX" => Some(Op::PRX),
         "PRA" => Some(Op::PRA),
         "PRSTK" => Some(Op::PRSTK),
+        // Phase 52 (v4.0): X-MEM built-in ops (HP-41CX Extended Functions / D-52.4)
+        "EMDIR"  => Some(Op::EmDir),
+        "EMROOM" => Some(Op::EmRoom),
+        "SAVEP"  => Some(Op::SaveP),
+        "GETP"   => Some(Op::GetP),
+        "SAVED"  => Some(Op::SaveD),
+        "GETD"   => Some(Op::GetD),
+        "EMREG"  => Some(Op::EmReg),
+        "SAVERX" => Some(Op::SaveRx),
         _ => None,
     }
 }

@@ -145,3 +145,24 @@ fn unknown_names_return_none() {
     assert_eq!(resolve(""), None);
     assert_eq!(resolve("XYZZY"), None);
 }
+
+#[test]
+fn xmem_builtins_resolve() {
+    // Phase 52 (v4.0): X-MEM built-in ops (HP-41CX Extended Functions / D-52.4).
+    // These resolve via builtin_card_op — no changes to keys.rs or key_map.rs needed.
+    assert_eq!(resolve("EMDIR"), Some(EmDir));
+    assert_eq!(resolve("EMROOM"), Some(EmRoom));
+    assert_eq!(resolve("SAVEP"), Some(SaveP));
+    assert_eq!(resolve("GETP"), Some(GetP));
+    assert_eq!(resolve("SAVED"), Some(SaveD));
+    assert_eq!(resolve("GETD"), Some(GetD));
+    assert_eq!(resolve("EMREG"), Some(EmReg));
+    assert_eq!(resolve("SAVERX"), Some(SaveRx));
+}
+
+#[test]
+fn xmem_unknown_still_none() {
+    // After wiring, unknown X-MEM-like names must still return None (never-discard D-07).
+    assert_eq!(resolve("EMDIR2"), None);
+    assert_eq!(resolve("SAVERX2"), None);
+}
