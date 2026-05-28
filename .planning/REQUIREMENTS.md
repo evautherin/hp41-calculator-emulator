@@ -46,13 +46,13 @@ Requirements for v4.0 Platform Maturity. Each maps to roadmap phases.
 
 ### Extended Memory (X-MEM)
 
-- [ ] **XMEM-01**: EMDIR lists all files in extended memory with names, types, and sizes
-- [ ] **XMEM-02**: EMROOM reports available register space in extended memory
-- [ ] **XMEM-03**: SAVEP saves a named program to extended memory
-- [ ] **XMEM-04**: GETP retrieves a named program from extended memory
-- [ ] **XMEM-05**: SAVED saves data registers to a named file in extended memory
-- [ ] **XMEM-06**: GETD retrieves data registers from a named file in extended memory
-- [ ] **XMEM-07**: EMREG accesses register N within the active X-MEM file
+- [x] **XMEM-01**: EMDIR lists all files in extended memory with names, types, and sizes
+- [x] **XMEM-02**: EMROOM reports available register space in extended memory
+- [x] **XMEM-03**: SAVEP saves a named program to extended memory
+- [x] **XMEM-04**: GETP retrieves a named program from extended memory
+- [x] **XMEM-05**: SAVED saves data registers to a named file in extended memory
+- [x] **XMEM-06**: GETD retrieves data registers from a named file in extended memory
+- [x] **XMEM-07**: EMREG accesses register N within the active X-MEM file
 - [ ] **XMEM-08**: X-MEM state persists across save/load with `#[serde(default)]` backward compat
 - [ ] **XMEM-09**: X-MEM storage isolated from main registers and `adv_matrices` (D-43.5 pattern)
 - [ ] **XMEM-10**: CLI + GUI integration (4-way exhaustive match, `op_display_name`, help overlay)
@@ -113,13 +113,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RAW-04 | Phase 50 | Pending |
 | RAW-05 | Phase 50 | Pending |
 | RAW-06 | Phase 50 | Pending |
-| XMEM-01 | Phase 51 | Pending |
-| XMEM-02 | Phase 51 | Pending |
-| XMEM-03 | Phase 51 | Pending |
-| XMEM-04 | Phase 51 | Pending |
-| XMEM-05 | Phase 51 | Pending |
-| XMEM-06 | Phase 51 | Pending |
-| XMEM-07 | Phase 51 | Pending |
+| XMEM-01 | Phase 51 | Complete |
+| XMEM-02 | Phase 51 | Complete |
+| XMEM-03 | Phase 51 | Complete |
+| XMEM-04 | Phase 51 | Complete |
+| XMEM-05 | Phase 51 | Complete |
+| XMEM-06 | Phase 51 | Complete |
+| XMEM-07 | Phase 51 | Complete |
 | XMEM-08 | Phase 52 | Pending |
 | XMEM-09 | Phase 52 | Pending |
 | XMEM-10 | Phase 52 | Pending |
