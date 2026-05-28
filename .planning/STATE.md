@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Platform Maturity
-status: milestone_complete
-last_updated: 2026-05-28T13:39:09.098Z
-last_activity: 2026-05-28
+status: Awaiting next milestone
+last_updated: "2026-05-28T14:34:33.369Z"
+last_activity: 2026-05-28 — Milestone v4.0 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
   total_plans: 17
   completed_plans: 17
   percent: 100
-stopped_at: Milestone complete (Phase 52 was final phase)
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 ## Current Position
 
-Phase: 52
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-28
+Phase: Milestone v4.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-28 — Milestone v4.0 completed and archived
 
 ## Progress Bar
 
@@ -120,3 +119,7 @@ From v3.3 milestone close — all confirmed complete:
 
 *State initialized: 2026-05-06*
 *Last updated: 2026-05-28 — Phase 51 (X-MEM Core) complete; Phase 52 (Test Hardening + Documentation) context gathered, ready to plan; CATALOG 3 split to new Phase 53*
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

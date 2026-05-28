@@ -1,5 +1,36 @@
 # Milestones
 
+## v4.0 — Platform Maturity
+
+**Status:** ✅ SHIPPED 2026-05-28
+**Phases:** 5 (Phases 48–52)
+**Plans:** 17 total, all complete
+**Tasks:** 36
+**Timeline:** 2 days (2026-05-26 → 2026-05-28)
+**Source:** 150 commits, 210 files changed (+28,575 / −13,109) since v3.3
+**Tag:** v4.0
+
+### Delivered
+
+Evolved the emulator from feature-complete module emulation (v3.3) to a polished desktop platform: GUI theming, user onboarding, full GUI↔CLI keyboard parity, HP-41 community `.raw` file exchange, and HP-41CX Extended Memory.
+
+### Key Accomplishments
+
+1. **GUI theming (Phase 48)** — 4 built-in skin themes (dark, light, classic beige, high-contrast) via CSS custom properties; `prefs.rs` backend persisting to `~/.hp41/prefs.json`, fully isolated from `CalcState` (ADR-v4.0-004)
+2. **Onboarding + keyboard parity (Phase 49)** — 5-panel first-run OnboardingWizard, searchable in-app function reference (~350 entries with example/notes), and GUI physical-keyboard shortcuts at parity with the CLI via canonical `keyboard-shortcuts.json` (61 entries, ADR-v4.0-005)
+3. **`.raw` file I/O (Phase 50)** — HP-41 community `.raw` program import/export via native Tauri dialog + CLI flags; multi-program archive splitting (`decode_all_programs`, 256-program DoS cap) and Tauri anti-deadlock dialog-before-lock ordering (ADR-v4.0-006)
+4. **X-MEM core (Phase 51)** — HP-41CX Extended Memory: 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX), `XmemFile` model, 600-register capacity, backward-compat serde, isolated from `state.regs`/`adv_matrices`
+5. **X-MEM hardening + docs (Phase 52)** — XEQ-by-name via `builtin_card_op` (HP-41CX OS-builtin, no XROM bit), 6th help pool, op↔JSON parity + per-op test-count meta-gates, backward-compat fixtures, 3 ADRs + divergences doc
+6. **Quality** — full `just test`/`lint`/`gui-ci`/`docs-matrix-check` green; milestone audit confirmed all 32 requirements satisfied with cross-phase integration + 5/5 E2E flows
+
+### Known deferred items
+
+- Nyquist `VALIDATION.md` for phases 48–50 left in draft (work verified retroactively via the milestone integration audit)
+- 3 code-review warnings (52-REVIEW WR-01/02/04) + Phase-50 dialog visual checkpoint → backlog
+- 6 stale quick-task registry entries (v1.0–v2.2 era, files missing) → registry cleanup candidate
+
+---
+
 ## v1.0 — HP-41 Calculator Emulator CLI
 
 **Status:** ✅ SHIPPED 2026-05-08

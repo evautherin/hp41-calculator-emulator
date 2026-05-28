@@ -1,15 +1,28 @@
 # HP-41 Calculator Emulator
 
-## Current Milestone: v4.0 Platform Maturity
+## Current Milestone: — none active (v4.0 shipped 2026-05-28)
+
+No milestone in progress. Run `/gsd-new-milestone` to start the next one. Candidate scope (tracked at milestone close): X-MEM ASCII/STATUS file types (XMEM-F01/F02), LIF disk-image mounting (RAW-F01), interactive keystroke tutorial (ONBOARD-F01) — see `milestones/v4.0-REQUIREMENTS.md` v4.1+ section.
+
+<details>
+<summary>v4.0 Platform Maturity (shipped 2026-05-28 — see <code>milestones/v4.0-ROADMAP.md</code>)</summary>
 
 **Goal:** Evolve the emulator from feature-complete XROM emulation to a polished, user-friendly platform with visual themes, comprehensive onboarding, GUI keyboard parity, and HP-41 community file exchange (`.raw` + Extended Memory).
 
-**Target features:**
+**Delivered:** 5 phases (48–52), 17 plans — 4 GUI skin themes + isolated `prefs.rs` backend, 5-panel onboarding wizard + searchable reference + GUI↔CLI keyboard parity, `.raw` import/export (native dialog + CLI flags, multi-program archives), HP-41CX Extended Memory (8 X-Function ops, OS-builtin routing via `builtin_card_op`), 6 new ADRs (v4.0-001..006). All 32 requirements satisfied (milestone audit confirmed cross-phase integration + 5/5 E2E flows).
+
+</details>
+
+<details>
+<summary>v4.0 target features (original milestone scope)</summary>
+
 - Built-in skin themes (3-4 presets: dark, light, classic beige, high-contrast)
 - First-run quick-start guide + searchable in-app function reference
 - GUI keyboard parity — close physical keyboard shortcut gaps with CLI
 - `.raw` program file import/export (HP-41 community standard)
 - Extended Memory model (EMDIR, EMROOM, EMREG)
+
+</details>
 
 <details>
 <summary>v3.3 Advantage Pac Emulation (shipped 2026-05-26 — see <code>milestones/v3.3-ROADMAP.md</code>)</summary>
