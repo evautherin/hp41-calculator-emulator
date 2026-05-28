@@ -3,7 +3,7 @@ resolver = "2"
 members = ["hp41-core", "hp41-cli"]
 
 [workspace.package]
-version = "3.1.1"
+version = "4.0.0"
 rust-version = "1.88"
 
 [workspace.dependencies]
