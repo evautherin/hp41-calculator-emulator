@@ -14,6 +14,7 @@ use std::collections::HashSet;
 
 use hp41_cli::help_data::{
     help_entries, help_entries_adv, help_entries_math1, help_entries_stat1, help_entries_time,
+    help_entries_xmem,
 };
 
 /// Hand-curated inventory of all `hp41_core::ops::Op` variants. Drift
@@ -1046,6 +1047,98 @@ fn test_every_adv_b_json_entry_has_xrom_resolver_match() {
     assert!(
         orphans.is_empty(),
         "ADV_MATH_B (XROM 24) JSON entries whose display_name is NOT resolved by xrom_resolve(_, 0b0001_1111): {orphans:?}"
+    );
+}
+
+// ── Phase 52 Plan 03: X-MEM built-in op↔JSON parity tests (D-52.13 / XMEM-10) ──
+//
+// Three tests drift-proofing the docs/hp41-xmem-functions.json ↔ Op::* chain:
+// 1. Inventory drift sentinel (XMEM_OP_VARIANT_NAMES length == 8)
+// 2. Forward parity: every XMEM_OP_VARIANT_NAMES entry has a JSON row
+// 3. Reverse parity: every JSON display_name resolves via builtin_card_op
+//
+// CRITICAL difference from the 5 XROM parity suites: X-MEM ops are HP-41CX OS
+// built-ins resolved by builtin_card_op(), NOT xrom_resolve(). Calling
+// xrom_resolve() here would always return None for all 8 ops (Pitfall 1 in
+// RESEARCH.md) — the reverse parity test MUST call builtin_card_op.
+//
+// test_pool_partition_is_exhaustive needs no change: X-MEM entries have
+// xrom: None (no xrom field), so they count toward builtin_count. With 8
+// X-MEM entries added, builtin_count >= 138 — still above the >= 130 guard.
+// Adding an xrom field to X-MEM entries would break the partition test
+// (Pitfall 2 in RESEARCH.md) — do NOT add an xrom field to xmem JSON entries.
+
+/// Hand-curated inventory of all X-MEM (HP-41CX Extended Memory) `Op` variants.
+/// X-MEM ops are HP-41CX OS built-ins, NOT XROM module ops. Resolved by
+/// `builtin_card_op()`, NOT by `xrom_resolve()`.
+///
+/// Maintenance gate: every new X-MEM Op variant must be appended here AND must
+/// have a matching entry in `docs/hp41-xmem-functions.json`. The inventory
+/// sentinel `test_xmem_op_inventory_count` fires if the count drifts.
+const XMEM_OP_VARIANT_NAMES: &[&str] = &[
+    "EmDir", "EmRoom", "SaveP", "GetP", "SaveD", "GetD", "EmReg", "SaveRx",
+];
+
+#[test]
+fn test_xmem_op_inventory_count() {
+    // Catches: drift between this hand-curated list and the X-MEM op set.
+    // If a new X-MEM Op variant is added without updating this list,
+    // this assertion fires forcing the developer to also add a JSON entry.
+    assert_eq!(
+        XMEM_OP_VARIANT_NAMES.len(),
+        8,
+        "XMEM_OP_VARIANT_NAMES inventory drift — expected 8 X-MEM HP-41CX OS built-in \
+         Op variants (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX, Phase 52 v4.0 ship). \
+         Did a future plan add Op variants without updating this inventory \
+         and docs/hp41-xmem-functions.json?"
+    );
+}
+
+#[test]
+fn test_every_xmem_op_has_xmem_json_entry() {
+    // Catches: forward parity gap — an X-MEM Op variant without a JSON entry.
+    // Uses help_entries_xmem() (narrow accessor) to assert against only the X-MEM pool.
+    // Failure message lists missing variants by name for easy diagnosis.
+    let json_variants: HashSet<&str> = help_entries_xmem()
+        .iter()
+        .map(|e| e.op_variant.as_str())
+        .collect();
+
+    let mut missing: Vec<&str> = Vec::new();
+    for name in XMEM_OP_VARIANT_NAMES {
+        if !json_variants.contains(name) {
+            missing.push(name);
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "X-MEM Op::* variants missing from docs/hp41-xmem-functions.json: {missing:?}"
+    );
+}
+
+#[test]
+fn test_every_xmem_json_entry_has_builtin_resolver_match() {
+    // Catches: reverse parity gap — a JSON entry whose display_name cannot be
+    // resolved by builtin_card_op (D-52.13).
+    //
+    // X-MEM is NOT an XROM module — resolved by builtin_card_op(), not xrom_resolve().
+    // Calling xrom_resolve() here would ALWAYS return None for all 8 entries
+    // and report every entry as an orphan (Pitfall 1 in RESEARCH.md).
+    // This test uses builtin_card_op() as the correct resolver.
+    let mut orphans: Vec<String> = Vec::new();
+    for entry in help_entries_xmem() {
+        let resolved =
+            hp41_core::ops::program::builtin_card_op(entry.display_name.as_str());
+        if resolved.is_none() {
+            orphans.push(format!(
+                "'{}' (display_name='{}') — not found in builtin_card_op",
+                entry.op_variant, entry.display_name
+            ));
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "X-MEM JSON entries whose display_name is NOT resolved by builtin_card_op: {orphans:?}"
     );
 }
 
