@@ -61,6 +61,9 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
   named-matrix operations, advanced math/solvers/complex/curve-fit, and time-value-of-money;
   dual XROM IDs 22 + 24; [documented divergences](docs/hp41-advantage-divergences.md)) —
   see [Advantage Pac Function Matrix](docs/hp41-advantage-function-matrix.md)
+- v4.0 adds Extended Memory: named PROGRAM + DATA file storage (HP-41CX X-Functions) —
+  8 XEQ-by-name functions (EMDIR, EMROOM, SAVEP, GETP, SAVED, GETD, EMREG, SAVERX);
+  600-register capacity (fully-expanded HP-41CX); [documented divergences](docs/hp41-xmem-divergences.md)
 
 **Terminal UI (`hp41-cli`)**
 

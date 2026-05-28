@@ -109,6 +109,19 @@ CI-enforced via `just license-audit`. Greps for 18 distinctive Free42 / Intel BI
 
 `default_xrom_modules() = 0b0001_1111`; `migrate_after_load()` auto-upgrades older saves. `xrom_resolve` fires bits 0→4 in order; lower bit wins on overlap.
 
+### X-MEM Built-in Integration (v4.0)
+
+HP-41CX Extended Memory (X-MEM) functions are **HP-41CX OS built-ins, not an XROM module** — no XROM bit is allocated (ADR-v4.0-001). They resolve via `builtin_card_op` in `hp41-core/src/ops/program.rs` (XEQ-by-name only; no comfort keys). `default_xrom_modules()` stays `0b0001_1111` unchanged.
+
+- **8 ops:** `EMDIR`, `EMROOM`, `SAVEP`, `GETP`, `SAVED`, `GETD`, `EMREG`, `SAVERX` — implementations in `hp41-core/src/ops/xmem/ops.rs`
+- **State isolation:** `xmem_files: Vec<XmemFile>` + `xmem_active_file: Option<String>` on `CalcState` (both `#[serde(default)]`); NEVER touch `state.regs` directly except via SAVED/GETD transfer; NEVER touch `adv_matrices` (D-43.5 pattern, D-51.0a)
+- **Capacity:** 600 registers (fully-expanded HP-41CX — 124 built-in + 2×238 X-Memory modules); `EMROOM` returns `600 - registers_used`; `SAVEP`/`SAVED` raise NO ROOM on overflow (ADR-v4.0-002)
+- **SAVED/GETD:** full register set via `capture_data_card`/`load_data_card` (padded to `MIN_REGS_AFTER_LOAD = 100`); bbb.eee block control word deferred (ADR-v4.0-003)
+- **Help pool:** dedicated `docs/hp41-xmem-functions.json` (8 entries, no `xrom` field — D-52.4); sixth pool in `help_entries_all()`; "Extended Memory" section in `?` overlay
+- **Divergences:** `docs/hp41-xmem-divergences.md` (D-52-01: overwrite-on-duplicate; D-52-02: full-register-set SAVED/GETD)
+- **ADRs:** `docs/adr/v4.0-001-xmem-os-builtin.md`, `v4.0-002-xmem-capacity.md`, `v4.0-003-xmem-register-transfer.md`
+- **Save-file compat:** v1.0–v3.3 save files load without migration; `xmem_files`/`xmem_active_file` default cleanly via `#[serde(default)]`
+
 ### v3.x Design Rules
 
 - **XROM shadowing:** `xrom_shadowing.rs` CI-gates mnemonic disjointness. **Exception:** 12 ADV_MATH_B overlaps with MATH_1 — MATH_1 wins (bit-0 first, ADR-v3.3-003).

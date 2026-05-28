@@ -400,6 +400,47 @@ Phase 47 extends the unified meta-gate infrastructure to all 5 XROM modules: `xr
 
 ---
 
+## v4.0 additions (Platform Maturity, Phases 48–52)
+
+Phases 48–52 form the v4.0 "Platform Maturity" milestone, adding GUI infrastructure and theming (Phase 48), onboarding and GUI keyboard parity (Phase 49), `.raw` file I/O (Phase 50), HP-41CX Extended Memory core ops (Phase 51), and the test-hardening + documentation suite (Phase 52). The most architecturally significant new capability is X-MEM — the first feature set that is an HP-41CX OS built-in rather than a plug-in ROM module.
+
+### Phase 51 — X-MEM Core (shipped 2026-05-28)
+
+Phase 51 delivers the HP-41CX Extended Memory (X-Functions) data model and 8 core ops in `hp41-core`: `EMDIR`, `EMROOM`, `SAVEP`, `GETP`, `SAVED`, `GETD`, `EMREG`, `SAVERX`. This is the first feature set implemented as HP-41CX OS built-ins rather than XROM plug-in modules — a structurally different routing path from all prior Phase 28–47 module work.
+
+The **OS-built-in routing decision** (ADR-v4.0-001, D-52.7) was the most consequential architectural choice. X-MEM functions are part of the HP-41CX ROM and are always available — they do not occupy a CATALOG 2 XROM slot and carry no XROM module number. The emulator routes them via `builtin_card_op` in `hp41-core/src/ops/program.rs` (XEQ-by-name), not via `xrom_resolve`. The `xrom_modules` bitmask stays at `0b0001_1111` (bits 0–4 for the five XROM modules); no bit-5 is allocated. This is hardware-faithful: removing X-MEM would require physically replacing the CX ROM — there is no plug-in card to eject.
+
+The **storage model** (D-51.0a, repeating the D-43.5 named-matrix isolation pattern) puts `xmem_files: Vec<XmemFile>` and `xmem_active_file: Option<String>` on `CalcState`, both with `#[serde(default)]`. X-MEM ops must never read or write `state.regs` (except the explicit SAVED/GETD register transfer) and must never touch `adv_matrices`. Two file types are supported: PROGRAM (`XmemKind::Program`, backed by the `.raw` codec from Phase 50) and DATA (`XmemKind::Data`, backed by the card-reader `DataCard` serialization). ASCII and STATUS file types are deferred to v4.1.
+
+The **capacity model** (ADR-v4.0-002, D-51.1) uses `XMEM_CAPACITY = 600` — the fully-expanded HP-41CX (124 built-in + 2 × 238 X-Memory module registers). This is consistent with the emulator's maximally-equipped stance across all other dimensions. `EMROOM` returns a real, decreasing value as files accumulate; `SAVEP`/`SAVED` raise `HpError::NoRoom` on overflow — a warranted, testable error path.
+
+The **SAVED/GETD register transfer** (ADR-v4.0-003, D-51.5) reuses `capture_data_card` and `load_data_card` from `hp41-core/src/cardreader/mod.rs` — battle-tested helpers from the card-reader path. This means SAVED always saves the full register set R00..R(SIZE-1); GETD always restores the full set, padded to `MIN_REGS_AFTER_LOAD = 100`. The hardware-faithful `bbb.eee` block-control-word partial transfer is deferred to v4.1 (D-51.5 Deferred Ideas).
+
+The **EMREG/SAVERX pair** (D-51.3) follows the GETRX/SAVERX naming convention from the HP-41CX SAVERX/GETRX infrastructure: `EMREG` recalls a register from the active DATA file onto the stack; `SAVERX` stores the stack X into a register of the active DATA file. The active file is set as a side effect of the most recent GETD or SAVED call (D-51.4).
+
+Two **documented divergences** emerge from Phase 51: D-51.6 (overwrite-on-duplicate — the Phase 51 op set has no `PURFL`, so duplicate saves overwrite silently rather than raising "DUP FL") and D-51.5 (full-register-set SAVED/GETD vs. the hardware `bbb.eee` block control word). Both are catalogued in `docs/hp41-xmem-divergences.md` (D-52-01, D-52-02) and cross-referenced in ADR-v4.0-003.
+
+The 4-way exhaustive-match invariant holds across all 8 new `Op` variants: `dispatch()` + `execute_op()` + both `prgm_display.rs` copies are all updated. `EMDIR` output follows the `CATALOG`/`ALMCAT` print-buffer catalog pattern (name / type / size-in-registers, one line per file). Save-file backward compat: `xmem_files` and `xmem_active_file` both carry `#[serde(default)]`; v1.0–v3.3 save files load without any migration arm.
+
+### Phase 52 — Test Hardening + Documentation (shipped 2026-05-28)
+
+Phase 52 closes the v4.0 milestone with CLI/GUI wiring, a dedicated X-MEM help pool, backward-compat fixture tests, isolation tests, and the documentation suite.
+
+**CLI/GUI wiring** (Plans 52-01/02): `builtin_card_op` gains 8 new arms (`"EMDIR"` → `Op::EmDir`, etc.). The `help_entries_all()` chain grows from five to six pools (cv → Math 1 → Stat 1 → Time → Advantage → X-MEM), with `docs/hp41-xmem-functions.json` as the sixth source-of-truth (8 entries, no `xrom` field — D-52.4). The `?` overlay gains an "Extended Memory" section. The `function_matrix_parity.rs` reverse parity test uses `builtin_card_op` — not `xrom_resolve` — as the resolver for X-MEM entries, which is the critical distinction from all prior XROM module parity tests. The `v33-autosave.json` fixture (Plan 52-02) exercises the `#[serde(default)]` path that `xmem_files`/`xmem_active_file` require; `xmem_backward_compat.rs` isolation tests confirm X-MEM ops never touch `adv_matrices` or `state.regs` outside the explicit SAVED/GETD transfer.
+
+**Documentation suite** (Plan 52-04): Three granular ADRs (ADR-v4.0-001/002/003) document the architecturally significant Phase-51 choices at the level of detail established by the v3.0–v3.3 ADR corpus. The `docs/hp41-xmem-divergences.md` catalog (D-52-01, D-52-02) follows the five-field `D-52-NN` template from `docs/hp41-time-divergences.md`. The README v4.0 X-MEM claim is scoped/honest (D-52.6): "named PROGRAM + DATA file storage (HP-41CX X-Functions)" — no "feature-complete" wording, since ASCII/STATUS file types are deferred to v4.1. The OM-cited hard claim will graduate when ASCII/STATUS land (XMEM-F01/F02, planned for v4.1).
+
+**Frozen invariants preserved across v4.0:**
+
+- SC-4 invariant: X-MEM math lives in `hp41-core/src/ops/xmem/`. No X-MEM logic leaks into `hp41-gui`. Verified at Phase 52.
+- 4-exhaustive-match invariant: all 8 X-MEM Op variants land in `dispatch()` + `execute_op()` + both `prgm_display.rs` copies (Phase 51/52).
+- `#![deny(clippy::unwrap_used)]` continues in `hp41-core`; test files carry `#[allow]` per established pattern.
+- Save-file backward compat: `xmem_files` and `xmem_active_file` carry `#[serde(default)]`; no `#[serde(skip)]` — X-MEM file storage is persistent across save/load cycles. v1.0–v3.3 save files load without migration. Verified at Phase 52 via `xmem_backward_compat.rs` + `v33-autosave.json` fixture.
+- MSRV 1.88 unchanged. Zero new runtime deps.
+- Free42 GPL contamination guard: 18 tokens, exits 0. X-MEM has no numerical algorithms requiring Free42 disclaim (PROGRAM/DATA file storage is purely mechanical).
+
+---
+
 ## Quality Gate History
 
 | Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) | v3.2 (Phase 42) | v3.3 (Phase 47) |
