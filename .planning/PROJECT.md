@@ -252,7 +252,7 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - [ ] KBD-01: GUI physical keyboard shortcuts reach parity with CLI
 - [ ] RAW-01: User can import `.raw` HP-41 program files
 - [ ] RAW-02: User can export programs to `.raw` format
-- [ ] XMEM-01: Extended Memory file model (EMDIR, EMROOM, EMREG)
+- ✓ **XMEM-01..07**: Extended Memory core — `XmemFile` model, 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) in `hp41-core`, 4-way exhaustive-match wiring, backward-compat serde. Validated in Phase 51: X-MEM Core (2026-05-28). CLI/GUI/keyboard integration deferred to Phase 52.
 
 ### Out of Scope
 
@@ -355,4 +355,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-05-27 — v4.0 Platform Maturity milestone started after v3.3 Advantage Pac shipped*
+*Last updated: 2026-05-28 — Phase 51 (X-MEM Core) complete; XMEM-01..07 validated. Next: Phase 52 (Test Hardening + Documentation).*
