@@ -27,4 +27,4 @@ evidence_source: v4.0-MILESTONE-AUDIT.md (cross-phase integration check)
 
 ## Gaps
 
-None blocking. `50-VALIDATION.md` (Nyquist strategy) left in draft. Non-blocking manual checkpoint: file-dialog + multi-program picker overlay visual verification not yet recorded (tracked in the milestone audit).
+None blocking. `50-VALIDATION.md` (Nyquist strategy) left in draft. The file-dialog + multi-program picker overlay manual visual checkpoint was **accepted at v4.0 milestone close** — dialogs and picker are confirmed wired and working via the milestone integration audit (Flow 4: GUI dialog → `decode_all_programs` → `RawPickerOverlay` → `import_selected_programs`).

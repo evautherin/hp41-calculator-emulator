@@ -23,11 +23,12 @@ Evolved the emulator from feature-complete module emulation (v3.3) to a polished
 5. **X-MEM hardening + docs (Phase 52)** — XEQ-by-name via `builtin_card_op` (HP-41CX OS-builtin, no XROM bit), 6th help pool, op↔JSON parity + per-op test-count meta-gates, backward-compat fixtures, 3 ADRs + divergences doc
 6. **Quality** — full `just test`/`lint`/`gui-ci`/`docs-matrix-check` green; milestone audit confirmed all 32 requirements satisfied with cross-phase integration + 5/5 E2E flows
 
-### Known deferred items
+### Cleanup at milestone close
 
-- Nyquist `VALIDATION.md` for phases 48–50 left in draft (work verified retroactively via the milestone integration audit)
-- 3 code-review warnings (52-REVIEW WR-01/02/04) + Phase-50 dialog visual checkpoint → backlog
-- 6 stale quick-task registry entries (v1.0–v2.2 era, files missing) → registry cleanup candidate
+- **Code-review warnings 52-REVIEW WR-01/02/04 — resolved:** added an X-MEM XROM-bitfield-independence test (WR-01, `xeq_builtin_resolver.rs`), completed `v33-autosave.json` into a realistic full v3.3 save (WR-02), and memoized `helpEntriesAll()` for a stable reference (WR-04, `help_data.ts`). (WR-03 help-text accuracy was fixed during phase 52.)
+- **6 completed quick-tasks (v1.0–v2.2 era) — archived** to `milestones/quick-tasks/`; `audit-open` is now fully clean (0 open items). They were flagged only because the running `gsd-sdk` reads bare `SUMMARY.md` while these use `${quick_id}-SUMMARY.md`.
+- **Phase-50 dialog visual checkpoint — accepted:** native file dialogs + multi-program picker confirmed working in the shipped GUI (integration audit Flow 4).
+- Nyquist `VALIDATION.md` for phases 48–50 remain `draft` — acceptable: the work is verified via the milestone integration audit + retroactive `48/49/50-VERIFICATION.md` (Nyquist closure is discovery-only per the audit workflow).
 
 ---
 

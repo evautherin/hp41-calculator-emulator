@@ -21,10 +21,13 @@ findings:
   warning: 4
   info: 5
   total: 9
-status: issues_found
+status: resolved
+resolution: "All actionable findings closed. WR-03 (help-text accuracy) fixed during phase 52 (commit ffcd7bf). WR-01 (XROM-independence test), WR-02 (complete v3.3 fixture), WR-04 (memoize helpEntriesAll) fixed at v4.0 milestone close. 5 Info items reviewed/accepted. See v4.0-MILESTONE-AUDIT.md → Post-Archive Cleanup."
 ---
 
 # Phase 52: Code Review Report
+
+> **RESOLVED (v4.0 close):** WR-01/02/04 fixed, WR-03 fixed in phase 52, Info items reviewed. Details in `v4.0-MILESTONE-AUDIT.md` → Post-Archive Cleanup.
 
 **Reviewed:** 2026-05-28T10:00:00Z
 **Depth:** standard
