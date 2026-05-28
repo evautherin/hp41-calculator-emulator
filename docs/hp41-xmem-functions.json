@@ -18,8 +18,8 @@
         "phase": "52",
         "key_path": "XEQ \"EMROOM\"",
         "description": "Return number of available X-MEM registers in X",
-        "example": "XEQ \"EMROOM\" -> X = 319 (319 registers free in a fresh X-MEM)",
-        "notes": "Result in X; available capacity decreases by (entry + registers) per stored file."
+        "example": "XEQ \"EMROOM\" -> X = 600 (600 registers free in a fresh X-MEM)",
+        "notes": "Result in X; total capacity is 600 registers, decreasing by (entry + registers) per stored file."
     },
     {
         "op_variant": "SaveP",
@@ -50,9 +50,9 @@
         "status": "implemented",
         "phase": "52",
         "key_path": "XEQ \"SAVED\"",
-        "description": "Save all 100 data registers to X-MEM file named by ALPHA register",
-        "example": "\"REGS\" ALPHA, XEQ \"SAVED\" -> R00-R99 stored in X-MEM file REGS",
-        "notes": "Saves the full 100-register set. Use GETD to restore. Pairs with GETD for register transfer."
+        "description": "Save all currently-allocated data registers to X-MEM file named by ALPHA register",
+        "example": "\"REGS\" ALPHA, XEQ \"SAVED\" -> current data registers stored in X-MEM file REGS",
+        "notes": "Saves the data-register set as currently sized by SIZE. Use GETD to restore. Pairs with GETD for register transfer."
     },
     {
         "op_variant": "GetD",
@@ -62,8 +62,8 @@
         "phase": "52",
         "key_path": "XEQ \"GETD\"",
         "description": "Load all data registers from X-MEM file named by ALPHA register",
-        "example": "\"REGS\" ALPHA, XEQ \"GETD\" -> R00-R99 restored from X-MEM file REGS",
-        "notes": "Loads the full 100-register set from a data file. Existing registers are overwritten."
+        "example": "\"REGS\" ALPHA, XEQ \"GETD\" -> data registers restored from X-MEM file REGS",
+        "notes": "Loads the saved data-register set from a data file. Existing registers are overwritten."
     },
     {
         "op_variant": "EmReg",
@@ -72,9 +72,9 @@
         "status": "implemented",
         "phase": "52",
         "key_path": "XEQ \"EMREG\"",
-        "description": "Return number of registers used by X-MEM file named by ALPHA in X",
-        "example": "\"MYPROG\" ALPHA, XEQ \"EMREG\" -> X = 20 (MYPROG occupies 20 registers)",
-        "notes": "ALPHA must hold an existing filename. Returns register count for that specific file."
+        "description": "Recall register N (index from X) of the active X-MEM data file; pushes its value onto X",
+        "example": "5, XEQ \"EMREG\" -> X = value of register 5 in the active X-MEM data file",
+        "notes": "N is taken from X (integer truncation). The active file is set by the most recent SAVED/GETD/SAVERX. Errors if no active data file or N is out of range."
     },
     {
         "op_variant": "SaveRx",
@@ -83,8 +83,8 @@
         "status": "implemented",
         "phase": "52",
         "key_path": "XEQ \"SAVERX\"",
-        "description": "Save X register value to first register of X-MEM file named by ALPHA",
-        "example": "42 ENTER, \"VAL\" ALPHA, XEQ \"SAVERX\" -> first register of VAL set to 42",
-        "notes": "Stores X into the active X-MEM file's register 0. Creates the file if it does not exist."
+        "description": "Store Y into register N (index from X) of the active X-MEM data file",
+        "example": "42 ENTER 5, XEQ \"SAVERX\" -> register 5 of the active data file set to 42 (X=index, Y=value)",
+        "notes": "X holds the register index, Y holds the value. The active file is set by the most recent SAVED/GETD. Errors if no active data file or index out of range."
     }
 ]

@@ -8,13 +8,13 @@
 | Op | Display | Category | Status | Phase | Key Path | Description |
 |----|---------|----------|--------|-------|----------|-------------|
 | EmDir | EMDIR | Extended Memory | ✓ v2.x | 52 | `XEQ "EMDIR"` | Catalog all X-MEM files; names + register counts printed to PRINT buffer |
-| EmReg | EMREG | Extended Memory | ✓ v2.x | 52 | `XEQ "EMREG"` | Return number of registers used by X-MEM file named by ALPHA in X |
+| EmReg | EMREG | Extended Memory | ✓ v2.x | 52 | `XEQ "EMREG"` | Recall register N (index from X) of the active X-MEM data file; pushes its value onto X |
 | EmRoom | EMROOM | Extended Memory | ✓ v2.x | 52 | `XEQ "EMROOM"` | Return number of available X-MEM registers in X |
 | GetD | GETD | Extended Memory | ✓ v2.x | 52 | `XEQ "GETD"` | Load all data registers from X-MEM file named by ALPHA register |
 | GetP | GETP | Extended Memory | ✓ v2.x | 52 | `XEQ "GETP"` | Load program from X-MEM file named by ALPHA into current program memory |
-| SaveD | SAVED | Extended Memory | ✓ v2.x | 52 | `XEQ "SAVED"` | Save all 100 data registers to X-MEM file named by ALPHA register |
+| SaveD | SAVED | Extended Memory | ✓ v2.x | 52 | `XEQ "SAVED"` | Save all currently-allocated data registers to X-MEM file named by ALPHA register |
 | SaveP | SAVEP | Extended Memory | ✓ v2.x | 52 | `XEQ "SAVEP"` | Save current program to X-MEM file named by ALPHA register |
-| SaveRx | SAVERX | Extended Memory | ✓ v2.x | 52 | `XEQ "SAVERX"` | Save X register value to first register of X-MEM file named by ALPHA |
+| SaveRx | SAVERX | Extended Memory | ✓ v2.x | 52 | `XEQ "SAVERX"` | Store Y into register N (index from X) of the active X-MEM data file |
 
 ## v3.x Deferred (Module Pacs)
 
