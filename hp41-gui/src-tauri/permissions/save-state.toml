@@ -1,0 +1,6 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-save-state"
+description = "Allows the save_state command."
+commands.allow = ["save_state"]

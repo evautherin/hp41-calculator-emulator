@@ -1,11 +1,13 @@
 /* Phase 15 calculator display styles — vanilla CSS (D-10) */
+/* Phase 48-02: All hardcoded theme-dependent hex colors migrated to CSS variables (D-48.9) */
+/* CSS variable definitions live in themes.css ([data-theme] blocks). */
 
 .calculator {
   display: flex;
   flex-direction: column;
   width: 392px;
-  background: #0d0d0d;
-  border: 1px solid #333;
+  background: var(--calc-bg);
+  border: 1px solid var(--calc-border);
   border-radius: 4px;
   overflow: hidden;
   font-family: system-ui, sans-serif;
@@ -19,13 +21,13 @@
   display: flex;
   gap: 8px;
   padding: 4px 8px;
-  background: #1a1a1a;
+  background: var(--panel-bg);
 }
 
 .annunciator {
   font-size: 11px;
   letter-spacing: 0.05em;
-  color: #555;
+  color: var(--text-muted);
   opacity: 0.35;
   text-transform: uppercase;
   -webkit-user-select: none;
@@ -33,21 +35,21 @@
 }
 
 .annunciator.active {
-  color: #e8e8c0;
+  color: var(--annunciator-active);
   opacity: 1.0;
 }
 
 /* Display row — D-08: right-aligned monospace on dark background */
 .display {
-  background: #111;
+  background: var(--display-bg);
   padding: 6px 10px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 22px;
   text-align: right;
-  color: #c8e6c9;
+  color: var(--display-text);
   letter-spacing: 0.05em;
   min-height: 2em;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--display-border);
   white-space: pre;
 }
 
@@ -67,19 +69,19 @@
 /* Error row — surfaces GuiError messages from the backend so they reach
    the user instead of dying at console.error (silent-failure-hunter CRIT-1/2). */
 .error-row {
-  background: #3a1a1a;
-  color: #ffb4a8;
+  background: var(--error-bg);
+  color: var(--error-text);
   padding: 4px 10px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 13px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--display-border);
 }
 
 /* Stack panel — D-08: labeled rows for X/Y/Z/T/L */
 .stack-panel {
-  background: #1a1a1a;
+  background: var(--panel-bg);
   padding: 6px 10px;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--display-border);
 }
 
 .stack-row {
@@ -87,18 +89,20 @@
   justify-content: space-between;
   font-family: 'Courier New', Courier, monospace;
   font-size: 13px;
-  color: #aaa;
+  color: var(--text-secondary);
   padding: 2px 0;
 }
 
 .stack-label {
-  color: #666;
+  color: var(--text-muted);
   min-width: 20px;
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* SVG keyboard press animation — transform-box: fill-box is REQUIRED for SVG elements */
+/* SVG keyboard press animation — transform-box: fill-box is REQUIRED for SVG elements.
+   P51 INVARIANT: These two properties must remain HERE in App.css and must NEVER be
+   moved into a [data-theme] block in themes.css. Doing so would break SVG press animations. */
 .key {
   cursor: pointer;
   pointer-events: all;
@@ -123,8 +127,8 @@
 
 .print-panel {
   width: 100%;
-  background: #1a1a1a;
-  border-top: 1px solid #3a3a3a;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--panel-border);
   border-radius: 0 0 8px 8px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 11px;
@@ -136,9 +140,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 4px 8px;
-  background: #252525;
-  border-bottom: 1px solid #3a3a3a;
-  color: #888;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text-secondary);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -147,7 +151,7 @@
 .print-panel-close {
   background: none;
   border: none;
-  color: #666;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -155,7 +159,7 @@
 }
 
 .print-panel-close:hover {
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .print-panel-content {
@@ -165,7 +169,7 @@
 }
 
 .print-line {
-  color: #c8c8c8;
+  color: var(--text-secondary);
   padding: 1px 0;
   white-space: pre;
   line-height: 1.4;
@@ -175,8 +179,8 @@
 
 .prgm-panel {
   width: 100%;
-  background: #1a1a1a;
-  border-top: 1px solid #3a3a3a;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--panel-border);
   border-radius: 0 0 8px 8px;
   font-family: 'Courier New', Courier, monospace;
   font-size: 12px;
@@ -187,9 +191,9 @@
   display: flex;
   align-items: center;
   padding: 4px 8px;
-  background: #252525;
-  border-bottom: 1px solid #3a3a3a;
-  color: #888;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text-secondary);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -202,17 +206,17 @@
 }
 
 .step-row {
-  color: #c8c8c8;
+  color: var(--text-secondary);
   padding: 0 4px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--panel-border);
   white-space: pre;
   line-height: 1.4;
   border-radius: 2px;
 }
 
 .step-active {
-  background: #1e3a1e;
-  color: #c8e6c9;
+  background: var(--step-active-bg);
+  color: var(--step-active-text);
 }
 
 /* ── Phase 19: SHIFT armed glow, toast overlay, SHIFT annunciator ────── */
@@ -222,7 +226,7 @@
    not a child `rect`. `key-shift-active` and `key-pressed` are mutually
    exclusive in Keyboard.tsx, so no override rule is needed. */
 .key.key-shift-active {
-  filter: brightness(1.18) drop-shadow(0 0 4px #f5a423);
+  filter: brightness(1.18) drop-shadow(0 0 4px var(--accent));
 }
 
 /* Toast overlay for GuiError responses (single-toast, 2s auto-dismiss).
@@ -234,8 +238,8 @@
   transform: translateX(-50%);
   padding: 6px 14px;
   border-radius: 4px;
-  background: rgba(20, 20, 20, 0.92);
-  color: #f5a423;
+  background: var(--toast-bg);
+  color: var(--toast-text);
   font: 11px/1.4 monospace;
   letter-spacing: 0.02em;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
@@ -251,10 +255,10 @@
   100% { opacity: 0; transform: translate(-50%, -2px); }
 }
 
-/* SHIFT annunciator uses the same orange as the SHIFT key cap (#d68a1c)
-   so the armed state reads as one coordinated visual cue. */
+/* SHIFT annunciator uses the shift-label color (orange) so the armed state
+   reads as one coordinated visual cue. */
 .annunciator-shift.active {
-  color: #d68a1c;
+  color: var(--annunciator-shift-active);
 }
 
 /* ── Phase 26 Plan 03 D-26.8 — `?` Help Overlay ───────────────────────── */
@@ -267,12 +271,12 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(20, 20, 20, 0.94);
+  background: var(--overlay-bg);
   z-index: 60;
   display: flex;
   flex-direction: column;
   font-family: 'Courier New', Courier, monospace;
-  color: #c8e6c9;
+  color: var(--display-text);
 }
 
 .help-overlay-header {
@@ -280,16 +284,16 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  background: #252525;
-  border-bottom: 1px solid #3a3a3a;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .help-overlay-search {
   flex: 1;
   padding: 6px 10px;
-  background: #111;
-  border: 1px solid #3a3a3a;
-  color: #c8e6c9;
+  background: var(--display-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--display-text);
   font-family: inherit;
   font-size: 14px;
   border-radius: 4px;
@@ -297,14 +301,14 @@
 }
 
 .help-overlay-search:focus {
-  outline: 1px solid #f5a423;
+  outline: 1px solid var(--accent);
   outline-offset: -1px;
 }
 
 .help-overlay-close {
   background: transparent;
   border: none;
-  color: #c8e6c9;
+  color: var(--display-text);
   font-size: 22px;
   cursor: pointer;
   padding: 0 8px;
@@ -312,7 +316,7 @@
 }
 
 .help-overlay-close:hover {
-  color: #f5a423;
+  color: var(--accent);
 }
 
 .help-overlay-content {
@@ -326,11 +330,11 @@
   /* HP-41 orange — same family as SHIFT key gradient — visually anchors
      category boundaries without competing with the lit-LCD green. */
   margin: 12px 0 6px 0;
-  color: #f5a423;
+  color: var(--accent);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  border-bottom: 1px solid #3a3a3a;
+  border-bottom: 1px solid var(--panel-border);
   padding-bottom: 4px;
 }
 
@@ -347,22 +351,22 @@
 }
 
 .help-overlay-key {
-  color: #f5a423;
+  color: var(--accent);
 }
 
 .help-overlay-op {
-  color: #c8e6c9;
+  color: var(--display-text);
   font-weight: bold;
 }
 
 .help-overlay-desc {
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .help-overlay-empty {
   padding: 20px;
   text-align: center;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 /* Phase 31-04 D-31.8 / UI-SPEC §Typography — top-level section headings.
@@ -370,12 +374,12 @@
    bolder, uppercase) to make the section boundary visually distinct. */
 .help-overlay-section-heading {
   margin: 16px 0 8px 0;
-  color: #f5a423;
+  color: var(--accent);
   font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  border-bottom: 1px solid #3a3a3a;
+  border-bottom: 1px solid var(--panel-border);
   padding-bottom: 4px;
   background: transparent;
   border-left: none;
@@ -387,8 +391,511 @@
 }
 
 .help-overlay-section-heading:hover {
-  color: #ffc107;
+  color: var(--accent);
+  opacity: 0.85;
 }
 
 /* Phase 31-04 — section body placeholder for future style hooks. */
 .help-overlay-section-body {}
+
+/* ── Phase 48-03: Calculator title bar (gear + help icon row) ─────────── */
+/* D-48.1 / D-48.4: thin bar above annunciators for gear icon and ? button. */
+
+.calculator-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px 4px;
+  background: var(--panel-bg);
+  position: relative;
+}
+
+.calculator-title-bar-spacer {
+  flex: 1;
+}
+
+/* Help icon button (? for function reference) */
+.help-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  min-width: 28px;
+  min-height: 28px;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-icon-btn:hover {
+  color: var(--accent);
+}
+
+/* ── Phase 48-02: Settings Panel CSS ──────────────────────────────────── */
+/* D-48.4: Gear icon + settings popover positioned above help overlay (z-index 70). */
+
+/* Gear icon button — transparent, accessible click target minimum 28×28px */
+.settings-gear-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  min-width: 28px;
+  min-height: 28px;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-gear-btn:hover {
+  color: var(--accent);
+}
+
+/* Settings panel popover — absolutely positioned above the help overlay */
+.settings-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 70;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 180px;
+  font-family: system-ui, sans-serif;
+}
+
+/* Section heading inside settings panel — "Theme" label */
+.settings-section-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 8px;
+  font-family: system-ui, sans-serif;
+}
+
+/* Radio row — each theme option label */
+.settings-radio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: system-ui, sans-serif;
+}
+
+/* ── Phase 49-03: Settings Quick Start section ─────────────────────────── */
+/* D-48.3 shell: "Quick Start" section added to SettingsPanel per UI-SPEC §4. */
+
+.settings-section-divider {
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 12px 0;
+}
+
+/* Settings action button — "Show Guide" (and future one-shot actions) */
+.settings-action-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+}
+
+.settings-action-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Phase 49-03: Keyboard Shortcuts section in HelpOverlay ──────────────── */
+/* Phase 49 D-49.10 / KBD-03: Shortcut table styles.
+   Rendered as a separate collapsible block above function sections; not searchable. */
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+.shortcut-row:hover {
+  background: rgba(200, 230, 201, 0.08);
+}
+
+.shortcut-key-col {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.shortcut-fn-col {
+  color: var(--display-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Phase 49-03: Expandable entry detail in HelpOverlay ─────────────────── */
+/* Phase 49 D-49.6 / ONBOARD-03: Toggle and detail block for entries with
+   example/notes enrichment fields from the JSON data files. */
+
+.help-entry-expand-btn {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 4px;
+  padding: 0;
+  line-height: 1;
+}
+
+.help-entry-detail {
+  display: block;
+  margin: 4px 0 8px 96px;
+  background: var(--panel-bg);
+  border-left: 2px solid var(--accent);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+}
+
+.help-entry-example {
+  font-size: 12px;
+  color: var(--display-text);
+  line-height: 1.5;
+  font-family: 'Courier New', Courier, monospace;
+  display: block;
+}
+
+.help-entry-notes {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+  display: block;
+}
+
+/* ── Phase 49-03: OnboardingWizard overlay ───────────────────────────────── */
+/* ONBOARD-01 / D-49.1 / D-49.3: Full-cover overlay, same z-index as help-overlay.
+   Wizard and help overlay are mutually exclusive — only one open at a time.
+   Uses system-ui font (prose content, not monospace). */
+
+.wizard-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+  color: var(--display-text);
+  overflow-y: auto;
+}
+
+/* Panel container — flex column, padded content area */
+.wizard-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 12px 16px;
+}
+
+/* Panel title row: 14px bold uppercase accent text + panel counter */
+.wizard-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+/* Step indicator "N of 5" — accent color, small, margin-left auto handled by flex parent */
+.wizard-panel-counter {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Prose content — system-ui, 14px, secondary text color, generous line-height */
+.wizard-panel-body {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-family: system-ui, sans-serif;
+  overflow-y: auto;
+}
+
+.wizard-panel-body p {
+  margin: 0 0 8px 0;
+}
+
+.wizard-panel-body ol,
+.wizard-panel-body ul {
+  margin: 0 0 8px 0;
+}
+
+/* Navigation footer: Back + Next/Finish + Skip */
+.wizard-panel-nav {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 4px 0;
+  border-top: 1px solid var(--panel-border);
+  margin-top: 12px;
+}
+
+/* Base nav button — Back / Next */
+.wizard-nav-btn {
+  font-size: 14px;
+  padding: 8px 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+}
+
+.wizard-nav-btn:hover {
+  color: var(--accent);
+}
+
+/* Primary variant — Next / Start Using HP-41C: accent border + text */
+.wizard-nav-btn-primary {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Skip link — small muted underlined text button */
+.wizard-dismiss-link {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: system-ui, sans-serif;
+  padding: 0;
+}
+
+.wizard-dismiss-link:hover {
+  color: var(--accent);
+}
+
+/* Monospace ASCII stack diagram block — display-like appearance */
+.wizard-stack-diagram {
+  background: var(--display-bg);
+  color: var(--display-text);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid var(--display-border, var(--panel-border));
+  white-space: pre;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+/* Two-column shortcut table inside wizard panel 4 */
+.wizard-shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wizard-shortcut-row {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.wizard-shortcut-key {
+  color: var(--accent);
+  font-family: 'Courier New', Courier, monospace;
+  width: 120px;
+  padding: 4px 8px 4px 0;
+  vertical-align: top;
+  font-size: 12px;
+}
+
+.wizard-shortcut-fn {
+  color: var(--display-text);
+  font-size: 14px;
+  padding: 4px 0;
+  vertical-align: top;
+}
+
+/* ── Phase 50-03: RawPickerOverlay — multi-program import picker ──────────── */
+/* D-50.4 / D-50.5 / D-50.6: Full-cover overlay, z-index: 60 (same as help and wizard).
+   Mutually exclusive with help-overlay and wizard-overlay — only one can be open.
+   All color values use CSS custom properties — no hardcoded hex. */
+
+.raw-picker-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, sans-serif;
+  color: var(--display-text);
+}
+
+/* Header bar: heading + count chip + close button */
+.raw-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/* "SELECT PROGRAMS" heading — 14px/700/uppercase/accent per UI-SPEC Typography */
+.raw-picker-heading {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin: 0;
+  flex: 1;
+}
+
+/* Program count chip — secondary label style (13px, secondary color) */
+.raw-picker-count {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Close button — 22px glyph, accent on hover, min touch target 28×28px */
+.raw-picker-close {
+  background: none;
+  border: none;
+  color: var(--display-text);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.raw-picker-close:hover {
+  color: var(--accent);
+}
+
+/* Scrollable list body */
+.raw-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+}
+
+/* Empty state paragraph */
+.raw-picker-empty {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 16px 0;
+  margin: 0;
+}
+
+/* Each program row: 24px checkbox | 1fr name | 80px size badge */
+.raw-picker-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 80px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Program name label — monospace 12px, pointer cursor (entire row clickable) */
+.raw-picker-name {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: var(--display-text);
+  cursor: pointer;
+}
+
+/* Size badge — 13px secondary, right-aligned */
+.raw-picker-size {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Footer: secondary + primary buttons, end-justified */
+.raw-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+  background: var(--panel-header-bg);
+  border-top: 1px solid var(--panel-border);
+}
+
+/* Base footer button */
+.raw-picker-footer button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: system-ui, sans-serif;
+  min-height: 28px;
+}
+
+/* Primary button — "Import Selected (N)": accent background, panel text */
+.raw-picker-btn-primary {
+  background: var(--accent);
+  color: var(--panel-bg);
+  border: 1px solid var(--accent);
+  font-weight: 700;
+}
+
+.raw-picker-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary button — "Cancel Import": transparent, display text, 1px border */
+.raw-picker-btn-secondary {
+  background: transparent;
+  color: var(--display-text);
+  border: 1px solid var(--display-text);
+}

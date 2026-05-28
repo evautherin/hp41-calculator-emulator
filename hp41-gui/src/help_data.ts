@@ -30,6 +30,11 @@ import math1Functions from '../../docs/hp41-math1-functions.json';
 import stat1Functions from '../../docs/hp41-stat1-functions.json';
 import timeFunctions from '../../docs/hp41-time-functions.json';
 import advantageFunctions from '../../docs/hp41-advantage-functions.json';
+import xmemFunctions from '../../docs/hp41-xmem-functions.json';
+// Phase 49 D-49.11 — keyboard shortcuts single source of truth.
+// Vite static JSON-import: baked into the production bundle at build time.
+// Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
+import keyboardShortcutsData from '../../docs/keyboard-shortcuts.json';
 
 /// XROM module reference attached to Math Pac I (and future v3.1+ pac) entries.
 /// Matches the `xrom` object shape in docs/hp41-math1-functions.json (ADR-005 /
@@ -73,6 +78,11 @@ export interface HelpEntry {
     /// v2.2 built-in entries. Used by HelpOverlay.tsx to partition entries
     /// into "HP-41CV (built-in)" vs "Math 1 Pac (XROM 7)" sections (D-31.8).
     xrom?: XromEntry;
+    /// Phase 49 D-49.5 — optional enrichment fields for expandable rows (ONBOARD-03).
+    /// One-line terse example, e.g. "3 ENTER 4 + → 7". <= 60 chars.
+    example?: string;
+    /// Phase 49 D-49.5 — factual behavioral notes: stack lift, LASTX, domain errors.
+    notes?: string;
 }
 
 /// Lazy-init cache. Vite's static `import` is itself the cache (module
@@ -193,15 +203,55 @@ export function helpEntriesAdvantage(): readonly HelpEntry[] {
     return advantageFunctions as readonly HelpEntry[];
 }
 
-/// Phase 46 Plan 46-02: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac entries.
+/// Phase 49 D-49.11: Keyboard shortcut entry — one row in the physical keyboard reference.
 ///
-/// UPDATED from Phase 41 Plan 41-02 (4-pool) to 5-pool concatenation.
-/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 44 5-pool chain).
+/// Sourced from `docs/keyboard-shortcuts.json` via Vite static JSON-import.
+/// Rendered in the Keyboard Shortcuts section of HelpOverlay (KBD-03).
+export interface KeyboardShortcut {
+    /// Human-readable key label, e.g. "Enter", "Tab", "Ctrl+S".
+    key: string;
+    /// HP-41 op mnemonic as shown in the shortcut table, e.g. "ENTER", "SHIFT".
+    op: string;
+    /// <= 80 chars, suitable for the shortcut table description column.
+    description: string;
+}
+
+/// Phase 49 D-49.11: All keyboard shortcut entries from docs/keyboard-shortcuts.json.
+///
+/// Vite static JSON-import: baked into the production bundle at build time.
+/// Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
+/// Mirrors the 5-pool accessor pattern: no OnceLock needed (module evaluation is one-shot).
+export function getKeyboardShortcuts(): readonly KeyboardShortcut[] {
+    return keyboardShortcutsData as readonly KeyboardShortcut[];
+}
+
+/// Phase 52: X-MEM built-in entries from docs/hp41-xmem-functions.json.
+///
+/// Vite static JSON-import: baked into the production bundle at build time.
+/// Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
+/// Mirrors Phase 52 D-52.1 sixth OnceLock + accessor pattern in Rust (hp41-cli).
+/// Source: docs/hp41-xmem-functions.json (8 entries, "Extended Memory" category).
+export function helpEntriesXmem(): readonly HelpEntry[] {
+    return xmemFunctions as readonly HelpEntry[];
+}
+
+/// Phase 52 Plan 52-01: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac + X-MEM entries.
+///
+/// UPDATED from Phase 46 Plan 46-02 (5-pool) to 6-pool concatenation.
+/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 52 D-52.1 6-pool chain).
 /// Used by HelpOverlay.tsx to obtain the full entry pool; the overlay then partitions
-/// entries by `entry.xrom` into six sections (D-31.8 extended for Advantage Pac,
-/// split across two sections: XROM 22 "Adv Conv" and XROM 24 "Adv Math").
-/// Pitfall 5: do NOT create a parallel helpEntriesAll5() — update in-place so all
-/// existing callers (HelpOverlay.tsx) automatically pick up Advantage entries.
+/// entries by `entry.xrom` into sections (D-31.8 extended for Advantage Pac and X-MEM).
+/// Pitfall 5: do NOT create a parallel helpEntriesAll6() — update in-place so all
+/// existing callers (HelpOverlay.tsx) automatically pick up X-MEM entries.
+let cachedAllEntries: readonly HelpEntry[] | null = null;
+
 export function helpEntriesAll(): readonly HelpEntry[] {
-    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime(), ...helpEntriesAdvantage()];
+    // Memoized (WR-04): the six source pools are static JSON imports that never
+    // change at runtime, so the concatenation is computed once and the same
+    // stable reference is returned on every call — preserving referential
+    // equality for React memoization. Mirrors the zero-alloc Rust iterator.
+    if (cachedAllEntries === null) {
+        cachedAllEntries = [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime(), ...helpEntriesAdvantage(), ...helpEntriesXmem()];
+    }
+    return cachedAllEntries;
 }

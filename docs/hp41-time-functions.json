@@ -7,6 +7,8 @@
         "phase": "38",
         "key_path": "XEQ \"TIME\"",
         "description": "Display current system time in X (HH.MMSSss)",
+        "example": "XEQ TIME -> X = 14.3025 (14:30:25)",
+        "notes": "Format HH.MMSSss (hours.minutes-seconds-centiseconds). Stack lift enabled.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 1 }
     },
     {
@@ -17,6 +19,8 @@
         "phase": "38",
         "key_path": "XEQ \"DATE\"",
         "description": "Display current date in X (MM.DDYYYY or DD.MMYYYY)",
+        "example": "XEQ DATE -> X = 5.272026 (MDY: May 27, 2026)",
+        "notes": "Format depends on MDY/DMY setting. Use MDY or DMY to switch format.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 2 }
     },
     {
@@ -118,6 +122,8 @@
         "phase": "38",
         "key_path": "XEQ \"DATE+\"",
         "description": "Add X days to date in Y; result in X",
+        "example": "5.272026 ENTER 30 XEQ DATE+ -> date 30 days later",
+        "notes": "Y = start date (MM.DDYYYY in MDY mode), X = days to add. Result replaces X.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 12 }
     },
     {
@@ -128,6 +134,8 @@
         "phase": "38",
         "key_path": "XEQ \"DDAYS\"",
         "description": "Days between date in X and date in Y",
+        "example": "date2 ENTER date1 XEQ DDAYS -> X = days between",
+        "notes": "Positive if Y > X (Y is later). Uses Fliegel-Van Flandern JDN arithmetic.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 13 }
     },
     {
@@ -198,6 +206,8 @@
         "phase": "38",
         "key_path": "XEQ \"RUNSW\"",
         "description": "Start (run) the stopwatch",
+        "example": "XEQ RUNSW -> starts counting; XEQ RCLSW -> elapsed",
+        "notes": "Stopwatch counts in HH.MMSScc. Use STOPSW to pause, RCLSW to read elapsed time.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 20 }
     },
     {
@@ -208,6 +218,8 @@
         "phase": "38",
         "key_path": "XEQ \"STOPSW\"",
         "description": "Stop the stopwatch",
+        "example": "XEQ STOPSW -> freezes elapsed time; RCLSW -> value",
+        "notes": "Stopwatch value is preserved after stopping. RUNSW resumes from current value.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 21 }
     },
     {
@@ -218,6 +230,8 @@
         "phase": "38",
         "key_path": "XEQ \"RCLSW\"",
         "description": "Recall stopwatch elapsed time into X",
+        "example": "XEQ RCLSW -> X = HH.MMSScc elapsed time",
+        "notes": "Works while running or stopped. Stack lift enabled; elapsed time pushed onto X.",
         "xrom": { "module": "Time", "module_id": 26, "function_id": 22 }
     },
     {

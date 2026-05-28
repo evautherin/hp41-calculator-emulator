@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod keys_tests;
 #[cfg(test)]
+mod phase50_import_export;
+#[cfg(test)]
 mod prgm_display_tests;
 
 // ── Phase 5 requirement coverage smoke tests ──────────────────────────────────

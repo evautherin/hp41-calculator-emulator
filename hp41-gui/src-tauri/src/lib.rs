@@ -7,10 +7,15 @@ pub mod cards;
 mod commands;
 mod key_map;
 mod persistence;
+mod prefs; // Phase 48 — GUI preferences (theme, future onboarding flag) — stored in ~/.hp41/prefs.json (P59/THEME-05)
 mod prgm_display; // Phase 18 D-03
 pub mod types; // pub so integration tests (lcd_alternation_modal_prompt.rs) can access CalcStateView::from_state
 
 pub type AppState = Mutex<hp41_core::CalcState>;
+
+/// Managed state for GUI preferences — separate from AppState (CalcState) per P59/THEME-05.
+/// Stored in `~/.hp41/prefs.json`; never touches `autosave.json`.
+pub type PrefsState = Mutex<prefs::GuiPrefs>;
 
 /// Separate managed state for the cancellation flag (Phase 31 / GUI-05 / Plan 31-02).
 ///
@@ -29,6 +34,7 @@ pub type CancelFlag = std::sync::Arc<std::sync::atomic::AtomicBool>;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init()) // Phase 50 — file dialog plugin for .raw/.card.json import/export
         .setup(|app| {
             // D-03: attempt to load ~/.hp41/autosave.json; fall back to fresh state on any error.
             // D-04: load_state() always resets is_running = false (Pitfall 4 guard).
@@ -37,6 +43,13 @@ pub fn run() {
             // a missing file is the normal first-run case (silent); an existing-but-
             // unreadable file means the user lost a session, so log to stderr instead
             // of silently dropping it.
+            // Phase 48: load GUI preferences FIRST (before CalcState) — preferences are
+            // completely independent of CalcState (P59/THEME-05). A missing prefs.json
+            // is normal (first-run); load_prefs() silently returns GuiPrefs::default().
+            let prefs_path = prefs::default_prefs_path();
+            let initial_prefs = prefs::load_prefs(&prefs_path);
+            app.manage(Mutex::new(initial_prefs));
+
             let save_path = persistence::default_state_path();
             let initial_state = match persistence::load_state(&save_path) {
                 Ok(state) => state,
@@ -96,6 +109,15 @@ pub fn run() {
             commands::cancel_modal,             // Phase 31 Plan 31-03 — Esc cancel modal
             commands::submit_modal_with_label,  // Phase 31 Plan 31-03 — XEQ-by-name FUNCTION NAME? step
             commands::tick_time,               // Phase 41 D-41.1 — 100ms periodic tick for live display
+            commands::get_prefs,               // Phase 48 INFRA-01 — read GUI preferences
+            commands::set_pref,                // Phase 48 INFRA-02 — write/persist a GUI preference
+            commands::save_state,              // Phase 49 KBD-02 — on-demand save (Ctrl+S / F5 in GUI)
+            // Phase 50 — .raw file I/O via native OS file dialog
+            commands::import_raw_dialog,
+            commands::export_raw_dialog,
+            commands::import_data_dialog,
+            commands::export_data_dialog,
+            commands::import_selected_programs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

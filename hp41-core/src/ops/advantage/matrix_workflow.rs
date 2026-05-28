@@ -142,12 +142,28 @@ pub fn op_adv_cmedit(state: &mut CalcState) -> Result<(), HpError> {
         .ok_or(HpError::InvalidOp)?;
     let mat = state
         .adv_matrices
-        .iter()
+        .iter_mut()
         .find(|m| m.name == name)
         .ok_or(HpError::InvalidOp)?;
     if mat.rows == 0 || mat.cols == 0 {
         return Err(HpError::InvalidOp);
     }
+    // Complex element editing stores interleaved (re, im) pairs, so it needs
+    // 2·rows·cols slots — but MATDIM allocates only rows·cols reals. Promote the
+    // matrix to complex storage here (existing values become real parts, zero
+    // imaginary), otherwise every element past the first row fails the bounds
+    // check in `submit_step` with `Domain`. Idempotent if already complex-sized.
+    let needed = 2 * (mat.rows as usize) * (mat.cols as usize);
+    if mat.data.len() != needed {
+        let mut complex_data = vec![crate::num::HpNum::zero(); needed];
+        for (k, val) in mat.data.iter().enumerate() {
+            if let Some(slot) = complex_data.get_mut(2 * k) {
+                *slot = val.clone();
+            }
+        }
+        mat.data = complex_data;
+    }
+    mat.is_complex = true;
     // Start complex element-editing from (1,1)
     state.adv_matrix_i = 0;
     state.adv_matrix_j = 0;
@@ -280,6 +296,36 @@ mod tests {
             )))
         ));
         assert_eq!(state.modal_prompt, Some("C[1,1]=?".to_string()));
+    }
+
+    // Regression: CMEDIT on a real-sized matrix (as MATDIM allocates it) must
+    // promote storage to 2*rows*cols so every element is addressable. The old
+    // code left data at rows*cols, so elements past the first row hit Domain.
+    #[test]
+    fn cmedit_promotes_real_matrix_to_complex_storage() {
+        let mut state = CalcState::new();
+        add_matrix(&mut state, "M", 2, 2, false); // real-sized: data.len() == 4
+        state.adv_matrices[0].data[3] = HpNum::from(7i32); // (1,1) real part, flat 3
+
+        op_adv_cmedit(&mut state).unwrap();
+
+        let mat = state.adv_matrices.iter().find(|m| m.name == "M").unwrap();
+        assert!(mat.is_complex, "CMEDIT must mark the matrix complex");
+        // LINT-EXEMPT: structural length check, not an iterated FP computation
+        assert_eq!(mat.data.len(), 8, "complex 2x2 needs 2*rows*cols = 8 slots");
+        // Existing real values are re-interleaved as real parts (imag = 0).
+        // LINT-EXEMPT: exact-integer HpNum equality (re-interleave), not iterated FP
+        assert_eq!(
+            mat.data[6],
+            HpNum::from(7i32),
+            "real value moved to slot 2*k"
+        );
+        // LINT-EXEMPT: exact zero-init check, not iterated FP
+        assert_eq!(
+            mat.data[7],
+            HpNum::zero(),
+            "imaginary part zero-initialised"
+        );
     }
 
     // Catches: CMEDIT fails without active matrix

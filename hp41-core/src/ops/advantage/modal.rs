@@ -1013,6 +1013,52 @@ mod tests {
         ));
     }
 
+    // Regression: a real-sized 2x2 matrix (as MATDIM allocates it) is fully
+    // editable via CMEDIT. Element (2,1) must store without Domain — before the
+    // CMEDIT storage-promotion fix, any row past the first failed the bounds
+    // check because MATDIM allocated only rows*cols reals.
+    #[test]
+    fn cmedit_real_matrix_full_2x2_edit() {
+        use crate::ops::advantage::matrix_workflow::op_adv_cmedit;
+        let mut state = CalcState::new();
+        // Mimic MATDIM: real-sized 2x2 (4 reals), not yet complex.
+        state.adv_matrices.push(AdvMatrix {
+            name: "M".to_string(),
+            rows: 2,
+            cols: 2,
+            is_complex: false,
+            data: vec![HpNum::zero(); 4],
+        });
+        state.adv_current_matrix = Some("M".to_string());
+
+        // Enter CMEDIT — promotes storage to 2*rows*cols = 8.
+        op_adv_cmedit(&mut state).unwrap();
+
+        // Walk all four elements, storing real = 10*(n+1), imag = (n+1).
+        let coords = [(1u8, 1u8), (1, 2), (2, 1), (2, 2)];
+        for (n, &(r, c)) in coords.iter().enumerate() {
+            push_yx(&mut state, (n + 1) as f64, (10 * (n + 1)) as f64); // Y=imag, X=real
+            submit_step(&mut state, AdvantageStep::CmeditElementPrompt(r, c)).unwrap();
+        }
+
+        let mat = state.adv_matrices.iter().find(|m| m.name == "M").unwrap();
+        // Element (2,1) is the 3rd element → flat 2*(1*2+0)=4 (re), 5 (im).
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() of exact integers, no iterative computation
+        assert!(
+            (mat.data[4].inner().to_f64().unwrap() - 30.0).abs() < 1e-9,
+            "(2,1) real part"
+        );
+        // LINT-EXEMPT: pure-f64 tolerance on to_f64() of exact integers, no iterative computation
+        assert!(
+            (mat.data[5].inner().to_f64().unwrap() - 3.0).abs() < 1e-9,
+            "(2,1) imag part"
+        );
+        assert!(
+            state.modal_program.is_none(),
+            "modal cleared after last element"
+        );
+    }
+
     // ── VeComponentPrompt workflow ────────────────────────────────────────────
 
     // Catches: VeComponentPrompt stores component and advances

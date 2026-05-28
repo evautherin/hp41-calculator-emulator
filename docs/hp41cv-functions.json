@@ -6,7 +6,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "+",
-        "description": "Add: X <- Y + X, drop stack"
+        "description": "Add: X <- Y + X, drop stack",
+        "example": "3 ENTER 4 + -> 7.0000",
+        "notes": "Consumes X and Y; stack drops (T replicates into Z). Stack lift enabled for next entry."
     },
     {
         "op_variant": "Sub",
@@ -15,7 +17,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "-",
-        "description": "Subtract: X <- Y - X, drop stack"
+        "description": "Subtract: X <- Y - X, drop stack",
+        "example": "10 ENTER 3 - -> 7.0000",
+        "notes": "Y minus X; result in X. Stack drops; T replicates. Stack lift enabled."
     },
     {
         "op_variant": "Mul",
@@ -24,7 +28,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "*",
-        "description": "Multiply: X <- Y * X, drop stack"
+        "description": "Multiply: X <- Y * X, drop stack",
+        "example": "6 ENTER 7 * -> 42.0000",
+        "notes": "Consumes X and Y; stack drops. T replicates into Z. Stack lift enabled."
     },
     {
         "op_variant": "Div",
@@ -33,7 +39,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "/",
-        "description": "Divide: X <- Y / X, drop stack"
+        "description": "Divide: X <- Y / X, drop stack",
+        "example": "10 ENTER 4 / -> 2.5000",
+        "notes": "Y divided by X. Division by zero returns DATA ERROR. Stack lift enabled."
     },
     {
         "op_variant": "Enter",
@@ -42,7 +50,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "ENTER",
-        "description": "Lift stack and duplicate X into Y"
+        "description": "Lift stack and duplicate X into Y",
+        "example": "5 ENTER -> X=5, Y=5 (stack lifted)",
+        "notes": "Disables stack lift; next digit entry overwrites X without pushing. T register lost."
     },
     {
         "op_variant": "Clx",
@@ -60,7 +70,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "n",
-        "description": "Change sign of X (negate)"
+        "description": "Change sign of X (negate)",
+        "example": "5 CHS -> -5.0000",
+        "notes": "Negates X in place; stack unchanged. During digit entry: toggles mantissa sign. Stack lift neutral."
     },
     {
         "op_variant": "Rdn",
@@ -69,7 +81,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "r",
-        "description": "Roll stack down: X<-Y, Y<-Z, Z<-T, T<-X"
+        "description": "Roll stack down: X<-Y, Y<-Z, Z<-T, T<-X",
+        "example": "Rv -> X=Y, Y=Z, Z=T, T=old X",
+        "notes": "Circular rotation; no values lost. Four presses restore original stack. Stack lift enabled."
     },
     {
         "op_variant": "Rup",
@@ -87,7 +101,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "x",
-        "description": "Swap X and Y registers"
+        "description": "Swap X and Y registers",
+        "example": "X=3, Y=7 -> X<>Y -> X=7, Y=3",
+        "notes": "Only X and Y swap; Z and T unchanged. Stack lift enabled. Useful for argument reversal."
     },
     {
         "op_variant": "Lastx",
@@ -96,7 +112,9 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "l",
-        "description": "Recall last X (value before last operation)"
+        "description": "Recall last X (value before last operation)",
+        "example": "5 SQRT LASTX -> X=5 (original X recalled)",
+        "notes": "LASTX is saved before most operations. Useful for error recovery or reusing an operand."
     },
     {
         "op_variant": "Pi",
@@ -106,7 +124,9 @@
         "phase": "20",
         "key_path": null,
         "description": "Push pi onto X (3.141592654, 10-digit rounded)",
-        "divergences": ["10-digit precision per Phase 20 D-09"]
+        "divergences": ["10-digit precision per Phase 20 D-09"],
+        "example": "PI -> 3.141592654",
+        "notes": "Pushes pi onto stack (stack lift occurs). Precision is 10 significant digits per HP-41 OM."
     },
     {
         "op_variant": "Int",
@@ -115,7 +135,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Truncate X toward zero (integer part)"
+        "description": "Truncate X toward zero (integer part)",
+        "example": "3.7 INT -> 3; -3.7 INT -> -3",
+        "notes": "Truncates toward zero (not floor). LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "Rnd",
@@ -142,7 +164,9 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Absolute value of X"
+        "description": "Absolute value of X",
+        "example": "-5 ABS -> 5.0000",
+        "notes": "Modifies X in place; stack unchanged. Stack lift enabled after."
     },
     {
         "op_variant": "Sign",
@@ -171,7 +195,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Reciprocal of X"
+        "description": "Reciprocal of X",
+        "example": "4 1/X -> 0.2500",
+        "notes": "Returns 1 divided by X; DATA ERROR if X=0. LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "Sqrt",
@@ -180,7 +206,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Square root of X"
+        "description": "Square root of X",
+        "example": "9 SQRT -> 3.0000",
+        "notes": "DATA ERROR if X < 0. LASTX saved. Stack lift enabled after."
     },
     {
         "op_variant": "Sq",
@@ -189,7 +217,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Square of X"
+        "description": "Square of X",
+        "example": "5 X^2 -> 25.0000",
+        "notes": "Replaces X with X squared. LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "YPow",
@@ -198,7 +228,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Y raised to power X"
+        "description": "Y raised to power X",
+        "example": "2 ENTER 10 Y^X -> 1024.0000",
+        "notes": "Y is base, X is exponent. Stack drops; T replicates. LASTX=X."
     },
     {
         "op_variant": "Mod",
@@ -207,7 +239,9 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Y mod X with trunc-toward-zero convention"
+        "description": "Y mod X with trunc-toward-zero convention",
+        "example": "7 ENTER 3 MOD -> 1.0000",
+        "notes": "Result sign follows Y (HP-41C/CV QRG). -7 MOD 3 -> -1. Stack drops."
     },
     {
         "op_variant": "PctChange",
@@ -225,7 +259,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Natural logarithm of X"
+        "description": "Natural logarithm of X",
+        "example": "E^X LN -> original X (inverse pair)",
+        "notes": "DATA ERROR if X <= 0. LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "Log",
@@ -234,7 +270,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Base-10 logarithm of X"
+        "description": "Base-10 logarithm of X",
+        "example": "100 LOG -> 2.0000",
+        "notes": "DATA ERROR if X <= 0. LASTX saved. Use 10^X to invert."
     },
     {
         "op_variant": "Exp",
@@ -243,7 +281,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Natural exponential of X"
+        "description": "Natural exponential of X",
+        "example": "1 E^X -> 2.718281828",
+        "notes": "Raises e to X. LASTX saved. Stack lift enabled after."
     },
     {
         "op_variant": "TenPow",
@@ -261,7 +301,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Sine of X (in current angle mode)"
+        "description": "Sine of X (in current angle mode)",
+        "example": "DEG mode: 30 SIN -> 0.5000",
+        "notes": "Uses current angle mode (DEG/RAD/GRAD). LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "Cos",
@@ -270,7 +312,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Cosine of X (in current angle mode)"
+        "description": "Cosine of X (in current angle mode)",
+        "example": "DEG mode: 60 COS -> 0.5000",
+        "notes": "Uses current angle mode (DEG/RAD/GRAD). LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "Tan",
@@ -279,7 +323,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Tangent of X (in current angle mode)"
+        "description": "Tangent of X (in current angle mode)",
+        "example": "DEG mode: 45 TAN -> 1.0000",
+        "notes": "DATA ERROR at 90 deg. LASTX saved. Stack lift enabled."
     },
     {
         "op_variant": "Asin",
@@ -288,7 +334,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Arc sine of X (result in current angle mode)"
+        "description": "Arc sine of X (result in current angle mode)",
+        "example": "0.5 ASIN -> 30.0000 (DEG mode)",
+        "notes": "Domain: -1 <= X <= 1; DATA ERROR outside. Result in current angle mode."
     },
     {
         "op_variant": "Acos",
@@ -333,7 +381,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Set angle mode to DEG"
+        "description": "Set angle mode to DEG",
+        "example": "DEG (sets trig input/output to degrees)",
+        "notes": "Affects SIN/COS/TAN and inverses. DEG annunciator hidden (default mode). Neutral stack lift."
     },
     {
         "op_variant": "SetRad",
@@ -360,7 +410,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": "F",
-        "description": "FIX n - fixed decimal display (n=0..9)"
+        "description": "FIX n - fixed decimal display (n=0..9)",
+        "example": "FIX 4 -> shows 4 decimal places",
+        "notes": "FIX 4: 3.14159 shows as 3.1416. Does not change stored value; display only."
     },
     {
         "op_variant": "FmtSci",
@@ -369,7 +421,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": "F",
-        "description": "SCI n - scientific notation display (n=0..9)"
+        "description": "SCI n - scientific notation display (n=0..9)",
+        "example": "SCI 2 -> 3.14E0 (shows exponent)",
+        "notes": "n = significant digits after decimal in mantissa. Display mode only; no precision change."
     },
     {
         "op_variant": "FmtEng",
@@ -378,7 +432,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": "F",
-        "description": "ENG n - engineering notation display (n=0..9)"
+        "description": "ENG n - engineering notation display (n=0..9)",
+        "example": "ENG 3 -> exponent always multiple of 3",
+        "notes": "Exponent is always a multiple of 3 (kilo/mega/etc). Display mode only."
     },
     {
         "op_variant": "StoReg",
@@ -387,7 +443,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": "S",
-        "description": "STO nn - store X into register nn (0..99)"
+        "description": "STO nn - store X into register nn (0..99)",
+        "example": "42 STO 05 -> R05 = 42 (X unchanged)",
+        "notes": "Copies X to register; X and stack unchanged. Stack lift neutral."
     },
     {
         "op_variant": "RclReg",
@@ -396,7 +454,9 @@
         "status": "implemented",
         "phase": "2",
         "key_path": "R",
-        "description": "RCL nn - recall register nn into X (0..99)"
+        "description": "RCL nn - recall register nn into X (0..99)",
+        "example": "RCL 05 -> X = R05 (stack lifts)",
+        "notes": "Pushes register value onto stack (stack lifts). Register content unchanged. Stack lift enabled."
     },
     {
         "op_variant": "StoArith",

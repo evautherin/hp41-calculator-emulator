@@ -480,6 +480,15 @@ fn op_display_name(op: &Op) -> String {
         Op::AdvTvmPmt => "PMT".to_string(),
         Op::AdvTvmFv => "FV".to_string(),
         Op::AdvTvmStarI => "*I".to_string(),
+        // ── Phase 51 (v4.0): X-MEM built-in ops ─────────────────────────────
+        Op::EmDir => "EMDIR".to_string(),
+        Op::EmRoom => "EMROOM".to_string(),
+        Op::SaveP => "SAVEP".to_string(),
+        Op::GetP => "GETP".to_string(),
+        Op::SaveD => "SAVED".to_string(),
+        Op::GetD => "GETD".to_string(),
+        Op::EmReg => "EMREG".to_string(),
+        Op::SaveRx => "SAVERX".to_string(),
     }
 }
 

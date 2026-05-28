@@ -13,6 +13,16 @@
     "allow-submit-modal",
     "allow-cancel-modal",
     "allow-submit-modal-with-label",
-    "allow-tick-time"
+    "allow-tick-time",
+    "allow-get-prefs",
+    "allow-set-pref",
+    "allow-save-state",
+    "allow-import-raw-dialog",
+    "allow-export-raw-dialog",
+    "allow-import-data-dialog",
+    "allow-export-data-dialog",
+    "allow-import-selected-programs",
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }

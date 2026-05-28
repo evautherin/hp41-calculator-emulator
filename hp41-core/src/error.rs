@@ -53,6 +53,18 @@ pub enum HpError {
     /// CLI/GUI to distinguish TVM-specific non-convergence.
     #[error("no root found")]
     NoRoot,
+    /// X-MEM: named file not found (GETP/GETD/EMREG on missing name, or EMREG
+    /// with no active file set). Matches HP-41CX QRG p.39 "FL NOT FOUND".
+    #[error("fl not found")]
+    FileNotFound,
+    /// X-MEM: file type mismatch (GETP on a DATA file, GETD/EMREG/SAVERX on a
+    /// PROGRAM file). Matches HP-41CX QRG p.39 "FL TYPE ERR".
+    #[error("fl type err")]
+    FileType,
+    /// X-MEM: insufficient extended memory (SAVEP/SAVED when file would not fit
+    /// in 600-register capacity). Matches HP-41CX QRG p.39 "NO ROOM".
+    #[error("no room")]
+    NoRoom,
 }
 
 #[cfg(test)]
@@ -77,5 +89,23 @@ mod tests {
     #[test]
     fn canceled_distinct_from_domain() {
         assert_ne!(HpError::Canceled, HpError::Domain);
+    }
+
+    // Catches: FileNotFound Display regression (HP-41CX QRG p.39 "FL NOT FOUND")
+    #[test]
+    fn file_not_found_display() {
+        assert_eq!(HpError::FileNotFound.to_string(), "fl not found");
+    }
+
+    // Catches: FileType Display regression (HP-41CX QRG p.39 "FL TYPE ERR")
+    #[test]
+    fn file_type_display() {
+        assert_eq!(HpError::FileType.to_string(), "fl type err");
+    }
+
+    // Catches: NoRoom Display regression (HP-41CX QRG p.39 "NO ROOM")
+    #[test]
+    fn no_room_display() {
+        assert_eq!(HpError::NoRoom.to_string(), "no room");
     }
 }

@@ -35,7 +35,7 @@ use crate::ops::Op;
 
 /// END marker bytes appended on encode and used as a stop sentinel on decode.
 /// Triplet `C0 00 0D` = global END instruction.
-const END_MARKER: [u8; 3] = [0xC0, 0x00, 0x0D];
+pub(crate) const END_MARKER: [u8; 3] = [0xC0, 0x00, 0x0D];
 
 /// Single-byte alpha-string prefix range. `F0..=FF` introduces a 0..=15-char
 /// ASCII payload. Used by `LBL`, `GTO`, `XEQ` with a quoted label name.
@@ -172,6 +172,86 @@ fn encode_alpha_instruction(prefix: u8, name: &str, out: &mut Vec<u8>) -> Result
     out.push(ALPHA_PREFIX_BASE | (bytes.len() as u8));
     out.extend_from_slice(bytes);
     Ok(())
+}
+
+/// A single decoded program from a multi-program `.raw` archive.
+///
+/// `byte_len` is the total number of bytes consumed from the archive stream
+/// for this program (including the trailing END marker). This value is used
+/// by [`picker_label`] to show the size in the import picker UI.
+#[derive(Debug, Clone)]
+pub struct DecodedProgram {
+    /// The decoded operations, not including the END marker.
+    pub ops: Vec<Op>,
+    /// Number of bytes this program occupied in the source byte stream
+    /// (including the 3-byte END marker).
+    pub byte_len: usize,
+}
+
+/// Decode a multi-program `.raw` archive into individual programs.
+///
+/// Splits the byte stream at END markers (`C0 00 0D`). Each segment from the
+/// current offset to (and including) the END marker is decoded via
+/// [`decode_program`] and pushed as a [`DecodedProgram`].
+///
+/// Returns an empty `Vec` for empty input (not an error). Returns
+/// `HpError::CardData` if any segment is truncated (i.e., a non-empty stream
+/// that never ends with an END marker) or if the archive exceeds 256 programs
+/// (DoS guard, T-50-01).
+pub fn decode_all_programs(bytes: &[u8]) -> Result<Vec<DecodedProgram>, HpError> {
+    const ARCHIVE_CAP: usize = 256;
+
+    if bytes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut programs = Vec::new();
+    let mut offset = 0;
+
+    while offset < bytes.len() {
+        if programs.len() >= ARCHIVE_CAP {
+            return Err(HpError::CardData(format!(
+                "archive exceeds {ARCHIVE_CAP}-program cap; refusing to decode further"
+            )));
+        }
+
+        // Find the next END marker starting from the current offset.
+        let remaining = &bytes[offset..];
+        let Some(end_pos) = remaining.windows(3).position(|w| w == END_MARKER) else {
+            return Err(HpError::CardData(
+                "truncated input: stream ended without END marker (C0 00 0D)".into(),
+            ));
+        };
+
+        // The segment includes the END marker bytes.
+        let segment_len = end_pos + END_MARKER.len();
+        let segment = &bytes[offset..offset + segment_len];
+
+        // decode_program expects exactly one END marker with no trailing bytes.
+        // Our slice guarantees this.
+        let ops = decode_program(segment)?;
+        programs.push(DecodedProgram {
+            ops,
+            byte_len: segment_len,
+        });
+        offset += segment_len;
+    }
+
+    Ok(programs)
+}
+
+/// Format a human-readable label for the multi-program import picker.
+///
+/// Per D-50.5: finds the first `Op::Lbl(name)` in `ops` and formats as
+/// `"NAME (N bytes)"`. Falls back to `"Program {index+1} (N bytes)"` if no
+/// LBL instruction is found.
+pub fn picker_label(program_index: usize, ops: &[Op], byte_len: usize) -> String {
+    for op in ops {
+        if let Op::Lbl(name) = op {
+            return format!("{name} ({byte_len} bytes)");
+        }
+    }
+    format!("Program {} ({} bytes)", program_index + 1, byte_len)
 }
 
 /// Decode a bare `.raw` byte stream back into a sequence of `Op`s.
@@ -629,6 +709,81 @@ mod tests {
             bytes_second, bytes_third,
             "second round-trip must be byte-stable"
         );
+    }
+
+    // ── Tests for decode_all_programs and picker_label ────────────────────────
+
+    #[test]
+    fn decode_all_single_program_returns_vec_of_one() {
+        let bytes = encode_program(&[Op::Add, Op::Sub]).unwrap();
+        let programs = decode_all_programs(&bytes).unwrap();
+        assert_eq!(programs.len(), 1);
+        assert_eq!(programs[0].ops, vec![Op::Add, Op::Sub]);
+        assert_eq!(programs[0].byte_len, bytes.len());
+    }
+
+    #[test]
+    fn decode_all_two_programs_returns_vec_of_two() {
+        let bytes1 = encode_program(&[Op::Add]).unwrap();
+        let bytes2 = encode_program(&[Op::Sub, Op::Mul]).unwrap();
+        let mut combined = bytes1.clone();
+        combined.extend_from_slice(&bytes2);
+        let programs = decode_all_programs(&combined).unwrap();
+        assert_eq!(programs.len(), 2);
+        assert_eq!(programs[0].ops, vec![Op::Add]);
+        assert_eq!(programs[0].byte_len, bytes1.len());
+        assert_eq!(programs[1].ops, vec![Op::Sub, Op::Mul]);
+        assert_eq!(programs[1].byte_len, bytes2.len());
+    }
+
+    #[test]
+    fn decode_all_empty_input_returns_empty_vec() {
+        let programs = decode_all_programs(&[]).unwrap();
+        assert!(programs.is_empty());
+    }
+
+    #[test]
+    fn decode_all_truncated_no_end_marker_returns_error() {
+        let bytes = vec![0x40, 0x41]; // ADD, SUB — no END marker
+        let err = decode_all_programs(&bytes).unwrap_err();
+        assert!(
+            matches!(&err, HpError::CardData(msg) if msg.contains("END")),
+            "expected END-marker diagnostic, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn decode_all_archive_cap_at_256() {
+        // Build 257 single-op programs to exceed the archive cap.
+        let single = encode_program(&[Op::Add]).unwrap();
+        let mut stream: Vec<u8> = Vec::new();
+        for _ in 0..257 {
+            stream.extend_from_slice(&single);
+        }
+        let err = decode_all_programs(&stream).unwrap_err();
+        assert!(
+            matches!(&err, HpError::CardData(msg) if msg.contains("256")),
+            "expected archive cap diagnostic, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn picker_label_with_lbl_returns_name_and_size() {
+        let ops = vec![Op::Lbl("QUAD".to_string()), Op::Add, Op::Rtn];
+        let label = picker_label(0, &ops, 47);
+        assert!(label.contains("QUAD"), "label must contain the LBL name");
+        assert!(label.contains("47"), "label must contain byte count");
+    }
+
+    #[test]
+    fn picker_label_without_lbl_returns_program_n_and_size() {
+        let ops = vec![Op::Add, Op::Rtn];
+        let label = picker_label(0, &ops, 23);
+        assert!(
+            label.contains("Program 1"),
+            "label must contain fallback 'Program 1'"
+        );
+        assert!(label.contains("23"), "label must contain byte count");
     }
 
     // ── New tests covering decode error paths (review I3, I5) ────────────────

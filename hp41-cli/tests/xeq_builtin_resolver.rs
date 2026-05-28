@@ -145,3 +145,41 @@ fn unknown_names_return_none() {
     assert_eq!(resolve(""), None);
     assert_eq!(resolve("XYZZY"), None);
 }
+
+#[test]
+fn xmem_builtins_resolve() {
+    // Phase 52 (v4.0): X-MEM built-in ops (HP-41CX Extended Functions / D-52.4).
+    // These resolve via builtin_card_op — no changes to keys.rs or key_map.rs needed.
+    assert_eq!(resolve("EMDIR"), Some(EmDir));
+    assert_eq!(resolve("EMROOM"), Some(EmRoom));
+    assert_eq!(resolve("SAVEP"), Some(SaveP));
+    assert_eq!(resolve("GETP"), Some(GetP));
+    assert_eq!(resolve("SAVED"), Some(SaveD));
+    assert_eq!(resolve("GETD"), Some(GetD));
+    assert_eq!(resolve("EMREG"), Some(EmReg));
+    assert_eq!(resolve("SAVERX"), Some(SaveRx));
+}
+
+#[test]
+fn xmem_builtins_are_xrom_module_independent() {
+    // X-MEM ops are HP-41CX OS built-ins, NOT XROM module functions. They MUST
+    // resolve regardless of the xrom_modules bitfield — proving resolution flows
+    // through builtin_card_op, not xrom_resolve (D-52.4 / RESEARCH.md Pitfall 1).
+    // Guards against a future regression that moves X-MEM into xrom_resolve.
+    let resolve_no_xrom = |name: &str| hp41_cli::keys::xeq_by_name_local_resolve(name, 0b0000_0000);
+    assert_eq!(resolve_no_xrom("EMDIR"), Some(EmDir));
+    assert_eq!(resolve_no_xrom("EMROOM"), Some(EmRoom));
+    assert_eq!(resolve_no_xrom("SAVEP"), Some(SaveP));
+    assert_eq!(resolve_no_xrom("GETP"), Some(GetP));
+    assert_eq!(resolve_no_xrom("SAVED"), Some(SaveD));
+    assert_eq!(resolve_no_xrom("GETD"), Some(GetD));
+    assert_eq!(resolve_no_xrom("EMREG"), Some(EmReg));
+    assert_eq!(resolve_no_xrom("SAVERX"), Some(SaveRx));
+}
+
+#[test]
+fn xmem_unknown_still_none() {
+    // After wiring, unknown X-MEM-like names must still return None (never-discard D-07).
+    assert_eq!(resolve("EMDIR2"), None);
+    assert_eq!(resolve("SAVERX2"), None);
+}

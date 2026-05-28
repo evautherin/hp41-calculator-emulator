@@ -1,0 +1,307 @@
+[
+  {
+    "key": "Enter",
+    "op": "ENTER",
+    "description": "Push X onto stack; terminates number entry"
+  },
+  {
+    "key": "Backspace",
+    "op": "CLX",
+    "description": "Clear X register; cancel last digit during number entry"
+  },
+  {
+    "key": "Tab",
+    "op": "SHIFT",
+    "description": "One-shot SHIFT prefix — next key dispatches shifted variant"
+  },
+  {
+    "key": "0",
+    "op": "0",
+    "description": "Append digit 0 to number entry"
+  },
+  {
+    "key": "1",
+    "op": "1",
+    "description": "Append digit 1 to number entry"
+  },
+  {
+    "key": "2",
+    "op": "2",
+    "description": "Append digit 2 to number entry"
+  },
+  {
+    "key": "3",
+    "op": "3",
+    "description": "Append digit 3 to number entry"
+  },
+  {
+    "key": "4",
+    "op": "4",
+    "description": "Append digit 4 to number entry"
+  },
+  {
+    "key": "5",
+    "op": "5",
+    "description": "Append digit 5 to number entry"
+  },
+  {
+    "key": "6",
+    "op": "6",
+    "description": "Append digit 6 to number entry"
+  },
+  {
+    "key": "7",
+    "op": "7",
+    "description": "Append digit 7 to number entry"
+  },
+  {
+    "key": "8",
+    "op": "8",
+    "description": "Append digit 8 to number entry"
+  },
+  {
+    "key": "9",
+    "op": "9",
+    "description": "Append digit 9 to number entry"
+  },
+  {
+    "key": ".",
+    "op": ".",
+    "description": "Decimal point; blocked if already present or after EEX"
+  },
+  {
+    "key": "e",
+    "op": "EEX",
+    "description": "Enter exponent; implicit '1' mantissa on empty entry"
+  },
+  {
+    "key": "n",
+    "op": "CHS",
+    "description": "Change sign of X; or toggle exponent sign when in EEX mode"
+  },
+  {
+    "key": "+",
+    "op": "ADD",
+    "description": "Add Y + X"
+  },
+  {
+    "key": "-",
+    "op": "SUB",
+    "description": "Subtract Y - X"
+  },
+  {
+    "key": "*",
+    "op": "MUL",
+    "description": "Multiply Y × X"
+  },
+  {
+    "key": "/",
+    "op": "DIV",
+    "description": "Divide Y ÷ X"
+  },
+  {
+    "key": "s",
+    "op": "SQRT",
+    "description": "Square root of X"
+  },
+  {
+    "key": "%",
+    "op": "PCT CHG",
+    "description": "Percentage change: (X - Y) / Y × 100"
+  },
+  {
+    "key": "r",
+    "op": "R↓",
+    "description": "Roll stack down (T→Z→Y→X→T)"
+  },
+  {
+    "key": "x",
+    "op": "X<>Y",
+    "description": "Swap X and Y registers"
+  },
+  {
+    "key": "l",
+    "op": "LASTX",
+    "description": "Recall last X value before previous operation"
+  },
+  {
+    "key": "q",
+    "op": "SIN",
+    "description": "Sine of X (respects angle mode: DEG/RAD/GRAD)"
+  },
+  {
+    "key": "a",
+    "op": "ASIN",
+    "description": "Arc sine of X"
+  },
+  {
+    "key": "C",
+    "op": "COS",
+    "description": "Cosine of X"
+  },
+  {
+    "key": "c",
+    "op": "ACOS",
+    "description": "Arc cosine of X"
+  },
+  {
+    "key": "T",
+    "op": "TAN",
+    "description": "Tangent of X"
+  },
+  {
+    "key": "k",
+    "op": "ATAN",
+    "description": "Arc tangent of X"
+  },
+  {
+    "key": "L",
+    "op": "LN",
+    "description": "Natural logarithm of X"
+  },
+  {
+    "key": "G",
+    "op": "LOG",
+    "description": "Base-10 logarithm of X"
+  },
+  {
+    "key": "E",
+    "op": "EXP",
+    "description": "e raised to the power of X"
+  },
+  {
+    "key": "H",
+    "op": "10^X",
+    "description": "10 raised to the power of X"
+  },
+  {
+    "key": "I",
+    "op": "1/X",
+    "description": "Reciprocal of X"
+  },
+  {
+    "key": "W",
+    "op": "X^2",
+    "description": "Square of X"
+  },
+  {
+    "key": "Y",
+    "op": "Y^X",
+    "description": "Y raised to the power of X"
+  },
+  {
+    "key": "z",
+    "op": "SIGMA+",
+    "description": "Accumulate statistics (add data point X,Y)"
+  },
+  {
+    "key": "Z",
+    "op": "SIGMA-",
+    "description": "Remove last data point from statistics accumulators"
+  },
+  {
+    "key": "m",
+    "op": "MEAN",
+    "description": "Mean of X and Y data sets"
+  },
+  {
+    "key": "D",
+    "op": "SDEV",
+    "description": "Sample standard deviation of X and Y data sets"
+  },
+  {
+    "key": "y",
+    "op": "Y-HAT",
+    "description": "Estimated Y value from linear regression at current X"
+  },
+  {
+    "key": "b",
+    "op": "LR",
+    "description": "Linear regression: returns slope (X) and intercept (Y)"
+  },
+  {
+    "key": "O",
+    "op": "CORR",
+    "description": "Correlation coefficient from linear regression"
+  },
+  {
+    "key": "V",
+    "op": "CL SIGMA",
+    "description": "Clear statistics accumulators (SIGMA regs R1–R6)"
+  },
+  {
+    "key": "h",
+    "op": "HMS→H",
+    "description": "Convert hours.MMSSss format to decimal hours"
+  },
+  {
+    "key": "j",
+    "op": "HMS+",
+    "description": "Add two time values in hours.MMSSss format"
+  },
+  {
+    "key": "J",
+    "op": "HMS-",
+    "description": "Subtract two time values in hours.MMSSss format"
+  },
+  {
+    "key": "u",
+    "op": "USER",
+    "description": "Toggle USER mode (activates custom key assignments)"
+  },
+  {
+    "key": "p",
+    "op": "PRGM",
+    "description": "Toggle program mode (show/hide program listing)"
+  },
+  {
+    "key": "P",
+    "op": "PRX",
+    "description": "Print X register to the print panel (SHIFT+P)"
+  },
+  {
+    "key": "g",
+    "op": "CLREG",
+    "description": "Clear all registers (R0–R99) to zero"
+  },
+  {
+    "key": "F7",
+    "op": "SST",
+    "description": "Single-step forward through program listing"
+  },
+  {
+    "key": "F8",
+    "op": "BST",
+    "description": "Back-step backward through program listing"
+  },
+  {
+    "key": "Ctrl+W",
+    "op": "WPRGM",
+    "description": "Write program to card (HP 82104A Card Reader emulation)"
+  },
+  {
+    "key": "Ctrl+R",
+    "op": "RDPRGM",
+    "description": "Read program from card (HP 82104A Card Reader emulation)"
+  },
+  {
+    "key": "Ctrl+D",
+    "op": "WDTA",
+    "description": "Write data registers to card (HP 82104A Card Reader emulation)"
+  },
+  {
+    "key": "Ctrl+F",
+    "op": "RDTA",
+    "description": "Read data registers from card (HP 82104A Card Reader emulation)"
+  },
+  {
+    "key": "Ctrl+S",
+    "op": "SAVE",
+    "description": "Save calculator state to ~/.hp41/autosave.json immediately"
+  },
+  {
+    "key": "F5",
+    "op": "SAVE",
+    "description": "Save calculator state (GUI-only; CLI uses F5 for run_program — deliberate divergence per KBD-02)"
+  }
+]

@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/screenshots/hp41-gui-v3.x.png" alt="HP-41CV GUI on macOS — v3.1" width="320">
+  <img src="docs/screenshots/hp41-gui-v3.x.png" alt="HP-41C/CV/CX GUI on macOS" width="320">
   <br>
-  <em>HP-41CV desktop GUI on macOS — v3.3 with Math, Stat 1, Time, and Advantage Pac emulation</em>
+  <em>HP-41C/CV/CX desktop GUI on macOS — v4.0 with all four ROM modules (Math, Stat 1, Time, Advantage), Extended Memory, theming, and onboarding</em>
 </p>
 
 A faithful, open-source behavioral emulation of the **HP-41C/CV/CX** programmable RPN calculator, written in Rust. Ships both a terminal UI (`hp41-cli`) and a pixel-perfect desktop app (`hp41-gui`, Tauri v2 + React).
@@ -28,6 +28,7 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| [v4.0](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v4.0) | 2026-05-28 | **Platform Maturity**: HP-41CX Extended Memory (8 X-Function ops — EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX; 600-register capacity; OS-builtin routing via `builtin_card_op`, no XROM bit); 4 GUI skin themes (dark/light/classic-beige/high-contrast via CSS custom properties, isolated `~/.hp41/prefs.json`); first-run onboarding wizard + searchable in-app function reference + GUI↔CLI keyboard parity (`keyboard-shortcuts.json`); `.raw` program file import/export (native dialog + CLI flags, multi-program archives); zero new runtime deps; v1.0–v3.3 save files load without migration |
 | [v3.3](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.3) | 2026-05-26 | **Advantage Pac behavioral emulation** (HP 00041-90482): 114 XEQ entry points across XROM 22 (ADV CONV + ADV MTRX, 63 ops) + XROM 24 (ADV MATH + ADV TVM, 51 ops); base conversion & 36-bit bitwise logic; named-matrix model with MATDIM/MDET/MINV/MSYS/M*M; Laguerre polynomial root-finder (FROOT); Romberg integration (FINTG); secant root-finder (FSOLVE) with cross-nesting; RK4 ODE solver (FDIFEQ); 4-model curve fitting; 3D vector arithmetic (DOT/CROSS/UV); Newton-Raphson TVM solver; 22 scipy-derived accuracy oracles; zero new runtime deps; v1.0–v3.2 save files load without migration |
 | [v3.2](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.2) | 2026-05-25 | **Time Pac behavioral emulation** (HP 82182A, OM 00041-90035): 35 XEQ entry points across clock, date arithmetic, stopwatch, alarm catalog; real-time clock/stopwatch backed by host system clock with `time_offset_secs` delta model; 253-entry alarm catalog with message + control alarms and repeat intervals; pure-Rust Gregorian calendar arithmetic (Fliegel-Van Flandern JDN, zero new runtime deps); live clock/stopwatch display in CLI (62 Hz) and GUI (setInterval); `?` overlay gains "Time Pac (XROM 26)" section; v1.0–v3.1 save files load without migration |
 | [v3.1](https://github.com/talent-factory/hp41-calculator-emulator/releases/tag/v3.1) | 2026-05-24 | **Stat 1 Pac behavioral emulation** (HP 00041-90030): 13 programs, 26 XEQ entry points covering univariate statistics, one/two-way ANOVA, ANOCOV, linear/exponential/logistic/power/polynomial/multiple regression, hypothesis tests (pooled t-test), nonparametric tests (chi-square, Spearman), normal/chi-square distribution CDF/PDF/inverse, RAND/SEED LCG extension; 3 hand-coded distribution primitives (zero new runtime deps); modal prompts for DEGREE/SEED/ν; `?` overlay gains "Stat 1 Pac (XROM 2)" section; v1.0–v3.0 save files load without migration |
@@ -61,6 +62,11 @@ Implements the full **feature-complete HP-41CV ROM built-in function set** (~130
   named-matrix operations, advanced math/solvers/complex/curve-fit, and time-value-of-money;
   dual XROM IDs 22 + 24; [documented divergences](docs/hp41-advantage-divergences.md)) —
   see [Advantage Pac Function Matrix](docs/hp41-advantage-function-matrix.md)
+- v4.0 (Platform Maturity) adds HP-41CX Extended Memory plus desktop-platform polish:
+  - **Extended Memory** — named PROGRAM + DATA file storage (HP-41CX X-Functions): 8 XEQ-by-name functions (EMDIR, EMROOM, SAVEP, GETP, SAVED, GETD, EMREG, SAVERX); 600-register capacity (fully-expanded HP-41CX); OS-builtin routing via `builtin_card_op` (no XROM bit); [documented divergences](docs/hp41-xmem-divergences.md)
+  - **Theming** — 4 built-in GUI skins (dark, light, classic beige, high-contrast) via CSS custom properties, persisted in `~/.hp41/prefs.json` (isolated from calculator state)
+  - **Onboarding + keyboard parity** — first-run quick-start wizard, searchable in-app function reference, and GUI physical-keyboard shortcuts at parity with the CLI (`keyboard-shortcuts.json`)
+  - **`.raw` file I/O** — import/export HP-41 program files via native dialog (GUI) and CLI flags (`--import-raw`/`--export-raw`/…), including multi-program archives
 
 **Terminal UI (`hp41-cli`)**
 

@@ -1,473 +1,344 @@
-# Pitfalls: HP-41 Advantage Pac + Advanced Matrix Pac Emulation (v3.3)
+# Pitfalls: v4.0 Platform Maturity
 
-**Milestone:** v3.3 Advantage Pac + Advanced Matrix Pac (fourth XROM module(s))
-**Researched:** 2026-05-25
-**Scope:** Pitfalls SPECIFIC to adding Advantage Pac and Advanced Matrix Pac behavioral
-emulation on top of the shipped v3.2 codebase. Pitfalls 1-42 from v3.0/v3.1/v3.2 that
-are already gate-checked in CI are NOT repeated here unless v3.3 introduces a new failure
-mode on top of the mitigated pattern. Where a prior pitfall has a v3.3-specific extension,
-that extension is called out explicitly with a cross-reference.
+**Domain:** Adding theming, onboarding, GUI keyboard parity, `.raw` file I/O, and Extended Memory to a mature 100K+ LOC Rust/Tauri/React HP-41 emulator
+**Researched:** 2026-05-27
+**Confidence:** HIGH (codebase-derived) / MEDIUM (X-MEM hardware spec, community format edge cases)
 
-**Confidence (overall):** MEDIUM.
-The framework mechanics (new XROM module registration, 4-way exhaustive match,
-serde backward compat, XROM shadowing) are HIGH confidence because they follow an
-established three-milestone pattern. The PROOT algorithm for arbitrary-degree
-polynomials is MEDIUM confidence — the hardware uses an iterative algorithm whose
-exact specification requires Owner's Manual verification (the OM document 00041-90482
-was not accessible during this research session). The Advanced Matrix Pac's exact
-function set and XROM ID are MEDIUM confidence because community sources describe
-its contents as a superset of the Advantage ROM matrix functions but disagree on
-whether it is an official HP product or a community module.
-
-**Already mitigated (do not re-document):**
-- P1: `xrom_resolve` fires LAST — `tests/xrom_shadowing.rs` CI gate; v3.3 extends to ADV.ops.
-- P11: Long-running op Mutex release + `request_cancel` — v3.0 infrastructure applies.
-- P14: Cross-platform f64 drift — `lint_math1_assertions.rs` CI gate.
-- P16: Per-Op test count >= 5 — `xrom_op_test_count.rs` meta-gate; v3.3 adds ADV variants.
-- P17: `assert_eq!` on iterated HpNum — blocked by CI.
-- P19: Free42 GPL contamination guard — 18-token `check-free42-contamination.sh`; v3.3
-  extends to the new module directory(ies).
-- P20: serde shape for persistent-non-obvious fields — `rand_seed` established the pattern.
-- P22: XROM shadowing — disjointness test now covers Math 1 x Stat 1 x Time; v3.3 adds ADV.
+**Scope:** Pitfalls SPECIFIC to v4.0 features in THIS codebase. Prior pitfalls documented in v3.x PITFALLS.md files (P1–P50) are not repeated unless they have a new v4.0 failure mode.
 
 ---
 
 ## Summary
 
-Nine pitfall categories dominate the v3.3 risk surface. They break into five clusters:
-module boundary / freeze (3 pitfalls), PROOT numerics (2), complex stack sharing (1),
-Romberg vs Simpson coexistence (1), and infrastructure (2):
+Eight pitfall clusters dominate the v4.0 risk surface:
 
-1. **math1/ freeze boundary violation** (P43) — CRITICAL. Advantage Pac complex ops
-   (CABS, CARG, CCHS, CCONJ, CY^X) are semantically related to Math Pac I complex ops
-   but must NOT be added to `math1/complex.rs`. They require their own module tree.
+1. **CSS theming breaks SVG key animations** (P51) — CRITICAL. `transform-box: fill-box` on `.key` is a load-bearing invariant; any theme injection that resets `transform-box` will break press animations on every key.
 
-2. **PROOT algorithm selection for arbitrary degree** (P44) — CRITICAL. Math Pac I
-   POLY handles degrees 2-5 only via Bairstow deflation. Advantage Pac PROOT must handle
-   at least degree 6+ (community sources report "limited only by RAM"). Bairstow
-   deflation degrades catastrophically for repeated roots at high degree.
+2. **`.raw` multi-program file rejection hides community programs** (P52) — CRITICAL. The existing decoder rejects trailing bytes after the END marker — this is correct for single-program files but breaks multi-program `.raw` archives (common in the HP-41 community). Silently loading only the first program would be worse.
 
-3. **Complex stack sharing — two XROM modules using the same overlay** (P45) — HIGH.
-   Math Pac I complex ops use `state.complex_mode` and the X/Y/Z/T overlay. Advantage
-   Pac complex ops must use the same mechanism, but adding them in a separate module
-   directory means they must import `math1::complex` helpers or duplicate them.
+3. **CalcState X-MEM fields missing `#[serde(default)]` breaks all existing save files** (P53) — CRITICAL. Every new persistent field in `CalcState` requires `#[serde(default)]` or v1.0–v3.3 save files will panic on load. The X-MEM model adds several fields.
 
-4. **XROM ID collision — Advantage Pac occupies XROM 22 and XROM 24** (P46) — HIGH.
-   The xrom_modules bitfield is currently `u8` (bits 0-2 used for Math 1/Stat 1/Time).
-   Advantage Pac hardware uses two XROM slots: XROM 22 and XROM 24 (117 functions split
-   across two ROM pages). A single `u8` bitfield has only 8 bits — XROM IDs 22 and 24
-   cannot be encoded as single bits in a u8.
+4. **GUI keyboard parity creates undiscovered `resolveKeyId` gaps** (P54) — HIGH. The GUI `resolveKeyId` in `App.tsx` is a handwritten `Record<string, string>` that is NOT mechanically derived from `hp41-cli/src/keys.rs`. Gaps exist; parity audit must be systematic.
 
-5. **Matrix register layout conflict with Math Pac I MATRIX** (P47) — HIGH.
-   Math Pac I uses R14 for order and R15+ for column-major elements. Advanced Matrix Pac
-   uses the same HP-41 register file but its own matrix-storage addressing scheme.
-   Sharing `state.matrix_dim` / `state.matrix_active_reg` fields across two XROM modules
-   risks silent corruption.
+5. **Theme CSS custom properties not reaching SVG `<defs>` gradients** (P55) — HIGH. SVG gradient `stopColor` values inside `<defs>` are set as JSX props (compile-time literals in `Keyboard.tsx`). CSS variables injected on the document body do NOT propagate into SVG `<defs>` stop elements — those need React state or inline style prop injection.
 
-6. **Romberg INTG naming conflict with Math Pac I INTG** (P48) — HIGH.
-   Both Math Pac I and the Advantage Pac provide an integration function. On real hardware,
-   both coexist: Math Pac I XEQ "INTG", Advantage Pac XEQ "INTEG" (note the spelling
-   difference). The XROM resolver must not unify them.
+6. **X-MEM as its own `Vec<XmemFile>` field isolation from main registers** (P56) — HIGH. The Advantage Pac named-matrix isolation lesson (D-43.5) applies directly: X-MEM must never share indexing with `state.regs` or `state.adv_matrices`. A new `xmem_files: Vec<XmemFile>` field is the right model; sharing address space with `regs` would cause silent corruption.
 
-7. **serde field explosion for Advanced Matrix state** (P49) — MEDIUM.
-   Advanced Matrix Pac needs matrix state (dimension, base register) fields that may
-   conflict with the existing `matrix_dim` / `matrix_active_reg` fields that Math Pac I
-   already owns in `CalcState`.
+7. **Onboarding state persisted across sessions causes first-run to never re-trigger** (P57) — MEDIUM. If the "has seen onboarding" flag lives in `CalcState` (and thus `autosave.json`), the onboarding never shows after the first clear. If it lives outside `CalcState`, the shared `autosave.json` path is irrelevant — it must go somewhere else (OS config dir).
 
-8. **xrom_modules bitfield size** (P50) — MEDIUM.
-   Current `xrom_modules: u8` has bits 0, 1, 2 assigned to Math 1, Stat 1, Time.
-   Advantage Pac (two XROM IDs: 22 and 24) would need new bit positions. The field type
-   must be widened to `u16` or `u32` before the Advantage Pac can be registered.
-
-9. **Free42 contamination extension to new module directories** (P51) — MEDIUM.
-   `scripts/check-free42-contamination.sh` currently greps `math1/`, `stat1/`, and `time/`.
-   The new `advantage/` (and optionally `adv_matrix/`) directories are not yet covered.
+8. **`.raw` XROM opcode encoding for v3.x modules** (P58) — MEDIUM. The existing `raw.rs` encoder returns `HpError::CardData` for any Op outside its subset. If users try to export programs containing XROM calls to Math Pac / Stat Pac / Time / Advantage Pac ops, the export silently fails. The XROM two-byte encoding (`0xAx <rom_id_6bit>:<fn_6bit>`) is well-defined but not yet implemented.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 43: math1/ Freeze Boundary Violation
+### Pitfall 51: CSS Theming Breaks SVG Key Animation Invariant
 
 **What goes wrong:**
-A developer adding Advantage Pac complex operations (CABS, CARG, CCHS, CCONJ, CY^X)
-notices that `hp41-core/src/ops/math1/complex.rs` already contains all the Math Pac I
-complex infrastructure: `complex_atan2`, `op_c_plus`, `op_c_minus`, complex stack overlay
-semantics, and the `complex_mode` flag. The natural instinct is to add the new simple
-unary ops (CABS is just sqrt(X^2 + Y^2), CARG is just atan2(Y, X)) as additional
-functions in `math1/complex.rs`. This directly modifies frozen code.
+The `.key` CSS class has two load-bearing declarations:
+```css
+transform-box: fill-box;    /* REQUIRED for SVG transform-origin */
+transform-origin: center;
+transition: transform 80ms ease-out;
+```
+Any CSS theme that replaces `.key` styles or uses a CSS reset at a higher specificity level will clear `transform-box: fill-box`. When this happens, `transform-origin: center` resolves relative to the SVG viewport origin (top-left of the `<svg>` element), not the key's own bounding box. Keys will appear to scale from the top-left corner of the entire keyboard rather than from the center of the pressed key — visually broken on every keypress.
 
 **Why it happens:**
-The new complex ops share ALL of the Math Pac I complex stack model (D-28.1: ζ = X+iY,
-τ = Z+iT; D-28.2: complex_mode auto-on policy). This creates a genuine architectural
-temptation: the code is RIGHT THERE. The freeze boundary (Plan 25-01) is documented in
-CLAUDE.md and `architecture-history.md`, but the freeze rationale ("algorithm
-independence from Free42") feels less relevant for simple unary stack ops like CABS.
+Developers implementing themes add a new stylesheet or modify `App.css` with CSS custom properties, then test by clicking a few keys. The press animation appears "slightly off" but not catastrophically broken. It only becomes obvious when testing keys at the extreme bottom-right of the keyboard (ENTER, +, ×, ÷) where the origin offset is maximally visible.
+
+A CSS reset (`* { transform-box: unset; }`) or a theme stylesheet that redeclares `.key` without `transform-box: fill-box` silently removes it.
 
 **How to avoid:**
-Create `hp41-core/src/ops/advantage/complex.rs` (new directory, not inside `math1/`).
-Import the shared complex stack helpers from `math1::complex` as `pub(super)` symbols:
-`complex_atan2` is already marked `#[allow(dead_code)]` and `pub(super)` in the source —
-this was anticipated as a future use case. The `complex_mode: bool` field on `CalcState`
-is already public and shared state; no duplication needed. The `advantage/` module reads
-`state.complex_mode`, `state.stack.x`, `state.stack.y` just like `math1/complex.rs` does.
-
-The `math1/modal.rs` and `math1/xrom.rs` are the ONLY sanctioned carve-outs
-(ADR-v3.1-004, ADR-v3.2 Time variant). Advantage Pac complex ops are NOT a carve-out
-candidate — they belong in a peer sibling module. The correct pattern is exactly what
-`stat1/` and `time/` demonstrate: a new top-level sibling under `ops/`.
+- The `transform-box: fill-box` declaration must appear in EVERY theme variant, not just in a base stylesheet that themes override.
+- Use CSS custom properties (`--key-bg-color`, `--shift-color`, etc.) ONLY for color/opacity values — never touch `transform-box`, `transform-origin`, or `transition`.
+- Add a dedicated Vitest/browser test that asserts `getComputedStyle(keyElement).transformBox === 'fill-box'` for at least one key element across all theme variants.
+- Treat `.key { transform-box: fill-box; transform-origin: center; }` as invariant boilerplate that appears in a `_keys-animation.css` file imported before any theme, with `!important` if necessary.
 
 **Warning signs:**
-- Any `git diff` showing modifications to `hp41-core/src/ops/math1/complex.rs`,
-  `math1/poly.rs`, `math1/matrix.rs`, or any file other than `math1/modal.rs` and
-  `math1/xrom.rs`.
-- A compiler error mentioning `math1::complex::complex_atan2` from outside `math1`.
-- The `check-free42-contamination.sh` script needing to be run against `math1/` for
-  new Advantage Pac content.
+- Key press animation scales from a corner instead of center.
+- `getComputedStyle`.`transformBox` returns anything other than `'fill-box'` in devtools.
+- CI Vitest passes but manual test shows broken animation (animation correctness is not automatically tested in current test suite).
 
-**Phase to address:** Core implementation phase (first phase of v3.3 — equivalent to
-Phase 28 for v3.0, Phase 33 for v3.1, Phase 38 for v3.2).
+**Phase to address:** Theme Phase (first phase introducing theme switching)
 
 ---
 
-### Pitfall 44: PROOT Algorithm Selection for Arbitrary Degree
+### Pitfall 52: `.raw` Multi-Program File Rejection Silently Discards Community Content
 
 **What goes wrong:**
-PROOT is treated as "POLY but with more degrees." A developer extends the existing
-`math1/poly.rs` Bairstow deflation algorithm to handle degree 6, 7, 8, … by simply
-relaxing the `degree > 5 → error` guard. The Bairstow algorithm degrades catastrophically
-for repeated roots at higher degrees: for a polynomial like (x-1)^10, Bairstow deflation
-produces a near-zero "quadratic factor" whose discriminant is near zero, causing division
-by near-zero in the Newton step. The convergence fails silently or diverges.
+The existing `decode_program()` in `hp41-core/src/cardreader/raw.rs` explicitly rejects trailing bytes after the END marker:
+```rust
+if i + END_MARKER.len() < bytes.len() {
+    return Err(HpError::CardData(format!(
+        "trailing bytes after END marker: {} extra byte(s)",
+        ...
+    )));
+}
+```
+This is correct for single-program files. However, HP-41 community `.raw` archives frequently contain multiple programs concatenated into one file (the V41 emulator's "Get" command extracts them all). A user who downloads a `.raw` archive of 5 programs and tries to import it will get `CardData` error and zero programs imported. The error message mentions "trailing bytes" which provides no actionable guidance.
 
 **Why it happens:**
-Math Pac I POLY (degrees 2-5) uses Bairstow deflation because it is exact for degree 2
-(quadratic formula) and reliable for degrees 3-5 with the HP-41's 10-digit arithmetic.
-At degree 5, a single Bairstow iteration converges in bounded steps. At degree 10+,
-accumulated deflation error compounds — each deflated quotient inherits rounding errors
-from all previous deflations, and the final linear/quadratic factors are polluted.
-
-Community sources indicate the hardware Advantage Pac PROOT supports degrees "limited
-only by available RAM" and can handle 100th-degree polynomials. This is evidence the
-hardware uses a fundamentally different algorithm from Bairstow deflation.
+The HP-41 `.raw` format has no official multi-program spec. The current implementation was designed for round-trip fidelity with a known-single-program encoding. The "trailing bytes = error" invariant was intentionally strict to prevent silently loading only the first of several concatenated programs.
 
 **How to avoid:**
-Use a distinct algorithm for PROOT in `advantage/poly.rs`. Recommended: Laguerre's
-method applied simultaneously to all roots, with forward deflation for root isolation.
-Laguerre has guaranteed global convergence for polynomials with real coefficients (proven
-1973) and cubic convergence near roots. Alternatively, Durand-Kerner (Weierstrass
-simultaneous iteration) is simpler to implement and converges for generic polynomials.
+Two acceptable strategies:
+1. **Single-program only with clear error:** Keep the strict rejection, but change the error message to say: "File contains multiple programs — import only handles single-program `.raw` files. Use a tool like HP41UC to split the archive." This is safe and honest.
+2. **Multi-program import:** Add a `decode_all_programs()` function that repeatedly calls the single-program decoder, stopping at each END marker, and returns a `Vec<Vec<Op>>` with one entry per program. Import UI lets the user choose which program(s) to load.
 
-Do NOT extend `math1/poly.rs`. PROOT lives exclusively in `advantage/poly.rs`. PROOT
-does NOT replace Math Pac I POLY — both coexist on the real hardware (different XROM
-IDs, different mnemonics). Register layout: community consensus is that PROOT stores
-coefficients in R00-RNN (degree-indexed) and outputs roots to the same register range
-with a defined interleaving of real/imag parts. Verify against OM 00041-90482.
-
-**Numerical stability notes for Laguerre implementation:**
-- Use f64 bridge (same pattern as `distributions.rs`) — HpNum checked arithmetic is
-  insufficient for complex-number intermediate values in iterative root polishing.
-- Guard against zero-derivative case: if |p'(z)| < epsilon, perturb z slightly.
-- Multiplicity detection: Advantage Pac presumably returns each root with its multiplicity;
-  if the OM specifies multiplicity output, implement distinct root isolation with
-  deflation AFTER polishing (not before).
-- Convergence cap: cap iterations at degree × 100 and return `HpError::Domain` (displays
-  as "DATA ERROR") if not converged. The existing `math1/poly.rs` uses `|imag| > 1e9`
-  as a non-convergence sentinel — preserve this philosophy.
+The multi-program strategy is better UX but adds complexity. The key invariant is: NEVER silently import only the first program. Either import all programs or clearly reject multi-program files.
 
 **Warning signs:**
-- Accuracy test for degree 6+ polynomial with repeated roots fails.
-- Test `(x-1)^8` produces wildly wrong roots instead of eight roots near 1.0.
-- Compiler warning about dead_code in `math1/poly.rs` being removed (wrong file is being
-  modified).
+- User reports "CardData: trailing bytes" error when importing `.raw` files from hp41.org.
+- Any `.raw` file over ~200 bytes that isn't a single program with a complex numeric constant sequence.
 
-**Phase to address:** Core implementation phase. This is the highest-risk algorithm in v3.3.
-The PROOT algorithm deserves its own sub-plan with oracle-derived test cases BEFORE the
-implementation. Recommended: derive 5 oracle cases (degree 3, 5, 8, 10, and one with
-repeated roots) from scipy.optimize or numpy.roots BEFORE writing any Rust code.
+**Phase to address:** `.raw` Import/Export Phase
+
+---
+
+### Pitfall 53: New X-MEM `CalcState` Fields Without `#[serde(default)]` Breaks All Existing Save Files
+
+**What goes wrong:**
+The serde backward-compatibility invariant (D-07 in CLAUDE.md) requires every new `CalcState` field to carry `#[serde(default)]`. If even one X-MEM field is added without this attribute, `serde_json` will return a deserialization error when any v1.0–v3.3 save file is loaded. The autosave is shared between CLI and GUI — both will fail on startup with a cryptic JSON error.
+
+The v3.x history shows 5 distinct serde shape patterns in `CalcState`:
+1. `#[serde(default)]` — most fields: persist across save/load, default on old saves
+2. `#[serde(default, skip)]` — transient fields: never persisted, default on load
+3. `#[serde(default = "default_fn")]` — fields with non-trivial defaults (e.g. `xrom_modules`, `cancel_requested`)
+4. `#[serde(default)]` WITHOUT `skip` on semantically persistent fields (only `rand_seed` and `adv_tvm_state`) — see P20 from v3.1
+
+For X-MEM: the directory (`xmem_files: Vec<XmemFile>`), current filename, EMROOM count, and any display state all need the correct annotation.
+
+**Why it happens:**
+X-MEM adds multiple new fields at once. It is easy to add one correctly and then forget `#[serde(default)]` on a subsequent field added during the same PR, especially for the transient fields (current directory cursor, display mode).
+
+**How to avoid:**
+- Add a `CalcState` backward-compat test that loads a v3.3 save file fixture (literal JSON string in `tests/`) and asserts it deserializes without error. This test must run in CI and must fail if any field missing `#[serde(default)]` is added.
+- Review pattern: every new field in `CalcState` requires a code review sign-off on its serde annotation matching the appropriate pattern from the list above.
+- Add `migrate_after_load()` handling for X-MEM initialization (same pattern as stopwatch freeze on load in v3.2).
+
+**Warning signs:**
+- `cargo test` passes but `just integration-test` fails with JSON parse error against a saved fixture.
+- User reports "Failed to load state" on startup after upgrading from v3.3.
+- Any new `CalcState` field added in a commit that lacks `#[serde(default)]` in its diff.
+
+**Phase to address:** X-MEM Core Phase (first phase adding X-MEM fields to `CalcState`)
 
 ---
 
 ## High-Priority Pitfalls
 
-### Pitfall 45: Complex Stack Sharing — Two XROM Modules, One Overlay Model
+### Pitfall 54: GUI `resolveKeyId` Has Undiscovered Gaps vs CLI `key_to_op`
 
 **What goes wrong:**
-The Advantage Pac complex ops (CABS, CARG, CCHS, CCONJ, CY^X) require the exact same
-complex stack model as Math Pac I (ζ = X+iY, τ = Z+iT, `complex_mode` flag). If
-`complex_atan2` and the complex stack behavior are duplicated in `advantage/complex.rs`
-instead of imported from `math1/complex.rs`, the two implementations will diverge at
-edge cases (e.g., `complex_atan2(0,0)` must return 0.0 not NaN — Pitfall 6 in the
-v3.0 research). The duplication also violates SC-4 spirit.
+The GUI `resolveKeyId` function in `App.tsx` (lines 108–161) is a handwritten `Record<string, string>` MAP. It was initially created to mirror `hp41-cli/src/keys.rs::key_to_op()` but the two have never been audited side by side since v2.2. Every v3.x milestone added new CLI keys without necessarily wiring them in the GUI physical-keyboard path.
 
-**Why it happens:**
-`math1/complex.rs` marks most helpers as `pub(super)` — visible only within `math1/`.
-`complex_atan2` has `pub(super)` visibility. A developer creating `advantage/complex.rs`
-cannot call `math1::complex::complex_atan2` directly. The natural fix is to copy the
-function, which introduces the drift risk.
+A "GUI keyboard parity" phase that only audits the on-screen click path (which goes through `KEY_DEFS` → `key_map.rs::resolve`) will miss gaps in the physical keyboard path (`resolveKeyId`). The physical keyboard is the fast path for power users.
+
+Specific known gaps from reading the current code:
+- CLI `key_to_op` maps: `'q'→sin`, `'s'→sqrt`, `'C'→cos`, `'T'→tan`, `'L'→ln`, `'G'→log`, `'E'→exp`, `'H'→tenpow`, `'I'→recip`, `'W'→sq`, `'Y'→ypow` — these ARE in `resolveKeyId`.
+- CLI `shifted_key_to_op` maps conditional tests via `f` prefix — GUI maps this through `shiftActive` + `KEY_DEFS.shifted` — functional parity but different mechanism.
+- `'h'→hms_to_h`, `'j'→hms_add`, `'J'→hms_sub` — these ARE in `resolveKeyId` but have no corresponding GUI on-screen path (no keycap labeled HMS). Parity for these is physical-keyboard-only which is likely intentional.
+- Any new keys added during GUI keyboard parity work that go into `KEY_DEFS` but not into `resolveKeyId` will be silently unreachable from physical keyboard.
 
 **How to avoid:**
-Promote `complex_atan2` and any other shared complex helpers to `pub(crate)` in
-`math1/complex.rs`. This is a surgical visibility change that does NOT modify the
-freeze-protected algorithm. The freeze applies to algorithm logic, not to `pub`
-visibility modifiers. Alternative: extract a `ops::complex_utils` module with the
-shared helpers (but this requires a v3.3-specific ADR because it touches the module
-structure).
-
-The `complex_mode: bool` field on `CalcState` is already `pub` and shared by design.
-The `auto-on policy` (D-28.2: every binary complex op sets `state.complex_mode = true`)
-must apply identically for Advantage Pac complex ops — do not add a second `adv_complex_mode`
-boolean.
+- Extract the authoritative list from `key_to_op` and `shifted_key_to_op` in `hp41-cli/src/keys.rs` as a reference table.
+- Add a TypeScript test (`App.test.tsx` or new file) that calls `resolveKeyId` for every key in the reference table and asserts a non-null result.
+- The existing `key_coverage.rs` test in `hp41-cli/tests/` tests CLI key coverage but has no GUI equivalent — add a `key_coverage.test.tsx` counterpart.
+- When adding a new key binding: update `key_to_op` (CLI), `KEY_DEFS` (GUI on-screen), AND `resolveKeyId` MAP (GUI physical). Make them a single diff block in the same commit.
 
 **Warning signs:**
-- `advantage/complex.rs` contains a local `fn complex_atan2` not imported from math1.
-- Divergence between CARG(0,0) in Advantage Pac and MAGZ/CINV behavior for zero input
-  in Math Pac I tests.
+- Physical keyboard shortcut works in CLI but not in GUI after a parity work phase.
+- `resolveKeyId` returns `null` for a key that `key_to_op` handles.
+- A new key added only to `KEY_DEFS` without updating `resolveKeyId`.
 
-**Phase to address:** Core implementation phase. Resolve the visibility issue in the
-ADR for the Advantage Pac core phase BEFORE writing any `advantage/` code.
-
----
-
-### Pitfall 46: XROM ID Collision — Advantage Pac Uses Two XROM Slots
-
-**What goes wrong:**
-The `xrom_modules: u8` bitfield currently encodes three modules as bits 0, 1, 2:
-- Bit 0 = Math 1 (XROM ID 7)
-- Bit 1 = Stat 1 (XROM ID 2)
-- Bit 2 = Time Module (XROM ID 26)
-
-The hardware HP-41 Advantage Pac spans two XROM slots: XROM 22 and XROM 24 (117
-functions, two 4K ROM pages). A `u8` bitfield can hold only 8 bit positions. If the
-Advantage Pac is naively assigned bits 3 and 4 (for the two XROM IDs), the bitfield
-fills up with only one more module possible before exhaustion.
-
-More critically: the `xrom_modules` default value and `migrate_after_load()` must be
-updated. v3.2 save files have `xrom_modules = 0b0000_0111`. The migration to v3.3 must
-set the Advantage Pac bits on top of `0b0000_0111`. If the bit layout changes between
-v3.2 and v3.3, any `xrom_modules` field in a v3.2 save file will be misinterpreted.
-
-**How to avoid:**
-Two options:
-
-Option A (simpler, preferred): Widen `xrom_modules` to `u16` or `u32` before v3.3 ships.
-This is a single-field type change with `#[serde(default = "default_xrom_modules")]`
-preserved. Old save files will deserialize the `u8` value as a `u16` transparently
-(serde numeric widening works for JSON integers). The `migrate_after_load()` migration
-for v3.3 sets the two new Advantage Pac bits.
-
-Option B: Keep `u8` and use two bits for the Advantage Pac as a combined "Advantage Pac
-loaded" state (both XROM 22 and XROM 24 are always loaded together — the Advantage Pac
-is a single physical ROM). This is also acceptable but requires documenting the
-deviation from the one-bit-per-module convention.
-
-In `xrom_resolve`, the Advantage Pac needs a new arm that fires after Time (bit 2) and
-before `Err(InvalidOp)`. The `xrom_resolve` function must check the new Advantage bit(s)
-and call `advantage_resolve()`.
-
-**Warning signs:**
-- Compiler error on `xrom_modules | 0b0001_1000` (no room in u8 without overflow).
-- v3.2 save-file test (`time_backward_compat.rs`) fails after widening — check JSON
-  integer deserialization.
-
-**Phase to address:** Core implementation phase, first task. Widening `xrom_modules`
-must happen BEFORE any Advantage Pac Op variants are added.
+**Phase to address:** GUI Keyboard Parity Phase
 
 ---
 
-### Pitfall 47: Matrix Register Layout Conflict Between Math Pac I and Advanced Matrix Pac
+### Pitfall 55: Theme CSS Variables Do Not Propagate Into SVG `<defs>` Gradient Stops
 
 **What goes wrong:**
-Math Pac I MATRIX uses `state.matrix_dim: Option<(u8, u8)>` and
-`state.matrix_active_reg: Option<u8>` on `CalcState` to track the active matrix. The
-column-major element storage at R15+ and the ORDER in R14 are a shared global assumption.
-
-The Advanced Matrix Pac (if it uses different register conventions, or if it uses X-Memory
-for matrix storage as community sources suggest the Advantage Pac can) may silently corrupt
-the matrix state fields that Math Pac I MATRIX writes and reads.
-
-If both Math Pac I MATRIX and Advanced Matrix Pac are simultaneously loaded and the user
-runs a Math Pac I MATRIX operation followed by an Advanced Matrix Pac operation, the
-shared `matrix_dim` and `matrix_active_reg` fields may hold stale state from the previous
-module.
-
-**Why it happens:**
-In the real hardware, the programmer is responsible for not interleaving operations from
-two matrix modules that use incompatible register conventions. The emulator doesn't have
-this constraint documented as a "user responsibility" divergence. A developer may assume
-`matrix_dim` and `matrix_active_reg` are safe to reuse across modules.
-
-**How to avoid:**
-Verify the Advanced Matrix Pac register conventions against its Owner's Manual before
-implementing any ops. Two scenarios:
-
-If Advanced Matrix Pac uses the same R14/R15+ convention: the existing `matrix_dim`
-and `matrix_active_reg` fields are shared by design. Document this as "modules share the
-same matrix register convention per HP-41C hardware ground truth" in the v3.3 divergence
-catalog.
-
-If Advanced Matrix Pac uses a different convention (e.g., named matrices in X-Memory):
-add separate `adv_matrix_*` fields to `CalcState` with `#[serde(default)]` and document
-the separation explicitly. Do NOT rename or repurpose the existing `matrix_dim` field
-(backward compat).
-
-**Warning signs:**
-- An Advanced Matrix Pac op reads `state.matrix_dim` and gets dimensions from a
-  Math Pac I MATRIX call made earlier in the session.
-- Test: run Math Pac I MATRIX (3x3), then Advanced Matrix Pac op — does the Advanced
-  op interpret ORDER=3 correctly or does it use its own register layout?
-
-**Phase to address:** Core implementation phase. Must be resolved with Owner's Manual
-verification BEFORE writing any Advanced Matrix Pac operations that touch CalcState
-matrix fields.
-
----
-
-### Pitfall 48: Romberg INTG Naming Conflict with Math Pac I INTG
-
-**What goes wrong:**
-Both Math Pac I and Advantage Pac provide numerical integration. On the real hardware:
-- Math Pac I: `XEQ "INTG"` (uses Simpson's rule, registers R00-R07 as scratch)
-- Advantage Pac: `XEQ "INTEG"` (different spelling, uses a Romberg/HP-15C-style algorithm)
-
-Note the ONE LETTER difference: "INTG" (Math Pac I, XROM 7) vs "INTEG" (Advantage Pac,
-XROM 22/24). If a developer adds the Advantage Pac integration function to
-`advantage/xrom.rs` with the mnemonic `"INTG"` instead of `"INTEG"`, the XROM resolver
-will have two modules claiming the same mnemonic. `xrom_resolve` will call the FIRST
-matching resolver arm — whichever module's bit is checked first wins, and the other is
-silently unreachable.
-
-**Why it happens:**
-The milestne context description calls it "Romberg-INTG" and mentions "INTG" as the
-function name. Community sources and hardware records indicate the Advantage Pac uses
-"INTEG" (not "INTG"). Without direct Owner's Manual verification, the mnemonic is
-uncertain. Defaulting to "INTG" because "that's what INTG does" would silently shadow
-Math Pac I.
-
-**How to avoid:**
-Use the hardware-faithful mnemonic: `"INTEG"` for Advantage Pac (per hardware XROM 24
-database entries), `"INTG"` for Math Pac I (already in `math1/xrom.rs` line 96). The
-`xrom_shadowing.rs` CI test will catch a collision at compile time: if `ADVANTAGE.ops`
-contains `"INTG"`, the shadowing test fails because `MATH_1.ops` already claims it.
-
-Similarly verify: Advantage Pac likely has `"SOLVE"` or `"FROOT"` for root-finding
-(different from Math Pac I `"SOLVE"`). Community sources suggest `"FROOT"` and `"FINTG"`
-as alternate names. Verify EVERY Advantage Pac function mnemonic against hardware records
-before registering it in `advantage/xrom.rs` — the `xrom_shadowing.rs` test is a CI gate,
-not a pre-registration guard.
-
-**Warning signs:**
-- `xrom_shadowing.rs` test fails with "collision: INTG claimed by both MATH_1 and ADVANTAGE."
-- Integration accuracy tests pass for Advantage Pac but silently skip Math Pac I INTG tests.
-- `just ci` passes with a `_` catch-all arm in xrom_resolve (masks the collision).
-
-**Phase to address:** Core implementation phase, Advantage Pac `xrom.rs` registration.
-Must be verified against hardware documentation before the shadowing test is extended.
-
----
-
-## Medium-Priority Pitfalls
-
-### Pitfall 49: CalcState Field Ownership Confusion for Matrix State
-
-**What goes wrong:**
-The existing `CalcState` fields `matrix_dim: Option<(u8, u8)>` and
-`matrix_active_reg: Option<u8>` were added in Phase 28 specifically for Math Pac I MATRIX.
-A developer implementing Advanced Matrix Pac assumes these fields are "generic matrix state"
-shared by all matrix modules, and writes Advanced Matrix Pac operations that read and write
-these fields directly. This creates an implicit coupling: Math Pac I MATRIX state and
-Advanced Matrix Pac state are now entangled in the same two CalcState fields.
-
-The consequence: running Math Pac I MATRIX workflow (which sets `matrix_dim` to (3,3))
-followed by Advanced Matrix Pac ops that expect a freshly initialized matrix will read
-stale Math Pac I dimensions.
-
-**How to avoid:**
-Treat `matrix_dim` and `matrix_active_reg` as OWNED by Math Pac I, not as shared
-infrastructure. The Advanced Matrix Pac gets its own fields if it needs matrix tracking
-state that differs from Math Pac I. If the Advanced Matrix Pac is designed to EXTEND Math
-Pac I MATRIX (operating on the same matrix in R14/R15+), then reading these fields is
-correct but must be documented explicitly as an intentional design choice.
-
-Concretely: add a code comment on `matrix_dim` and `matrix_active_reg` stating which
-module owns them. If Advanced Matrix Pac uses the same R14/R15+ layout, note
-"shared by Math Pac I MATRIX and Advanced Matrix Pac per hardware ground truth" — this
-makes the shared-ownership intentional rather than accidental.
-
-**Phase to address:** Core implementation phase. Resolve ownership BEFORE any Advanced
-Matrix Pac ops are written that touch CalcState.
-
----
-
-### Pitfall 50: xrom_modules Bitfield Type Width
-
-**What goes wrong:**
-`xrom_modules: u8` is currently defined with:
-```rust
-#[serde(default = "default_xrom_modules")]
-pub xrom_modules: u8,
+`Keyboard.tsx` defines gradient colors as JSX inline props at compile time:
+```tsx
+<stop offset="0%"   stopColor="#1a1a1a" />    // body gradient
+<stop offset="0%"   stopColor="#303030" />    // key cap gradient
+<stop offset="0%"   stopColor="#d68a1c" />    // shift key color
 ```
-and `default_xrom_modules() -> u8 { 0b0000_0111 }`.
+These are JSX props that React compiles to SVG attribute strings. They are NOT CSS properties — CSS custom properties (`--body-bg: #1a1a1a`) set on `:root` or `[data-theme]` do NOT reach them.
 
-If Advantage Pac requires bits 3 and 4 (the two XROM IDs encoded as two bits), the
-default becomes `0b0001_1111`. After the v3.3 migration, v3.2 save files with
-`"xrom_modules": 7` must be migrated to `"xrom_modules": 31` (decimal). This is handled
-by `migrate_after_load()`.
+A theming implementation that puts colors in CSS variables on the document body and expects SVG gradients to inherit them will produce a partial result: element colors outside `<defs>` that use `fill="var(--color)"` will work; gradient stop colors inside `<defs>` will stay hardcoded at their compile-time values.
 
-The risk: if a developer forgets to add `migrate_after_load()` for v3.3, OR forgets to
-update `default_xrom_modules()`, one of two bad things happens:
-(a) New sessions default to Advantage Pac NOT loaded (bits 3+4 = 0), so XEQ "PROOT"
-    returns InvalidOp silently.
-(b) Old v3.2 save files do not get the Advantage Pac bits set on load, same silent failure.
+**Why it happens:**
+The CSS custom property mental model is that variables cascade through the DOM. This is true for CSS properties (`fill`, `stroke`, `color`, `background`) but NOT for SVG presentation attributes set as element attributes (including `stopColor` in `<defs>`). The two are distinct inheritance mechanisms.
 
 **How to avoid:**
-Follow the exact same migration pattern used in every prior milestone:
-1. Update `default_xrom_modules()` to return `0b0001_1111` (or the equivalent for u16/u32).
-2. Add a migration arm in `migrate_after_load()`:
-   `if self.xrom_modules & 0b0000_0111 == 0b0000_0111 && self.xrom_modules & 0b0001_1000 == 0 { self.xrom_modules |= 0b0001_1000; }` (example for two new bits).
-3. Add a backward-compat test: `v32-autosave.json` fixture with `xrom_modules: 7` should
-   deserialize to `xrom_modules: 31` after `migrate_after_load()`.
+Three options (ordered by implementation complexity):
+1. **Theme via React props:** Pass a `theme: ThemeConfig` prop down to `<Keyboard>` and use it to compute gradient stop colors at render time. Requires modifying `Keyboard.tsx` to accept theme props and threading state from theme selector down to keyboard.
+2. **CSS `currentColor` trick:** Change all gradient stops to `stopColor="currentColor"` and control the color via CSS `color:` property on ancestor elements. This works for single-color gradients but is awkward for multi-stop gradients with different semantic colors.
+3. **`<defs>` injection via `useEffect`:** After render, use `document.getElementById` to locate `<stop>` elements and set their `stopColor` attribute imperatively. Fragile — React may re-render and undo the mutation.
 
-The `time_backward_compat.rs` test in Phase 42 is the canonical pattern.
+**Recommended approach:** Option 1. Create a `THEMES` constant object keyed by theme name, pass `theme` as a prop to `<Keyboard>`, and map theme keys to gradient stop values. This is the only approach that is React-idiomatic, type-safe, and survives re-renders.
 
 **Warning signs:**
-- `XEQ "PROOT"` returns `InvalidOp` on a fresh session (bits not set in default).
-- `XEQ "PROOT"` returns `InvalidOp` after loading a v3.2 save file (migration not written).
+- Changing `--body-bg` CSS variable has no effect on the calculator body gradient.
+- Theme toggle works for text elements but keyboard body/key gradients stay dark.
+- Chrome devtools shows `stopColor` attribute still contains the hex literal value after theme change.
 
-**Phase to address:** Core implementation phase, first task (before Op variants are added).
+**Phase to address:** Theme Phase (same phase as P51)
 
 ---
 
-### Pitfall 51: Free42 GPL Contamination Guard — New Directory Not Scanned
+### Pitfall 56: X-MEM Register File Must Be Isolated From `state.regs`
 
 **What goes wrong:**
-`scripts/check-free42-contamination.sh` currently greps three directories:
-`math1/`, `stat1/`, `time/`. If a developer creates `advantage/` (and optionally
-`adv_matrix/`) without extending the contamination check, the CI guard misses new files.
+The HP-41CX Extended Memory is a separate register file (up to 600 registers in hardware). Emulators that implement X-MEM as an extension of `state.regs` (using indices 320–919) will corrupt programs that use `RCL 300` (a valid main-memory register in the extended 319-register model) if the X-MEM data occupies overlapping address space.
 
-The risk is higher for the Advantage Pac than for previous modules because:
-- Romberg integration is directly inherited from the HP-15C and HP-34C, which are also
-  implemented in Free42. The temptation to look at Free42's Romberg source and verify
-  against it is higher than for statistics or clock arithmetic.
-- PROOT for arbitrary degree may be verified against Free42's polynomial solver
-  (if Free42 includes one), creating a contamination risk.
+The Advantage Pac lesson is directly applicable: D-43.5 established that `adv_matrices` must NEVER touch `state.matrix_dim` or `state.matrix_active_reg`. The same principle applies to X-MEM: it must be a completely separate field.
+
+Concrete consequence: if `state.regs` is extended to 919 elements and X-MEM files are mapped at indices 320+, then `CLREG` (which zeros all registers) will also clear all X-MEM content. On real HP-41CX hardware, `CLREG` only affects main memory registers.
 
 **How to avoid:**
-Extend `check-free42-contamination.sh` in the SAME commit that creates the `advantage/`
-directory. The script currently uses a `find -path` pattern — add `advantage/` and
-`adv_matrix/` (if applicable) to the grep target list. The token count (currently 18) does
-not change — the file-scope extension only adds new directories to scan, not new tokens.
-
-Verify the extension is working: run `just license-audit` after the script change and
-confirm it passes (no false positives on valid algorithmic commentary referencing Romberg).
+- X-MEM must live in a dedicated `xmem_files: Vec<XmemFile>` field in `CalcState`, never in `state.regs`.
+- `XmemFile` struct: `{ name: String, data: Vec<HpValue> }` — name is the ALPHA register key, data is the file's register content.
+- `EMDIR` op reads from `xmem_files` len and names, not from `state.regs`.
+- `EMROOM` returns available capacity without touching `state.regs`.
+- `EMREG` (register file access) uses `xmem_files[current].data[i]`, not `state.regs[i + offset]`.
+- Add D-51.x decision record documenting the isolation invariant before any X-MEM code is written.
 
 **Warning signs:**
-- `just license-audit` passes on the new `advantage/` directory even if Free42 token
-  strings are present (grep is not scanning the new directory).
-- A file in `advantage/` contains "Free42" as a string without the verbal disclaim pattern
-  ("consulted only as sanity-check oracle, not copied").
+- `CLREG` clears X-MEM file data.
+- `RCL 319` in a program produces different results depending on how many X-MEM files exist.
+- `EMREG` implementation code touching `state.regs`.
 
-**Phase to address:** Core implementation phase, SAME commit as `advantage/` directory creation.
+**Phase to address:** X-MEM Core Phase
+
+---
+
+## Moderate Pitfalls
+
+### Pitfall 57: "Has Seen Onboarding" Flag Stored in Wrong Location
+
+**What goes wrong:**
+Two wrong placements:
+1. **In `CalcState` (and thus `~/.hp41/autosave.json`):** The onboarding will never show again after first run regardless of whether the user completed it, because the flag travels with the calculator state and is overwritten on every save. A user who clears their save file to reset the calculator expects onboarding to reappear — it won't.
+2. **In `localStorage` (GUI only):** CLI users get onboarding every time (no localStorage equivalent); GUI users see it once. Inconsistency across frontends.
+
+**How to avoid:**
+The `"has seen onboarding"` flag belongs in the OS config directory: `~/.config/hp41/prefs.json` (Linux), `~/Library/Preferences/ch.talent-factory.hp41.plist` (macOS), or equivalent via `dirs::config_dir()`. This is separate from the calculator state in `~/.hp41/autosave.json`. The GUI should use Tauri's `tauri-plugin-store` or a simple Tauri command that reads/writes this preferences file.
+
+For CLI, onboarding (if implemented) should similarly read from the OS config dir, not `autosave.json`.
+
+**Warning signs:**
+- Resetting calculator state (deleting autosave.json) does not re-trigger onboarding.
+- Onboarding shows on every CLI startup but never again in GUI (or vice versa).
+
+**Phase to address:** Onboarding Phase
+
+---
+
+### Pitfall 58: `.raw` XROM Encoding Missing for v3.x Module Ops
+
+**What goes wrong:**
+The existing `raw.rs` encoder covers ~25 ops (arithmetic, stack, basic math, labels, synthetic). When a user tries to export a program that includes an XROM call — e.g., `XEQ "QUAD"` (Math Pac I) or `XEQ "STAT"` (Stat 1) — the encoder returns:
+```
+HpError::CardData("op cannot be encoded in the .raw subset: Xeq(\"QUAD\")")
+```
+This is not a bug per se (the error is explicit) but it's a significant UX limitation. Most programs written by v3.x users will include XROM calls. Export becomes near-useless for the target audience.
+
+The XROM encoding is documented: two bytes, first byte `0xAx` where `x` is the ROM ID (0–31), second byte is the function number (0–63). This is `0xA0 + (rom_id & 0x1F)` for the first byte. However, the emulator uses `Op::Xeq("NAME")` internally — mapping names to ROM_ID + function_number requires consulting the 5 JSON function tables to find which XROM module and function index a given name maps to.
+
+**How to avoid:**
+- Build a name→(xrom_id, fn_index) lookup table from the 5 JSON pools in `hp41-core` (or `hp41-cli/src/help_data.rs`) at encode time.
+- Alternatively, add an `Op::XromCall { module_id: u8, fn_index: u8 }` variant alongside `Op::Xeq(String)` for the binary-encoded case, with the encoder emitting the two-byte form.
+- At minimum: change the error message to explain the XROM encoding limitation and point users to HP41UC for conversion.
+
+**Warning signs:**
+- Any `XEQ "name"` for a Math/Stat/Time/Advantage op fails export.
+- User reports "raw export fails for any useful program."
+
+**Phase to address:** `.raw` Import/Export Phase
+
+---
+
+### Pitfall 59: Theme Persistence Shared-State Race Between CLI and GUI
+
+**What goes wrong:**
+If theme selection is persisted (so it survives app restarts), it must be stored somewhere. If it is stored in `autosave.json` (shared between CLI and GUI), then:
+- CLI reads the file, ignores the theme field (CLI uses terminal colors), and saves — no problem.
+- But the `CalcState` serde contract requires `#[serde(default)]` on any new field; the CLI binary won't know about GUI theme fields and must tolerate them (P53 applies).
+- If theme is stored in GUI-specific config only, CLI never touches it — cleaner.
+
+The deeper issue: theme is not calculator state. It is a presentation preference. Putting it in `CalcState` conflates UI preferences with emulator state, making the JSON file harder to reason about.
+
+**How to avoid:**
+Store theme preference in the GUI-specific prefs file (same location as P57 onboarding flag). Use Tauri's plugin-store or a dedicated prefs command. Do NOT add a `theme: ThemeKind` field to `CalcState`.
+
+**Warning signs:**
+- `autosave.json` contains a `"theme"` key.
+- CLI binary fails to load a save file written by GUI because of unknown `theme` field (if `#[serde(default)]` was forgotten — same failure mode as P53).
+
+**Phase to address:** Theme Phase
+
+---
+
+### Pitfall 60: `.raw` Import Replaces Entire Program vs Appending
+
+**What goes wrong:**
+HP-41 hardware behavior: importing a program from a card reader REPLACES the program memory partition bounded by the target global label (or inserts a new partition). The current `state.program: Vec<Op>` is a flat list — replacing one "program" within it means finding the LBL/END boundaries for that program.
+
+If import is implemented as `state.program = decoded_ops`, the user loses all existing programs. If import is implemented as "append to existing program memory", the user accumulates programs without any way to replace a specific one. Neither is fully correct.
+
+**How to avoid:**
+- Define the import semantics explicitly before implementation: recommended approach is "replace existing program with the same LBL name, or append if no matching LBL exists."
+- The existing card reader implementation (`Op::Rprgm`) provides a reference: look at how `cardreader::cards.rs` handles program insertion.
+- Add an import mode enum to the UI: `Replace All`, `Replace Matching Label`, `Append`.
+
+**Warning signs:**
+- Import wipes all other programs in memory.
+- Import of a program with `LBL "QUAD"` when one already exists creates duplicate labels.
+
+**Phase to address:** `.raw` Import/Export Phase
+
+---
+
+### Pitfall 61: X-MEM `EMROOM` Calculation Depends on Main Memory SIZE
+
+**What goes wrong:**
+On the HP-41CX, EMROOM (available X-MEM registers) is not simply `total_xmem_capacity - used_registers`. Available X-MEM space depends on how much main memory is allocated to data registers (set by SIZE), because X-MEM and main memory share the 1024-register address space at the hardware level.
+
+An emulator that treats X-MEM capacity as a fixed constant (e.g., always 600 registers free) will report incorrect EMROOM values when the user has a large SIZE setting.
+
+**How to avoid:**
+- Implement EMROOM as: `XMEM_TOTAL_CAPACITY - used_xmem_bytes - overflow_from_main_memory(state.regs.len())`.
+- Consult the HP-41CX Owner's Manual EMROOM section for the exact formula.
+- Add a unit test: `SIZE 64` → EMROOM should be less than default.
+
+**Note:** This is a behavioral fidelity issue. For MVP purposes, using a fixed capacity with a clear comment about the approximation is acceptable. Document as a divergence if shipped with the simplification.
+
+**Warning signs:**
+- EMROOM returns the same value regardless of how many data registers are allocated.
+- Programs that check EMROOM before storing a file report "enough room" when there isn't.
+
+**Phase to address:** X-MEM Core Phase
+
+---
+
+### Pitfall 62: GUI `resolveKeyId` Silently Returns `null` for Unmapped Keys Instead of Falling Through to XEQ-by-Name
+
+**What goes wrong:**
+CLI behavior: an unknown key falls through to `xeq_by_name_local_resolve` (the XEQ-by-name modal). A power user can type `F` in CLI to open the XEQ modal. In the GUI `resolveKeyId`, unmapped keys return `null` and are silently ignored (line 612: `if (keyId === null) return;`).
+
+New keyboard shortcuts added during parity work may be wired correctly in `resolveKeyId` but resolve to a string ID that `key_map.rs::resolve` doesn't handle. The result is a toast error from the Rust backend saying "unknown key" — which is correct behavior per D-25.6 (never silently swallow). But the error may be confusing if the developer thought the key was wired.
+
+**How to avoid:**
+- Add `console.debug` logging in the `resolveKeyId` catch-all `?? null` branch so development builds surface unmapped physical keys.
+- After GUI keyboard parity work, run a systematic test: press every key from CLI `key_to_op`'s reference table in the GUI and verify either correct dispatch or a clear XEQ-by-name modal.
+
+**Warning signs:**
+- Physical key press in GUI produces no response (silent ignore) when CLI would either dispatch an op or open a modal.
+- Inconsistency between CLI and GUI for the same physical key on the same calculator function.
+
+**Phase to address:** GUI Keyboard Parity Phase
 
 ---
 
@@ -475,12 +346,12 @@ confirm it passes (no false positives on valid algorithmic commentary referencin
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Extending Bairstow deflation to degree 6+ | No new algorithm to implement | Catastrophic failures for repeated roots; silently wrong answers | Never — use Laguerre or Durand-Kerner for PROOT |
-| Adding CABS/CARG to `math1/complex.rs` | No new file to create | Modifies frozen code; must be justified as a new ADR carve-out | Never without explicit ADR |
-| Using `"INTG"` as mnemonic for Advantage integration | Familiar name | Silently shadows Math Pac I INTG; xrom_shadowing test catches this | Never — use hardware-faithful `"INTEG"` |
-| Reusing `matrix_dim` / `matrix_active_reg` without documentation | No new CalcState fields | Implicit coupling between two XROM modules; hard to debug | Acceptable only if explicitly documented as "shared per hardware ground truth" |
-| Keeping `xrom_modules: u8` and using one bit for Advantage Pac | Minimal field change | Conflates two distinct XROM IDs (22 and 24) into one bit | Acceptable only if documented: Advantage is always loaded as a unit |
-| Copying `complex_atan2` from `math1/complex.rs` | No visibility change needed | Edge-case drift between two implementations; Pitfall 6 can re-emerge | Never — promote visibility instead |
+| Hardcode only "dark" theme in first pass | Faster delivery | Requires CSS architecture refactor when other themes added | Never — build the CSS variable architecture first even if only dark theme is implemented |
+| Store theme in `CalcState` for simplicity | One fewer file location to manage | Conflates UI preference with calculator state; breaks CLI; adds serde complexity | Never |
+| Implement `.raw` export for only the ~25 already-supported ops | Fast initial delivery | Users can't export any useful v3.x program | Acceptable for MVP with explicit error message listing unsupported ops |
+| Treat X-MEM as `state.regs` extension | Reuses existing register infrastructure | `CLREG` corrupts X-MEM; address space conflicts | Never |
+| Multi-program `.raw` import loads only first program silently | Simpler code | User data loss without error | Never — either load all or reject with clear message |
+| Skip `#[serde(default)]` on transient X-MEM fields | One less annotation | Any v3.x save file fails to load after upgrade | Never |
 
 ---
 
@@ -488,11 +359,15 @@ confirm it passes (no false positives on valid algorithmic commentary referencin
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Advantage Pac XROM registration | Claiming both XROM 22 and XROM 24 as separate module entries in `xrom.rs` | Register as a single `XromModule` with a combined `ops` slice; the hardware XROM IDs are internal addresses, the emulator's dispatch uses the mnemonic string |
-| Math Pac I + Advantage Pac coexistence | Assuming XEQ "INTG" and XEQ "INTEG" can share the same `Op` variant | They must be distinct `Op` variants; two separate solver implementations in `math1/integ.rs` and `advantage/integ.rs` |
-| `ModalProgram` extension for Advantage Pac | Adding a new `ModalProgram::Advantage(AdvantageStep)` variant in `math1/modal.rs` | Follow ADR-v3.1-004 pattern: add a single `ModalProgram::Advantage(crate::ops::advantage::modal::AdvantageStep)` variant in `math1/modal.rs` (fourth freeze carve-out), keep all semantics in `advantage/modal.rs` |
-| Complex ops auto-on policy | Forgetting to set `state.complex_mode = true` in new Advantage Pac complex ops | Follow D-28.2: EVERY binary/unary complex op sets `complex_mode = true` BEFORE computation; `Op::Real` is the sole setter of `complex_mode = false` |
-| PROOT register output layout | Interleaving real/imaginary parts in an undocumented order | Verify against OM 00041-90482 table of register assignments before implementing output; add a `D-NN` entry to the Advantage divergence catalog |
+| Theme + SVG gradients | Put colors in CSS custom properties on `:root`, expect SVG `<stop stopColor>` to pick them up | Pass theme config as React props to `<Keyboard>`; compute `stopColor` from theme at render time |
+| Theme + CSS animation | Add new theme stylesheet that inadvertently resets `transform-box` | Keep animation invariants in a separate CSS layer that themes cannot override |
+| `.raw` import + file dialog | Use Tauri `dialog::FileDialogBuilder` without `add_filter(".raw")` | Always add MIME/extension filter so users don't accidentally try to import autosave.json |
+| `.raw` export + unsupported ops | Return `CardData` error that bubbles to a generic toast | Provide specific error listing which ops cannot be encoded; suggest HP41UC as external tool |
+| X-MEM + `migrate_after_load()` | Add X-MEM fields but forget to initialize them in migrate | Add explicit X-MEM initialization arm in `migrate_after_load()` with version-gated logic |
+| Onboarding + shared autosave | Check for onboarding-seen flag in `CalcState` | Use OS config dir (separate from autosave path) via `dirs::config_dir()` |
+| GUI keyboard parity + `resolveKeyId` | Audit only `KEY_DEFS` on-screen path, miss physical keyboard | Systematically diff `hp41-cli/src/keys.rs::key_to_op` against `App.tsx::resolveKeyId` MAP |
+| X-MEM + 4-way exhaustive match | Add `Op::EmDir` / `Op::EmRoom` / `Op::EmReg` variants and forget one of the four match locations | Follow existing XROM module pattern: all 4 match sites in the same commit |
+| `.raw` + multi-program concatenation | Reject with cryptic "trailing bytes" error | Surface a human-readable error explaining multi-program files and offering alternatives |
 
 ---
 
@@ -500,39 +375,38 @@ confirm it passes (no false positives on valid algorithmic commentary referencin
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Laguerre iteration without per-root cap | CPU spin for degree 20+ polynomials with near-zero discriminant | Cap iterations at `degree × 100` per root; return `HpError::Domain` if not converged | Polynomials with clusters of near-equal roots at degree > 8 |
-| Simultaneous Durand-Kerner without initial separation | All initial guesses converge to the same root | Use evenly-spaced complex circle initial guesses: `z_k = r × exp(2πi × k/n)` where r = Cauchy bound | Any polynomial with roots that are nearly equal |
-| Advanced Matrix Pac on 14×14 matrices without register count check | Panic or register-out-of-bounds on small SIZE values | Check `state.regs.len()` before any matrix op; Math Pac I already has this check in `matrix.rs::matrix_get/set` | SIZE set smaller than matrix dimension |
+| Onboarding JSON data loaded at startup | Cold-start regression (currently 2.2ms) | Use `OnceLock` or lazy initialization same as `help_data.rs` pattern | Immediately visible if onboarding data is large (>10KB) |
+| Theme switching causes full React re-render of `<Keyboard>` | Key click latency spike after theme change | Memoize `<Keyboard>` with `React.memo`; only re-render when theme prop changes | Each theme switch; not a hot path but noticeable |
+| X-MEM `xmem_files` serialized in autosave when no X-MEM is used | autosave.json grows silently | Use `#[serde(skip_serializing_if = "Vec::is_empty")]` on `xmem_files` | Once user runs `NEWM` and creates first X-MEM file |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Theme selector in a buried settings panel | Power users can't find it | Add theme selector to the help overlay (`?`) or a visible top-bar button |
+| `.raw` import replaces all programs without warning | User loses programs they worked on | Show a confirmation dialog: "Import will replace program memory. Continue?" |
+| Onboarding can't be re-triggered | New users who dismissed accidentally can't recover | Always-available "Show Quick Start" in help overlay or `?` overlay header |
+| X-MEM EMDIR listing is CLI-only | GUI users have no way to see X-MEM contents | Add EMDIR output to the program listing panel or a separate X-MEM panel |
+| `.raw` export silently fails for XROM ops | User doesn't know why the file is empty/missing | Show a list of unsupported ops in the error; offer to export the ops that are supported |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **PROOT degree range:** Verify test cases include degrees 2, 3, 5, 8, 10, and one
-  polynomial with a repeated root (e.g., (x-2)^4 · (x+1)^3). If degree 6+ cases all
-  pass but degree 2 regresses, PROOT is calling the wrong algorithm path.
-- [ ] **Advantage Pac integration mnemonic:** Verify `ADVANTAGE.ops` contains `"INTEG"` not
-  `"INTG"`. Run `xrom_shadowing.rs` and confirm zero collision with `MATH_1.ops`.
-- [ ] **complex_mode auto-on:** Verify every Advantage Pac complex op (CABS, CARG, CCHS,
-  CCONJ, CY^X) sets `state.complex_mode = true` before computation. Regression test:
-  `complex_mode` is false before call, true after.
-- [ ] **xrom_modules migration:** Load a v3.2 `autosave.json` (xrom_modules=7) and verify
-  Advantage Pac functions are reachable after `migrate_after_load()`.
-- [ ] **4-way exhaustive match:** Verify ALL new `Op` variants appear in BOTH `dispatch()` AND
-  `execute_op()` AND CLI `prgm_display.rs` AND GUI `prgm_display.rs` before the
-  first phase ships. Compiler will catch items 1+2; items 3+4 only catch on CI
-  after the respective CLI/GUI phases.
-- [ ] **Free42 contamination scan:** Verify `check-free42-contamination.sh` exits 0 after
-  scanning `advantage/` directory. If Romberg integration algorithm is re-derived from
-  the Romberg ACM paper (not from Free42), the disclaim comment must still be present.
-- [ ] **XROM shadowing extended:** Verify `xrom_shadowing.rs` includes `ADVANTAGE.ops` in
-  the disjointness check against `MATH_1.ops`, `STAT_1.ops`, `TIME_MODULE.ops`, and
-  `BUILTIN_CARD_OP_NAMES`.
-- [ ] **JSON canonical pipeline (5th pool):** Verify `docs/hp41-advantage-functions.json`
-  is loaded as the 5th `OnceLock<Vec<HelpEntry>>` in `help_data.rs` and included in
-  `help_entries_all()`. Malformed JSON must panic at first access per D-25.17.
-- [ ] **`docs-matrix` 5th invocation:** Verify `justfile` and `scripts/docs-matrix/src/main.rs`
-  have a 5th branch for `hp41-advantage-functions.json` → `hp41-advantage-function-matrix.md`.
+- [ ] **Theme system:** Verify `transform-box: fill-box` survives in all theme variants with a computed style test.
+- [ ] **Theme system:** Verify SVG gradient stops change color (not just text/background) when theme is switched.
+- [ ] **Theme system:** Verify theme preference is persisted to OS config dir, not `autosave.json`.
+- [ ] **`.raw` import:** Verify that multi-program files produce a clear error message, not a silent partial load.
+- [ ] **`.raw` export:** Verify that exporting a program containing XROM calls produces a clear error message listing which ops could not be encoded.
+- [ ] **`.raw` round-trip:** Verify `encode_program(decode_program(bytes)) == bytes` for a representative set of community `.raw` files.
+- [ ] **X-MEM isolation:** Verify `CLREG` does NOT clear X-MEM file data.
+- [ ] **X-MEM serde:** Verify loading a v3.3 `autosave.json` fixture succeeds after adding X-MEM fields.
+- [ ] **X-MEM 4-way match:** Verify all new X-MEM `Op` variants appear in `dispatch`, `execute_op`, CLI `op_display_name`, GUI `op_display_name`.
+- [ ] **GUI keyboard parity:** Verify systematic diff of `key_to_op` vs `resolveKeyId` shows zero gaps.
+- [ ] **Onboarding:** Verify deleting `autosave.json` causes onboarding to re-trigger.
+- [ ] **Onboarding:** Verify onboarding does NOT re-trigger when only the calculator state is reset (SIZE, CLREG, etc.).
 
 ---
 
@@ -540,11 +414,13 @@ confirm it passes (no false positives on valid algorithmic commentary referencin
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| math1/ freeze violation discovered post-implementation | HIGH — all new code must be moved to `advantage/` | Create `advantage/complex.rs`, move functions, fix imports, re-run CI. The move is mechanical but touching the frozen file requires a new ADR regardless. |
-| Wrong PROOT algorithm produces wrong answers for high degree | MEDIUM — algorithm swap, not architecture change | Replace Bairstow extension with Laguerre in `advantage/poly.rs`. Existing Op variants and CalcState fields unchanged. Only the internal algorithm and test oracles change. |
-| INTG/INTEG mnemonic collision | LOW — rename in `advantage/xrom.rs` | Change `"INTG"` to `"INTEG"` in `ADVANTAGE.ops`. Update JSON, `op_display_name`, help text. `xrom_shadowing.rs` failure would have caught this before it ships. |
-| xrom_modules type wrong | MEDIUM — type change and migration | Widen to `u16`, update `default_xrom_modules()` return type, update `migrate_after_load()` migration arm. Backward-compat test confirms v3.2 save files still load. |
-| Missing Free42 contamination scan on new directory | LOW | Edit `check-free42-contamination.sh` to add new directory. Run `just license-audit`. |
+| Theme breaks SVG animation (P51) | LOW | Add `transform-box: fill-box` back to the problematic theme CSS; add regression test |
+| Multi-program `.raw` corrupt import (P52) | MEDIUM | Revert import; implement `decode_all_programs()` or improve error message |
+| X-MEM fields missing serde(default) break saves (P53) | HIGH | Must add `#[serde(default)]` AND increment save format version; existing saves may not be recoverable without migration code |
+| `resolveKeyId` gaps discovered post-ship (P54) | LOW | Add missing key to `resolveKeyId` MAP; no core change required |
+| SVG gradient colors not themed (P55) | MEDIUM | Refactor `<Keyboard>` to accept theme props; replace hardcoded JSX color literals |
+| X-MEM shares address space with `state.regs` (P56) | HIGH | Major refactor; all X-MEM ops must be rewritten to use isolated field |
+| Onboarding in wrong location (P57) | LOW | Move flag from `CalcState` to OS config dir; clear existing entries in migrate |
 
 ---
 
@@ -552,54 +428,35 @@ confirm it passes (no false positives on valid algorithmic commentary referencin
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| P43: math1/ freeze violation | Core implementation phase (Phase A) | Diff shows no changes to `math1/` except `modal.rs` and `xrom.rs` |
-| P44: PROOT algorithm | Core implementation phase (Phase A) | Oracle test cases degree 6, 10, repeated roots all pass |
-| P45: Complex stack sharing | Core implementation phase (Phase A) | `advantage/complex.rs` imports from `math1::complex`, not copy |
-| P46: XROM ID collision — two slots | Core implementation phase (Phase A), first task | `xrom_modules` type widened; `migrate_after_load()` updated |
-| P47: Matrix register layout | Core implementation phase (Phase A) | Owner's Manual verified; `matrix_dim` ownership documented |
-| P48: INTG vs INTEG mnemonic | Core implementation phase (Phase A) | `xrom_shadowing.rs` passes with `ADVANTAGE.ops` included |
-| P49: CalcState field ownership | Core implementation phase (Phase A) | Code comment on `matrix_dim` specifying ownership |
-| P50: xrom_modules bit width | Core implementation phase (Phase A), first task | Backward-compat test loads v3.2 fixture and finds Advantage Pac reachable |
-| P51: Free42 contamination | Core implementation phase (Phase A), same commit as directory creation | `just license-audit` passes on `advantage/` directory |
-
----
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Core — XROM registration | P46 (bitfield width) + P48 (mnemonic collision) | Widen `xrom_modules`, verify mnemonics in hardware docs FIRST |
-| Core — PROOT implementation | P44 (wrong algorithm for high degree) | Choose Laguerre/Durand-Kerner; derive oracle cases BEFORE coding |
-| Core — complex ops | P43 (freeze violation) + P45 (shared helpers visibility) | New `advantage/` sibling; promote `complex_atan2` to `pub(crate)` |
-| Core — matrix ops | P47 (register layout) + P49 (field ownership) | Verify OM; document field ownership explicitly |
-| CLI phase | P48 (display name for INTEG vs INTG) | `op_display_name` must not reuse Math Pac I arms |
-| Documentation phase | P51 (contamination guard) | Extend `check-free42-contamination.sh`; new divergence catalog |
-| Quality gates phase | P44 (PROOT accuracy) | All degree ranges tested; numerical accuracy >= 98% on PROOT oracle suite |
+| P51: SVG animation invariant | Theme Phase | Vitest computed style test for `transform-box` on key elements |
+| P52: Multi-program `.raw` rejection | `.raw` I/O Phase | Test with a known multi-program community `.raw` file; verify error message is human-readable |
+| P53: X-MEM serde backward compat | X-MEM Core Phase | CI test loading v3.3 fixture JSON; `just` target that deserializes a pinned save file |
+| P54: `resolveKeyId` gaps | GUI Keyboard Parity Phase | Systematic diff test: `key_to_op` entries vs `resolveKeyId` entries |
+| P55: SVG gradient CSS variables | Theme Phase | Manual verify all gradient surfaces change color on theme switch |
+| P56: X-MEM register isolation | X-MEM Core Phase | Test: `CLREG` after `NEWM` / `EMREG` store; verify X-MEM data survives |
+| P57: Onboarding in wrong location | Onboarding Phase | Test: delete autosave.json; verify onboarding re-triggers; delete OS config; verify same |
+| P58: XROM encoding missing | `.raw` I/O Phase | Test exporting a program with `XEQ "QUAD"`; verify error message lists unsupported ops |
+| P59: Theme in CalcState | Theme Phase | Code review gate: `CalcState` diff must not contain `theme` field |
+| P60: Import replaces vs appends | `.raw` I/O Phase | Test: import with existing programs; verify expected behavior (not silent wipe) |
+| P61: EMROOM depends on SIZE | X-MEM Core Phase | Test: `SIZE 64` then `EMROOM`; compare result vs `SIZE 0` |
+| P62: Silent `null` from `resolveKeyId` | GUI Keyboard Parity Phase | Debug logging in `null` catch-all; systematic key-by-key test against CLI reference |
 
 ---
 
 ## Sources
 
-- HP-41C codebase: `hp41-core/src/ops/math1/` (freeze boundary reference)
-- `hp41-core/src/state.rs` (CalcState field inventory, `xrom_modules: u8` type)
-- `hp41-core/src/ops/math1/xrom.rs` (MATH_1, STAT_1, TIME_MODULE registry pattern)
-- `hp41-core/src/ops/math1/complex.rs` (complex stack overlay model, `complex_atan2` visibility)
-- `hp41-core/src/ops/math1/poly.rs` (Bairstow deflation, degree 2-5 only)
-- `hp41-core/src/ops/math1/matrix.rs` (R14/R15+ register layout, `matrix_dim` field)
-- `docs/architecture-history.md` (freeze rationale, phase-by-phase decisions)
-- `docs/adr/v3.1-004-math1-freeze-second-carve-out.md` (precedent for modal.rs carve-out)
-- `docs/adr/v3.0-002-user-callback-policy.md` (re-entrancy constraints for INTG/SOLVE)
-- HP Museum XROM database: `calc.fjk.ch/db/hp41mod.php` (Advantage Pac XROM 22 + 24 confirmed)
-- HP Museum community (MEDIUM confidence): Advantage XROM 22 functions include MAT*, MDET, MINV, etc.;
-  XROM 24 includes INTEG, SOLVE (not INTG/SOLVE), complex functions C+, Z^N, etc.
-- Community reports (LOW confidence): Advantage Pac PROOT handles "degree limited only by RAM"
-  (implies non-Bairstow algorithm); FROOT and FINTG are alternative names for the root/integration
-  functions in some sources — verify against OM 00041-90482.
-- `docs/hp41-math1-divergences.md` (scratch register clobber during INTG — same risk applies to
-  Advantage Pac INTEG if it uses R00-R07 scratch)
-- ADR v3.1-002 (distribution primitives policy — algorithm independence from Free42 template
-  for Advantage Pac Romberg implementation)
+- `hp41-core/src/cardreader/raw.rs` — existing `.raw` codec; current encoding subset, END marker format, `0xCF`/`0xCD` disambiguation (HIGH confidence — codebase)
+- `hp41-core/src/state.rs` — `CalcState` serde patterns, `#[serde(default)]` / `#[serde(skip)]` discipline, `rand_seed` and `adv_tvm_state` as the two `default`-without-`skip` precedents (HIGH confidence — codebase)
+- `hp41-gui/src/App.css` — `.key { transform-box: fill-box; }` invariant with inline documentation (HIGH confidence — codebase)
+- `hp41-gui/src/Keyboard.tsx` — hardcoded JSX `stopColor` props in `<defs>`, `getKeyGrad` function (HIGH confidence — codebase)
+- `hp41-gui/src/App.tsx` lines 108–161 — `resolveKeyId` handwritten MAP; gap with `key_to_op` in `hp41-cli/src/keys.rs` (HIGH confidence — codebase)
+- `CLAUDE.md` Frozen Invariants section — 4-way exhaustive match, serde backward compat rules, `#[serde(default)]` discipline, save-file compat (HIGH confidence — project constraints)
+- [Using HP-41C RAW/P41 files with HP-42X](https://www.hrastprogrammer.com/hp42x/rawfiles.htm) — RAW file has no header, multi-program structure, NULL byte between consecutive numerics (MEDIUM confidence — community doc)
+- [HP-41 Tagged RAW Files discussion](https://forum.hp41.org/viewtopic.php?f=21&t=610) — identification ambiguity, emulator-specific END metadata (MEDIUM confidence — community forum)
+- [HP-41 FOCAL byte encoding search results](https://id-phy.orgfree.com/HP41/HP41_ProgEnv.html) — XROM two-byte encoding `0xAx`, GTO/XEQ/LBL alpha encoding `1D/1E/CF Fx ...` (MEDIUM confidence — community reference)
+- [SVG light/dark mode CSS pitfalls — web.dev theming](https://web.dev/learn/design/theming) — CSS custom properties do not reach SVG attribute values, `currentColor` workaround (HIGH confidence — web platform docs)
+- [HP-41 Extended Memory overview](https://archived.hpcalc.org/museumforum/thread-54029.html) — X-MEM register count, address space sharing with main memory, EMDIR/EMROOM behavioral description (MEDIUM confidence — community forum)
 
 ---
-*Pitfalls research for: HP-41 Advantage Pac + Advanced Matrix Pac emulation (v3.3)*
-*Researched: 2026-05-25*
+*Pitfalls research for: HP-41 Calculator Emulator v4.0 Platform Maturity*
+*Researched: 2026-05-27*

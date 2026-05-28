@@ -7,6 +7,8 @@
         "phase": "33",
         "key_path": "XEQ \"ΣBSTAT\"",
         "description": "Extended univariate summary (weighted mean, CV)",
+        "example": "Accumulate SIGMA+ data, then XEQ ΣBSTAT",
+        "notes": "Requires prior SIGMA+ data entry. Returns mean, std dev, CV. Uses stat registers R01-R06.",
         "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 1 }
     },
     {
@@ -77,6 +79,8 @@
         "phase": "33",
         "key_path": "XEQ \"ΣLIN\"",
         "description": "Linear curve fit: y = a + b·x",
+        "example": "Enter (x,y) pairs via SIGMA+, then XEQ ΣLIN",
+        "notes": "Returns intercept a in Y, slope b in X, correlation r in Z. Uses L.R. stat registers.",
         "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 8 }
     },
     {
@@ -229,6 +233,8 @@
         "phase": "33",
         "key_path": "XEQ \"ΣNORMD\"",
         "description": "Standard normal CDF / PDF / inverse (probit) — three-mode dispatcher",
+        "example": "1.96 XEQ ΣNORMD -> CDF=0.9750 (upper tail 2.5%)",
+        "notes": "Modal prompt selects CDF/PDF/inverse. X=z-score for CDF/PDF; X=probability for inverse.",
         "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 23 }
     },
     {
@@ -239,6 +245,8 @@
         "phase": "33",
         "key_path": "XEQ \"ΣCHISQD\"",
         "description": "Chi-square distribution CDF / PDF (prompts for ν)",
+        "example": "XEQ ΣCHISQD -> ν=? prompt; X=test statistic -> CDF",
+        "notes": "Prompts for degrees of freedom ν. Uses X as the chi-square test statistic.",
         "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 24 }
     },
     {
@@ -249,6 +257,8 @@
         "phase": "33",
         "key_path": "XEQ \"RAND\"",
         "description": "Next pseudorandom uniform on [0,1) via Don Malm LCG",
+        "example": "XEQ RAND -> X = random number in [0,1)",
+        "notes": "LCG: r = FRC(9821*r + 0.211327). Use SEED to set reproducible seed. Stack lift enabled.",
         "divergences": ["v3.1 emulator extension — not part of OM 00041-90030 'feature-complete' claim. LCG formula r_{n+1} = FRC(9821*r_n + 0.211327) per NPS p. 21 / Don Malm community convention."],
         "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 25 }
     },
@@ -260,6 +270,8 @@
         "phase": "33",
         "key_path": "XEQ \"SEED\"",
         "description": "Seed the RAND generator from X (modal prompt 'SEED?')",
+        "example": "0.5 XEQ SEED -> sets seed to 0.5 for reproducible RAND",
+        "notes": "Seed persists across save/load. Useful for reproducible simulations.",
         "divergences": ["v3.1 emulator extension — not part of OM 00041-90030 'feature-complete' claim. LCG formula r_{n+1} = FRC(9821*r_n + 0.211327) per NPS p. 21 / Don Malm community convention."],
         "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 26 }
     }

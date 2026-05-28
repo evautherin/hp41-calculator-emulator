@@ -15,6 +15,7 @@
 - ✅ **v3.1 Stat 1 Pac Emulation** — Phases 33–37, second XROM application module (13 programs, 26 XEQ entry points, RAND/SEED extension, 98.86 % numerical accuracy) — SHIPPED 2026-05-24 · [Archive](milestones/v3.1-ROADMAP.md)
 - ✅ **v3.2 Time Pac Emulation** — Phases 38–42, third XROM application module (HP 82182A Time Module, XROM 26, 35 XEQ entry points, first real-time behavior, 96.01% region coverage) — SHIPPED 2026-05-25 · [Archive](milestones/v3.2-ROADMAP.md)
 - ✅ **v3.3 Advantage Pac Emulation** — Phases 43–47, fourth XROM application module (XROM 22 + XROM 24, 114 XEQ entry points: bitwise/base conversion, named-matrix operations, advanced math/complex/solver/curve-fit, TVM) — SHIPPED 2026-05-26 · [Archive](milestones/v3.3-ROADMAP.md)
+- ✅ **v4.0 Platform Maturity** — Phases 48–52, visual themes, onboarding, GUI keyboard parity, `.raw` file I/O, Extended Memory — SHIPPED 2026-05-28 · [Archive](milestones/v4.0-ROADMAP.md)
 
 ---
 
@@ -83,6 +84,13 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 
 </details>
 
+<details>
+<summary>✅ v4.0 Platform Maturity (Phases 48–52) — SHIPPED 2026-05-28</summary>
+
+See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase detail. Phase plans archived at `milestones/v4.0-phases/`.
+
+</details>
+
 ---
 
-*Last updated: 2026-05-26 — v3.3 Advantage Pac Emulation shipped.*
+*Last updated: 2026-05-28 — v4.0 Platform Maturity shipped (Phases 48–52). Next milestone: `/gsd-new-milestone`.*

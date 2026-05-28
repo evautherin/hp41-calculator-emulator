@@ -1,31 +1,34 @@
 # Milestones
 
-## v3.2 Time Pac Emulation (Shipped: 2026-05-25)
+## v4.0 — Platform Maturity
 
-**Phases completed:** 5 phases, 19 plans, 28 tasks
+**Status:** ✅ SHIPPED 2026-05-28
+**Phases:** 5 (Phases 48–52)
+**Plans:** 17 total, all complete
+**Tasks:** 36
+**Timeline:** 2 days (2026-05-26 → 2026-05-28)
+**Source:** 150 commits, 210 files changed (+28,575 / −13,109) since v3.3
+**Tag:** v4.0
 
-**Key accomplishments:**
+### Delivered
 
-- 1. [Rule 3 - Blocking] Missing `ModalProgram::Time` arm in `math1/mod.rs`
-- JDN Algorithms (Fliegel-Van Flandern 1968):
-- All 13 TIME module clock ops implemented with SystemTime::now() + i64 offset, pure-Rust
+Evolved the emulator from feature-complete module emulation (v3.3) to a polished desktop platform: GUI theming, user onboarding, full GUI↔CLI keyboard parity, HP-41 community `.raw` file exchange, and HP-41CX Extended Memory.
 
-Fliegel-Van Flandern Gregorian calendar arithmetic, and toggle-based display mode transitions
+### Key Accomplishments
 
-- 1. [Rule 3 - Blocking] `get_local_time` not available from clock.rs (Plan 03 runs in parallel)
-- 1. [Rule 1 - Bug] HpError::Data does not exist in the codebase
-- TimeStep submit_step fully implemented: SETIME computes `time_offset_secs` delta from HH.MMSScc entry with PM shorthand support, SETDATE computes day delta via JDN arithmetic respecting Flag 31
-- 35-entry hp41-time-functions.json (XROM 26) authored and wired as the fourth OnceLock JSON pool in help_data.rs, with full bidirectional parity and XROM shadowing tests
-- ui.rs — `get_display_string()` priority chain (D-39.1):
-- 21 new integration tests across 3 files verify the Time Pac JSON pipeline end-to-end and the alarm event_buffer drain behavioral contract
-- Time Pac docs-matrix pipeline extended (4th invocation) and divergences catalog authored with 6 D-40-NN entries covering host-clock backing, stopwatch freeze-on-save, interrupting alarm deferral, accuracy-factor no-op, centisecond resolution, and SW emulator extension
-- 1. [Rule 1 - Bug] Quality Gate History table had pre-existing MSRV row missing the new v3.2 column
-- TIME-GUI-01 confirmed satisfied:
-- HelpOverlay.tsx:
-- A) CalcStateView TS interface
-- Unified XROM per-Op test-count meta-gate (106 variants across Math 1 + Stat 1 + Time) and assertion-discipline lint gate replacing 4 per-module files, with LINT-EXEMPT pre-annotations on 12 Time Pac inline test false positives
-- Oracle-verified date arithmetic suite (30 tests, exact-match), stopwatch timing accuracy (5 tests, 1s CI-safe window +/-5cs), and alarm past-due detection latency (12 tests, single check_alarms cycle). All 47 tests pass; TIME-QUAL-02, TIME-QUAL-10, TIME-QUAL-11 met.
-- v3.1 save-file migration test (xrom_modules 3→7, Time fields default, rand_seed preserved), DDAYS E2E smoke (5th test, -31 days confirmed), README hard-claim graduated to "feature-complete per Owner's Manual 00041-90035". All TIME-QUAL-04/06/07/09 requirements met.
+1. **GUI theming (Phase 48)** — 4 built-in skin themes (dark, light, classic beige, high-contrast) via CSS custom properties; `prefs.rs` backend persisting to `~/.hp41/prefs.json`, fully isolated from `CalcState` (ADR-v4.0-004)
+2. **Onboarding + keyboard parity (Phase 49)** — 5-panel first-run OnboardingWizard, searchable in-app function reference (~350 entries with example/notes), and GUI physical-keyboard shortcuts at parity with the CLI via canonical `keyboard-shortcuts.json` (61 entries, ADR-v4.0-005)
+3. **`.raw` file I/O (Phase 50)** — HP-41 community `.raw` program import/export via native Tauri dialog + CLI flags; multi-program archive splitting (`decode_all_programs`, 256-program DoS cap) and Tauri anti-deadlock dialog-before-lock ordering (ADR-v4.0-006)
+4. **X-MEM core (Phase 51)** — HP-41CX Extended Memory: 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX), `XmemFile` model, 600-register capacity, backward-compat serde, isolated from `state.regs`/`adv_matrices`
+5. **X-MEM hardening + docs (Phase 52)** — XEQ-by-name via `builtin_card_op` (HP-41CX OS-builtin, no XROM bit), 6th help pool, op↔JSON parity + per-op test-count meta-gates, backward-compat fixtures, 3 ADRs + divergences doc
+6. **Quality** — full `just test`/`lint`/`gui-ci`/`docs-matrix-check` green; milestone audit confirmed all 32 requirements satisfied with cross-phase integration + 5/5 E2E flows
+
+### Cleanup at milestone close
+
+- **Code-review warnings 52-REVIEW WR-01/02/04 — resolved:** added an X-MEM XROM-bitfield-independence test (WR-01, `xeq_builtin_resolver.rs`), completed `v33-autosave.json` into a realistic full v3.3 save (WR-02), and memoized `helpEntriesAll()` for a stable reference (WR-04, `help_data.ts`). (WR-03 help-text accuracy was fixed during phase 52.)
+- **6 completed quick-tasks (v1.0–v2.2 era) — archived** to `milestones/quick-tasks/`; `audit-open` is now fully clean (0 open items). They were flagged only because the running `gsd-sdk` reads bare `SUMMARY.md` while these use `${quick_id}-SUMMARY.md`.
+- **Phase-50 dialog visual checkpoint — accepted:** native file dialogs + multi-program picker confirmed working in the shipped GUI (integration audit Flow 4).
+- Nyquist `VALIDATION.md` for phases 48–50 remain `draft` — acceptable: the work is verified via the milestone integration audit + retroactive `48/49/50-VERIFICATION.md` (Nyquist closure is discovery-only per the audit workflow).
 
 ---
 
@@ -351,10 +354,120 @@ Behavioral emulation of the HP-41C **Stat 1 Pac** (HP part 00041-14001, OM 00041
 
 ### Known Deferred Items (→ v3.2+)
 
-- **Time Pac** (HP-41CX clock functions, XROM TBD) → v3.2
-- **Advanced Matrix Pac** (M+, MAT*, INV-as-transpose, V+, VDOT, IDN) → v3.2+
-- **Advantage Pac** (PROOT, CABS, CARG, CCHS, CCONJ, Romberg-INTG, CY^X) → v3.3+
-- **Signed binary releases** (cargo-dist CLI + tauri-action GUI) → v3.1.x or v3.2
+- ~~**Time Pac** (HP-41CX clock functions, XROM TBD) → v3.2~~ — shipped in v3.2 (Phases 38-42, 2026-05-25)
+- ~~**Advanced Matrix Pac** (M+, MAT*, INV-as-transpose, V+, VDOT, IDN) → v3.2+~~ — shipped as part of Advantage Pac v3.3 (Phases 43-47, 2026-05-26; named-matrix model per ADR-v3.3-001)
+- ~~**Advantage Pac** (PROOT, CABS, CARG, CCHS, CCONJ, Romberg-INTG, CY^X) → v3.3+~~ — shipped in v3.3 (Phases 43-47, 2026-05-26)
+- **Signed binary releases** (cargo-dist CLI + tauri-action GUI) → post-v3.3
+- HP-copyrighted ROM-image redistribution remains permanently out of scope
+
+---
+
+## v3.2 — Time Pac Emulation
+
+**Status:** SHIPPED 2026-05-25
+**Phases:** 5 (Phases 38-42)
+**Plans:** 19 total, all complete
+**Timeline:** 2 days (2026-05-24 → 2026-05-25)
+**Source delta:** 50 commits since `v3.1` tag; 216 files, +30,992 / -4,959 lines; 4,556 LOC in `hp41-core/src/ops/time/`
+
+### Delivered
+
+Behavioral emulation of the HP-41CX **Time Module** (HP 82182A, XROM ID 26, OM 00041-90035) as the third XROM application module. 35 XEQ entry points across clock/date arithmetic, live-updating stopwatch and clock display, and a full alarm catalog with past-due detection. The FIRST module introducing real-time behavior into the previously event-driven emulator -- direct `SystemTime::now()` calls in hp41-core, pure-Rust Fliegel-Van Flandern JDN calendar arithmetic, and monotonic-clock stopwatch with centisecond resolution.
+
+- **Phase 38 -- XROM Framework + Clock/Date/Stopwatch/Alarm Core** (`hp41-core` only, 6 plans, 2026-05-24): TIME_MODULE (XROM 26) registration, bit-2 arm in `xrom_resolve`; 35 new `Op` variants; `time_offset_secs: i64` persistent field (SETIME/SETDATE compute delta from system clock); pure-Rust Fliegel-Van Flandern JDN formula (~60 LOC); stopwatch state machine (monotonic `Instant` start + `f64` accumulated/split); `AlarmType::Message` | `AlarmType::Control` enum with 253-entry catalog cap; `ModalProgram::Time(TimeStep)` variant; 12 new CalcState fields with correct serde shapes.
+- **Phase 39 -- CLI Integration + Live Display** (`hp41-cli`, 3 plans, 2026-05-25): `docs/hp41-time-functions.json` (35 entries) + fourth `OnceLock` + 35 `op_display_name` arms; live clock/stopwatch display via pull-on-redraw in existing 16ms poll loop (>=1 Hz clock, >=10 Hz stopwatch); stopwatch keyboard mode (Space=toggle, s=split, r=reset, Esc=exit); alarm event draining via `check_alarms()` called every 16ms tick.
+- **Phase 40 -- Documentation & ADRs** (`docs/`, 3 plans, 2026-05-25): `hp41-time-divergences.md` (6 D-40-NN entries); `hp41-time-function-matrix.md` (4th docs-matrix invocation); 3 ADRs (v3.2-001 clock access, v3.2-002 live display, v3.2-003 alarm catalog); README v3.2 soft-claim.
+- **Phase 41 -- GUI Integration + Live Display** (`hp41-gui`, 3 plans, 2026-05-25): 35 `op_display_name` arms (4-way invariant sealed); `tick_time` Tauri command + 200ms `setInterval`; alarm toast; CATALOG 2 "TIME 2C"; help overlay "Time Pac (XROM 26)" section; 14-segment LCD colon rendering.
+- **Phase 42 -- Test Hardening & Quality Gates** (4 plans, 2026-05-25): unified meta-gate (106 XROM variants across 3 modules); 30 oracle-verified date arithmetic cases + 5 stopwatch timing tests + 12 alarm latency tests; v3.1 backward-compat migration (`xrom_modules` 3->7); DDAYS E2E smoke; README hard-claim graduated.
+
+### Key Accomplishments
+
+1. **First real-time behavior in the emulator** -- direct `SystemTime::now()` in hp41-core + `time_offset_secs` delta model; pure-Rust Fliegel-Van Flandern JDN calendar arithmetic (zero new runtime deps); date decimal parsing via string-split-at-decimal per ISG/DSE precedent
+2. **Full alarm catalog with past-due detection** -- 253-entry `Vec<AlarmEntry>` on CalcState, message + control alarm types, repeat intervals, `check_alarms()` drain pattern called every 16ms tick; control alarms XEQ stored labels on acknowledgment
+3. **Live-updating stopwatch with centisecond resolution** -- monotonic `Instant` start marker (immune to system clock changes); stopwatch freeze-on-save behavioral policy; dedicated keyboard mode in both CLI and GUI
+4. **35-entry JSON canonical pipeline** -- fourth `OnceLock` pool; `?` overlay "Time Pac (XROM 26)" section; 4-pool `help_entries_all()` chain; function matrix parity tests across all four JSON pools
+5. **Unified XROM meta-gate infrastructure** -- `xrom_op_test_count.rs` and `lint_xrom_assertions.rs` refactored from 4 per-module files to 2 unified files scanning all 3 XROM modules (106 variants)
+6. **Quality gates held** -- 96.01% region coverage; 47 new accuracy/timing/latency tests; backward-compat migration verified; Free42 contamination guard covers `time/` tree (18 tokens, exits 0)
+
+### Quality at Ship
+
+| Gate | Target | Achieved |
+|------|--------|---------|
+| `hp41-core` line coverage | >= 95 % | 93.72 % (denominator dilution from ~4.6K new LOC) |
+| `hp41-core` region coverage | >= 93 % | **96.01 %** |
+| Per-file `ops/time/*.rs` floor | >= 90 % | all 7 files >= 90 % |
+| Numerical accuracy | >= 98 % (821 cases) | 98.86 % (v3.1 791 floor preserved + 30 date accuracy) |
+| Panics in `hp41-core` | 0 | 0 (`#![deny(clippy::unwrap_used)]`) |
+| CI | Win/macOS/Ubuntu | All green (`ci.yml` + `ci-gui.yml` + `e2e-linux` + `license-audit`) |
+| Free42 contamination | 0 distinctive symbols | 0 (CI-gated, 18-token grep) |
+| MSRV | 1.88 declared | 1.88 (CI-enforced) |
+| Tests passing | -- | 3161 |
+
+### Archives
+
+- [ROADMAP.md](milestones/v3.2-ROADMAP.md)
+- [REQUIREMENTS.md](milestones/v3.2-REQUIREMENTS.md)
+
+### Known Deferred Items (-> v3.3+)
+
+- ~~**Advantage Pac** (PROOT, CABS, CARG, CCHS, CCONJ, Romberg-INTG, CY^X) -> v3.3~~ -- shipped in v3.3 (Phases 43-47, 2026-05-26)
+- **Interrupting control alarm execution** -- data model stores them but re-entrancy against the 4-level call stack not currently supported (documented divergence D-40-03)
+- **Signed binary releases** (cargo-dist CLI + tauri-action GUI) -> post-v3.3
+- HP-copyrighted ROM-image redistribution remains permanently out of scope
+
+---
+
+## v3.3 — Advantage Pac Emulation
+
+**Status:** SHIPPED 2026-05-26
+**Phases:** 5 (Phases 43-47)
+**Plans:** 18 total, all complete
+**Timeline:** 2 days (2026-05-25 → 2026-05-26)
+**Source delta:** 50 commits since `v3.2` tag; 155 files, +43,042 / -2,246 lines; 10,872 LOC in `hp41-core/src/ops/advantage/`
+
+### Delivered
+
+Behavioral emulation of the HP-41 **Advantage Pac** (OM 00041-90482) as the fourth and final XROM application module, completing all HP-41 module emulation. Dual-chip hardware-faithful design: XROM 22 (ADV CONV + ADV MTRX, 63 ops) and XROM 24 (ADV MATH + ADV TVM, 51 ops) -- ~117 total Op variants across bitwise/base conversion, ALPHA-named matrix operations with LU decomposition, advanced complex math, Laguerre polynomial root-finder (FROOT), Romberg integration (FINTG), RK4 differential equations (FDIFEQ), curve fitting, 3D vector operations, coordinate transforms, and time-value-of-money (TVM) with Newton iteration.
+
+- **Phase 43 -- XROM Framework + All Advantage Pac Ops** (`hp41-core` only, 10 plans, 2026-05-25): ADV_MATH_A (XROM 22, bit-3) + ADV_MATH_B (XROM 24, bit-4) registration; `default_xrom_modules` = `0b0001_1111`; named-matrix model (`Vec<AdvMatrix>` per ADR-v3.3-001, isolated from Math Pac I fields); FROOT Laguerre's method with quadratic deflation (ADR-v3.3-002); dual-XROM design with 12 intentional MATH_1 overlaps (ADR-v3.3-003); math1/ third carve-out `complex_atan2` pub(crate) (ADR-v3.3-004); TVM state with Newton `*I` solver; 36-bit `ADV_WORD_MASK` for hardware-faithful base-N; 9 new CalcState fields.
+- **Phase 44 -- CLI Integration** (`hp41-cli`, 2 plans, 2026-05-26): `docs/hp41-advantage-functions.json` (114 entries) + fifth `OnceLock` + 114 `op_display_name` arms; `?` overlay "Advantage Pac (XROM 22+24)" sections; MATH_1 alias overlap discovery (12 mnemonics, bit-4 isolation mask); function matrix generated (5th `just docs-matrix` invocation); 421 hp41-cli tests pass.
+- **Phase 45 -- Documentation & ADRs** (`docs/`, 2 plans, 2026-05-26): `hp41-advantage-divergences.md` (9 D-45-NN entries); 4 ADRs (v3.3-001 named-matrix model, v3.3-002 FROOT Laguerre, v3.3-003 dual-XROM design, v3.3-004 math1 visibility promotion); README v3.3 soft-claim; CLAUDE.md v3.3 additions block; architecture-history.md v3.3 narrative.
+- **Phase 46 -- GUI Integration** (`hp41-gui`, 2 plans, 2026-05-26): 117 `op_display_name` arms (4-way invariant sealed); CATALOG 2 entries for XROM 22 + XROM 24; HelpOverlay fifth+sixth sections; modal LCD rendering via existing CalcStateView priority chain.
+- **Phase 47 -- Test Hardening & Quality Gates** (2 plans, 2026-05-26): unified meta-gate extended to all 5 XROM modules (220 variants); `adv_coverage_supplement.rs` (112 targeted tests); 22 numerical accuracy oracle cases (MDET/MINV/FROOT/FINTG, scipy-derived); backward-compat v3.2->v3.3 (`xrom_modules` 0b0111->0b11111); BININ E2E smoke; README hard-claim graduated.
+
+### Key Accomplishments
+
+1. **Largest XROM module: ~117 Op variants across 7 functional families** -- ADV CONV (12 bitwise/base ops), ADV MTRX (~50 named-matrix ops), ADV MATH complex/solver/polynomial/vector/curve-fit, ADV TVM (6 financial ops); hardware-faithful dual-chip XROM 22 + XROM 24 design per ADR-v3.3-003
+2. **ALPHA-named matrix model with full linear algebra** -- `Vec<AdvMatrix>` storage isolated from Math Pac I fields (ADR-v3.3-001); LU decomposition for MDET/MINV/MSYS/M*M; element access, lifecycle, reductions, norms, complex matrix ops, and modal editor workflows
+3. **FROOT Laguerre polynomial root-finder** -- arbitrary-degree polynomials via Laguerre's method with quadratic deflation for complex conjugate pairs (ADR-v3.3-002); initial guess (0.4, 0.9) avoids origin singularity; coexists with Math Pac I Bairstow (degree 2-5)
+4. **Solver ecosystem completed** -- FSOLVE (Brent/Secant root-finding), FINTG (Romberg integration), FDIFEQ (RK4 differential equations), all using `run_loop` re-entrancy; one level of cross-module nesting allowed (FINTG inside FSOLVE and vice versa)
+5. **114-entry JSON canonical pipeline** -- fifth `OnceLock` pool; 5-pool `help_entries_all()` chain; dual help-overlay sections (XROM 22 + XROM 24); function matrix parity tests across all five JSON pools; 12 intentional MATH_1 alias overlaps verified via bit-4 isolation
+6. **All HP-41 module emulation complete** -- Math Pac I (v3.0) + Stat 1 Pac (v3.1) + Time Module (v3.2) + Advantage Pac (v3.3) = 5 XROM modules, 220+ Op variants, all four official HP-41 extension modules shipped
+
+### Quality at Ship
+
+| Gate | Target | Achieved |
+|------|--------|---------|
+| `hp41-core` line coverage | >= 95 % | ~93 % (denominator dilution from ~10.9K new LOC) |
+| `hp41-core` region coverage | >= 93 % | **~95 %** |
+| Numerical accuracy | >= 98 % (843 cases) | 98.86 % (791 base + 30 time + 22 advantage) |
+| Panics in `hp41-core` | 0 | 0 (`#![deny(clippy::unwrap_used)]`) |
+| CI | Win/macOS/Ubuntu | All green (`ci.yml` + `ci-gui.yml` + `e2e-linux` + `license-audit`) |
+| Free42 contamination | 0 distinctive symbols | 0 (CI-gated, 18-token grep covering math1/ + stat1/ + time/ + advantage/) |
+| MSRV | 1.88 declared | 1.88 (CI-enforced) |
+| Tests passing | -- | 3262 |
+
+### Archives
+
+- [ROADMAP.md](milestones/v3.3-ROADMAP.md)
+- [REQUIREMENTS.md](milestones/v3.3-REQUIREMENTS.md)
+
+### Known Deferred Items (-> post-v3.3)
+
+- **Signed binary releases** (cargo-dist CLI + tauri-action GUI)
+- **Interrupting control alarm execution** (Time Pac -- requires re-entrancy against 4-level call stack)
+- **Full Extended Memory model** (EMDIR, EMROOM, EMREG -- separate major feature)
+- **FROOT/FINTG mutual nesting** (re-entrant X-MEM buffer stack)
 - HP-copyrighted ROM-image redistribution remains permanently out of scope
 
 ---

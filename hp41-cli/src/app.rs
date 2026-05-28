@@ -1718,7 +1718,14 @@ impl App {
             } else if let Some(label) = event.strip_prefix("alarm:xeq:") {
                 let label = label.to_string();
                 match hp41_core::run_program(&mut self.state, &label) {
-                    Ok(()) => {}
+                    Ok(()) => {
+                        // Wire this run_program() call site to drain like every
+                        // other one (CLAUDE.md invariant): an alarm-fired program
+                        // can emit PRX/PRA/PRSTK and stage a card op, both of which
+                        // would otherwise be stranded in their buffers.
+                        let card_err = self.drain_pending_card_op();
+                        self.drain_and_show_print_output(card_err);
+                    }
                     Err(e) => self.message = Some(format!("Alarm XEQ {label}: {e}")),
                 }
             }

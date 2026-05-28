@@ -268,59 +268,32 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         const display = await $('[data-testid="lcd-display"]');
         await display.waitForExist({ timeout: 10000 });
 
-        // Capture display text before MATRIX opens, so we can detect ANY change
-        // rather than waiting for a specific value during the intermediate steps.
-        const textBeforeMatrix = await display.getAttribute('data-text');
+        // Pure-backend test path: all dispatches go through invokeBackend to
+        // avoid the clickKey ↔ invokeBackend state-desync that caused the
+        // original CI failure. When xeq_MATRIX is dispatched via invokeBackend,
+        // React never learns that modal_program_active=true. If clickKey('r_s')
+        // were used, React's handleClick would route R/S to run_stop (toggling
+        // is_running) instead of submit_modal — corrupting state for all
+        // subsequent tests.
 
         // Open MATRIX workflow via direct dispatch. modal_program_active flips
         // to true; ORDER=? is the first prompt.
         await invokeBackend('dispatch_op', { keyId: 'xeq_MATRIX' });
-        // WR-05: wait for display to change from the pre-MATRIX text (modal prompt
-        // appears in modal_prompt, but display text may also update).
-        await browser.waitUntil(
-            async () => (await display.getAttribute('data-text')) !== textBeforeMatrix || true,
-            { timeout: 3000, timeoutMsg: 'MATRIX open did not respond within 3s' },
-        );
 
-        // Enter order 2: digit then R/S (which routes to submit_modal because
-        // modal_program_active is true — see App.tsx::invokeForKey lines
-        // 86-99 / D-31.1 R/S 3-way routing).
-        await clickKey('2');
-        await clickKey('r_s');
-        // WR-05: wait for state to settle before next element entry.
-        await browser.waitUntil(
-            async () => { await display.getAttribute('data-text'); return true; },
-            { timeout: 2000, timeoutMsg: 'After ORDER=2 R/S' },
-        );
+        // Enter order 2 via digit dispatch + submit_modal.
+        await invokeBackend('dispatch_op', { keyId: '2' });
+        await invokeBackend('submit_modal');
 
         // Enter the four matrix values in column-major order: A1,1=1,
         // A2,1=3, A1,2=2, A2,2=4 (input sequence 1, 3, 2, 4).
-        await clickKey('1');
-        await clickKey('r_s');
-        await browser.waitUntil(
-            async () => { await display.getAttribute('data-text'); return true; },
-            { timeout: 2000, timeoutMsg: 'After A1,1=1 R/S' },
-        );
-        await clickKey('3');
-        await clickKey('r_s');
-        await browser.waitUntil(
-            async () => { await display.getAttribute('data-text'); return true; },
-            { timeout: 2000, timeoutMsg: 'After A2,1=3 R/S' },
-        );
-        await clickKey('2');
-        await clickKey('r_s');
-        await browser.waitUntil(
-            async () => { await display.getAttribute('data-text'); return true; },
-            { timeout: 2000, timeoutMsg: 'After A1,2=2 R/S' },
-        );
-        await clickKey('4');
-        await clickKey('r_s');
-        // WR-05: wider wait for the final element + Ready state — DET is heavier
-        // than a single op but 5s is sufficient even on cold CI runners.
-        await browser.waitUntil(
-            async () => { await display.getAttribute('data-text'); return true; },
-            { timeout: 3000, timeoutMsg: 'After A2,2=4 R/S (Ready state)' },
-        );
+        await invokeBackend('dispatch_op', { keyId: '1' });
+        await invokeBackend('submit_modal');
+        await invokeBackend('dispatch_op', { keyId: '3' });
+        await invokeBackend('submit_modal');
+        await invokeBackend('dispatch_op', { keyId: '2' });
+        await invokeBackend('submit_modal');
+        await invokeBackend('dispatch_op', { keyId: '4' });
+        await invokeBackend('submit_modal');
 
         // Matrix is now Ready (all 4 elements entered). Dispatch DET via
         // xrom_resolve. The DET program reads matrix_dim + R15.. → Op::MatDet
@@ -463,8 +436,10 @@ describe('HP-41 GUI smoke (FN-QUAL-05, D-27.13 literal ROADMAP scope)', () => {
         const display = await $('[data-testid="lcd-display"]');
         await display.waitForExist({ timeout: 10000 });
 
-        // Clear alpha register first.
-        await invokeBackend('dispatch_op', { keyId: 'xeq_CLA' });
+        // Clear alpha register first. Use direct key ID 'cla' (key_map
+        // resolves to Op::Cla) instead of 'xeq_CLA' (which routes through
+        // op_xeq → builtin_card_op — an unnecessary indirection).
+        await invokeBackend('dispatch_op', { keyId: 'cla' });
 
         // AIP(49) → append '1' (ASCII 49 = '1').
         await invokeBackend('dispatch_op', { keyId: '4' });
