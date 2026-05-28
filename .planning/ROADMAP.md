@@ -90,7 +90,7 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 - [x] **Phase 49: Onboarding + GUI Keyboard Parity** — first-run guide, searchable reference, keyboard shortcuts (completed 2026-05-27)
 - [x] **Phase 50: .raw File I/O** — import/export via Tauri file dialog and CLI flags (completed 2026-05-27)
 - [x] **Phase 51: X-MEM Core** — EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG ops in hp41-core (completed 2026-05-28)
-- [ ] **Phase 52: Test Hardening + Documentation** — backward compat, full CLI+GUI integration, ADRs, coverage
+- [x] **Phase 52: Test Hardening + Documentation** — backward compat, full CLI+GUI integration, ADRs, coverage (completed 2026-05-28)
 
 ---
 
@@ -226,7 +226,7 @@ Plans:
 
 **Wave 2** *(blocked on 52-01 + 52-02)*
 
-- [ ] 52-03-PLAN.md — Meta-gates: op↔JSON parity (via builtin_card_op) + per-op test-count floor ≥5
+- [x] 52-03-PLAN.md — Meta-gates: op↔JSON parity (via builtin_card_op) + per-op test-count floor ≥5
 
 ---
 
@@ -238,7 +238,7 @@ Plans:
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
 | 51. X-MEM Core | 2/2 | Complete    | 2026-05-28 |
-| 52. Test Hardening + Documentation | 3/4 | In Progress|  |
+| 52. Test Hardening + Documentation | 4/4 | Complete   | 2026-05-28 |
 
 ---
 
