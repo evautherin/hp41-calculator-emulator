@@ -1534,6 +1534,24 @@ pub enum Op {
     AdvTvmFv,
     /// TVM *I — solve for periodic interest rate.
     AdvTvmStarI,
+
+    // ── Phase 51 (v4.0): X-MEM (Extended Memory) built-in ops ───────────────
+    /// EMDIR — list all X-MEM files (name/type/size) to print_buffer. LiftEffect: Neutral.
+    EmDir,
+    /// EMROOM — push available register count (600 − used) onto X. LiftEffect: Enable.
+    EmRoom,
+    /// SAVEP — save current program to named X-MEM PROGRAM file. LiftEffect: Neutral.
+    SaveP,
+    /// GETP — retrieve named X-MEM PROGRAM file and insert via RDPRGM semantics. LiftEffect: Neutral.
+    GetP,
+    /// SAVED — save data registers R00..R(SIZE-1) to named X-MEM DATA file. LiftEffect: Neutral.
+    SaveD,
+    /// GETD — retrieve named X-MEM DATA file and replace state.regs wholesale. LiftEffect: Neutral.
+    GetD,
+    /// EMREG — recall register N (from X) of the active X-MEM DATA file → push to stack. LiftEffect: Enable.
+    EmReg,
+    /// SAVERX — store Y into register N (from X) of the active X-MEM DATA file. LiftEffect: Neutral.
+    SaveRx,
 }
 
 /// Flush the number entry buffer to the stack.
@@ -2150,6 +2168,15 @@ pub fn dispatch(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::AdvTvmPmt => crate::ops::advantage::tvm::op_adv_tvm_pmt(state),
         Op::AdvTvmFv => crate::ops::advantage::tvm::op_adv_tvm_fv(state),
         Op::AdvTvmStarI => crate::ops::advantage::tvm::op_adv_tvm_star_i(state),
+        // ── Phase 51 (v4.0): X-MEM built-in ops ─────────────────────────────
+        Op::EmDir => crate::ops::xmem::ops::op_emdir(state),
+        Op::EmRoom => crate::ops::xmem::ops::op_emroom(state),
+        Op::SaveP => crate::ops::xmem::ops::op_savep(state),
+        Op::GetP => crate::ops::xmem::ops::op_getp(state),
+        Op::SaveD => crate::ops::xmem::ops::op_saved(state),
+        Op::GetD => crate::ops::xmem::ops::op_getd(state),
+        Op::EmReg => crate::ops::xmem::ops::op_emreg(state),
+        Op::SaveRx => crate::ops::xmem::ops::op_saverx(state),
     }
 }
 

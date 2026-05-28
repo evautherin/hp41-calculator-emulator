@@ -1237,6 +1237,15 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         Op::AdvTvmPmt => crate::ops::dispatch(state, Op::AdvTvmPmt),
         Op::AdvTvmFv => crate::ops::dispatch(state, Op::AdvTvmFv),
         Op::AdvTvmStarI => crate::ops::dispatch(state, Op::AdvTvmStarI),
+        // ── Phase 51 (v4.0): X-MEM built-in ops ─────────────────────────────
+        Op::EmDir => crate::ops::dispatch(state, Op::EmDir),
+        Op::EmRoom => crate::ops::dispatch(state, Op::EmRoom),
+        Op::SaveP => crate::ops::dispatch(state, Op::SaveP),
+        Op::GetP => crate::ops::dispatch(state, Op::GetP),
+        Op::SaveD => crate::ops::dispatch(state, Op::SaveD),
+        Op::GetD => crate::ops::dispatch(state, Op::GetD),
+        Op::EmReg => crate::ops::dispatch(state, Op::EmReg),
+        Op::SaveRx => crate::ops::dispatch(state, Op::SaveRx),
     }
 }
 
