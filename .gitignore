@@ -51,3 +51,6 @@ graphify-out/
 .planning/graphs/.last-build-snapshot.json
 .gbrain-source
 .grepai/
+
+# Playwright MCP session artifacts (console/page dumps)
+.playwright-mcp/
