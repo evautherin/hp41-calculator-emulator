@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Platform Maturity
-status: ready_to_plan
-last_updated: 2026-05-28T05:39:36.116Z
-last_activity: 2026-05-28 -- Phase 51 execution started
+status: planning
+last_updated: "2026-05-28T09:39:31.780Z"
+last_activity: 2026-05-28
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
   completed_plans: 13
-  percent: 60
-stopped_at: Phase 51 complete (2/2) — ready to discuss Phase 52
+  percent: 80
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -32,14 +31,14 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 Phase: 52
 Plan: Not started
-Status: Ready to plan
+Status: Context gathered — ready to plan
 Last activity: 2026-05-28
 
 ## Progress Bar
 
 ```
 v4.0 Platform Maturity
-Phase 48 ██████████ 100%  Phase 49 ██████████ 100%  Phase 50 ██████████ 100%  Overall ██████░░░░ 60%
+Phase 48 ██████████ 100%  Phase 49 ██████████ 100%  Phase 50 ██████████ 100%  Phase 51 ██████████ 100%  Overall ████████░░ 80%
 ```
 
 | Phase | Goal | Status |
@@ -47,8 +46,8 @@ Phase 48 ██████████ 100%  Phase 49 ████████�
 | 48 | GUI Infrastructure + Theming | Complete |
 | 49 | Onboarding + GUI Keyboard Parity | Complete |
 | 50 | .raw File I/O | Complete |
-| 51 | X-MEM Core | Context gathered |
-| 52 | Test Hardening + Documentation | Not started |
+| 51 | X-MEM Core | Complete |
+| 52 | Test Hardening + Documentation | Context gathered |
 
 ## Performance Metrics (v3.3 ship baseline)
 
@@ -96,7 +95,8 @@ None.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 51` to plan Phase 51: X-MEM Core (CONTEXT.md ready)
+- Run `/gsd-plan-phase 52` to plan Phase 52: Test Hardening + Documentation (CONTEXT.md ready)
+- Add **Phase 53: Full Function Catalog (CATALOG 3)** to ROADMAP via `/gsd-phase` — split out of Phase 52 during discussion (full ~130-function mainframe built-in catalog + Time/XROM-catalog architectural resolution; may extend v4.0 or open v4.1)
 
 ---
 
@@ -108,8 +108,9 @@ From v3.3 milestone close — all confirmed complete:
 |----------|------|--------|
 | Deferred | Interrupting control alarm execution | Still deferred; data model ready (D-38.4); requires call-stack re-entrancy |
 | Deferred | Signed binary releases (cargo-dist + tauri-action) | Deferred post-v4.0 |
+| New phase | Full Function Catalog (CATALOG 3) | → new Phase 53 (split from Phase 52 discussion 2026-05-28); needs `/gsd-phase` to add |
 
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-28 — Phase 50 complete (.raw File I/O); Phase 51 (X-MEM Core) context gathered, ready to plan*
+*Last updated: 2026-05-28 — Phase 51 (X-MEM Core) complete; Phase 52 (Test Hardening + Documentation) context gathered, ready to plan; CATALOG 3 split to new Phase 53*
