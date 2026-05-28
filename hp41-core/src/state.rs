@@ -420,6 +420,26 @@ pub struct CalcState {
     /// and op_adv_matdim is called. Transient — `#[serde(default, skip)]`.
     #[serde(default, skip)]
     pub pending_adv_matrix_rows: Option<u8>,
+
+    // ── Phase 51 (v4.0): X-MEM (Extended Memory) ─────────────────────────────
+    /// Named extended-memory files (PROGRAM and DATA).
+    ///
+    /// D-51.0a ISOLATION INVARIANT: This field has NO connection to
+    /// `state.regs` or `adv_matrices`. X-MEM ops MUST NEVER read/write
+    /// `state.regs` except via the explicit SAVED/GETD transfer.
+    /// Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub xmem_files: Vec<crate::ops::xmem::XmemFile>,
+
+    /// Active X-MEM DATA file for EMREG/SAVERX access (D-51.4).
+    /// Set as side effect of SAVED and GETD. None = no active file.
+    ///
+    /// ⚠️ UNIQUE SERDE SHAPE — carries `#[serde(default)]` WITHOUT `#[serde(skip)]`
+    /// so EMREG/SAVERX survive save/load (analogous to `adv_tvm_state` — Research Pitfall 2).
+    /// Adding `#[serde(skip)]` would silently destroy active-file persistence.
+    /// Persistent — `#[serde(default)]`.
+    #[serde(default)]
+    pub xmem_active_file: Option<String>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
@@ -510,6 +530,9 @@ impl CalcState {
             adv_fdifeq_state: None,
             pending_adv_matrix_name: None,
             pending_adv_matrix_rows: None,
+            // Phase 51 (v4.0): X-MEM fields
+            xmem_files: Vec::new(),
+            xmem_active_file: None,
         }
     }
 }
@@ -1152,5 +1175,121 @@ mod tests {
         assert!(!state.stopwatch_keyboard_mode);
         assert!(!state.alarm_catalog_mode);
         assert!(state.alarms.is_empty());
+    }
+
+    // ── Phase 51 (v4.0): X-MEM CalcState serde tests ────────────────────────
+
+    // Catches: P53 trap — xmem_files / xmem_active_file must survive serde round-trip
+    // (proves #[serde(default)] WITHOUT #[serde(skip)] is correct).
+    #[test]
+    fn xmem_serde_round_trip() {
+        use crate::ops::xmem::{XmemFile, XmemKind};
+
+        let mut state = CalcState::new();
+        state.xmem_files.push(XmemFile {
+            name: "MYFILE".to_string(),
+            kind: XmemKind::Data,
+            data: vec![],
+            reg_count: 3,
+        });
+        state.xmem_active_file = Some("MYFILE".to_string());
+
+        let json = serde_json::to_string(&state).unwrap();
+
+        // Both fields must appear in the serialized output (proves NOT skipped).
+        assert!(
+            json.contains("xmem_files"),
+            "xmem_files must be serialized (no #[serde(skip)] — D-51.0a contract)"
+        );
+        assert!(
+            json.contains("xmem_active_file"),
+            "xmem_active_file must be serialized (no #[serde(skip)] — D-51.4 contract)"
+        );
+        assert!(
+            json.contains("MYFILE"),
+            "file name must appear in serialized output"
+        );
+
+        let restored: CalcState = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            restored.xmem_files.len(),
+            1,
+            "xmem_files must round-trip with same length"
+        );
+        assert_eq!(
+            restored.xmem_files[0].name, "MYFILE",
+            "xmem_files[0].name must round-trip unchanged"
+        );
+        assert_eq!(
+            restored.xmem_files[0].kind,
+            XmemKind::Data,
+            "xmem_files[0].kind must round-trip unchanged"
+        );
+        assert_eq!(
+            restored.xmem_files[0].reg_count, 3,
+            "xmem_files[0].reg_count must round-trip unchanged"
+        );
+        assert_eq!(
+            restored.xmem_active_file,
+            Some("MYFILE".to_string()),
+            "xmem_active_file must round-trip unchanged"
+        );
+    }
+
+    // Catches: P53 trap — save files without xmem fields (v3.3 and earlier) must load
+    // with empty defaults, not an error (proves #[serde(default)] backward compat).
+    #[test]
+    fn v33_save_loads_with_xmem_defaults() {
+        // Reuse the established v2.2-shape JSON (already proven loadable in v22_save_loads_with_defaults).
+        // A v3.3 save omits xmem_files / xmem_active_file — they must default cleanly.
+        let legacy_json = r#"{
+            "stack": {"x": "0", "y": "0", "z": "0", "t": "0", "lastx": "0", "lift_enabled": false},
+            "regs": ["0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0",
+                     "0","0","0","0","0","0","0","0","0","0"],
+            "alpha_reg": "",
+            "alpha_mode": false,
+            "angle_mode": "Deg",
+            "display_mode": {"Fix": 4},
+            "entry_buf": "",
+            "program": [],
+            "prgm_mode": false,
+            "pc": 0,
+            "call_stack": [],
+            "is_running": false,
+            "user_mode": false,
+            "key_assignments": {},
+            "assignments": {},
+            "text_regs": {},
+            "last_key_code": 0,
+            "reg_m": "0",
+            "reg_n": "0",
+            "reg_o": "0",
+            "flags": 0,
+            "pending_card_op": null
+        }"#;
+
+        let result: Result<CalcState, _> = serde_json::from_str(legacy_json);
+        assert!(
+            result.is_ok(),
+            "legacy save (missing xmem keys) must deserialize without error: {:?}",
+            result.err()
+        );
+        let state = result.unwrap();
+        assert!(
+            state.xmem_files.is_empty(),
+            "xmem_files must default to empty when missing from JSON (P53 trap mitigation)"
+        );
+        assert_eq!(
+            state.xmem_active_file, None,
+            "xmem_active_file must default to None when missing from JSON (P53 trap mitigation)"
+        );
     }
 }
