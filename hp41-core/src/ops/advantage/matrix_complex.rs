@@ -247,7 +247,8 @@ pub fn op_adv_csum(state: &mut CalcState) -> Result<(), HpError> {
 
 /// ADV YC+C — add complex scalar (X+iY from stack) to element (I,J) of current complex matrix.
 ///
-/// `state.adv_matrix_i` and `state.adv_matrix_j` hold the 1-based row/col indices.
+/// `state.adv_matrix_i` and `state.adv_matrix_j` hold the 0-based row/col indices
+/// (same convention as the I±/J± navigation ops and MR/MS/MEDIT).
 /// The element is modified in-place. LiftEffect: Neutral (consumes scalar but does not
 /// push to stack; scalar is preserved in X+iY per HP convention — Neutral keeps lift state).
 ///
@@ -262,9 +263,9 @@ pub fn op_adv_yc_plus_c(state: &mut CalcState) -> Result<(), HpError> {
         return Err(HpError::Domain);
     }
 
-    // 1-based I, J from state
-    let i = state.adv_matrix_i.saturating_sub(1) as usize; // convert to 0-based
-    let j = state.adv_matrix_j.saturating_sub(1) as usize;
+    // 0-based I, J from state (matches I±/J± navigation; see matrix_ops.rs)
+    let i = state.adv_matrix_i as usize;
+    let j = state.adv_matrix_j as usize;
 
     let (re_idx, im_idx) = complex_elem_indices(&state.adv_matrices[idx], i, j)?;
 
@@ -599,8 +600,8 @@ mod tests {
         use rust_decimal::Decimal;
         state.stack.x = HpNum::rounded(Decimal::from_f64(3.0).unwrap());
         state.stack.y = HpNum::rounded(Decimal::from_f64(4.0).unwrap());
-        state.adv_matrix_i = 1; // row 1 (0-based: 0)
-        state.adv_matrix_j = 1; // col 1 (0-based: 0)
+        state.adv_matrix_i = 0; // row 0 (0-based)
+        state.adv_matrix_j = 0; // col 0 (0-based)
 
         op_adv_yc_plus_c(&mut state).unwrap();
 
@@ -608,6 +609,42 @@ mod tests {
         let im = state.adv_matrices[0].data[1].inner().to_f64().unwrap();
         assert_relative_eq!(re, 4.0, max_relative = 1e-7);
         assert_relative_eq!(im, 6.0, max_relative = 1e-7);
+    }
+
+    /// Regression: I/J are 0-based, so navigating to a non-origin cell writes
+    /// there — not off-by-one. The old `saturating_sub(1)` bug wrote to (0,0)
+    /// regardless of where I/J pointed; this test pins the 0-based convention.
+    #[test]
+    fn adv_yc_plus_c_nonorigin_cell_is_zero_based() {
+        let mut state = state_with_complex_matrix(
+            "A",
+            2,
+            2,
+            vec![
+                0.0, 0.0, // (0,0)
+                0.0, 0.0, // (0,1)
+                0.0, 0.0, // (1,0)
+                0.0, 0.0, // (1,1)
+            ],
+        );
+        use rust_decimal::Decimal;
+        state.stack.x = HpNum::rounded(Decimal::from_f64(3.0).unwrap());
+        state.stack.y = HpNum::rounded(Decimal::from_f64(4.0).unwrap());
+        state.adv_matrix_i = 1; // row 1 (0-based)
+        state.adv_matrix_j = 1; // col 1 (0-based)
+
+        op_adv_yc_plus_c(&mut state).unwrap();
+
+        // Element (1,1) is data[6]=re, data[7]=im for a 2x2 complex matrix.
+        let re = state.adv_matrices[0].data[6].inner().to_f64().unwrap();
+        let im = state.adv_matrices[0].data[7].inner().to_f64().unwrap();
+        assert_relative_eq!(re, 3.0, max_relative = 1e-7);
+        assert_relative_eq!(im, 4.0, max_relative = 1e-7);
+        // (0,0) must stay untouched — this is exactly where the old bug wrote.
+        // LINT-EXEMPT: exact zero check on an untouched cell, not an iterated computation
+        assert_eq!(state.adv_matrices[0].data[0].inner().to_f64().unwrap(), 0.0);
+        // LINT-EXEMPT: exact zero check on an untouched cell, not an iterated computation
+        assert_eq!(state.adv_matrices[0].data[1].inner().to_f64().unwrap(), 0.0);
     }
 
     /// Catches: YC+C on real matrix → Domain.
@@ -648,8 +685,8 @@ mod tests {
         use rust_decimal::Decimal;
         state.stack.x = HpNum::rounded(Decimal::from_f64(1.0).unwrap());
         state.stack.y = HpNum::zero();
-        state.adv_matrix_i = 1;
-        state.adv_matrix_j = 1;
+        state.adv_matrix_i = 0;
+        state.adv_matrix_j = 0;
         state.stack.lift_enabled = true;
         op_adv_yc_plus_c(&mut state).unwrap();
         assert!(state.stack.lift_enabled, "YC+C must be LiftEffect::Neutral");
