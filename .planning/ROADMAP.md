@@ -216,7 +216,17 @@ Plans:
   2. X-MEM operations never read from or write to `state.regs` or `adv_matrices` — verified by targeted isolation tests
   3. XEQ "EMDIR", XEQ "SAVEP", and all X-MEM functions are reachable from both CLI and GUI and appear in the `?` help overlay
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 52-01-PLAN.md — X-MEM help/JSON pool + matrix doc + docs-matrix wiring + CLI/GUI help-pool wiring + pool smoke test
+- [ ] 52-02-PLAN.md — builtin_card_op XEQ-by-name wiring + v3.3 backward-compat fixture + isolation + supplementary per-op tests
+- [ ] 52-04-PLAN.md — Docs: 3 ADRs + xmem-divergences.md + scoped README claim + CLAUDE.md/architecture-history follow-through
+
+**Wave 2** *(blocked on 52-01 + 52-02)*
+
+- [ ] 52-03-PLAN.md — Meta-gates: op↔JSON parity (via builtin_card_op) + per-op test-count floor ≥5
 
 ---
 
@@ -228,8 +238,8 @@ Plans:
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
 | 51. X-MEM Core | 2/2 | Complete    | 2026-05-28 |
-| 52. Test Hardening + Documentation | 0/? | Not started | - |
+| 52. Test Hardening + Documentation | 0/4 | Planned | - |
 
 ---
 
-*Last updated: 2026-05-28 — Phase 51 planned (2 plans, 2 waves)*
+*Last updated: 2026-05-28 — Phase 52 planned (4 plans, 2 waves)*
