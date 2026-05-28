@@ -89,7 +89,7 @@ See [milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md) for full phase deta
 - [x] **Phase 48: GUI Infrastructure + Theming** — prefs.rs backend, 4 skin themes, CSS custom properties (completed 2026-05-27)
 - [x] **Phase 49: Onboarding + GUI Keyboard Parity** — first-run guide, searchable reference, keyboard shortcuts (completed 2026-05-27)
 - [x] **Phase 50: .raw File I/O** — import/export via Tauri file dialog and CLI flags (completed 2026-05-27)
-- [ ] **Phase 51: X-MEM Core** — EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG ops in hp41-core
+- [x] **Phase 51: X-MEM Core** — EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG ops in hp41-core (completed 2026-05-28)
 - [ ] **Phase 52: Test Hardening + Documentation** — backward compat, full CLI+GUI integration, ADRs, coverage
 
 ---
@@ -203,7 +203,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 51-02-PLAN.md — 8 X-MEM ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) + 4-way exhaustive match wiring
+- [x] 51-02-PLAN.md — 8 X-MEM ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) + 4-way exhaustive match wiring
 
 ### Phase 52: Test Hardening + Documentation
 
@@ -227,7 +227,7 @@ Plans:
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
-| 51. X-MEM Core | 1/2 | In Progress|  |
+| 51. X-MEM Core | 2/2 | Complete   | 2026-05-28 |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
 ---
