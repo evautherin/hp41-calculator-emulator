@@ -103,13 +103,13 @@ One documentation accuracy concern (WARNING, not blocker):
 
 ---
 
-### Human Verification Required
+### Human Verification Required — RESOLVED (commit ffcd7bf)
 
-1. **EMREG help-overlay description accuracy**
+1. **EMREG help-overlay description accuracy** — ✅ RESOLVED
 
    **Test:** Open the `?` overlay in CLI or GUI and view the "Extended Memory" section. Compare the EMREG description against the HP-41CX OM behavior.
    **Expected:** EMREG description should read approximately "Recall register N (from X) of the active X-MEM DATA file → push to X" — not a register-count function.
-   **Why human:** The description in `docs/hp41-xmem-functions.json` (the `description` and `example` fields for `op_variant: "EmReg"`) incorrectly describes EMREG as a register-count function (like EMROOM). The implementation `op_emreg` is correct. Only the user-visible documentation is wrong. Fixing requires updating the JSON entry — a one-line change to `description`, `example`, and `notes`. The verifier flags this as a documentation accuracy issue but cannot determine user-visible severity without seeing the rendered overlay.
+   **Resolution:** Fixed in commit ffcd7bf. The EMREG entry now reads "Recall register N (index from X) of the active X-MEM data file; pushes its value onto X". During the fix, four sibling inaccuracies in the same single-source JSON were also corrected: SAVERX (was "save X to first register of ALPHA file"; now active-file register-N store, X=index/Y=value), SAVED/GETD (dropped the hardcoded "100 registers / R00-R99" in favor of the SIZE-dynamic register set), and EMROOM (example 319 → 600, the real XMEM_CAPACITY). docs-matrix regenerated; `just test`/`just lint`/`just docs-matrix-check` all green.
 
 ---
 
