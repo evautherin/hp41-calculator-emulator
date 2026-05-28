@@ -28,7 +28,8 @@
 //   6. "Advantage Pac (XROM 24)" — entries with `xrom.module === "Adv Math"` (51 entries)
 // CRITICAL: predicate values are "Adv Conv" / "Adv Math" — matching
 // docs/hp41-advantage-functions.json xrom.module fields exactly (NOT "ADV 22A" / "ADV 24B").
-// Search spans all five JSON pools via helpEntriesAll() 5-pool chain in help_data.ts.
+// Search spans all six JSON pools via helpEntriesAll() 6-pool chain in help_data.ts
+// (cv + math1 + stat1 + time + advantage + xmem; X-MEM pool added in Phase 52).
 
 import { useState, useEffect, useMemo } from 'react';
 import { helpEntriesAll, getKeyboardShortcuts, type HelpEntry } from './help_data';

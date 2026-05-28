@@ -9,40 +9,40 @@ Requirements for v4.0 Platform Maturity. Each maps to roadmap phases.
 
 ### GUI Infrastructure
 
-- [ ] **INFRA-01**: `prefs.rs` Tauri backend for persistent user preferences (separate from CalcState), stored in `~/.hp41/prefs.json`
-- [ ] **INFRA-02**: `get_prefs` / `set_pref` Tauri commands with Tauri v2.11 permission TOMLs
+- [x] **INFRA-01**: `prefs.rs` Tauri backend for persistent user preferences (separate from CalcState), stored in `~/.hp41/prefs.json`
+- [x] **INFRA-02**: `get_prefs` / `set_pref` Tauri commands with Tauri v2.11 permission TOMLs
 
 ### Skin Themes
 
-- [ ] **THEME-01**: User can select from 4 built-in skin themes (dark, light, classic beige, high-contrast)
-- [ ] **THEME-02**: Selected theme persists across app restarts via `~/.hp41/prefs.json`
-- [ ] **THEME-03**: SVG key press animations remain functional in all themes (`transform-box: fill-box` preserved)
-- [ ] **THEME-04**: High-contrast theme meets WCAG AA contrast ratios
-- [ ] **THEME-05**: Theme preference stored separately from CalcState (never in `autosave.json`)
+- [x] **THEME-01**: User can select from 4 built-in skin themes (dark, light, classic beige, high-contrast)
+- [x] **THEME-02**: Selected theme persists across app restarts via `~/.hp41/prefs.json`
+- [x] **THEME-03**: SVG key press animations remain functional in all themes (`transform-box: fill-box` preserved)
+- [x] **THEME-04**: High-contrast theme meets WCAG AA contrast ratios
+- [x] **THEME-05**: Theme preference stored separately from CalcState (never in `autosave.json`)
 
 ### Onboarding & Reference
 
-- [ ] **ONBOARD-01**: First-run quick-start overlay introduces RPN basics, key layout, and how to access functions
-- [ ] **ONBOARD-02**: Quick-start can be re-opened from help menu or `?` overlay
-- [ ] **ONBOARD-03**: Searchable in-app function reference with examples and usage notes
-- [ ] **ONBOARD-04**: Function reference covers all 5 XROM modules + ~130 built-in functions (~350 entries)
-- [ ] **ONBOARD-05**: "Seen" flag stored in `prefs.json`, not CalcState
+- [x] **ONBOARD-01**: First-run quick-start overlay introduces RPN basics, key layout, and how to access functions
+- [x] **ONBOARD-02**: Quick-start can be re-opened from help menu or `?` overlay
+- [x] **ONBOARD-03**: Searchable in-app function reference with examples and usage notes
+- [x] **ONBOARD-04**: Function reference covers all 5 XROM modules + ~130 built-in functions (~350 entries)
+- [x] **ONBOARD-05**: "Seen" flag stored in `prefs.json`, not CalcState
 
 ### GUI Keyboard Parity
 
-- [ ] **KBD-01**: Card reader shortcuts (Ctrl+W/R/D/F) work in GUI physical keyboard
-- [ ] **KBD-02**: F5 triggers manual save in GUI
-- [ ] **KBD-03**: Physical keyboard shortcut reference displayed in `?` overlay
-- [ ] **KBD-04**: All CLI key bindings have equivalent GUI keyboard paths (audit-verified)
+- [x] **KBD-01**: Card reader shortcuts (Ctrl+W/R/D/F) work in GUI physical keyboard
+- [x] **KBD-02**: F5 triggers manual save in GUI
+- [x] **KBD-03**: Physical keyboard shortcut reference displayed in `?` overlay
+- [x] **KBD-04**: All CLI key bindings have equivalent GUI keyboard paths (audit-verified)
 
 ### `.raw` File I/O
 
-- [ ] **RAW-01**: User can import a single-program `.raw` file into calculator memory
-- [ ] **RAW-02**: User can export a program to `.raw` format
-- [ ] **RAW-03**: Multi-program `.raw` archive files handled (import all or clear error)
-- [ ] **RAW-04**: Import/export uses native OS file dialog via `tauri-plugin-dialog`
-- [ ] **RAW-05**: XROM instructions in imported `.raw` files preserved correctly
-- [ ] **RAW-06**: CLI equivalent via `--import-raw` / `--export-raw` flags
+- [x] **RAW-01**: User can import a single-program `.raw` file into calculator memory
+- [x] **RAW-02**: User can export a program to `.raw` format
+- [x] **RAW-03**: Multi-program `.raw` archive files handled (import all or clear error)
+- [x] **RAW-04**: Import/export uses native OS file dialog via `tauri-plugin-dialog`
+- [x] **RAW-05**: XROM instructions in imported `.raw` files preserved correctly
+- [x] **RAW-06**: CLI equivalent via `--import-raw` / `--export-raw` flags
 
 ### Extended Memory (X-MEM)
 
@@ -91,28 +91,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 48 | Pending |
-| INFRA-02 | Phase 48 | Pending |
-| THEME-01 | Phase 48 | Pending |
-| THEME-02 | Phase 48 | Pending |
-| THEME-03 | Phase 48 | Pending |
-| THEME-04 | Phase 48 | Pending |
-| THEME-05 | Phase 48 | Pending |
-| ONBOARD-01 | Phase 49 | Pending |
-| ONBOARD-02 | Phase 49 | Pending |
-| ONBOARD-03 | Phase 49 | Pending |
-| ONBOARD-04 | Phase 49 | Pending |
-| ONBOARD-05 | Phase 49 | Pending |
-| KBD-01 | Phase 49 | Pending |
-| KBD-02 | Phase 49 | Pending |
-| KBD-03 | Phase 49 | Pending |
-| KBD-04 | Phase 49 | Pending |
-| RAW-01 | Phase 50 | Pending |
-| RAW-02 | Phase 50 | Pending |
-| RAW-03 | Phase 50 | Pending |
-| RAW-04 | Phase 50 | Pending |
-| RAW-05 | Phase 50 | Pending |
-| RAW-06 | Phase 50 | Pending |
+| INFRA-01 | Phase 48 | Complete |
+| INFRA-02 | Phase 48 | Complete |
+| THEME-01 | Phase 48 | Complete |
+| THEME-02 | Phase 48 | Complete |
+| THEME-03 | Phase 48 | Complete |
+| THEME-04 | Phase 48 | Complete |
+| THEME-05 | Phase 48 | Complete |
+| ONBOARD-01 | Phase 49 | Complete |
+| ONBOARD-02 | Phase 49 | Complete |
+| ONBOARD-03 | Phase 49 | Complete |
+| ONBOARD-04 | Phase 49 | Complete |
+| ONBOARD-05 | Phase 49 | Complete |
+| KBD-01 | Phase 49 | Complete |
+| KBD-02 | Phase 49 | Complete |
+| KBD-03 | Phase 49 | Complete |
+| KBD-04 | Phase 49 | Complete |
+| RAW-01 | Phase 50 | Complete |
+| RAW-02 | Phase 50 | Complete |
+| RAW-03 | Phase 50 | Complete |
+| RAW-04 | Phase 50 | Complete |
+| RAW-05 | Phase 50 | Complete |
+| RAW-06 | Phase 50 | Complete |
 | XMEM-01 | Phase 51 | Complete |
 | XMEM-02 | Phase 51 | Complete |
 | XMEM-03 | Phase 51 | Complete |
@@ -131,4 +131,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-27*
-*Last updated: 2026-05-27 — traceability filled during roadmap creation (all 32 requirements mapped)*
+*Last updated: 2026-05-28 — all 32 v4.0 requirements marked Complete. INFRA/THEME/ONBOARD/KBD/RAW (22) confirmed satisfied via the v4.0 milestone audit (cross-phase integration check, file:line evidence, green test suite) — see `.planning/v4.0-MILESTONE-AUDIT.md`. XMEM-01..10 (10) verified per phase 51/52 VERIFICATION.md.*
