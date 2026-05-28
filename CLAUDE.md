@@ -16,6 +16,7 @@ Faithful Rust behavioral emulation of the HP-41C/CV/CX RPN calculator.
 
 - **Commits:** always `/git-workflow:commit --with-skills` — never bare `git commit`.
 - **Language:** English only (subject + body), regardless of plugin defaults.
+- **Milestone PR merge (develop → main): ALWAYS a merge commit — NEVER squash.** `gh pr merge <#> --merge` (not `--squash`). The release pipeline (`release.yml`) only auto-creates the GitHub Release when the milestone tag is `git merge-base --is-ancestor`-reachable from `origin/main`. A merge commit brings the tagged develop commit into main's history → tag reachable → release auto-publishes on the push-to-main event. A **squash merge discards develop's commits** (creates one brand-new commit), so the tagged commit is *never* reachable from main → `release.yml` correctly skips and no Release is created. v1.1–v3.3 used merge commits and auto-published; PR #17 (v4.0) was accidentally squashed, which silently suppressed the v4.0 Release (recovered by re-pointing the tag to the squash commit). Do not rely on `on: release` chaining to fix this — Releases created by the default `GITHUB_TOKEN` do **not** fire `release` events.
 
 ## GSD Workflow
 

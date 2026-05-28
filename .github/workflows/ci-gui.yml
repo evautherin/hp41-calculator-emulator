@@ -94,7 +94,10 @@ jobs:
             librsvg2-dev patchelf webkit2gtk-driver xvfb
 
       - name: Install tauri-driver
-        run: cargo install tauri-driver --locked --version 2.0.6
+        # --force: the cargo cache may restore an existing tauri-driver binary,
+        # and plain `cargo install` aborts with "binary already exists" instead
+        # of being idempotent. --force makes the step safe on warm caches.
+        run: cargo install tauri-driver --locked --version 2.0.6 --force
 
       - name: Build release binary
         run: just gui-build
