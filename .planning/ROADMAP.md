@@ -199,7 +199,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 51-01-PLAN.md — Contract layer: XmemFile model + XMEM_CAPACITY, 3 HpError variants, CalcState xmem fields + backward-compat serde
+- [x] 51-01-PLAN.md — Contract layer: XmemFile model + XMEM_CAPACITY, 3 HpError variants, CalcState xmem fields + backward-compat serde
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -227,7 +227,7 @@ Plans:
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
-| 51. X-MEM Core | 0/2 | Not started | - |
+| 51. X-MEM Core | 1/2 | In Progress|  |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
 ---
