@@ -244,15 +244,18 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **ADV-GUI-01..06**: GUI integration (CATALOG 2, help overlay, 117 `op_display_name` arms, modal rendering) — v3.3 Phase 46
 - ✓ **ADV-QUAL-01..09**: Quality gates (~95% region coverage, 22 oracle accuracy cases, unified meta-gates across 5 XROM modules, backward compat, E2E BININ smoke, README hard-claim graduated) — v3.3 Phase 47
 
+### Validated (v4.0 — Platform Maturity, shipped 2026-05-28)
+
+- ✓ **THEME-01**: 3-4 built-in skin themes (`prefs.rs` backend, 4 `data-theme` CSS blocks, CSS custom properties) — Phase 48
+- ✓ **ONBOARD-01/02**: First-run quick-start guide + searchable in-app function reference — Phase 49
+- ✓ **KBD-01**: GUI physical keyboard shortcuts at parity with CLI — Phase 49
+- ✓ **RAW-01/02**: `.raw` HP-41 program import/export (Tauri file dialog + CLI flags) — Phase 50
+- ✓ **XMEM-01..07**: Extended Memory core — `XmemFile` model, 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) in `hp41-core`, 4-way exhaustive-match wiring, backward-compat serde — Phase 51
+- ✓ **XMEM-08..10**: X-MEM production hardening — XEQ-by-name via `builtin_card_op` (CLI+GUI, no `keys.rs`/`key_map.rs` changes per D-52.4), v3.3 backward-compat + isolation tests, 6th help pool ("Extended Memory" `?` section), op↔JSON parity + per-op test-count meta-gates, 3 ADRs + divergences doc — Phase 52
+
 ### Active
 
-- [ ] THEME-01: User can select from 3-4 built-in skin themes (dark, light, classic beige, high-contrast)
-- [ ] ONBOARD-01: First-run quick-start guide introduces RPN basics, key layout, and function access
-- [ ] ONBOARD-02: Searchable in-app function reference with examples (beyond `?` overlay)
-- [ ] KBD-01: GUI physical keyboard shortcuts reach parity with CLI
-- [ ] RAW-01: User can import `.raw` HP-41 program files
-- [ ] RAW-02: User can export programs to `.raw` format
-- ✓ **XMEM-01..07**: Extended Memory core — `XmemFile` model, 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) in `hp41-core`, 4-way exhaustive-match wiring, backward-compat serde. Validated in Phase 51: X-MEM Core (2026-05-28). CLI/GUI/keyboard integration deferred to Phase 52.
+_All v4.0 Platform Maturity requirements validated — milestone complete (2026-05-28). Run `/gsd-complete-milestone` to archive and start the next milestone._
 
 ### Out of Scope
 
@@ -355,4 +358,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-05-28 — Phase 51 (X-MEM Core) complete; XMEM-01..07 validated. Next: Phase 52 (Test Hardening + Documentation).*
+*Last updated: 2026-05-28 — Phase 52 (Test Hardening + Documentation) complete; XMEM-08..10 validated. v4.0 Platform Maturity milestone complete (all 5 phases shipped). Next: `/gsd-complete-milestone` to archive.*
