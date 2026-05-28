@@ -8,7 +8,6 @@ use std::str::FromStr;
 
 pub mod advantage;
 pub mod alpha;
-pub mod xmem;
 pub mod arithmetic;
 pub mod cardreader_ops;
 pub mod display_ops;
@@ -25,6 +24,7 @@ pub mod stack_ops;
 pub mod stat1;
 pub mod stats;
 pub mod time;
+pub mod xmem;
 
 use alpha::{op_alpha_append, op_alpha_backspace, op_alpha_clear, op_alpha_toggle};
 use arithmetic::{op_add, op_div, op_mul, op_sub};

@@ -117,6 +117,9 @@ mod tests {
     // Catches: XMEM_CAPACITY value regression
     #[test]
     fn xmem_capacity_value() {
-        assert_eq!(XMEM_CAPACITY, 600, "XMEM_CAPACITY must be 600 (124 + 2×238)");
+        assert_eq!(
+            XMEM_CAPACITY, 600,
+            "XMEM_CAPACITY must be 600 (124 + 2×238)"
+        );
     }
 }

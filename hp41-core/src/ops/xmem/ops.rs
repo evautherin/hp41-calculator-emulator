@@ -14,6 +14,7 @@
 //!
 //! No async, no panics, no println!/eprintln!.
 
+use super::{XmemFile, XmemKind, XMEM_CAPACITY};
 use crate::cardreader::{
     capture_data_card, decode_data, decode_program, encode_data, encode_program,
     insert_program_ops, load_data_card,
@@ -23,7 +24,6 @@ use crate::num::HpNum;
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
 use crate::state::CalcState;
 use rust_decimal::prelude::ToPrimitive;
-use super::{XmemFile, XmemKind, XMEM_CAPACITY};
 
 // ── Private helpers ────────────────────────────────────────────────────────────
 
@@ -75,10 +75,7 @@ fn existing_file_regs(state: &CalcState, name: &str) -> usize {
 /// NEVER uses floor/fmod — integer part via Decimal::trunc (CLAUDE.md invariant).
 fn index_from_x(state: &CalcState) -> Result<usize, HpError> {
     let truncated = state.stack.x.trunc_int();
-    truncated
-        .inner()
-        .to_usize()
-        .ok_or(HpError::OutOfRange)
+    truncated.inner().to_usize().ok_or(HpError::OutOfRange)
 }
 
 // ── X-MEM Ops ─────────────────────────────────────────────────────────────────
@@ -101,13 +98,14 @@ pub fn op_emdir(state: &mut CalcState) -> Result<(), HpError> {
             XmemKind::Program => "PGM",
             XmemKind::Data => "DAT",
         };
-        state
-            .print_buffer
-            .push(format!("{:<10} {:>3} {:>5}", file.name, kind_tag, file.register_count()));
+        state.print_buffer.push(format!(
+            "{:<10} {:>3} {:>5}",
+            file.name,
+            kind_tag,
+            file.register_count()
+        ));
     }
-    state
-        .print_buffer
-        .push(format!("{} REGS FREE", available));
+    state.print_buffer.push(format!("{} REGS FREE", available));
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
@@ -372,7 +370,11 @@ mod tests {
     fn emroom() {
         let mut state = CalcState::new();
         op_emroom(&mut state).unwrap();
-        assert_eq!(state.stack.x, HpNum::from(600i32), "empty store must report 600");
+        assert_eq!(
+            state.stack.x,
+            HpNum::from(600i32),
+            "empty store must report 600"
+        );
 
         // Now save a DATA file with exactly 5 registers
         state.alpha_reg = "DAT1".to_string();
@@ -440,7 +442,11 @@ mod tests {
         assert_eq!(state.xmem_files.len(), 1);
         assert_eq!(state.xmem_files[0].name, "DAT1");
         assert_eq!(state.xmem_files[0].kind, XmemKind::Data);
-        assert_eq!(state.xmem_files[0].reg_count, state.regs.len(), "reg_count must equal captured reg count");
+        assert_eq!(
+            state.xmem_files[0].reg_count,
+            state.regs.len(),
+            "reg_count must equal captured reg count"
+        );
         assert_eq!(state.xmem_active_file, Some("DAT1".to_string()));
     }
 
@@ -458,7 +464,10 @@ mod tests {
         op_getd(&mut state).unwrap();
 
         assert_eq!(state.regs[3], original_val, "GETD must restore reg 3");
-        assert!(state.regs.len() >= 100, "regs.len() must be >= 100 after GETD");
+        assert!(
+            state.regs.len() >= 100,
+            "regs.len() must be >= 100 after GETD"
+        );
         assert_eq!(state.xmem_active_file, Some("DAT1".to_string()));
     }
 
@@ -477,7 +486,11 @@ mod tests {
         // EMREG register 2 → should be 30 (regs[2] = 30)
         state.stack.x = HpNum::from(2i32);
         op_emreg(&mut state).unwrap();
-        assert_eq!(state.stack.x, HpNum::from(30i32), "EMREG[2] must return regs[2] = 30");
+        assert_eq!(
+            state.stack.x,
+            HpNum::from(30i32),
+            "EMREG[2] must return regs[2] = 30"
+        );
 
         // SAVERX: store 99 into register 1 (X = index 1, Y = 99)
         state.stack.x = HpNum::from(1i32);
@@ -487,10 +500,18 @@ mod tests {
         // Verify register 1 is now 99 via EMREG
         state.stack.x = HpNum::from(1i32);
         op_emreg(&mut state).unwrap();
-        assert_eq!(state.stack.x, HpNum::from(99i32), "SAVERX must store Y into register N");
+        assert_eq!(
+            state.stack.x,
+            HpNum::from(99i32),
+            "SAVERX must store Y into register N"
+        );
 
         // xmem_files.len() must remain 1 after SAVERX
-        assert_eq!(state.xmem_files.len(), 1, "SAVERX must not change xmem_files.len()");
+        assert_eq!(
+            state.xmem_files.len(),
+            1,
+            "SAVERX must not change xmem_files.len()"
+        );
     }
 
     // ── Error: SAVEP / SAVED no room ──────────────────────────────────────────
@@ -529,9 +550,17 @@ mod tests {
         state.alpha_reg = "P1".to_string();
 
         let err = op_savep(&mut state).unwrap_err();
-        assert_eq!(err, HpError::NoRoom, "savep must return NoRoom when capacity exceeded");
+        assert_eq!(
+            err,
+            HpError::NoRoom,
+            "savep must return NoRoom when capacity exceeded"
+        );
         // xmem_files must NOT have grown
-        assert_eq!(state.xmem_files.len(), 2, "xmem_files must not grow on NoRoom");
+        assert_eq!(
+            state.xmem_files.len(),
+            2,
+            "xmem_files must not grow on NoRoom"
+        );
     }
 
     // ── Error: GETP file not found ─────────────────────────────────────────────
@@ -605,7 +634,11 @@ mod tests {
         state.alpha_reg = "PRG1".to_string();
         state.program = vec![Op::Sub, Op::Mul];
         op_savep(&mut state).unwrap();
-        assert_eq!(state.xmem_files.len(), 1, "overwrite must not grow xmem_files");
+        assert_eq!(
+            state.xmem_files.len(),
+            1,
+            "overwrite must not grow xmem_files"
+        );
 
         // Verify the file was updated (retrieve and check)
         state.program = vec![];
@@ -647,12 +680,20 @@ mod tests {
 
         // EMROOM must return 0
         op_emroom(&mut state).unwrap();
-        assert_eq!(state.stack.x, HpNum::from(0i32), "EMROOM at capacity must return 0");
+        assert_eq!(
+            state.stack.x,
+            HpNum::from(0i32),
+            "EMROOM at capacity must return 0"
+        );
 
         // Saving any program now must fail with NoRoom
         state.alpha_reg = "OVERFLOW".to_string();
         state.program = vec![Op::Add]; // even a 1-op program needs 2 registers
         let err = op_savep(&mut state).unwrap_err();
-        assert_eq!(err, HpError::NoRoom, "save past capacity must return NoRoom");
+        assert_eq!(
+            err,
+            HpError::NoRoom,
+            "save past capacity must return NoRoom"
+        );
     }
 }
