@@ -125,7 +125,10 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-          BIN="target/${MATRIX_TARGET}/release/hp41-cli"
+          # The hp41-cli package builds a binary named `hp41` ([[bin]] name in
+          # hp41-cli/Cargo.toml) — NOT `hp41-cli`. The archive is still named
+          # hp41-cli-<tag>-<target> for clarity; only the file inside is `hp41`.
+          BIN="target/${MATRIX_TARGET}/release/hp41"
           if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
             echo "::warning::APPLE_SIGNING_IDENTITY not set — skipping codesign"
             exit 0
@@ -153,9 +156,9 @@ jobs:
           set -euo pipefail
           mkdir -p "$ARCHIVE_DIR"
           if [ "$MATRIX_OS" = "windows-latest" ]; then
-            cp "target/${MATRIX_TARGET}/release/hp41-cli.exe" "$ARCHIVE_DIR/"
+            cp "target/${MATRIX_TARGET}/release/hp41.exe" "$ARCHIVE_DIR/"
           else
-            cp "target/${MATRIX_TARGET}/release/hp41-cli" "$ARCHIVE_DIR/"
+            cp "target/${MATRIX_TARGET}/release/hp41" "$ARCHIVE_DIR/"
           fi
           cp README.md "$ARCHIVE_DIR/" 2>/dev/null || true
           cp LICENSE "$ARCHIVE_DIR/" 2>/dev/null || true
