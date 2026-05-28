@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Platform Maturity
 status: executing
-last_updated: "2026-05-28T11:55:55.414Z"
-last_activity: 2026-05-28 -- Phase 52 planning complete
+last_updated: "2026-05-28T12:31:32.017Z"
+last_activity: 2026-05-28
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 17
-  completed_plans: 13
-  percent: 76
+  completed_plans: 14
+  percent: 80
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 52 — test hardening + documentation
+**Current focus:** Phase 52 — test-hardening-documentation
 
 ---
 
 ## Current Position
 
-Phase: 52
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-28 -- Phase 52 planning complete
+Phase: 52 (test-hardening-documentation) — EXECUTING
+Plan: 2 of 4
+Status: Executing Phase 52 (Plan 01 complete)
+Last activity: 2026-05-28 -- Plan 52-01 complete: X-MEM help pool wired CLI+GUI, XMEM-10
 
 ## Progress Bar
 
@@ -47,7 +47,7 @@ Phase 48 ██████████ 100%  Phase 49 ████████�
 | 49 | Onboarding + GUI Keyboard Parity | Complete |
 | 50 | .raw File I/O | Complete |
 | 51 | X-MEM Core | Complete |
-| 52 | Test Hardening + Documentation | Context gathered |
+| 52 | Test Hardening + Documentation | Executing (1/4 plans done) |
 
 ## Performance Metrics (v3.3 ship baseline)
 
@@ -64,6 +64,7 @@ Phase 48 ██████████ 100%  Phase 49 ████████�
 | Tests passing | — | 3371 (up from 3262 at v3.3) |
 
 ---
+| Phase 52 P01 | 373 | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Phase 48 ██████████ 100%  Phase 49 ████████�
 - **X-MEM storage isolation (P56):** `xmem_files: Vec<XmemFile>` on `CalcState` with `#[serde(default)]` — NEVER touches `state.regs` or `adv_matrices` (D-43.5 pattern repeated).
 - **X-MEM + .raw dependency:** SAVEP/GETP delegate to the `.raw` codec; Phase 51 depends on Phase 50.
 - **Zero new runtime deps:** Policy from v3.0 continues. `tauri-plugin-dialog` is a Tauri plugin (frontend dep), not a new `hp41-core` runtime dep — policy unbroken.
+- **X-MEM no xrom field (D-52.4):** X-MEM entries have NO `xrom` field — they are HP-41CX OS built-ins, not XROM ops. Adding an `xrom` key would break `test_pool_partition_is_exhaustive`.
+- **help_entries_all six-pool order (D-52.1):** fixed chain order built-ins → Math1 → Stat1 → Time → Adv → X-MEM; X-MEM appears sixth.
 
 ### Pitfalls to watch
 

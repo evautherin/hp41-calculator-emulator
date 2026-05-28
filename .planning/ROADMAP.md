@@ -220,7 +220,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 52-01-PLAN.md — X-MEM help/JSON pool + matrix doc + docs-matrix wiring + CLI/GUI help-pool wiring + pool smoke test
+- [x] 52-01-PLAN.md — X-MEM help/JSON pool + matrix doc + docs-matrix wiring + CLI/GUI help-pool wiring + pool smoke test
 - [ ] 52-02-PLAN.md — builtin_card_op XEQ-by-name wiring + v3.3 backward-compat fixture + isolation + supplementary per-op tests
 - [ ] 52-04-PLAN.md — Docs: 3 ADRs + xmem-divergences.md + scoped README claim + CLAUDE.md/architecture-history follow-through
 
@@ -238,7 +238,7 @@ Plans:
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
 | 51. X-MEM Core | 2/2 | Complete    | 2026-05-28 |
-| 52. Test Hardening + Documentation | 0/4 | Planned | - |
+| 52. Test Hardening + Documentation | 1/4 | In Progress|  |
 
 ---
 

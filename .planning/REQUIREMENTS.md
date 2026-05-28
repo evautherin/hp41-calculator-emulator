@@ -55,7 +55,7 @@ Requirements for v4.0 Platform Maturity. Each maps to roadmap phases.
 - [x] **XMEM-07**: EMREG accesses register N within the active X-MEM file
 - [ ] **XMEM-08**: X-MEM state persists across save/load with `#[serde(default)]` backward compat
 - [ ] **XMEM-09**: X-MEM storage isolated from main registers and `adv_matrices` (D-43.5 pattern)
-- [ ] **XMEM-10**: CLI + GUI integration (4-way exhaustive match, `op_display_name`, help overlay)
+- [x] **XMEM-10**: CLI + GUI integration (4-way exhaustive match, `op_display_name`, help overlay)
 
 ## v4.1+ Requirements
 
@@ -122,7 +122,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | XMEM-07 | Phase 51 | Complete |
 | XMEM-08 | Phase 52 | Pending |
 | XMEM-09 | Phase 52 | Pending |
-| XMEM-10 | Phase 52 | Pending |
+| XMEM-10 | Phase 52 | Complete |
 
 **Coverage:**
 - v4.0 requirements: 32 total
