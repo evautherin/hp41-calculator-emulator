@@ -70,8 +70,10 @@ fn existing_file_regs(state: &CalcState, name: &str) -> usize {
         .unwrap_or(0)
 }
 
-/// Extract a zero-based register index from `state.stack.x` via `trunc_int`.
-/// Returns `Err(HpError::OutOfRange)` if the value is negative or non-integer.
+/// Extract a zero-based register index from `state.stack.x`.
+/// Truncates to the integer part — HP-41 register-addressing convention, so
+/// `2.7` resolves to register 2. Returns `Err(HpError::OutOfRange)` only when
+/// the value is negative (no valid `usize`); the caller bounds-checks the upper end.
 /// NEVER uses floor/fmod — integer part via Decimal::trunc (CLAUDE.md invariant).
 fn index_from_x(state: &CalcState) -> Result<usize, HpError> {
     let truncated = state.stack.x.trunc_int();
@@ -246,7 +248,7 @@ pub fn op_getd(state: &mut CalcState) -> Result<(), HpError> {
 /// # Errors
 /// - `HpError::FileNotFound` — no active file set, or active file not found
 /// - `HpError::FileType` — active file is a PROGRAM file
-/// - `HpError::OutOfRange` — N is negative, non-integer, or >= reg count
+/// - `HpError::OutOfRange` — N is negative or >= reg count (fractional N truncates)
 /// - Propagates `HpError` from `decode_data`
 pub fn op_emreg(state: &mut CalcState) -> Result<(), HpError> {
     let n = index_from_x(state)?;
@@ -275,7 +277,7 @@ pub fn op_emreg(state: &mut CalcState) -> Result<(), HpError> {
 /// # Errors
 /// - `HpError::FileNotFound` — no active file set, or active file not found
 /// - `HpError::FileType` — active file is a PROGRAM file
-/// - `HpError::OutOfRange` — N is negative, non-integer, or >= reg count
+/// - `HpError::OutOfRange` — N is negative or >= reg count (fractional N truncates)
 /// - Propagates `HpError` from `decode_data` / `encode_data`
 pub fn op_saverx(state: &mut CalcState) -> Result<(), HpError> {
     let n = index_from_x(state)?;
@@ -618,6 +620,106 @@ mod tests {
         state.stack.x = HpNum::from(9999i32);
         let err = op_emreg(&mut state).unwrap_err();
         assert_eq!(err, HpError::OutOfRange);
+    }
+
+    // ── Error: SAVERX out of range ────────────────────────────────────────────
+
+    /// SAVERX with N >= reg count returns OutOfRange (own guard, separate from EMREG).
+    #[test]
+    fn saverx_out_of_range() {
+        let mut state = state_with_data_file(&[1, 2, 3]);
+        state.stack.x = HpNum::from(9999i32); // index out of range
+        state.stack.y = HpNum::from(42i32);
+        let err = op_saverx(&mut state).unwrap_err();
+        assert_eq!(err, HpError::OutOfRange);
+    }
+
+    // ── Error: negative index (EMREG / SAVERX) ────────────────────────────────
+
+    /// EMREG with a negative index returns OutOfRange (no valid usize).
+    #[test]
+    fn emreg_negative_index() {
+        let mut state = state_with_data_file(&[1, 2, 3]);
+        state.stack.x = HpNum::from(-1i32);
+        let err = op_emreg(&mut state).unwrap_err();
+        assert_eq!(err, HpError::OutOfRange);
+    }
+
+    /// SAVERX with a negative index returns OutOfRange.
+    #[test]
+    fn saverx_negative_index() {
+        let mut state = state_with_data_file(&[1, 2, 3]);
+        state.stack.x = HpNum::from(-5i32);
+        state.stack.y = HpNum::from(7i32);
+        let err = op_saverx(&mut state).unwrap_err();
+        assert_eq!(err, HpError::OutOfRange);
+    }
+
+    // ── Fractional index truncates (HP-41 register-addressing convention) ──────
+
+    /// EMREG truncates a fractional index to its integer part: X = 2.7 recalls
+    /// register 2, not an error and not register 3.
+    #[test]
+    fn emreg_fractional_index_truncates() {
+        use rust_decimal::Decimal;
+        let mut state = CalcState::new();
+        state.alpha_reg = "DAT1".to_string();
+        for (i, &v) in [10i32, 20, 30, 40, 50].iter().enumerate() {
+            state.regs[i] = HpValue::from(v);
+        }
+        op_saved(&mut state).unwrap();
+
+        state.stack.x = HpNum::rounded(Decimal::new(27, 1)); // 2.7
+        op_emreg(&mut state).unwrap();
+        assert_eq!(
+            state.stack.x,
+            HpNum::from(30i32),
+            "EMREG must truncate 2.7 → register 2 (= 30)"
+        );
+    }
+
+    // ── Error: SAVED no room ──────────────────────────────────────────────────
+
+    /// SAVED that would exceed XMEM_CAPACITY returns NoRoom; xmem_files and the
+    /// active-file pointer are left unchanged (own capacity guard, separate from SAVEP).
+    #[test]
+    fn saved_no_room() {
+        let mut state = CalcState::new();
+        // Two fake DATA files of 298 regs each → 299 registers each (incl. header)
+        // = 598 used, 2 free.
+        for i in 0..2 {
+            let card = DataCard {
+                format: crate::cardreader::data::FORMAT_TAG.to_string(),
+                version: crate::cardreader::data::FORMAT_VERSION,
+                registers: vec![HpValue::default(); 298],
+            };
+            let bytes = encode_data(&card).unwrap();
+            state.xmem_files.push(XmemFile {
+                name: format!("F{i}"),
+                kind: XmemKind::Data,
+                data: bytes,
+                reg_count: 298,
+            });
+        }
+        // SAVED captures the full register set (100 regs by default) — far more
+        // than the 2 free registers remaining.
+        state.alpha_reg = "DNEW".to_string();
+        let err = op_saved(&mut state).unwrap_err();
+        assert_eq!(
+            err,
+            HpError::NoRoom,
+            "saved must return NoRoom when capacity exceeded"
+        );
+        assert_eq!(
+            state.xmem_files.len(),
+            2,
+            "xmem_files must not grow on NoRoom"
+        );
+        assert_ne!(
+            state.xmem_active_file,
+            Some("DNEW".to_string()),
+            "active file must not be set when SAVED fails"
+        );
     }
 
     // ── D-51.6: Overwrite in place ────────────────────────────────────────────

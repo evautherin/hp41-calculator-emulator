@@ -164,6 +164,42 @@ fn saved_getd_transfer_is_isolated() {
     );
 }
 
+/// ADR-v4.0-003: SAVED→GETD round-trips the COMPLETE register vector, not just a
+/// spot-checked register. Sets every register to a distinct value, saves, clobbers
+/// all registers, restores, and asserts the whole vector comes back identical.
+#[test]
+fn saved_getd_round_trips_full_register_set() {
+    let mut state = CalcState::new();
+    let n = state.regs.len();
+    assert!(n >= 100, "default register file should be >= 100 registers");
+
+    // Distinct (and partly negative) value per register.
+    let expected: Vec<HpValue> = (0..n).map(|i| HpValue::from((i as i32) * 7 - 13)).collect();
+    state.regs.clone_from(&expected);
+
+    state.alpha_reg = "FULL".to_string();
+    op_saved(&mut state).unwrap();
+
+    // Clobber every register so a partial restore would be detected.
+    for r in state.regs.iter_mut() {
+        *r = HpValue::from(0i32);
+    }
+
+    state.alpha_reg = "FULL".to_string();
+    op_getd(&mut state).unwrap();
+
+    assert!(
+        state.regs.len() >= n,
+        "GETD must restore at least the original register count"
+    );
+    for (i, want) in expected.iter().enumerate() {
+        assert_eq!(
+            &state.regs[i], want,
+            "register {i} must survive SAVED -> GETD unchanged"
+        );
+    }
+}
+
 // ── Supplementary per-op coverage (D-52.13 floor prerequisite) ──────────────
 // EmDir, EmRoom, GetD, SaveRx each need ≥ 5 test mentions total across this file
 // + inline tests in ops.rs. These focused tests add coverage for those four.
