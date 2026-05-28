@@ -113,6 +113,27 @@ fn collect_adv_b_variant_names() -> Vec<String> {
     collect_variants_in_fn(xrom_src, "fn adv_b_resolve")
 }
 
+/// Return the 8 X-MEM (HP-41CX Extended Memory) variant names.
+///
+/// X-MEM ops are HP-41CX OS built-ins, NOT XROM modules. They are not registered
+/// in any `*_resolve()` function in `xrom.rs`, so `collect_variants_in_fn` cannot
+/// extract them. A hardcoded list is correct here — 8 ops are stable post-Phase 51,
+/// and the `XMEM_OP_VARIANT_NAMES` inventory sentinel in `function_matrix_parity.rs`
+/// guards the count (D-52.13). Subject to the same ≥5-mention floor discipline as
+/// all XROM modules.
+fn collect_xmem_variant_names() -> Vec<String> {
+    vec![
+        "EmDir".to_string(),
+        "EmRoom".to_string(),
+        "SaveP".to_string(),
+        "GetP".to_string(),
+        "SaveD".to_string(),
+        "GetD".to_string(),
+        "EmReg".to_string(),
+        "SaveRx".to_string(),
+    ]
+}
+
 /// Generic variant collector: scan `src` for `Some(Op::...)` patterns inside
 /// the function whose signature contains `fn_sig`. Brace-depth tracking
 /// ensures the scan is scoped to that function body only.
@@ -390,6 +411,90 @@ fn count_adv_b_test_mentions(
     count_xrom_test_mentions_dual(variant_name, fn_name, tests_dir, "adv_", None, src_adv_dir)
 }
 
+/// Convert an X-MEM `Op` variant name to the `op_<snake_case>` internal function
+/// name used by X-MEM ops and their tests.
+///
+/// X-MEM function names are all-lowercase without intra-variant underscores:
+/// - `EmDir`  → `op_emdir`
+/// - `EmRoom` → `op_emroom`
+/// - `SaveP`  → `op_savep`
+/// - `GetP`   → `op_getp`
+/// - `SaveD`  → `op_saved`
+/// - `GetD`   → `op_getd`
+/// - `EmReg`  → `op_emreg`
+/// - `SaveRx` → `op_saverx`
+///
+/// These names are NOT produced by `pascal_to_op_snake` (which inserts underscores
+/// at uppercase transitions). They are simply `"op_" + variant.to_lowercase()`.
+fn xmem_variant_to_fn_name(variant: &str) -> String {
+    format!("op_{}", variant.to_lowercase())
+}
+
+/// Count how many distinct `#[test]` function blocks contain at least one mention
+/// of the given X-MEM variant (by `Op::<VariantName>` token OR `op_<lowercase>`
+/// function name).
+///
+/// Scans two surfaces:
+/// - Pass 1: external `tests/xmem_*.rs` files (e.g. `xmem_backward_compat.rs`)
+/// - Pass 2: inline `#[cfg(test)]` blocks from `src/ops/xmem/ops.rs`
+///
+/// Both tokens are needed because X-MEM tests call internal functions directly
+/// (e.g. `op_emdir(&mut state)`) rather than constructing `Op::EmDir` values.
+fn count_xmem_test_mentions(variant_name: &str, tests_dir: &Path, src_xmem_dir: &Path) -> usize {
+    let fn_name = xmem_variant_to_fn_name(variant_name);
+    let mut total = 0;
+
+    // ── Pass 1: external tests/xmem_*.rs files ────────────────────────────────
+    if let Ok(entries) = std::fs::read_dir(tests_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                continue;
+            }
+            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if !filename.starts_with("xmem") {
+                continue;
+            }
+            let content = match std::fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let test_slices: Vec<&str> = content.split("#[test]").skip(1).collect();
+            for slice in test_slices {
+                let found = slice.lines().any(|line| {
+                    let trimmed = line.trim();
+                    !trimmed.starts_with("//")
+                        && line_mentions_variant_or_fn(line, variant_name, &fn_name)
+                });
+                if found {
+                    total += 1;
+                }
+            }
+        }
+    }
+
+    // ── Pass 2: inline #[cfg(test)] blocks in src/ops/xmem/ops.rs ────────────
+    let ops_path = src_xmem_dir.join("ops.rs");
+    if let Ok(content) = std::fs::read_to_string(&ops_path) {
+        let cfg_test_sections: Vec<&str> = content.split("#[cfg(test)]").skip(1).collect();
+        for section in cfg_test_sections {
+            let test_slices: Vec<&str> = section.split("#[test]").skip(1).collect();
+            for slice in test_slices {
+                let found = slice.lines().any(|line| {
+                    let trimmed = line.trim();
+                    !trimmed.starts_with("//")
+                        && line_mentions_variant_or_fn(line, variant_name, &fn_name)
+                });
+                if found {
+                    total += 1;
+                }
+            }
+        }
+    }
+
+    total
+}
+
 /// Generic dual-scan (external files + inline cfg(test)) for XROM modules.
 ///
 /// - `tests_dir`: directory containing external `tests/*.rs` files
@@ -605,11 +710,42 @@ fn each_xrom_op_has_at_least_5_tests() {
         }
     }
 
+    // ── X-MEM (OS built-in, not XROM — same ≥5-mention discipline) ───────────
+    //
+    // X-MEM ops are HP-41CX OS built-ins resolved by builtin_card_op(), NOT by
+    // any xrom_resolve() arm. They share the same ≥5-mention floor discipline
+    // as all XROM modules (D-52.13). The hardcoded 8-name list from
+    // collect_xmem_variant_names() is the correct approach here — X-MEM is not
+    // registered in a per-module resolver fn, and the inventory sentinel in
+    // function_matrix_parity.rs guards the count (XMEM-10).
+    //
+    // IMPORTANT (Pitfall 4 in RESEARCH.md): this gate was added AFTER Plan 02's
+    // supplementary tests (xmem_backward_compat.rs) that bring EmDir/EmRoom/GetD/
+    // SaveRx up to ≥5 mentions. The depends_on:[52-02] in the plan frontmatter
+    // enforces this ordering.
+    let xmem_variants = collect_xmem_variant_names();
+    assert_eq!(
+        xmem_variants.len(),
+        8,
+        "X-MEM variant list must be 8; update collect_xmem_variant_names() if ops change"
+    );
+
+    let src_xmem_dir = src_ops_dir.join("xmem");
+    for variant_name in &xmem_variants {
+        let count = count_xmem_test_mentions(variant_name, &tests_dir, &src_xmem_dir);
+        if count < 5 {
+            failures.push(format!(
+                "[XMem] Op::{variant_name}: only {count} test mention(s) \
+                 across xmem_*.rs + src/ops/xmem/ops.rs inline tests (need ≥ 5)"
+            ));
+        }
+    }
+
     // ── Report ────────────────────────────────────────────────────────────────
     assert!(
         failures.is_empty(),
-        "Pitfall 16 violation — XROM module variants with insufficient test coverage \
-         across all 5 modules (Math 1 + Stat 1 + Time + ADV MATH A + ADV MATH B):\n{}",
+        "Pitfall 16 violation — Op variants with insufficient test coverage \
+         across all 6 surfaces (Math 1 + Stat 1 + Time + ADV MATH A + ADV MATH B + X-MEM):\n{}",
         failures.join("\n")
     );
 }

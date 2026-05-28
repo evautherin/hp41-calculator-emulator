@@ -268,3 +268,62 @@ fn saverx_does_not_grow_xmem_files() {
     assert_eq!(state.xmem_files.len(), before,
         "SaveRx must not change xmem_files.len() (in-place mutation)");
 }
+
+// ── Additional coverage to reach ≥5 floor (D-52.13 / Plan 03 gate) ──────────
+
+/// EmDir prints the file name for each stored file (D-52.13 floor).
+#[test]
+fn emdir_shows_file_names() {
+    let mut state = CalcState::new();
+    state.alpha_reg = "MYFILE".to_string();
+    op_savep(&mut state).unwrap();
+    state.print_buffer.clear();
+    op_emdir(&mut state).unwrap();
+    let printed = state.print_buffer.join(" ");
+    assert!(printed.contains("MYFILE"),
+        "EmDir must print the stored file name; got: {printed:?}");
+}
+
+/// EmReg on register 0 of a fresh DATA file returns the register value (D-52.13 floor).
+#[test]
+fn emreg_register_zero_returns_value() {
+    let mut state = CalcState::new();
+    state.regs[0] = HpValue::from(55i32);
+    state.alpha_reg = "REGTEST".to_string();
+    op_saved(&mut state).unwrap();
+    state.stack.x = HpNum::from(0i32);
+    op_emreg(&mut state).unwrap();
+    assert_eq!(state.stack.x, HpNum::from(55i32),
+        "EmReg at index 0 must return regs[0] == 55");
+}
+
+/// SaveRx error: no active file → FileNotFound (D-52.13 floor).
+#[test]
+fn saverx_no_active_file_returns_error() {
+    let mut state = CalcState::new();
+    // No active file set (xmem_active_file = None after CalcState::new()).
+    state.stack.x = HpNum::from(0i32);
+    state.stack.y = HpNum::from(1i32);
+    let err = op_saverx(&mut state).unwrap_err();
+    assert_eq!(err, hp41_core::error::HpError::FileNotFound,
+        "SaveRx with no active file must return FileNotFound");
+}
+
+/// SaveRx round-trip: store then recall preserves the value (D-52.13 floor).
+#[test]
+fn saverx_round_trip_preserves_value() {
+    let mut state = CalcState::new();
+    state.alpha_reg = "RTRIP".to_string();
+    op_saved(&mut state).unwrap();
+
+    // Store value 123 into register 5 via SaveRx.
+    state.stack.x = HpNum::from(5i32);
+    state.stack.y = HpNum::from(123i32);
+    op_saverx(&mut state).unwrap();
+
+    // Recall register 5 via EmReg — must be 123.
+    state.stack.x = HpNum::from(5i32);
+    op_emreg(&mut state).unwrap();
+    assert_eq!(state.stack.x, HpNum::from(123i32),
+        "SaveRx round-trip: EmReg must return the value stored by SaveRx");
+}
