@@ -243,6 +243,15 @@ export function helpEntriesXmem(): readonly HelpEntry[] {
 /// entries by `entry.xrom` into sections (D-31.8 extended for Advantage Pac and X-MEM).
 /// Pitfall 5: do NOT create a parallel helpEntriesAll6() — update in-place so all
 /// existing callers (HelpOverlay.tsx) automatically pick up X-MEM entries.
+let cachedAllEntries: readonly HelpEntry[] | null = null;
+
 export function helpEntriesAll(): readonly HelpEntry[] {
-    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime(), ...helpEntriesAdvantage(), ...helpEntriesXmem()];
+    // Memoized (WR-04): the six source pools are static JSON imports that never
+    // change at runtime, so the concatenation is computed once and the same
+    // stable reference is returned on every call — preserving referential
+    // equality for React memoization. Mirrors the zero-alloc Rust iterator.
+    if (cachedAllEntries === null) {
+        cachedAllEntries = [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime(), ...helpEntriesAdvantage(), ...helpEntriesXmem()];
+    }
+    return cachedAllEntries;
 }

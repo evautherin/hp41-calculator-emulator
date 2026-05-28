@@ -136,5 +136,15 @@
   "matrix_dim": null,
   "matrix_active_reg": null,
   "time_offset_secs": 3600,
-  "clock_12h": true
+  "clock_12h": true,
+  "clock_display_mode": "Off",
+  "accuracy_factor": "0",
+  "alarms": [],
+  "stopwatch_mode": "Idle",
+  "stopwatch_accumulated": 0.0,
+  "stopwatch_split": 0.0,
+  "adv_matrices": [],
+  "adv_matrix_i": 0,
+  "adv_matrix_j": 0,
+  "adv_tvm_state": null
 }

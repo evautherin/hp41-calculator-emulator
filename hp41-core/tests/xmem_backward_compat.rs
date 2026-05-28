@@ -7,7 +7,11 @@
 //!
 //! **Backward-compat (XMEM-08):**
 //! 1. `v33_save_loads_without_error` — fixture deserializes; xmem_files empty,
-//!    xmem_active_file None (exercises `#[serde(default)]` paths from Phase 51).
+//!    xmem_active_file None. The fixture is a COMPLETE v3.3 autosave (all
+//!    persistent v3.0–v3.3 fields present: matrix_dim, time/clock, stopwatch,
+//!    accuracy_factor, alarms, adv_matrices, adv_tvm_state) — only the v4.0
+//!    X-MEM fields are absent, so they exercise the `#[serde(default)]` paths
+//!    from Phase 51 against an otherwise-realistic production save.
 //! 2. `v33_save_xmem_fields_default_cleanly` — after migrate_after_load both
 //!    X-MEM fields remain at default (empty Vec / None).
 //! 3. `v33_save_migrate_after_load_is_idempotent` — migrate_after_load() leaves
