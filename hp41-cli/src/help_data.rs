@@ -220,17 +220,20 @@ pub fn help_entries_xmem() -> &'static [HelpEntry] {
     })
 }
 
-/// Merged accessor: chains all six JSON pools (v2.2 built-ins + Math Pac I + Stat 1 Pac
-/// + Time Pac + Advantage Pac + X-MEM built-ins) in order per D-52.1
-/// (fixed insertion order — built-ins → Math 1 → Stat 1 → Time → Advantage → X-MEM). This is the
-/// **single source of truth** for:
+/// Merged accessor: chains all six JSON pools in order per D-52.1.
+///
+/// Fixed insertion order: v2.2 built-ins → Math Pac I → Stat 1 Pac → Time Pac
+/// → Advantage Pac → X-MEM built-ins.
+///
+/// This is the **single source of truth** for:
+///
 /// - The `?` help overlay (`ui::render_help_overlay` via `help_overlay_rows`)
 /// - The right-panel discoverability listing (`keys::key_ref_entries`)
 /// - The `function_matrix_parity.rs` full-pool sweep
 ///
-/// **D-34.6 / D-39.12 / D-44.1 / D-52.1 ordering rationale:** the chain order is the natural render order for the
-/// `?` overlay sections (Built-ins → Math 1 Pac → Stat 1 Pac → Time Pac → Advantage Pac → Extended Memory). The order is fixed
-/// by convention, NOT alphabetical, to preserve users' learned mental model.
+/// **D-34.6 / D-39.12 / D-44.1 / D-52.1 ordering rationale:** the chain order is
+/// the natural render order for the `?` overlay sections. The order is fixed by
+/// convention, NOT alphabetical, to preserve users' learned mental model.
 ///
 /// The narrow accessors [`help_entries`], [`help_entries_math1`], [`help_entries_stat1`],
 /// [`help_entries_time`], [`help_entries_adv`], and [`help_entries_xmem`] are retained for
