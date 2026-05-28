@@ -8,6 +8,7 @@ use std::str::FromStr;
 
 pub mod advantage;
 pub mod alpha;
+pub mod xmem;
 pub mod arithmetic;
 pub mod cardreader_ops;
 pub mod display_ops;
