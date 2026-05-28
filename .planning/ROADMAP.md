@@ -238,7 +238,7 @@ Plans:
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
 | 51. X-MEM Core | 2/2 | Complete    | 2026-05-28 |
-| 52. Test Hardening + Documentation | 4/4 | Complete   | 2026-05-28 |
+| 52. Test Hardening + Documentation | 4/4 | Complete    | 2026-05-28 |
 
 ---
 
