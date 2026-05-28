@@ -636,22 +636,25 @@ fn test_xmem_op_inventory_count() {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the GUI have its own help_data.rs?**
    - What we know: CLI has `hp41-cli/src/help_data.rs` with 5 pools. GUI has its own `?` overlay (Phase 31).
    - What's unclear: Whether the GUI reads the same JSON via its own OnceLock, or delegates to the CLI crate.
    - Recommendation: `grep -rn "OnceLock\|include_str.*functions.json" hp41-gui/src-tauri/src/` before planning.
+   - **RESOLVED:** Yes — the GUI has its own TypeScript mirror at `hp41-gui/src/help_data.ts` (Vite static JSON-import, no OnceLock; module evaluation is the cache). It is a parallel pool to the CLI's `help_data.rs`, NOT a delegation to the CLI crate. Plan 52-01 (Task 2) adds the sixth pool `helpEntriesXmem()` to this GUI file and updates `HelpOverlay.test.tsx` accordingly.
 
 2. **Should the per-op test-count floor gate extend `xrom_op_test_count.rs` or live in a new file?**
    - What we know: `xrom_op_test_count.rs` is the unified meta-gate for the 5 XROM modules. X-MEM is not XROM.
    - What's unclear: Whether mixing X-MEM into a file named `xrom_op_test_count.rs` creates naming confusion.
    - Recommendation: Extend `xrom_op_test_count.rs` with a comment block explaining X-MEM is "built-in, not XROM, but same test discipline"; rename the file in a future cleanup if needed.
+   - **RESOLVED:** Extend `xrom_op_test_count.rs` (not a new file) — Plan 52-03 adds the X-MEM per-op floor to the existing meta-gate with a comment block noting X-MEM is "built-in, not XROM, but same test discipline." A file rename is deferred to a future cleanup.
 
 3. **ADR numbering for v4.0 ADRs**
    - What we know: Last ADR is `v3.3-004-math1-visibility-promotion-policy.md`. v4.0 convention would be `v4.0-001-...`.
    - What's unclear: Whether the planner should follow strict sequence or use descriptive suffixes.
    - Recommendation: Follow `v4.0-001-xmem-os-builtin.md`, `v4.0-002-xmem-capacity.md`, `v4.0-003-xmem-register-transfer.md` — consistent with prior per-version numbering.
+   - **RESOLVED:** Use `v4.0-001` / `v4.0-002` / `v4.0-003` (strict per-version sequence with descriptive suffixes), consistent with prior numbering. Plan 52-04 (Task 1) writes exactly these three ADR files.
 
 ---
 
