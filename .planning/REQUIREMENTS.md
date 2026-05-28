@@ -53,8 +53,8 @@ Requirements for v4.0 Platform Maturity. Each maps to roadmap phases.
 - [x] **XMEM-05**: SAVED saves data registers to a named file in extended memory
 - [x] **XMEM-06**: GETD retrieves data registers from a named file in extended memory
 - [x] **XMEM-07**: EMREG accesses register N within the active X-MEM file
-- [ ] **XMEM-08**: X-MEM state persists across save/load with `#[serde(default)]` backward compat
-- [ ] **XMEM-09**: X-MEM storage isolated from main registers and `adv_matrices` (D-43.5 pattern)
+- [x] **XMEM-08**: X-MEM state persists across save/load with `#[serde(default)]` backward compat
+- [x] **XMEM-09**: X-MEM storage isolated from main registers and `adv_matrices` (D-43.5 pattern)
 - [x] **XMEM-10**: CLI + GUI integration (4-way exhaustive match, `op_display_name`, help overlay)
 
 ## v4.1+ Requirements
@@ -120,8 +120,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | XMEM-05 | Phase 51 | Complete |
 | XMEM-06 | Phase 51 | Complete |
 | XMEM-07 | Phase 51 | Complete |
-| XMEM-08 | Phase 52 | Pending |
-| XMEM-09 | Phase 52 | Pending |
+| XMEM-08 | Phase 52 | Complete |
+| XMEM-09 | Phase 52 | Complete |
 | XMEM-10 | Phase 52 | Complete |
 
 **Coverage:**
