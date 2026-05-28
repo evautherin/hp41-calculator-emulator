@@ -195,7 +195,15 @@ Plans:
   4. `SAVED` / `GETD` round-trips data registers through extended memory and retrieves them intact
   5. `EMREG` accesses register N within the active X-MEM file, returning the stored value
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+
+- [ ] 51-01-PLAN.md — Contract layer: XmemFile model + XMEM_CAPACITY, 3 HpError variants, CalcState xmem fields + backward-compat serde
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 51-02-PLAN.md — 8 X-MEM ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) + 4-way exhaustive match wiring
 
 ### Phase 52: Test Hardening + Documentation
 
@@ -219,9 +227,9 @@ Plans:
 | 48. GUI Infrastructure + Theming | 3/3 | Complete   | 2026-05-27 |
 | 49. Onboarding + GUI Keyboard Parity | 4/4 | Complete   | 2026-05-27 |
 | 50. .raw File I/O | 4/4 | Complete   | 2026-05-27 |
-| 51. X-MEM Core | 0/? | Not started | - |
+| 51. X-MEM Core | 0/2 | Not started | - |
 | 52. Test Hardening + Documentation | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-05-27 — Phase 50 planned (4 plans, 3 waves)*
+*Last updated: 2026-05-28 — Phase 51 planned (2 plans, 2 waves)*
