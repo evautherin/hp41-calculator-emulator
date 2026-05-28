@@ -248,7 +248,7 @@ pub fn decode_all_programs(bytes: &[u8]) -> Result<Vec<DecodedProgram>, HpError>
 pub fn picker_label(program_index: usize, ops: &[Op], byte_len: usize) -> String {
     for op in ops {
         if let Op::Lbl(name) = op {
-            return format!("{} ({} bytes)", name, byte_len);
+            return format!("{name} ({byte_len} bytes)");
         }
     }
     format!("Program {} ({} bytes)", program_index + 1, byte_len)

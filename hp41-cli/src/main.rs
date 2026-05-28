@@ -125,7 +125,7 @@ fn main() -> std::io::Result<()> {
             let label = hp41_core::cardreader::raw::picker_label(i, &program.ops, program.byte_len);
             let n = program.ops.len();
             hp41_core::cardreader::insert_program_ops(&mut initial_state, program.ops.clone());
-            eprintln!("Imported {} ({} steps)", label, n);
+            eprintln!("Imported {label} ({n} steps)");
         }
     }
 
@@ -136,9 +136,9 @@ fn main() -> std::io::Result<()> {
         let n = bytes.len();
         write_file_or_stdout(raw_path, &bytes)?;
         if raw_path == "-" {
-            eprintln!("Saved {} bytes to stdout", n);
+            eprintln!("Saved {n} bytes to stdout");
         } else {
-            eprintln!("Saved {} bytes to {}", n, raw_path);
+            eprintln!("Saved {n} bytes to {raw_path}");
         }
     }
 

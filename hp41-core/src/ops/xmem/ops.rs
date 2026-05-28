@@ -107,7 +107,7 @@ pub fn op_emdir(state: &mut CalcState) -> Result<(), HpError> {
             file.register_count()
         ));
     }
-    state.print_buffer.push(format!("{} REGS FREE", available));
+    state.print_buffer.push(format!("{available} REGS FREE"));
     apply_lift_effect(state, LiftEffect::Neutral);
     Ok(())
 }
