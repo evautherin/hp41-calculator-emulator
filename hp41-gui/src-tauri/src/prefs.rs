@@ -78,17 +78,26 @@ pub fn save_prefs(path: &Path, prefs: &GuiPrefs) -> std::io::Result<()> {
 /// Load preferences from `path`, returning `GuiPrefs::default()` on any failure.
 ///
 /// Unlike `load_state`, this function never returns `Err`:
-/// - Missing file → `GuiPrefs::default()` (normal first-run case).
-/// - Corrupt JSON → `GuiPrefs::default()` (safe fallback; logs nothing, caller is silent).
+/// - Missing file → `GuiPrefs::default()` (normal first-run case, no log).
+/// - Corrupt JSON → `GuiPrefs::default()` (safe fallback) plus a `stderr` warning
+///   so a silent reset-to-default is debuggable.
 ///
 /// P59 / THEME-05: this function is fully isolated from the calculator state and autosave.json.
 pub const VALID_THEMES: &[&str] = &["dark", "light", "classic-beige", "high-contrast"];
 
 pub fn load_prefs(path: &Path) -> GuiPrefs {
-    let mut prefs: GuiPrefs = fs::File::open(path)
-        .ok()
-        .and_then(|file| serde_json::from_reader(file).ok())
-        .unwrap_or_default();
+    let mut prefs: GuiPrefs = match fs::File::open(path) {
+        Ok(file) => match serde_json::from_reader(file) {
+            Ok(p) => p,
+            Err(e) => {
+                // Cosmetic prefs only (isolated from autosave.json), so a parse
+                // failure is non-fatal — but log it instead of silently reverting.
+                eprintln!("hp41: ignoring corrupt prefs at {}: {e}", path.display());
+                GuiPrefs::default()
+            }
+        },
+        Err(_) => GuiPrefs::default(), // missing file → normal first-run
+    };
     if !VALID_THEMES.contains(&prefs.theme.as_str()) {
         prefs.theme = default_theme();
     }

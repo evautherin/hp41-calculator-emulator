@@ -656,21 +656,28 @@ pub fn import_selected_programs(
         .map_err(|e| GuiError { message: format!("io: read failed: {e}") })?;
     let programs = decode_all_programs(&bytes).map_err(GuiError::from)?;
 
+    // Validate all selected indices BEFORE mutating, so a stale/out-of-range
+    // index fails the whole import instead of silently dropping a selection
+    // (the frontend toast would otherwise claim success for a partial import).
+    if let Some(&bad) = indices.iter().find(|&&idx| idx >= programs.len()) {
+        return Err(GuiError {
+            message: format!(
+                "import index out of range: {bad} (file has {} programs)",
+                programs.len()
+            ),
+        });
+    }
+
     // Phase 2 (lock for state mutation): insert selected programs sequentially
     let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
-    let mut imported = 0usize;
     for idx in &indices {
         if let Some(decoded) = programs.get(*idx) {
             insert_program_ops(&mut calc, decoded.ops.clone());
-            imported += 1;
         }
     }
     drop(programs); // explicit: allow early free before view build
 
-    let view = handle_get_state(&mut calc)?;
-    // Note: frontend shows "Imported N programs" toast using the returned view
-    let _ = imported; // frontend handles the count from indices.len()
-    Ok(view)
+    handle_get_state(&mut calc)
 }
 
 /// Tauri command: export the current program to a user-chosen `.raw` file via native
