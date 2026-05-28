@@ -1,0 +1,90 @@
+[
+    {
+        "op_variant": "EmDir",
+        "display_name": "EMDIR",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"EMDIR\"",
+        "description": "Catalog all X-MEM files; names + register counts printed to PRINT buffer",
+        "example": "XEQ \"EMDIR\" -> prints file list e.g. PROG1 P 20 / DATA1 D 100",
+        "notes": "Output goes to print_buffer; drain via PRA/PRX. Empty X-MEM prints nothing."
+    },
+    {
+        "op_variant": "EmRoom",
+        "display_name": "EMROOM",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"EMROOM\"",
+        "description": "Return number of available X-MEM registers in X",
+        "example": "XEQ \"EMROOM\" -> X = 319 (319 registers free in a fresh X-MEM)",
+        "notes": "Result in X; available capacity decreases by (entry + registers) per stored file."
+    },
+    {
+        "op_variant": "SaveP",
+        "display_name": "SAVEP",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"SAVEP\"",
+        "description": "Save current program to X-MEM file named by ALPHA register",
+        "example": "\"MYPROG\" ALPHA, XEQ \"SAVEP\" -> program stored as MYPROG in X-MEM",
+        "notes": "ALPHA must hold the filename (1-6 chars). Round-trip: SAVEP then GETP restores exact program."
+    },
+    {
+        "op_variant": "GetP",
+        "display_name": "GETP",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"GETP\"",
+        "description": "Load program from X-MEM file named by ALPHA into current program memory",
+        "example": "\"MYPROG\" ALPHA, XEQ \"GETP\" -> program memory replaced with MYPROG",
+        "notes": "ALPHA must hold the filename. Existing program memory is overwritten."
+    },
+    {
+        "op_variant": "SaveD",
+        "display_name": "SAVED",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"SAVED\"",
+        "description": "Save all 100 data registers to X-MEM file named by ALPHA register",
+        "example": "\"REGS\" ALPHA, XEQ \"SAVED\" -> R00-R99 stored in X-MEM file REGS",
+        "notes": "Saves the full 100-register set. Use GETD to restore. Pairs with GETD for register transfer."
+    },
+    {
+        "op_variant": "GetD",
+        "display_name": "GETD",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"GETD\"",
+        "description": "Load all data registers from X-MEM file named by ALPHA register",
+        "example": "\"REGS\" ALPHA, XEQ \"GETD\" -> R00-R99 restored from X-MEM file REGS",
+        "notes": "Loads the full 100-register set from a data file. Existing registers are overwritten."
+    },
+    {
+        "op_variant": "EmReg",
+        "display_name": "EMREG",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"EMREG\"",
+        "description": "Return number of registers used by X-MEM file named by ALPHA in X",
+        "example": "\"MYPROG\" ALPHA, XEQ \"EMREG\" -> X = 20 (MYPROG occupies 20 registers)",
+        "notes": "ALPHA must hold an existing filename. Returns register count for that specific file."
+    },
+    {
+        "op_variant": "SaveRx",
+        "display_name": "SAVERX",
+        "category": "Extended Memory",
+        "status": "implemented",
+        "phase": "52",
+        "key_path": "XEQ \"SAVERX\"",
+        "description": "Save X register value to first register of X-MEM file named by ALPHA",
+        "example": "42 ENTER, \"VAL\" ALPHA, XEQ \"SAVERX\" -> first register of VAL set to 42",
+        "notes": "Stores X into the active X-MEM file's register 0. Creates the file if it does not exist."
+    }
+]
