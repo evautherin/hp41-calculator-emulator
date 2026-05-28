@@ -30,6 +30,7 @@ import math1Functions from '../../docs/hp41-math1-functions.json';
 import stat1Functions from '../../docs/hp41-stat1-functions.json';
 import timeFunctions from '../../docs/hp41-time-functions.json';
 import advantageFunctions from '../../docs/hp41-advantage-functions.json';
+import xmemFunctions from '../../docs/hp41-xmem-functions.json';
 // Phase 49 D-49.11 — keyboard shortcuts single source of truth.
 // Vite static JSON-import: baked into the production bundle at build time.
 // Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
@@ -224,15 +225,24 @@ export function getKeyboardShortcuts(): readonly KeyboardShortcut[] {
     return keyboardShortcutsData as readonly KeyboardShortcut[];
 }
 
-/// Phase 46 Plan 46-02: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac entries.
+/// Phase 52: X-MEM built-in entries from docs/hp41-xmem-functions.json.
 ///
-/// UPDATED from Phase 41 Plan 41-02 (4-pool) to 5-pool concatenation.
-/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 44 5-pool chain).
+/// Vite static JSON-import: baked into the production bundle at build time.
+/// Malformed JSON fails the Vite build — hard-build-blocker semantics per D-25.17.
+/// Mirrors Phase 52 D-52.1 sixth OnceLock + accessor pattern in Rust (hp41-cli).
+/// Source: docs/hp41-xmem-functions.json (8 entries, "Extended Memory" category).
+export function helpEntriesXmem(): readonly HelpEntry[] {
+    return xmemFunctions as readonly HelpEntry[];
+}
+
+/// Phase 52 Plan 52-01: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac + X-MEM entries.
+///
+/// UPDATED from Phase 46 Plan 46-02 (5-pool) to 6-pool concatenation.
+/// Parallel to hp41-cli/src/help_data.rs::help_entries_all() (Phase 52 D-52.1 6-pool chain).
 /// Used by HelpOverlay.tsx to obtain the full entry pool; the overlay then partitions
-/// entries by `entry.xrom` into six sections (D-31.8 extended for Advantage Pac,
-/// split across two sections: XROM 22 "Adv Conv" and XROM 24 "Adv Math").
-/// Pitfall 5: do NOT create a parallel helpEntriesAll5() — update in-place so all
-/// existing callers (HelpOverlay.tsx) automatically pick up Advantage entries.
+/// entries by `entry.xrom` into sections (D-31.8 extended for Advantage Pac and X-MEM).
+/// Pitfall 5: do NOT create a parallel helpEntriesAll6() — update in-place so all
+/// existing callers (HelpOverlay.tsx) automatically pick up X-MEM entries.
 export function helpEntriesAll(): readonly HelpEntry[] {
-    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime(), ...helpEntriesAdvantage()];
+    return [...helpEntries(), ...helpEntriesMath1(), ...helpEntriesStat1(), ...helpEntriesTime(), ...helpEntriesAdvantage(), ...helpEntriesXmem()];
 }

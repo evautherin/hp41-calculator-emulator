@@ -34,7 +34,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { HelpOverlay } from './HelpOverlay';
-import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime, helpEntriesAdvantage } from './help_data';
+import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime, helpEntriesAdvantage, helpEntriesXmem } from './help_data';
 import sourceJson from '../../docs/hp41cv-functions.json';
 import math1Json from '../../docs/hp41-math1-functions.json';
 import stat1Json from '../../docs/hp41-stat1-functions.json';
@@ -65,10 +65,10 @@ describe('help_data', () => {
         }
     });
 
-    it('helpEntriesAll returns concatenation of all 5 pools', () => {
+    it('helpEntriesAll returns concatenation of all 6 pools', () => {
         const all = helpEntriesAll();
         expect(all.length).toBe(
-            helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length + helpEntriesTime().length + helpEntriesAdvantage().length
+            helpEntries().length + helpEntriesMath1().length + helpEntriesStat1().length + helpEntriesTime().length + helpEntriesAdvantage().length + helpEntriesXmem().length
         );
         const hp41cvCount = helpEntries().length;
         const math1Count = helpEntriesMath1().length;
@@ -91,9 +91,15 @@ describe('help_data', () => {
             expect(all[i].xrom!.module, `Time entry at index ${i} should have module === 'Time'`).toBe('Time');
         }
         const advStart = timeStart + timeCount;
-        for (let i = advStart; i < all.length; i++) {
+        const advCount = helpEntriesAdvantage().length;
+        for (let i = advStart; i < advStart + advCount; i++) {
             expect(all[i].xrom, `Advantage entry at index ${i} should have xrom`).toBeTruthy();
             expect([22, 24], `Advantage entry at index ${i} should have module_id 22 or 24`).toContain(all[i].xrom!.module_id);
+        }
+        const xmemStart = advStart + advCount;
+        for (let i = xmemStart; i < all.length; i++) {
+            expect(all[i].xrom, `X-MEM entry at index ${i} should have no xrom (OS built-in, not XROM)`).toBeUndefined();
+            expect(all[i].category, `X-MEM entry at index ${i} should have category 'Extended Memory'`).toBe('Extended Memory');
         }
     });
 
