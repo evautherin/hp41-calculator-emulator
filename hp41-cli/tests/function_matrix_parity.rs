@@ -1127,8 +1127,7 @@ fn test_every_xmem_json_entry_has_builtin_resolver_match() {
     // This test uses builtin_card_op() as the correct resolver.
     let mut orphans: Vec<String> = Vec::new();
     for entry in help_entries_xmem() {
-        let resolved =
-            hp41_core::ops::program::builtin_card_op(entry.display_name.as_str());
+        let resolved = hp41_core::ops::program::builtin_card_op(entry.display_name.as_str());
         if resolved.is_none() {
             orphans.push(format!(
                 "'{}' (display_name='{}') — not found in builtin_card_op",
