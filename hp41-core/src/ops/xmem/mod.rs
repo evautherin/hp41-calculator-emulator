@@ -1,3 +1,5 @@
+pub mod ops;
+
 use serde::{Deserialize, Serialize};
 
 /// X-MEM file kind: PROGRAM or DATA.
