@@ -8,9 +8,9 @@ Faithful Rust behavioral emulation of the HP-41C/CV/CX RPN calculator.
 - `hp41-cli` — TUI binary (ratatui 0.30 + crossterm 0.29)
 - `hp41-gui` — Tauri v2 + React desktop app (nested standalone workspace)
 
-**Current:** v3.3 Advantage Pac, shipped 2026-05-26. Tags: `v3.2` (Time), `v3.1` (Stat 1), `v3.0` (Math I), `v2.2` (HP-41CV), `v2.0` (GUI), `v1.1`, `v1.0`.
+**Current:** v4.0 Platform Maturity, shipped 2026-05-28 (Extended Memory + GUI theming + onboarding/keyboard parity + `.raw` file I/O). Tags: `v4.0`, `v3.3` (Advantage), `v3.2` (Time), `v3.1` (Stat 1), `v3.0` (Math I), `v2.2` (HP-41CV), `v2.0` (GUI), `v1.1`, `v1.0`.
 
-**History/decisions:** `docs/architecture-history.md` (narrative), `docs/adr/` (17 ADRs), `docs/hp41-*-divergences.md` (OM divergences), `.planning/milestones/` (archived plans).
+**History/decisions:** `docs/architecture-history.md` (narrative), `docs/adr/` (23 ADRs), `docs/hp41-*-divergences.md` (OM divergences), `.planning/milestones/` (archived plans).
 
 ## Git Workflow
 

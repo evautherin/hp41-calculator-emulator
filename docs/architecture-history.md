@@ -23,8 +23,11 @@ Authoritative Math Pac I divergences: `docs/hp41-math1-divergences.md`.
 | v2.0 | Tauri GUI | 2026-05-10 | 13–18 (19 plans) | v2.0 |
 | v2.1 | Keyboard Authenticity | 2026-05-13 | 19 (10 tasks, quick-task reconcile) | — |
 | v2.2 | HP-41CV Feature Completeness | 2026-05-16 | 20–27 (8 phases) | v2.2 |
-| v3.0 | Math Pac I Emulation | 2026-05-21 | 28–32 + polish batch | pending |
-| v3.1 | Stat 1 Pac Emulation | 2026-05-24 | 33–37 | pending |
+| v3.0 | Math Pac I Emulation | 2026-05-21 | 28–32 + polish batch | v3.0 |
+| v3.1 | Stat 1 Pac Emulation | 2026-05-24 | 33–37 | v3.1 |
+| v3.2 | Time Pac Emulation | 2026-05-25 | 38–42 | v3.2 |
+| v3.3 | Advantage Pac Emulation | 2026-05-26 | 43–47 | v3.3 |
+| v4.0 | Platform Maturity | 2026-05-28 | 48–52 | v4.0 |
 
 **Scope axis:** v2.x = ROM-Built-ins (~130 functions on the physical HP-41CV). v3.x = Module emulation (Math Pac I in v3.0; Stat 1 Pac in v3.1; Time / Advantage queued for v3.2+).
 
@@ -39,6 +42,9 @@ Authoritative Math Pac I divergences: `docs/hp41-math1-divergences.md`.
 - **v2.2 (20–27):** Core Math; Flags/Display/Sound; Program Control & Memory; ALPHA; Indirect Addressing; CLI Integration & JSON pipeline; GUI Integration & Polish; Test Hardening
 - **v3.0 (28–32):** XROM Framework + Math Pac I Core Ops; CLI Integration; Documentation & ADRs; GUI Integration; Test Hardening & Quality Gates
 - **v3.1 (33–37):** XROM Activation + Distribution Primitives + All Stat 1 Ops; CLI Integration; Documentation & ADRs; GUI Integration; Test Hardening & Quality Gates
+- **v3.2 (38–42):** XROM Framework + Clock/Date/Stopwatch/Alarm Core; CLI Integration + Live Display; Documentation & ADRs; GUI Integration; Test Hardening & Quality Gates
+- **v3.3 (43–47):** XROM Framework + All Advantage Pac Ops (XROM 22+24); CLI Integration; Documentation & ADRs; GUI Integration; Test Hardening & Quality Gates
+- **v4.0 (48–52):** GUI Infrastructure + Theming; Onboarding + GUI Keyboard Parity; .raw File I/O; X-MEM Core; Test Hardening + Documentation
 
 ---
 
@@ -186,6 +192,48 @@ The v3.0 release ships at the cumulative HEAD of these six commits.
 - `#![deny(clippy::unwrap_used)]` continues to apply in `hp41-core`; new test files in v3.0 carry `#[allow]` at file scope per the established pattern.
 - Save-file backward compat: every new `CalcState` field added in Phase 28 carries `#[serde(default)]`; transient fields (`integ_state`, `solve_state`, `modal_program`, `modal_prompt`, `cancel_requested`) additionally carry `#[serde(skip)]`. v1.0–v2.2 save files continue to load without migration.
 - MSRV 1.88 unchanged through Phase 28–32. `approx 0.5.1` is the only post-v2.2 dev-dep.
+
+### v4.0 additions (Platform Maturity, Phases 48–52)
+
+- **GUI preferences isolation (ADR-v4.0-004 / THEME-05):** `GuiPrefs` in `hp41-gui/src-tauri/src/prefs.rs`
+  persisted to `~/.hp41/prefs.json` — fully isolated from `CalcState` / `autosave.json`. The
+  THEME-05 invariant is hard: theme preference must never appear in the autosave file shared with the
+  CLI. `load_prefs()` returns `GuiPrefs` (not `Result`) — missing file is the normal first-run case.
+  `PrefsState = Mutex<GuiPrefs>` is a separate managed type from `AppState`; the two locks are never
+  coupled. `set_pref` validates theme values against `VALID_THEMES` allowlist before writing (T-48-01).
+- **CSS custom properties + `[data-theme]` theming (ADR-v4.0-004 / D-48.9, D-48.11):** `themes.css`
+  defines four fully self-contained `[data-theme]` blocks with 39 CSS custom properties each.
+  `App.css` is migrated to `var(--token)` references. Theme switching is instant (D-48.12), with no
+  animation. SVG gradient stops that cannot use CSS `var()` in `<defs>` are passed as `GradientColors`
+  React props (D-48.10 / P55). The P51 SVG animation invariant (`.key { transform-box: fill-box; }`)
+  is untouched.
+- **`keyboard-shortcuts.json` as canonical source (ADR-v4.0-005 / D-49.11):** `docs/keyboard-shortcuts.json`
+  (61 entries) is the single source of truth for GUI physical keyboard bindings. Consumed via Vite
+  static JSON-import in `help_data.ts` (`getKeyboardShortcuts()`) with build-blocker semantics.
+  The `?` overlay gains a collapsible "KEYBOARD SHORTCUTS" section at the top (standalone
+  `kbdExpanded` state — not in the `SectionDef[]` array). `resolveKeyId()` gains Ctrl+W/R/D/F and
+  Ctrl+S / F5 with `metaKey` parity for macOS. F5 = SAVE in GUI is a documented divergence from
+  CLI F5 = R/S (KBD-02). `__save_state__` synthetic ID is intercepted before `dispatchKeyId`
+  (D-07 invariant).
+- **`.raw` multi-program codec (ADR-v4.0-006 / RAW-03, RAW-05):** `decode_all_programs` in
+  `hp41-core/src/cardreader/raw.rs` splits archives at END markers and delegates each segment to
+  the existing `decode_program` — no duplicate parser. `DecodedProgram { ops, byte_len }` and
+  `picker_label` (first `Op::Lbl` wins; fallback `"Program N (N bytes)"`) power the GUI import
+  picker. `ARCHIVE_CAP = 256` is the DoS guard (T-50-01).
+- **Tauri anti-deadlock dialog ordering (ADR-v4.0-006 / T-50-05):** ALL five dialog commands open
+  the native OS file dialog BEFORE acquiring the `AppState` Mutex. The three-phase pattern
+  (dialog → I/O → lock-for-mutation) is the load-bearing non-obvious decision: holding the Mutex
+  across a blocking dialog call deadlocks because the `setInterval`-driven `tick_time` also needs
+  the lock. This pattern MUST be preserved in any future Tauri dialog command.
+- **X-MEM OS-builtin routing (ADR-v4.0-001 / D-52.4):** 8 X-MEM ops resolve via `builtin_card_op`,
+  not `xrom_resolve`. No XROM bit is allocated. `xrom_modules` bitmask stays at `0b0001_1111`.
+  Hardware-faithful: X-MEM is part of the HP-41CX OS ROM, not a plug-in module.
+- **X-MEM capacity (ADR-v4.0-002 / D-51.1):** `XMEM_CAPACITY = 600` registers — maximally-equipped
+  HP-41CX (124 built-in + 2 × 238 X-Memory module registers). `EMROOM` returns a real decreasing
+  value; `SAVEP`/`SAVED` raise `HpError::NoRoom` on overflow.
+- **SAVED/GETD register transfer (ADR-v4.0-003 / D-51.5):** reuses `capture_data_card` /
+  `load_data_card` from `hp41-core/src/cardreader/mod.rs`. Full R00..R(SIZE-1) set transfer;
+  `bbb.eee` partial-block transfer deferred to v4.1.
 
 ---
 
@@ -403,6 +451,131 @@ Phase 47 extends the unified meta-gate infrastructure to all 5 XROM modules: `xr
 ## v4.0 additions (Platform Maturity, Phases 48–52)
 
 Phases 48–52 form the v4.0 "Platform Maturity" milestone, adding GUI infrastructure and theming (Phase 48), onboarding and GUI keyboard parity (Phase 49), `.raw` file I/O (Phase 50), HP-41CX Extended Memory core ops (Phase 51), and the test-hardening + documentation suite (Phase 52). The most architecturally significant new capability is X-MEM — the first feature set that is an HP-41CX OS built-in rather than a plug-in ROM module.
+
+### Phase 48 — GUI Infrastructure + Theming (shipped 2026-05-27)
+
+Phase 48 adds a four-theme system and a persistent preferences layer to the Tauri GUI across three
+plans. The central architectural decision (ADR-v4.0-004) is that GUI preferences are kept fully
+separate from `CalcState` and `autosave.json` — theme is a display concern, not a calculator-state
+concern.
+
+**Preferences isolation (THEME-05 / ADR-v4.0-004):** A new `GuiPrefs` struct in
+`hp41-gui/src-tauri/src/prefs.rs` holds all user-facing GUI preferences. It is persisted to
+`~/.hp41/prefs.json` (not `autosave.json`) via `load_prefs` / `save_prefs` functions that mirror
+the `persistence.rs` pattern. The key divergence from `persistence.rs`: `load_prefs()` returns
+`GuiPrefs` directly (not `Result`) because a missing `prefs.json` is the expected first-run state,
+not an error. `GuiPrefs` is registered as a separate Tauri managed type (`PrefsState`) alongside
+`AppState`, so the two Mutex locks are never coupled. The `THEME-05` isolation invariant is
+verified by a grep gate: `grep -c CalcState hp41-gui/src-tauri/src/prefs.rs` must return 0.
+
+**Theme system via CSS custom properties (D-48.9 / D-48.11):** `hp41-gui/src/themes.css` defines
+four `[data-theme]` blocks — `"dark"`, `"light"`, `"classic-beige"`, and `"high-contrast"` — each
+with 39 CSS custom properties. Each block is fully self-contained; no inter-theme inheritance
+(D-48.7 full-re-skin mandate). `App.css` is migrated from hardcoded hex values to `var(--token)`
+references (61 usages). Theme switching is instant (D-48.12 — no CSS animation): setting
+`document.body.dataset.theme` is sufficient for the browser to re-resolve all `var()` references.
+The P51 SVG animation invariant (`.key { transform-box: fill-box; transform-origin: center; }`)
+is preserved unchanged — `themes.css` carries no `transform-box`, `transform-origin`, or
+`transition` properties.
+
+**SVG gradient prop threading (D-48.10 / P55):** SVG `<defs>` gradient `stopColor` attributes
+cannot use CSS `var()` because the `<defs>` element is outside the CSS cascade when inlined in
+JSX. Gradient stop colors are therefore passed as a `GradientColors` interface (14 fields) via a
+`THEME_GRADIENTS` map in `Keyboard.tsx`, threaded as a prop from `App.tsx` down to `<Keyboard>`.
+All other colors use CSS custom properties without prop drilling.
+
+**IPC commands** — `get_prefs` / `set_pref` with permission TOMLs follow the established `tick-time`
+TOML pattern. `set_pref` validates the theme value against the 4-element `VALID_THEMES` allowlist
+before writing (T-48-01 trust-boundary mitigation). Phase 49 extends `GuiPrefs` with
+`onboarding_done: bool` (same isolation invariant, P59).
+
+**SettingsPanel + OnboardingWizard shell (D-48.3):** A gear icon (⚙) and help icon (?) in a new
+title bar above the annunciator row open a `SettingsPanel` popover and the `HelpOverlay`
+respectively. The settings panel is a general shell; Phase 48 populates it with the four theme
+radio buttons; Phase 49 adds an "Onboarding" section into the same panel. A click-outside dismiss
+uses the `useRef` + `document.addEventListener('mousedown', ...)` pattern matching the `HelpOverlay`
+dismiss mechanism (D-48.4).
+
+### Phase 49 — Onboarding + GUI Keyboard Parity (shipped 2026-05-27)
+
+Phase 49 adds a first-run onboarding wizard, closes the GUI/CLI keyboard parity gap, and extends
+the `?` overlay with a keyboard shortcuts reference and per-entry expandable detail. The central
+architectural decision (ADR-v4.0-005) is that `docs/keyboard-shortcuts.json` is the single source
+of truth for all physical GUI keyboard bindings — extending the JSON-canonical data-flow pattern
+established by ADR-v3.0-005 to non-function reference data.
+
+**`keyboard-shortcuts.json` as canonical source (D-49.11 / ADR-v4.0-005):** 61 entries in
+`docs/keyboard-shortcuts.json` cover every physical GUI keyboard binding with `"key"`, `"op"`,
+and `"description"` fields. The file is consumed via Vite static JSON-import in `help_data.ts`
+(`getKeyboardShortcuts()` accessor), giving it build-blocker semantics (malformed JSON fails the
+Vite build). The `?` overlay gains a collapsible "KEYBOARD SHORTCUTS" section at the top,
+implemented with standalone `kbdExpanded` state rather than widening the `SectionDef` union — the
+keyboard section has a different content shape from function-pool sections and is not searchable.
+
+**GUI keyboard parity (D-49.12, D-49.13, KBD-01, KBD-02):** `resolveKeyId()` in `App.tsx` gains
+Ctrl+key checks FIRST (before the letter-key `MAP` lookup): `Ctrl+W` → `xeq_WPRGM`,
+`Ctrl+R` → `xeq_RDPRGM`, `Ctrl+D` → `xeq_WDTA`, `Ctrl+F` → `xeq_RDTA`, `Ctrl+S` / `F5` →
+`__save_state__`. `metaKey` (macOS Cmd) is included alongside `ctrlKey` for macOS keyboard
+conventions. The `__save_state__` synthetic ID is intercepted BEFORE `dispatchKeyId` and never
+reaches `key_map.rs` (D-07 never-discard invariant; T-49-08). **F5 = SAVE in GUI** is a
+documented divergence from CLI F5 = R/S (KBD-02).
+
+**`save_state` Tauri command** — new command following the CR-01 clone-under-lock pattern; calls
+`persistence::save_state` using the module-qualified form to avoid name shadowing (RESEARCH Pitfall
+1). `onboarding_done: bool` added to `GuiPrefs` with `#[serde(default)]` so Phase 48 `prefs.json`
+files load with `onboarding_done = false` (backward compat).
+
+**OnboardingWizard (D-49.1–D-49.9):** A 5-panel full-cover overlay following the `HelpOverlay`
+pattern. First-run mode (when `isFirstRun = true`) blocks Esc and click-outside dismiss — the
+user must click Next/Back through to the end or click Skip. Re-open mode (`isFirstRun = false`,
+via SettingsPanel "Show Guide" button) allows Esc dismiss. The wizard always resets to panel 1 on
+each open. `onboarding_done` is set to `true` via fire-and-forget `set_pref` IPC after dismissal;
+the wizard never appears again unless the user manually re-opens it.
+
+**Function JSON enrichment (D-49.5, D-49.7):** ~59 function entries across all 5 HP-41 JSON files
+gain optional `"example"` and `"notes"` fields. `HelpEntry` in `help_data.ts` is extended with
+`example?: string` and `notes?: string`. The `?` overlay renders expandable per-entry detail blocks
+for enriched entries (click to reveal/hide), using a `Set<string>` of `op_variant` keys to track
+expanded state; the set resets on overlay close.
+
+### Phase 50 — .raw File I/O (shipped 2026-05-27)
+
+Phase 50 adds `.raw` program file and `.card.json` data card import/export to both the GUI and
+CLI. Two load-bearing decisions are documented in ADR-v4.0-006: the multi-program codec design
+and the Tauri anti-deadlock dialog ordering pattern.
+
+**Multi-program codec (ADR-v4.0-006 / D-50.5):** `decode_all_programs` in
+`hp41-core/src/cardreader/raw.rs` splits community `.raw` archives at END markers
+(`0xC0 0x00 0x0D`) using `windows(3).position()`, delegating each segment to the existing
+`decode_program` — no duplicate parser logic. Each segment produces a `DecodedProgram { ops,
+byte_len }`. `picker_label(index, ops, byte_len)` derives a human-readable label: first `Op::Lbl`
+wins as `"NAME (N bytes)"`; anonymous programs fall back to `"Program N (N bytes)"` (1-based
+index). The **256-program archive cap** (`ARCHIVE_CAP = 256`) fires before each push, returning
+`Err(HpError::CardData)` if exceeded — a tight DoS guard against crafted inputs (T-50-01).
+
+**Tauri anti-deadlock dialog ordering (ADR-v4.0-006 / T-50-05):** All five dialog commands
+(`import_raw_dialog`, `export_raw_dialog`, `import_data_dialog`, `export_data_dialog`,
+`import_selected_programs`) follow a strict three-phase discipline: (1) open the native OS file
+dialog with NO lock held; (2) perform file I/O and decode/encode with NO lock held; (3) acquire
+the `AppState` Mutex only for the actual state mutation. Holding the Mutex across a blocking dialog
+call would deadlock because the `setInterval`-driven `tick_time` calls also need the Mutex. Export
+commands take a brief lock-then-snapshot in Phase 1 before releasing for the save dialog.
+
+**Multi-program picker UI:** `ImportRawResponse` is a serde-tagged enum
+(`#[serde(tag = "type")]`) with `Single` / `Multi` / `Cancelled` / `Empty` variants. The `Multi`
+variant returns `file_path: String` and `Vec<MultiProgramInfo>` metadata so the frontend's
+`RawPickerOverlay` checkbox picker can present program labels; `import_selected_programs` re-reads
+and re-decodes the file by path + index list, avoiding any IPC or `AppState` cache of decoded ops.
+
+**Alpha-annunciator gate (D-50.1):** When `Ctrl+R`/`Ctrl+W`/`Ctrl+D`/`Ctrl+F` fires while the
+ALPHA annunciator is active, the existing cards-dir path is used (reads/writes from `~/.hp41/cards/`
+named by the ALPHA register content). When ALPHA is off, the OS file dialog path is used. This
+preserves the pre-Phase-50 ALPHA-name card behavior 100%.
+
+**CLI flags (Plan 50-04):** `--import-raw`, `--export-raw`, `--import-data`, `--export-data`,
+`--batch` in `hp41-cli/src/main.rs` use `Option<String>` (not `Option<PathBuf>`) to support `"-"`
+for stdin/stdout piping. Import/export runs BEFORE TUI initialization; `--batch` exits 0 after
+processing, enabling scripting pipelines (`curl ... | hp41 --import-raw - --batch`).
 
 ### Phase 51 — X-MEM Core (shipped 2026-05-28)
 
