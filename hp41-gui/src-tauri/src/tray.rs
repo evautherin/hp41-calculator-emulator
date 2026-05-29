@@ -50,7 +50,10 @@ fn show_popover(window: &WebviewWindow, icon_x: i32, icon_w: i32, icon_bottom: i
     }
 
     // Position using physical pixels (icon rect is physical).
-    let win_w_physical = window.outer_size().map(|s| s.width as i32).unwrap_or(440);
+    let win_w_physical = window
+        .outer_size()
+        .map(|s| s.width as i32)
+        .unwrap_or(DESIGN_WIDTH as i32);
     let pos = compute_popover_position(icon_x, icon_w, icon_bottom, win_w_physical);
     let _ = window.set_position(PhysicalPosition::new(pos.x, pos.y));
 
@@ -84,6 +87,10 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
         .item(&quit_i)
         .build()?;
 
+    // Clonable handle so the on_menu_event closure can update the checkmark after
+    // a toggle (CheckMenuItem handles are Arc-backed in Tauri 2).
+    let start_login_for_event = start_login_i.clone();
+
     let icon_path = app
         .path()
         .resolve("icons/tray-template.png", tauri::path::BaseDirectory::Resource)
@@ -106,7 +113,16 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
             "start_login" => {
                 let mgr = app.autolaunch();
                 let now_enabled = mgr.is_enabled().unwrap_or(false);
-                let _ = if now_enabled { mgr.disable() } else { mgr.enable() };
+                let result = if now_enabled { mgr.disable() } else { mgr.enable() };
+                if let Err(e) = result {
+                    eprintln!("hp41-gui: failed to toggle Start at Login: {e}");
+                }
+                // Reflect the effective state in the checkmark (covers both a
+                // successful toggle and a failed one that left the old state).
+                let effective = mgr.is_enabled().unwrap_or(false);
+                if let Err(e) = start_login_for_event.set_checked(effective) {
+                    eprintln!("hp41-gui: failed to update Start at Login checkmark: {e}");
+                }
             }
             _ => {}
         })
