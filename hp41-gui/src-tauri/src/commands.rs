@@ -30,10 +30,50 @@ use hp41_core::CalcState;
 use serde::Serialize;
 use tauri::AppHandle;
 use tauri::State;
+#[cfg(target_os = "macos")]
+use tauri::Manager; // brings try_state into scope for SuppressHideGuard (macOS only)
 use tauri_plugin_dialog::DialogExt;
 
 #[cfg(test)]
 use std::path::Path;
+
+/// RAII guard: while alive, sets PopoverState.suppress_hide so the macOS
+/// auto-hide-on-blur handler does not dismiss the popover while a native file
+/// dialog is open. Clearing on drop is panic-safe and covers early returns / `?`.
+#[cfg(target_os = "macos")]
+struct SuppressHideGuard<'a> {
+    flag: Option<tauri::State<'a, crate::tray::PopoverState>>,
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> SuppressHideGuard<'a> {
+    fn new(app: &'a AppHandle) -> Self {
+        let flag = app.try_state::<crate::tray::PopoverState>();
+        if let Some(s) = &flag {
+            s.suppress_hide.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        Self { flag }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for SuppressHideGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(s) = &self.flag {
+            s.suppress_hide.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// No-op on non-macOS so call sites stay identical across platforms.
+#[cfg(not(target_os = "macos"))]
+struct SuppressHideGuard;
+#[cfg(not(target_os = "macos"))]
+impl SuppressHideGuard {
+    fn new(_app: &AppHandle) -> Self {
+        Self
+    }
+}
 
 /// Tauri command: dispatch an op identified by a string key ID.
 ///
@@ -542,6 +582,7 @@ pub fn import_raw_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ImportRawResponse, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (no lock): open file dialog
     let file_result = app
         .dialog()
@@ -691,6 +732,7 @@ pub fn export_raw_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (brief lock): snapshot program bytes — released before dialog
     let encoded = {
         let calc = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -737,6 +779,7 @@ pub fn import_data_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (no lock): open file dialog
     let file_result = app
         .dialog()
@@ -788,6 +831,7 @@ pub fn export_data_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (brief lock): snapshot data card — released before dialog
     let encoded = {
         let calc = state.lock().unwrap_or_else(|e| e.into_inner());

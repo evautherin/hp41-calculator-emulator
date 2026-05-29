@@ -154,6 +154,32 @@ pub fn run() {
             commands::export_data_dialog,
             commands::import_selected_programs,
         ])
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            {
+                if let tauri::WindowEvent::Focused(false) = event {
+                    if window.label() != "main" {
+                        return;
+                    }
+                    let app = window.app_handle();
+                    // Don't hide while a native file dialog is open (it steals
+                    // focus and would otherwise dismiss the popover mid-operation).
+                    if let Some(state) = app.try_state::<crate::tray::PopoverState>() {
+                        if state.suppress_hide.load(std::sync::atomic::Ordering::Relaxed) {
+                            return;
+                        }
+                        if let Ok(mut g) = state.last_hidden.lock() {
+                            *g = Some(std::time::Instant::now());
+                        }
+                    }
+                    let _ = window.hide();
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (window, event); // silence unused warnings off-macOS
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
 }
