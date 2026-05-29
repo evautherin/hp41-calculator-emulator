@@ -55,6 +55,10 @@ pub fn run() {
             // is normal (first-run); load_prefs() silently returns GuiPrefs::default().
             let prefs_path = prefs::default_prefs_path();
             let initial_prefs = prefs::load_prefs(&prefs_path);
+            // Capture the macOS launch mode before initial_prefs is moved into the
+            // managed Mutex — used by the macOS setup branch below. Unused on non-macOS.
+            #[cfg(target_os = "macos")]
+            let macos_launch_mode = initial_prefs.macos_launch_mode.clone();
             app.manage(Mutex::new(initial_prefs));
 
             let save_path = persistence::default_state_path();
@@ -109,7 +113,10 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 app.manage(crate::tray::PopoverState::default());
-                if std::env::var_os("HP41_SHOW_ON_START").is_some() {
+                // Precedence: HP41_SHOW_ON_START (E2E backdoor) > "window" pref > menu-bar.
+                if std::env::var_os("HP41_SHOW_ON_START").is_some()
+                    || macos_launch_mode == "window"
+                {
                     if let Some(win) = app.get_webview_window("main") {
                         let _ = win.show();
                         let _ = win.set_focus();
