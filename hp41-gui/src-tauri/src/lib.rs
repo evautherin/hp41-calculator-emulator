@@ -10,6 +10,8 @@ mod persistence;
 mod prefs; // Phase 48 — GUI preferences (theme, future onboarding flag) — stored in ~/.hp41/prefs.json (P59/THEME-05)
 mod prgm_display; // Phase 18 D-03
 mod tray_helpers; // pure geometry/debounce helpers for the macOS menu-bar popover
+#[cfg(target_os = "macos")]
+mod tray; // macOS menu-bar mode (tray icon + popover + Accessory policy)
 pub mod types; // pub so integration tests (lcd_alternation_modal_prompt.rs) can access CalcStateView::from_state
 
 pub type AppState = Mutex<hp41_core::CalcState>;
@@ -36,6 +38,10 @@ pub type CancelFlag = std::sync::Arc<std::sync::atomic::AtomicBool>;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()) // Phase 50 — file dialog plugin for .raw/.card.json import/export
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(|app| {
             // D-03: attempt to load ~/.hp41/autosave.json; fall back to fresh state on any error.
             // D-04: load_state() always resets is_running = false (Pitfall 4 guard).
@@ -96,6 +102,34 @@ pub fn run() {
                     }
                 }
             });
+
+            // ── macOS menu-bar mode (Task 4 of the menu-bar plan) ──
+            // Set HP41_SHOW_ON_START to opt out (normal visible window) — used by
+            // anyone running the E2E suite on macOS locally.
+            #[cfg(target_os = "macos")]
+            {
+                app.manage(crate::tray::PopoverState::default());
+                if std::env::var_os("HP41_SHOW_ON_START").is_some() {
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                    }
+                } else if let Err(e) = crate::tray::apply_menu_bar_mode(app) {
+                    eprintln!("hp41-gui: failed to enter menu-bar mode: {e}; showing window");
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.show();
+                    }
+                }
+            }
+            // Non-macOS: the window stays a normal decorated window. Because the
+            // bundle config will start hidden (visible:false, a later task),
+            // show it explicitly.
+            #[cfg(not(target_os = "macos"))]
+            {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                }
+            }
 
             Ok(())
         })
