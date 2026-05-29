@@ -23,6 +23,7 @@
     "allow-export-data-dialog",
     "allow-import-selected-programs",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "autostart:default"
   ]
 }
