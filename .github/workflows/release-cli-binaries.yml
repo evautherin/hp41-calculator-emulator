@@ -50,7 +50,7 @@ jobs:
             target: aarch64-apple-darwin
             archive_ext: tar.gz
             sign_macos: true
-          - os: macos-13                       # Intel runner for x86_64 build
+          - os: macos-latest                   # Apple-Silicon runner cross-compiles x86_64
             target: x86_64-apple-darwin
             archive_ext: tar.gz
             sign_macos: true
