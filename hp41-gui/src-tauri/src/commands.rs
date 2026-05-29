@@ -18,7 +18,7 @@
 use crate::cards;
 use crate::key_map;
 use crate::persistence;
-use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_THEMES};
+use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_LAUNCH_MODES, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
 use hp41_core::cardreader::{
@@ -30,10 +30,59 @@ use hp41_core::CalcState;
 use serde::Serialize;
 use tauri::AppHandle;
 use tauri::State;
+#[cfg(target_os = "macos")]
+use tauri::Manager; // brings try_state into scope for SuppressHideGuard (macOS only)
 use tauri_plugin_dialog::DialogExt;
 
 #[cfg(test)]
 use std::path::Path;
+
+/// RAII guard: while alive, sets PopoverState.suppress_hide so the macOS
+/// auto-hide-on-blur handler does not dismiss the popover while a native file
+/// dialog is open. Clearing on drop is panic-safe and covers early returns / `?`.
+///
+/// CORRECTNESS DEPENDS ON THE DIALOG COMMANDS STAYING SYNCHRONOUS. They run on
+/// Tauri's main thread, so `store(true)` happens-before the blur handler's
+/// `load` on that same thread, and `Relaxed` ordering suffices (the flag is a
+/// standalone signal, publishing no other data). If any of the four dialog
+/// commands is ever made `async`, Tauri moves it to a worker thread and the
+/// set/blur-read becomes a genuine cross-thread race where the blur could
+/// observe `false` before the store lands — hiding the popover under the dialog.
+/// Keep them synchronous, or revisit the ordering here.
+#[cfg(target_os = "macos")]
+struct SuppressHideGuard<'a> {
+    flag: Option<tauri::State<'a, crate::tray::PopoverState>>,
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> SuppressHideGuard<'a> {
+    fn new(app: &'a AppHandle) -> Self {
+        let flag = app.try_state::<crate::tray::PopoverState>();
+        if let Some(s) = &flag {
+            s.suppress_hide.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        Self { flag }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for SuppressHideGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(s) = &self.flag {
+            s.suppress_hide.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// No-op on non-macOS so call sites stay identical across platforms.
+#[cfg(not(target_os = "macos"))]
+struct SuppressHideGuard;
+#[cfg(not(target_os = "macos"))]
+impl SuppressHideGuard {
+    fn new(_app: &AppHandle) -> Self {
+        Self
+    }
+}
 
 /// Tauri command: dispatch an op identified by a string key ID.
 ///
@@ -435,6 +484,7 @@ pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
 ///
 /// # Supported keys
 /// - `"theme"`: one of `"dark"` | `"light"` | `"classic-beige"` | `"high-contrast"`.
+/// - `"macos_launch_mode"`: one of `"menu-bar"` | `"window"` (macOS-only effect).
 ///
 /// Returns `Err(String)` for unknown keys or invalid theme values (T-48-01 threat mitigation).
 /// Persists immediately to `~/.hp41/prefs.json` via `save_prefs` after updating in-memory state.
@@ -460,9 +510,37 @@ pub fn set_pref(
         "onboarding_done" => {
             p.onboarding_done = value == "true";
         }
+        "macos_launch_mode" => {
+            if !VALID_LAUNCH_MODES.contains(&value.as_str()) {
+                return Err(format!("unknown launch mode: {value}"));
+            }
+            p.macos_launch_mode = value;
+        }
         _ => return Err(format!("unknown pref key: {key}")),
     }
     save_prefs(&default_prefs_path(), &*p).map_err(|e| e.to_string())
+}
+
+/// Tauri command: restart the application.
+///
+/// Used by the Settings panel after the user changes `macos_launch_mode` — the new
+/// launch mode is decided in `setup()` (lib.rs) and only takes effect on the next
+/// launch, so we offer an immediate relaunch. `AppHandle::restart()` is `-> !` and
+/// never returns; the IPC promise on the frontend therefore never resolves, which is
+/// correct (the process is replaced).
+#[tauri::command]
+pub fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
+/// Tauri command: report whether the backend was compiled for macOS.
+///
+/// The frontend uses this to render the macOS-only launch-mode control. The launch-mode
+/// preference has no effect on Windows/Linux (the `setup()` branch is `cfg(macos)`), so
+/// showing the control there would mislead the user.
+#[tauri::command]
+pub fn is_macos() -> bool {
+    cfg!(target_os = "macos")
 }
 
 /// Tauri command: persist the current CalcState to disk on demand (Ctrl+S / F5 in GUI).
@@ -542,6 +620,7 @@ pub fn import_raw_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ImportRawResponse, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (no lock): open file dialog
     let file_result = app
         .dialog()
@@ -691,6 +770,7 @@ pub fn export_raw_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (brief lock): snapshot program bytes — released before dialog
     let encoded = {
         let calc = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -737,6 +817,7 @@ pub fn import_data_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (no lock): open file dialog
     let file_result = app
         .dialog()
@@ -788,6 +869,7 @@ pub fn export_data_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (brief lock): snapshot data card — released before dialog
     let encoded = {
         let calc = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -1135,5 +1217,17 @@ mod tests {
             view.clock_active,
             "view.clock_active must mirror CalcState.clock_active (true)"
         );
+    }
+
+    #[test]
+    fn test_valid_launch_modes_accepts_known() {
+        assert!(VALID_LAUNCH_MODES.contains(&"menu-bar"));
+        assert!(VALID_LAUNCH_MODES.contains(&"window"));
+    }
+
+    #[test]
+    fn test_valid_launch_modes_rejects_unknown() {
+        assert!(!VALID_LAUNCH_MODES.contains(&"hologram"));
+        assert!(!VALID_LAUNCH_MODES.contains(&""));
     }
 }

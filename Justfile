@@ -24,6 +24,16 @@ build-release:
 run:
 	cargo run -p hp41-cli
 
+# hp41-gui is a standalone nested workspace with its OWN target/, so a single
+# `cargo clean` misses hp41-gui/src-tauri/target/ — including the bundled .app.
+# A stale GUI bundle there shares the `ch.talent-factory.hp41` bundle id and can
+# shadow an installed release in LaunchServices (showing the old version).
+# Remove Rust build artifacts from BOTH workspaces (root + nested GUI)
+[group('build')]
+clean:
+	cargo clean
+	cargo clean --manifest-path hp41-gui/src-tauri/Cargo.toml
+
 # ─── Test ───────────────────────────────────────────────────────────────────
 
 # Run all tests

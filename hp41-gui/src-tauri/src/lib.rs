@@ -9,6 +9,9 @@ mod key_map;
 mod persistence;
 mod prefs; // Phase 48 — GUI preferences (theme, future onboarding flag) — stored in ~/.hp41/prefs.json (P59/THEME-05)
 mod prgm_display; // Phase 18 D-03
+mod tray_helpers; // pure geometry/debounce helpers for the macOS menu-bar popover
+#[cfg(target_os = "macos")]
+mod tray; // macOS menu-bar mode (tray icon + popover + Accessory policy)
 pub mod types; // pub so integration tests (lcd_alternation_modal_prompt.rs) can access CalcStateView::from_state
 
 pub type AppState = Mutex<hp41_core::CalcState>;
@@ -35,6 +38,10 @@ pub type CancelFlag = std::sync::Arc<std::sync::atomic::AtomicBool>;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()) // Phase 50 — file dialog plugin for .raw/.card.json import/export
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(|app| {
             // D-03: attempt to load ~/.hp41/autosave.json; fall back to fresh state on any error.
             // D-04: load_state() always resets is_running = false (Pitfall 4 guard).
@@ -48,6 +55,10 @@ pub fn run() {
             // is normal (first-run); load_prefs() silently returns GuiPrefs::default().
             let prefs_path = prefs::default_prefs_path();
             let initial_prefs = prefs::load_prefs(&prefs_path);
+            // Capture the macOS launch mode before initial_prefs is moved into the
+            // managed Mutex — used by the macOS setup branch below. Unused on non-macOS.
+            #[cfg(target_os = "macos")]
+            let macos_launch_mode = initial_prefs.macos_launch_mode.clone();
             app.manage(Mutex::new(initial_prefs));
 
             let save_path = persistence::default_state_path();
@@ -96,6 +107,49 @@ pub fn run() {
                 }
             });
 
+            // ── macOS menu-bar mode (Task 4 of the menu-bar plan) ──
+            // Set HP41_SHOW_ON_START to opt out (normal visible window) — used by
+            // anyone running the E2E suite on macOS locally.
+            #[cfg(target_os = "macos")]
+            {
+                app.manage(crate::tray::PopoverState::default());
+                // Precedence: HP41_SHOW_ON_START (E2E backdoor) > "window" pref > menu-bar.
+                if std::env::var_os("HP41_SHOW_ON_START").is_some()
+                    || macos_launch_mode == "window"
+                {
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                    }
+                } else {
+                    match crate::tray::apply_menu_bar_mode(app) {
+                        Ok(()) => {
+                            // Menu-bar (popover) mode is active — enable auto-hide-on-blur.
+                            app.state::<crate::tray::PopoverState>()
+                                .menu_bar_active
+                                .store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "hp41-gui: failed to enter menu-bar mode: {e}; showing window"
+                            );
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                            }
+                        }
+                    }
+                }
+            }
+            // Non-macOS: the window stays a normal decorated window. Because the
+            // bundle config will start hidden (visible:false, a later task),
+            // show it explicitly.
+            #[cfg(not(target_os = "macos"))]
+            {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -111,6 +165,8 @@ pub fn run() {
             commands::tick_time,               // Phase 41 D-41.1 — 100ms periodic tick for live display
             commands::get_prefs,               // Phase 48 INFRA-01 — read GUI preferences
             commands::set_pref,                // Phase 48 INFRA-02 — write/persist a GUI preference
+            commands::restart_app,             // macOS launch-mode toggle — offer relaunch after switch
+            commands::is_macos,                // macOS launch-mode toggle — gate the Settings control
             commands::save_state,              // Phase 49 KBD-02 — on-demand save (Ctrl+S / F5 in GUI)
             // Phase 50 — .raw file I/O via native OS file dialog
             commands::import_raw_dialog,
@@ -119,6 +175,38 @@ pub fn run() {
             commands::export_data_dialog,
             commands::import_selected_programs,
         ])
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            {
+                if let tauri::WindowEvent::Focused(false) = event {
+                    if window.label() != "main" {
+                        return;
+                    }
+                    let app = window.app_handle();
+                    let Some(state) = app.try_state::<crate::tray::PopoverState>() else {
+                        return;
+                    };
+                    // Auto-hide on blur ONLY in menu-bar (popover) mode. In "window"
+                    // launch mode the window must stay visible when it loses focus.
+                    if !state.menu_bar_active.load(std::sync::atomic::Ordering::Relaxed) {
+                        return;
+                    }
+                    // Don't hide while a native file dialog is open (it steals focus and
+                    // would otherwise dismiss the popover mid-operation).
+                    if state.suppress_hide.load(std::sync::atomic::Ordering::Relaxed) {
+                        return;
+                    }
+                    if let Ok(mut g) = state.last_hidden.lock() {
+                        *g = Some(std::time::Instant::now());
+                    }
+                    let _ = window.hide();
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (window, event); // silence unused warnings off-macOS
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
 }

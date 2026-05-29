@@ -1,301 +1,403 @@
-# Stack Research
+# Technology Stack — v4.1 iOS Foundation
 
-**Domain:** HP-41 Calculator Emulator v4.0 — Platform Maturity (theming, onboarding, keyboard parity, .raw import/export, X-MEM model)
-**Researched:** 2026-05-27
-**Confidence:** HIGH for CSS theming + .raw (existing code inspected); MEDIUM for X-MEM model (spec reconstructed from secondary sources; primary HP-41CX manual not directly readable); HIGH for dialog plugin version
-
----
-
-## Critical Pre-Research Finding: .raw Codec Already Exists
-
-**`hp41-core/src/cardreader/raw.rs` implements encode_program() and decode_program() today.**
-
-The codec is fully functional — END marker `C0 00 0D`, alpha-string instructions with `F<len>` prefix, two-byte STO/RCL, single-byte FOCAL ops. It was built for WPRGM/RDPRGM card-reader ops.
-
-What is missing for RAW-01/RAW-02 is NOT the codec — it is:
-1. A Tauri GUI command that opens a native file-picker dialog and calls the existing codec.
-2. A CLI `--import-raw` / `--export-raw` subcommand (or interactive key) that drives the same codec.
-3. Both are thin adapter layers over the existing `encode_program` / `decode_program` functions.
-
-This means the `.raw` feature is primarily a **frontend integration task**, not a new algorithmic task. No new runtime dep is needed for the codec.
+**Project:** HP-41 Calculator Emulator — iOS build approach decision
+**Researched:** 2026-05-29
+**Scope:** iOS-only additions; existing desktop stack (Tauri v2.11 + React 18 + Rust MSRV 1.88) is unchanged.
 
 ---
 
-## Recommended Stack
+## Overview
 
-### Core Technologies — No Changes
+The central decision for v4.1 is the build approach:
 
-All existing core technologies are unchanged. This section only documents net-new additions needed for v4.0 features.
+- **Approach A** — Tauri v2 Mobile: extend the existing `hp41-gui` Tauri project to target iOS, reusing the React frontend and all existing Tauri commands verbatim.
+- **Approach B** — Native SwiftUI + Rust FFI: write a new SwiftUI UI, bind `hp41-core` via UniFFI (Mozilla) as a static library / xcframework.
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| Rust stable / MSRV 1.88 | 1.88 | hp41-core, hp41-cli, hp41-gui backend | Unchanged |
-| rust_decimal 1.42 | 1.42 | HpNum BCD arithmetic | Unchanged |
-| ratatui 0.30 + crossterm 0.29 | 0.30 / 0.29 | CLI TUI | Unchanged |
-| serde / serde_json | 1 | CalcState persistence + IPC | Unchanged |
-| Tauri v2.11 | 2.11 | Desktop app shell | Unchanged |
-| React 19.2 + TypeScript + Vite 8 | 19.2 / 8.0 | GUI frontend | Unchanged |
-| Tailwind CSS v4.3 | 4.3 | In devDependencies already; NOT yet active in any CSS file | Present but dormant |
+Both approaches compile `hp41-core` unchanged to `aarch64-apple-ios`. Neither requires any changes to `hp41-core` itself. The critical difference is what wraps the core on the mobile side.
+
+**Recommendation up front (see rationale below): Approach A — Tauri v2 Mobile.**
 
 ---
 
-### New Dependencies — GUI Frontend (hp41-gui)
+## 1. Rust iOS Toolchain
 
-#### 1. tauri-plugin-dialog — File Open/Save Dialogs for .raw Import/Export
+### Targets
 
-**Purpose:** Native OS file picker for `.raw` file import/export (RAW-01, RAW-02). Required because `window.showOpenFilePicker` is not available in Tauri's sandboxed webview on all platforms.
+| Target | Use | Tier | Install |
+|--------|-----|------|---------|
+| `aarch64-apple-ios` | Physical iPhone device | Tier 2 | `rustup target add aarch64-apple-ios` |
+| `aarch64-apple-ios-sim` | iOS Simulator on Apple Silicon Mac | Tier 2 | `rustup target add aarch64-apple-ios-sim` |
+| `x86_64-apple-ios` | iOS Simulator on Intel Mac (legacy) | Tier 2 | `rustup target add x86_64-apple-ios` |
 
-| Package | Version | Side |
-|---------|---------|------|
-| `@tauri-apps/plugin-dialog` | 2.7.1 (npm) | JavaScript/TypeScript |
-| `tauri-plugin-dialog` | 2.4.2 (Rust crate) | Tauri backend |
+All three are Tier 2 targets (no host tools, but guaranteed to build via `rustup`). They have been stable since Xcode 12. Source: official Rust platform support docs.
 
-**Why this and not web File API:** Tauri v2's webview does not expose `window.showOpenFilePicker` cross-platform. The dialog plugin provides native OS file pickers with extension filtering, consistent behavior on Windows/macOS/Linux, and integrates with Tauri's permission model.
+### Cross-compilation Requirements
 
-**Integration point:** New Tauri command `import_raw_program` and `export_raw_program` in `commands.rs`. Command signature:
-- Import: opens dialog filtered to `*.raw`, reads bytes, calls `hp41_core::cardreader::decode_program()`, calls `insert_program_ops()`.
-- Export: calls `hp41_core::cardreader::encode_program()`, opens save dialog filtered to `*.raw`, writes bytes.
+- Must compile on macOS — Apple's toolchain (`ld`, `lipo`, iOS SDK) is required. Linux CI cannot link iOS binaries.
+- Xcode 14+ recommended (Xcode 12 is the documented minimum; current GitHub-hosted macOS runners ship Xcode 16.x). Full Xcode app install required — Command Line Tools alone do not ship the iOS SDK.
+- `SDKROOT` / `IPHONEOS_DEPLOYMENT_TARGET` env vars are respected by `rustc`.
+- Rust's own floor for iOS is iOS 10.0. Tauri v2 sets its floor to **iOS 14.0** (`bundle.iOS.minimumSystemVersion` default, confirmed from `v2.tauri.app/reference/config/`). iOS 14.0 is the correct deployment target for this project — it covers 98%+ of active devices and is required by WKWebView features Tauri depends on.
 
-**Permissions:** Requires new TOML in `hp41-gui/src-tauri/permissions/import-raw-program.toml` and `export-raw-program.toml` following established Tauri v2.11 inline-command permission pattern. Also requires `fs:allow-write-text-file` and `fs:allow-read-file` scope entries.
+### CocoaPods
 
-**Installation:**
-```bash
-# In hp41-gui/
-npm add @tauri-apps/plugin-dialog
-cargo add tauri-plugin-dialog   # in hp41-gui/src-tauri/
-```
+Both Approach A and the xcframework tooling for Approach B require CocoaPods on the build Mac: `brew install cocoapods`. Tauri's iOS scaffold uses it for native dependency management inside the Xcode project.
 
-**Confidence:** HIGH — current npm latest confirmed 2.7.1 (published ~8 days ago per npm search); Rust crate 2.4.2 (published 2026-05-02 per docs.rs). Both are in active release cadence aligned with Tauri v2.
+### `rust_decimal` 1.42 on iOS
 
----
-
-#### 2. CSS Custom Properties — No New Library for Theming
-
-**Purpose:** THEME-01 — 3-4 built-in skin presets (dark, light, classic beige, high-contrast).
-
-**Approach:** Pure CSS custom properties (CSS variables) with `data-theme` attribute on the `.calculator` container div. No JavaScript theme library needed. No Tailwind activation needed.
-
-```css
-/* In App.css — add theme variable blocks */
-.calculator[data-theme="dark"] {       /* existing default */
-  --bg-body: #0d0d0d;
-  --bg-display: #111;
-  --color-lcd: #c8e6c9;
-  --color-key-top: #1e1e1e;
-  /* ... */
-}
-.calculator[data-theme="light"] {
-  --bg-body: #d4c9a8;
-  --bg-display: #c8b97a;
-  --color-lcd: #2a1f0a;
-  /* ... */
-}
-.calculator[data-theme="beige"] {      /* HP-41C authentic */
-  --bg-body: #c8b97a;
-  /* ... */
-}
-.calculator[data-theme="high-contrast"] {
-  --bg-body: #000;
-  --color-lcd: #ffff00;
-  /* ... */
-}
-```
-
-**Persistence:** `localStorage.setItem('hp41-theme', themeName)` — synchronous, no async ceremony, survives Tauri app restarts because Tauri uses a fixed app identifier `ch.talent-factory.hp41` so the webview localStorage domain is stable across launches.
-
-**React integration:** Single `useState<string>` in `App.tsx`, applied via `data-theme={theme}` on the `.calculator` div. No context API needed for single-calculator layout.
-
-**Why NOT tauri-plugin-store for theme persistence:** tauri-plugin-store is async and requires Rust-side setup. For a single preference value like theme, `localStorage` is simpler, synchronous, and has zero additional dependencies. The risk of localStorage domain instability (documented for `localhost:port` changes during dev) does not apply in production since the Tauri app uses `tauri://localhost` as the origin.
-
-**Why NOT Tailwind CSS v4 for theming:** Tailwind v4 is already in devDependencies but no CSS file imports it. Activating Tailwind solely for theming would require migrating the entire App.css (which is well-structured vanilla CSS with 395 lines and deliberate component boundaries). The CSS custom property approach achieves the same result with zero additional complexity. Tailwind should only be activated in a future milestone if utility-class-based layout refactoring is explicitly planned.
-
-**Confidence:** HIGH — CSS custom properties + data-attribute theming is the dominant pattern (CSS-Tricks article, multiple 2024-2025 sources). localStorage stability in Tauri confirmed by Aptabase blog post on persistent state.
+`rust_decimal` 1.42 is a pure-Rust, `std`-using crate with no platform-specific code. It compiles cleanly to all three iOS targets — the Rust std is available via rustup for `aarch64-apple-ios`, `aarch64-apple-ios-sim`, and `x86_64-apple-ios`. No `no_std` complications arise because `hp41-core` already uses `std` (required by `serde`, `SystemTime::now()`, etc.). **No issues found; confidence HIGH.**
 
 ---
 
-#### 3. No Onboarding Library — Custom Modal Panel
+## 2. Approach A — Tauri v2 Mobile
 
-**Purpose:** ONBOARD-01 (first-run quick-start guide) and ONBOARD-02 (searchable in-app function reference).
+### Maturity Status (as of 2026-05-29)
 
-**Approach:** Custom React components reusing existing overlay infrastructure:
-- First-run guide: A `<OnboardingModal>` component sharing the `.help-overlay` CSS class pattern. Shown when `localStorage.getItem('hp41-onboarded')` is null. Four-step card carousel (RPN basics, key layout, ALPHA mode, XROM functions). Dismissed permanently on "Got it" — sets `hp41-onboarded=1` in localStorage.
-- Extended function reference: Extend the existing `<HelpOverlay>` component (already has search + sectioned XROM display). Add example column to help data JSON files. The existing `help_entries_all()` 5-pool chain in `help_data.ts` already supports this.
+**Tauri v2.11.2 is the current stable version.** iOS support shipped in the Tauri 2.0 stable release (2024-10-02) and has been iteratively improved across 2025 and into 2026. The current project already uses Tauri v2.11, so no version upgrade is required.
 
-**Why NOT react-joyride, Shepherd.js, or Intro.js:**
-- All three require DOM element targeting via `data-step` or CSS selector anchors. The calculator's SVG keyboard does not expose clean DOM targets for tooltip anchoring.
-- The existing `<HelpOverlay>` component (460+ LOC) already handles search, categories, and XROM sections. A tour library would duplicate this architecture.
-- Joyride is 5.1K stars and 2.5× more npm downloads than alternatives but adds ~40KB gzipped for a use case that 4 static cards can serve with ~20 LOC of React.
-- Zero new runtime deps invariant does NOT apply to the GUI (only to hp41-core), but the simpler approach is clearly better here.
+**Honest maturity caveat:** The Tauri team acknowledged at v2.0 launch that they are "not completely happy about the developer experience" on mobile and are actively improving it. Community feedback (GitHub Discussion #10197) describes the iOS DX as having significant rough edges beyond basic templates — complex circular Tauri↔Xcode build invocations, underdocumented configuration, and insufficient support for native iOS extensions. However, the core functionality — WKWebView hosting a React app with Tauri command IPC — works and ships real apps.
 
-**Confidence:** HIGH — codebase inspection shows existing overlay infrastructure is directly reusable.
+**Known gaps/bugs to be aware of:**
 
----
+| Issue | Status | Impact for hp41 |
+|-------|--------|-----------------|
+| Entitlements not always applied to IPA (issue #11089) | Closed — resolution unclear from GitHub content | Low: hp41 needs no special capabilities (no NFC, no biometrics, no push notifications) |
+| Bundle identifier not read from `tauri.conf.json` in older versions (issue #9851) | Fixed in 2.x patch | None — using 2.11.2+ and `ch.talent-factory.hp41` has no hyphens |
+| Native iOS extensions (share sheets, etc.) are hard to integrate | Known architectural limitation | None: hp41 does not use native extensions |
+| `tauri-action` GitHub Action does not cover iOS builds | Confirmed gap | Medium: CI pipeline needs a separate custom workflow for iOS |
+| Not all official Tauri plugins support iOS | Confirmed | See plugin assessment below |
 
-### New Dependencies — hp41-core (Rust)
-
-#### 4. Zero New Runtime Dependencies — X-MEM Model
-
-**Purpose:** XMEM-01 — Extended Memory file model (EMDIR, EMROOM, EMREG).
-
-**Approach:** New `CalcState` field `xmem_files: Vec<XMemFile>` with `#[serde(default)]` for backward-compat auto-upgrade. Pure Rust data structure, no external crate.
-
-**X-MEM model specification (reconstructed from secondary sources — MEDIUM confidence):**
-
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum XMemFileType {
-    Program = 0,    // User program
-    Key = 1,        // Key assignment file
-    Data = 2,       // Data registers
-    Ascii = 3,      // Text file
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct XMemFile {
-    pub name: String,           // Up to 7 FOCAL chars
-    pub file_type: XMemFileType,
-    pub registers: u16,         // Size in registers (each = 7 bytes / ~2 data items)
-    pub content: Vec<u8>,       // Raw content bytes (program: .raw bytes; data: HpValue serde)
-}
-
-// In CalcState:
-// #[serde(default)]
-// pub xmem_files: Vec<XMemFile>,
-```
-
-**EMDIR behavior:** Lists files in `xmem_files` to the display/print buffer, format: `<name>  <type>  <regs>`. EMDIRX (look up file by index in X register): returns name + type for file at given position.
-
-**EMROOM behavior:** Returns total free registers = `xmem_capacity - sum(file.registers)`. Standard HP-41CX capacity: 319 registers (base), extensible to 600 with two extended memory modules. Emulator initial capacity: 319 (configurable as a constant).
-
-**EMREG behavior:** Returns number of registers in the current/named file.
-
-**New XMEM commands needed (from finseth.com HP-41CX function list):**
-- `CRFLAS` / `CRFLD` — create ASCII / data file
-- `CLFL` / `PURFL` — clear / purge file
-- `FLSIZE` / `RESZFL` — file size query / resize
-- `EMDIR` / `EMDIRX` — directory listing
-- `EMROOM` — free space
-- `SEEKPT` / `SEEPTA` — file pointer navigation
-- `APPREC` / `DELREC` / `INSREC` / `GETREC` / `ARCLREC` — record operations
-- `SAVER` / `SAVERX` / `SAVEX` / `GETX` / `GETR` / `GETRX` — register copy in/out of XMEM
-
-**Op variant additions:** ~20-25 new `Op` variants, all subject to the 4-way exhaustive-match invariant.
-
-**Why no new crate:** All operations are pure data structure manipulation (Vec access, string matching, integer arithmetic). Same pattern as `adv_matrices: Vec<AdvMatrix>` added in v3.3 (ADR-v3.3-001) — validated approach for named collection fields in CalcState.
-
-**Confidence for X-MEM spec:** MEDIUM. The HP-41CX Extended Functions/Memory Module manual is not directly readable online (403 errors from hpmuseum.org). Specification reconstructed from: finseth.com HP-41CX function listing (authoritative for function names), HP Museum forum discussions (file type semantics), and indirect Emu41 documentation references. The file type enum (0-3) is confirmed by AMC_OS/X type table (secondary). Register capacity of 319 (base 41CX) is confirmed by hpmuseum.org archive posts. Function names are confirmed by finseth.com. Internal byte layout needs validation against primary manual before implementation.
-
-**Recommendation:** Flag X-MEM implementation for a deeper research phase before coding begins. The data model design above is sound, but the exact byte-level XMEM register format needs verification from the HP-41CX Extended Functions/Memory Module Owner's Manual (CHM catalog item 102650266).
-
----
-
-### CLI — No New Dependencies
-
-All v4.0 CLI changes are within existing ratatui/crossterm infrastructure:
-
-- **KBD-01 keyboard parity:** Extend the `MAP: Record<string, string>` equivalent in `hp41-cli/src/keys.rs` — new entries in `key_to_op()` and `shifted_key_to_op()`. No new crates.
-- **.raw import/export:** CLI uses `Ctrl+W/R` pattern from v2.1 card reader. Add `--import-raw <file>` and `--export-raw <file>` to the `clap` 4.x argument parser. Calls existing `encode_program` / `decode_program` directly. No new crates.
-- **Onboarding:** CLI shows a `--help-rpn` / `?rpn` overlay using ratatui Paragraph widgets. No new crates.
-
----
-
-## Alternatives Considered
-
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| CSS custom properties + `data-theme` | CSS-in-JS (styled-components, emotion) | Zero runtime overhead; no new dep; existing 395-line App.css is well-structured vanilla CSS; no build-time complexity |
-| CSS custom properties + `data-theme` | Tailwind CSS v4 `@theme` directive | Tailwind is in devDependencies but dormant; activating it requires migrating all existing CSS classes; disproportionate effort for theming alone |
-| localStorage for theme persistence | tauri-plugin-store | tauri-plugin-store is async, requires Rust registration, overkill for a single string value |
-| Custom onboarding modal (reuse existing overlay CSS) | react-joyride / Shepherd.js / Intro.js | SVG keyboard has no clean DOM targets for tooltip anchoring; existing HelpOverlay is directly reusable; zero new dep |
-| tauri-plugin-dialog for file picker | `window.showOpenFilePicker` (web API) | Not available cross-platform in Tauri webview; tauri-plugin-dialog is the official Tauri solution |
-| tauri-plugin-dialog for file picker | Tauri `dialog.open()` via `@tauri-apps/api` core | `dialog` was moved to a plugin in Tauri v2; the core API no longer exposes file dialogs directly |
-| `Vec<XMemFile>` in CalcState | Separate JSON sidecar file for X-MEM | Consistency: all CalcState persisted in `autosave.json`; sidecar introduces sync complexity |
-| Pure Rust X-MEM data structure | External crate for named file storage | Zero-new-runtime-deps invariant; Vec<XMemFile> is <30 LOC |
-
----
-
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| react-joyride, Shepherd.js, Intro.js | No clean DOM anchor points in SVG keyboard; existing overlay CSS is sufficient; adds ~40-100KB | Custom `<OnboardingModal>` reusing `.help-overlay` CSS pattern |
-| Tailwind CSS v4 activation | Would require migrating 395-line App.css; Tailwind conflicts with existing BEM-style class names | CSS custom properties with `data-theme` — simpler, faster, zero overhead |
-| tauri-plugin-store | Async, needs Rust registration, overkill for theme string | `localStorage.setItem('hp41-theme', name)` |
-| Any new crate in `hp41-core` | Zero-new-runtime-deps invariant held since v3.0 | Hand-implement from primary specification |
-| New `.raw` codec implementation | Codec already exists in `hp41-core/src/cardreader/raw.rs` | Wire existing `encode_program` / `decode_program` to new Tauri commands |
-| CSS custom property polyfills | MSRV is 1.88 Rust + modern React; Tauri targets macOS 12+/Win10+/Ubuntu 22.04+; all three support CSS custom properties natively | None needed |
-
----
-
-## Installation — Net New Packages
+### Workflow: `tauri ios init` / `tauri ios build`
 
 ```bash
-# In hp41-gui/ (JavaScript side)
-npm add @tauri-apps/plugin-dialog
+# Prerequisites (once per dev Mac)
+rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
+brew install cocoapods
 
-# In hp41-gui/src-tauri/ (Rust side)
-cargo add tauri-plugin-dialog
+# In hp41-gui/ (the nested workspace root)
+npm run tauri ios init          # generates src-tauri/gen/apple/ Xcode project
+npm run tauri ios dev           # simulator hot-reload development loop
+npm run tauri ios build -- --export-method app-store-connect   # release IPA
 ```
 
-**All other v4.0 features require zero new package installations.**
+`tauri ios init` runs `cargo-mobile2` under the hood to scaffold an Xcode project at `src-tauri/gen/apple/`. The scaffold includes:
+- An Xcode project (`.xcodeproj`) with a build phase that invokes `cargo build --target aarch64-apple-ios` as a shell script
+- CocoaPods integration (`Podfile`, `Pods/`)
+- Generated Swift glue that loads the compiled Rust library at runtime
+- `src-tauri/gen/apple/` is a generated artifact — not manually edited except for specific capability overrides
+
+The `identifier` field in `tauri.conf.json` becomes the iOS bundle ID. The current project bundle ID `ch.talent-factory.hp41` uses only dots and alphanumeric characters — **no hyphens** — so the known identifier bug does not apply.
+
+### WKWebView Runtime
+
+Tauri iOS uses **WKWebView** (WebKit / Safari engine) exclusively. Key implications:
+
+- The Nitro JavaScript engine (used by WKWebView) is fast — performance of the React frontend is comparable to Safari.
+- WKWebView does not support Service Workers by default on iOS (requires App-Bound Domains in `Info.plist`). The current hp41-gui React app does not use Service Workers. No impact.
+- WebKit CSS/JS compatibility is the same as Safari. The existing React + TypeScript + Vite frontend is standard and will render identically.
+
+### IPC Carry-Over
+
+The existing Tauri commands carry over **without change** to iOS. Tauri v2's IPC contract is identical on iOS and desktop. The complete set of Tauri commands from `commands.rs` (`dispatch_op`, `get_state`, `sst_step`, `bst_step`, `run_stop`, `request_cancel`, `tick_time`, `submit_modal`, `cancel_modal`, `submit_modal_with_label`) are available on iOS.
+
+The React frontend's `invoke()` calls from `@tauri-apps/api/core` work unchanged.
+
+**What needs adaptation (not a core change):**
+
+- **Persistence path**: `~/.hp41/autosave.json` must become the iOS app-sandbox Documents path. This is an iOS adapter concern — the iOS Tauri app passes the correct sandboxed path; `hp41-core` itself does not hard-code the path.
+- **Touch UI**: The existing keyboard-grid React UI is pointer/click based. Touch targets need enlargement (minimum 44×44 pt per Apple HIG), safe-area inset handling (`env(safe-area-inset-*)`), and portrait layout optimization. This is CSS/React work, not an IPC change.
+
+### Plugin Availability on iOS
+
+| Plugin | iOS Support | hp41 uses it? | Notes |
+|--------|-------------|---------------|-------|
+| `tauri-plugin-fs` | Yes (sandboxed paths) | Yes — needed for save-file path on iOS | Must use `BaseDirectory::Document` for iOS container |
+| `tauri-plugin-dialog` | Limited — no native file picker | Used for `.raw` import/export | File picker is a known gap on iOS; workaround needed for v4.1+ |
+| `tauri-plugin-notification` | Yes | Not used | |
+| `tauri-plugin-shell` | No iOS support | Not used in hp41-gui | |
+| Web Audio API | Via WKWebView (same as Safari) | Yes — BEEP/TONE | Works unchanged |
+
+The `.raw` file import/export (v4.0 Phase 50) uses `tauri-plugin-dialog` for a native file picker. On iOS, file access is sandboxed — the iOS document picker is not directly exposed via the Tauri dialog plugin. This is a **known gap that is non-blocking** for the v4.1 TestFlight foundation goal; `.raw` file I/O on iOS can be deferred to a follow-up.
+
+### Signing Integration
+
+Signing is configured via environment variables. See Section 4 for the full TestFlight workflow.
 
 ---
 
-## Version Compatibility
+## 3. Approach B — Native SwiftUI + Rust FFI
 
-| Package | Version | Compatible With | Notes |
-|---------|---------|-----------------|-------|
-| `@tauri-apps/plugin-dialog` | 2.7.1 | Tauri v2.11, `@tauri-apps/api` ^2.11 | Plugin ecosystem version tracks Tauri core; 2.x plugins work with 2.x core |
-| `tauri-plugin-dialog` | 2.4.2 | tauri 2.11, Rust 1.77.2+ | MSRV 1.77.2 < project MSRV 1.88 — compatible |
-| CSS custom properties | n/a | macOS 12+, Win10+, Ubuntu 22.04+ | Full support since 2017; no polyfill needed |
-| `localStorage` | n/a | Tauri v2 WebView | Stable in Tauri; domain is `tauri://localhost` in production builds, so no port-change instability |
-| `Vec<XMemFile>` + `#[serde(default)]` | n/a | v1.0–v3.3 save files | Same backward-compat pattern as `adv_tvm_state` and `rand_seed` — auto-defaults to empty Vec on old save load |
+### UniFFI (Recommended FFI Tool for Approach B)
+
+**UniFFI** (Mozilla) is the industry-standard Rust→multi-language binding generator. Used in production by Firefox for Android/iOS, Proton Pass, the Ferrostar navigation SDK, and many others.
+
+| Property | Value |
+|----------|-------|
+| Version | 0.31.1 (released 2026-04-13) |
+| MSRV | Rust stable |
+| Languages supported | Kotlin, Swift, Python, Ruby |
+| Swift 6 support | Partial (actively improving) |
+| Maturity | Production-used by Mozilla at scale; pre-1.0 API |
+| License | MPL-2.0 |
+
+**Why UniFFI over alternatives:**
+
+- **vs. swift-bridge 0.1.59** (released 2026-01-06, 1.1k stars, 91 open issues): swift-bridge uses a `#[swift_bridge::bridge]` macro-bridge model that requires annotating Rust types and functions in the source files. Using it would require modifying `hp41-core` — violating the frozen invariant. It also has significant missing type support: `Box<T>`, `Arc<T>`, `&[T]` slices are unimplemented. **Rejected: requires source modification to hp41-core.**
+- **vs. cbindgen + manual Swift wrappers**: Generates a C header; Swift wrappers must be hand-written. No type safety, enormous boilerplate for a ~325-variant `Op` enum. Rejected.
+- **UniFFI proc-macro approach** (available since 0.25, no UDL file required): Annotate the public API of a thin adapter crate with `#[uniffi::export]` macros. The adapter wraps `hp41-core`; the core is never modified.
+
+### Architecture for Approach B
+
+```
+hp41-core  (unchanged, frozen invariant preserved)
+    |
+    | depended on by
+    v
+hp41-ios-adapter  (new thin Rust crate, ~200–400 LOC of UniFFI exports)
+    |
+    | generates at build time
+    v
+libhp41ios.a (staticlib) + hp41ios.swift + hp41iosFFI.h
+    |
+    | assembled into
+    v
+hp41ios.xcframework
+    |
+    | imported by
+    v
+hp41-ios/  (new Xcode project, ~800–1500 LOC SwiftUI)
+```
+
+The adapter crate is where all iOS-specific deps live. `hp41-core` gets zero new deps.
+
+**Build process (Approach B) — automated via `just ios-xcframework`:**
+
+```bash
+# 1. Cross-compile adapter + core for all three iOS targets
+cargo build --manifest-path hp41-ios-adapter/Cargo.toml \
+  --target aarch64-apple-ios --release
+cargo build --manifest-path hp41-ios-adapter/Cargo.toml \
+  --target aarch64-apple-ios-sim --release
+cargo build --manifest-path hp41-ios-adapter/Cargo.toml \
+  --target x86_64-apple-ios --release
+
+# 2. Create simulator fat binary (Apple Silicon + Intel sim)
+lipo -create \
+  target/aarch64-apple-ios-sim/release/libhp41ios.a \
+  target/x86_64-apple-ios/release/libhp41ios.a \
+  -output target/universal-sim/libhp41ios.a
+
+# 3. Generate Swift bindings (driven from the device build)
+cargo run -p uniffi-bindgen -- \
+  generate --library target/aarch64-apple-ios/release/libhp41ios.a \
+  --language swift --out-dir generated/
+
+# 4. Assemble xcframework
+xcodebuild -create-xcframework \
+  -library target/aarch64-apple-ios/release/libhp41ios.a \
+  -headers generated/ \
+  -library target/universal-sim/libhp41ios.a \
+  -headers generated/ \
+  -output hp41ios.xcframework
+```
+
+**cargo-swift** (from lib.rs) automates these steps interactively. It uses UniFFI under the hood and is macOS-only. Convenient for initial setup; the `just` recipe should script the steps directly for CI reproducibility.
+
+**Effort profile for Approach B:**
+
+- New Rust adapter crate (`hp41-ios-adapter`): ~200–400 LOC of UniFFI export wrappers. The public API surface is small — `dispatch_op(key_id: String)`, `get_state()`, `run_stop()`, `tick_time()` — mirroring the existing Tauri IPC contract.
+- New SwiftUI app (`hp41-ios/`): ~800–1500 LOC for the touch keyboard, HP-41 display, help overlay, persistence, and modal handling.
+- Total new code estimate: **~2,500–3,500 LOC** vs. Approach A's ~500–800 LOC.
 
 ---
 
-## Phase-Specific Integration Points
+## 4. Signing & TestFlight Tooling
 
-### Phase A — Theming (THEME-01)
-- **Files to modify:** `hp41-gui/src/App.css` (add 4 `[data-theme]` blocks with CSS custom property overrides), `hp41-gui/src/App.tsx` (add theme state + localStorage read/write + `data-theme` prop on `.calculator` div), add `<ThemeSelector>` component or settings button in the UI.
-- **No new files in hp41-core or hp41-cli.**
+### Prerequisites (Both Approaches)
 
-### Phase B — .raw Import/Export (RAW-01, RAW-02)
-- **GUI:** New Tauri commands `import_raw_program` / `export_raw_program` in `commands.rs`. New permission TOMLs. Register `tauri_plugin_dialog::init()` in `lib.rs`.
-- **CLI:** Extend clap arg parser in `hp41-cli/src/main.rs` with `--import-raw <path>` and `--export-raw <path>` flags. Wire to existing `encode_program` / `decode_program`.
-- **Core:** No changes — codec exists.
+1. **Apple Developer Program membership** — confirmed ($99/yr). Required for signing, device testing, and TestFlight.
+2. **App ID** — register `ch.talent-factory.hp41` in App Store Connect (or a new iOS-specific ID if differentiating from the macOS app). The bundle ID must match `identifier` in `tauri.conf.json`.
+3. **iOS Distribution Certificate** — "Apple Distribution" cert. Export as `.p12` with password.
+4. **Provisioning Profile** — "App Store" distribution profile linked to the App ID.
+5. **App Store Connect API Key** — recommended for CI (avoids 2FA friction). Developer role is sufficient.
 
-### Phase C — Onboarding (ONBOARD-01, ONBOARD-02)
-- **GUI:** New `<OnboardingModal>` component in `hp41-gui/src/`. Add localStorage check in `App.tsx` effect.
-- **Extend:** `HelpOverlay.tsx` — add `example` column rendering (update `HelpEntry` type in `help_data.ts`); add examples to all 5 JSON function files.
-- **Core/CLI:** CLI adds `?rpn` command for quick-start RPN intro using ratatui Paragraph.
+### Approach A: Tauri-Native Signing (Recommended for v4.1)
 
-### Phase D — GUI Keyboard Parity (KBD-01)
-- **GUI:** Extend `resolveKeyId()` in `App.tsx`. Review CLI `key_to_op()` vs GUI `MAP` for gaps.
-- **No new deps.**
+```bash
+# Environment variables drive signing in tauri ios build
+export IOS_CERTIFICATE="$(base64 -i dist.p12)"
+export IOS_CERTIFICATE_PASSWORD="..."
+export IOS_MOBILE_PROVISION="$(base64 -i hp41.mobileprovision)"
+npm run tauri ios build -- --export-method app-store-connect
+# IPA written to: src-tauri/gen/apple/build/arm64/hp41.ipa
+xcrun altool --upload-app --type ios \
+  --file "src-tauri/gen/apple/build/arm64/hp41.ipa" \
+  --apiKey "$APPLE_API_KEY_ID" --apiIssuer "$APPLE_API_ISSUER"
+```
 
-### Phase E — X-MEM Model (XMEM-01)
-- **Core:** New `xmem: Vec<XMemFile>` field in `CalcState` with `#[serde(default)]`. New `XMemFile`, `XMemFileType` types in a new `hp41-core/src/ops/xmem/` directory. ~20-25 new `Op` variants (4-way exhaustive-match invariant applies). `migrate_after_load()` extension.
-- **CLI + GUI:** Integration phases follow standard XROM pattern (new `op_display_name` arms, new JSON help entries, new GUI key wiring).
-- **Flag:** Needs deeper research before coding — X-MEM file format byte layout not fully verified. See PITFALLS.md for details.
+This is fully automatable in GitHub Actions with macOS runners. No fastlane required for v4.1.
+
+### Alternative: fastlane + fastlane Match (Recommended for v5.x App Store)
+
+Fastlane Match stores certificates and profiles in an encrypted private Git repo, synced automatically in CI. Robust for long-term multi-developer use. Overkill for v4.1 internal TestFlight.
+
+```ruby
+# Minimal Fastfile for TestFlight (Approach A)
+lane :beta do
+  setup_ci
+  app_store_connect_api_key(
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    key_content: ENV["ASC_KEY"]
+  )
+  match(type: "appstore", readonly: is_ci)
+  sh("npm run tauri ios build -- --export-method app-store-connect")
+  upload_to_testflight(ipa: "src-tauri/gen/apple/build/arm64/hp41.ipa")
+end
+```
+
+### GitHub Actions CI
+
+**Runner:** `macos-latest` (currently macOS 15 on GitHub-hosted runners, ships Xcode 16.x). iOS builds require macOS runners — Linux/Windows cannot sign iOS apps. The existing `ci-gui.yml` already uses macOS runners, so this fits naturally as a new job or workflow file.
+
+**`tauri-action` does NOT support iOS builds.** The official `tauri-apps/tauri-action` only covers desktop (macOS, Windows, Linux). The iOS build workflow must be custom.
+
+**Required GitHub Secrets:**
+
+Without fastlane (minimal, recommended for v4.1):
+
+| Secret | Value |
+|--------|-------|
+| `IOS_CERTIFICATE` | base64-encoded .p12 Apple Distribution certificate |
+| `IOS_CERTIFICATE_PASSWORD` | .p12 password |
+| `IOS_MOBILE_PROVISION` | base64-encoded App Store provisioning profile |
+| `APPLE_API_KEY_ID` | App Store Connect API key ID |
+| `APPLE_API_ISSUER` | App Store Connect issuer ID |
+
+With fastlane Match (for v5.x):
+
+| Secret | Value |
+|--------|-------|
+| `ASC_KEY_ID` | App Store Connect key ID |
+| `ASC_ISSUER_ID` | App Store Connect issuer ID |
+| `ASC_KEY` | API private key (.p8) content |
+| `MATCH_PASSWORD` | Passphrase for encrypted certs repo |
+| `MATCH_GIT_PRIVATE_KEY` | SSH key to access the certs repo |
+
+**TestFlight upload:** After `xcrun altool --upload-app`, Apple validates the binary (typically 5–15 minutes). The build then appears in TestFlight for internal testers — no App Store review required for internal distribution.
+
+---
+
+## 5. Approach A vs. Approach B — Decision Matrix
+
+| Criterion | Approach A (Tauri v2 Mobile) | Approach B (SwiftUI + UniFFI) |
+|-----------|------------------------------|-------------------------------|
+| **Reuse of existing code** | High — React UI, all Tauri commands, IPC contract carry over | Low — new SwiftUI app; adapter is new |
+| **New code volume** | ~500–800 LOC (touch CSS + iOS path adapter) | ~2,500–3,500 LOC (SwiftUI UI + Rust adapter) |
+| **hp41-core changes** | Zero | Zero (adapter wraps it) |
+| **UI language** | TypeScript/React (existing) | Swift/SwiftUI (new to project) |
+| **IPC latency** | JSON serialization per Tauri command call | Direct Swift→Rust FFI (near-zero overhead) |
+| **Touch UX quality ceiling** | Good (CSS touch targets, safe areas); native controls impossible | Excellent (native iOS scroll, haptics, safe areas, UIKit) |
+| **Feature parity with desktop** | Automatic — same React codebase | Manual — each feature re-implemented in SwiftUI |
+| **Estimated milestone effort** | 3–4 phases | 5–7 phases |
+| **Tauri iOS maturity** | Stable; rough DX; known plugin gaps | N/A |
+| **TestFlight path** | Supported via `tauri ios build` + altool | Standard Xcode / fastlane path |
+| **GitHub Actions CI** | macOS runner required; custom workflow (tauri-action does NOT cover iOS) | macOS runner required; standard fastlane (well-documented) |
+| **App Store path (future)** | Supported via `--export-method app-store-connect` | Standard Xcode path |
+| **Long-term native iOS features** | Limited (WKWebView-based) | Full access to UIKit/SwiftUI APIs |
+| **Frozen invariant (hp41-core dep-free)** | Preserved | Preserved |
+
+---
+
+## 6. Recommendation: Approach A — Tauri v2 Mobile
+
+**Use Tauri v2 Mobile for v4.1 iOS Foundation.**
+
+**Rationale:**
+
+1. **The existing React UI is almost right.** The HP-41 skin is already SVG/HTML/CSS. Touch adaptation is CSS work — enlarging key hit targets to 44×44 pt, adding `touch-action: manipulation`, handling safe-area insets with `env(safe-area-inset-*)`. This is a few hundred lines of CSS changes, not a rewrite.
+
+2. **The Tauri IPC contract carries over unchanged.** All 10 Tauri commands work identically on iOS. Zero risk of re-introducing bugs fixed during v2.0–v4.0.
+
+3. **The v4.1 goal is TestFlight distribution, not App Store polish.** Tauri v2 Mobile is stable enough for this. The rough edges (DX friction, entitlements bug, plugin gaps) do not affect the hp41 use case — hp41 needs no special capabilities (no NFC, biometrics, push notifications), and the `.raw` file dialog gap is non-blocking for TestFlight.
+
+4. **Approach B is significantly more work for the same outcome.** A SwiftUI rewrite produces a nicer long-term iOS app, but v4.1 is explicitly foundation-first. The extra ~2,000 LOC of SwiftUI + UniFFI adapter provides no additional v4.1 functionality. App Store distribution is explicitly out of scope for v4.1.
+
+5. **The Tauri ecosystem is already in the project.** `hp41-gui` is already Tauri v2.11. iOS is just another Tauri target. No new ecosystem to learn, no new toolchain to maintain for v4.1.
+
+**When to reconsider Approach B (defer to v5.x or later):** If native iOS features are needed (share sheet, Siri shortcuts, Widgets, Live Activities, extensive haptics), or if users report that the WKWebView-based UI feels unacceptably non-native. The hp41-core + adapter architecture works for either approach — switching later remains feasible because hp41-core is UI-agnostic.
+
+---
+
+## 7. New Dependencies for v4.1 (iOS Adapter Layer Only)
+
+All new deps live in the iOS adapter layer. `hp41-core` gets zero new dependencies — frozen invariant preserved.
+
+### Approach A: Additions to `hp41-gui/`
+
+No new Rust runtime crates expected. The existing Tauri v2.11 framework handles the iOS bridge. What is added:
+
+| Tool/Library | Version | Role | Why |
+|-------------|---------|------|-----|
+| `tauri-cli` | 2.11.x (already installed) | `tauri ios init/build` commands | Drives cargo-mobile2 iOS scaffold and Xcode integration |
+| `cocoapods` | system (brew) | Native iOS dependency manager | Required by Tauri iOS scaffold's Podfile |
+| `tauri-plugin-fs` | 2.x | iOS-sandbox-aware file paths | iOS does not allow `~/.hp41/`; plugin exposes `BaseDirectory::Document` |
+
+### Approach B: New Crates (hypothetical)
+
+| Crate | Version | Role | Why |
+|-------|---------|------|-----|
+| `uniffi` | 0.31.1 | Generates Swift bindings from Rust | Industry-standard, Mozilla-backed, production-tested |
+| `uniffi_build` | 0.31.1 | Build script integration | Drives binding generation in `build.rs` |
+| `cargo-swift` (dev tool) | current | xcframework packaging helper | Wraps multi-target compile + `lipo` + `xcodebuild -create-xcframework` |
+
+---
+
+## 8. What NOT to Add
+
+Explicitly excluded — keep `hp41-core` dependency-free:
+
+- **Do NOT add `uniffi` to `hp41-core/Cargo.toml`** — UniFFI belongs in the adapter crate only. hp41-core has zero new runtime deps since v3.0.
+- **Do NOT add `libc`, `objc`, or any Apple SDK bindings to hp41-core** — iOS-only; would break cross-platform compilation.
+- **Do NOT add `tokio` or any async runtime** — hp41-core is deliberately synchronous; WKWebView's JavaScript bridge handles async at the UI layer.
+- **Do NOT add `chrono` or `time` crate to hp41-core** — `SystemTime::now()` is sufficient and was already chosen over chrono (v3.2 decision D-38.2).
+- **Do NOT modify `[workspace]` members in root `Cargo.toml`** — `hp41-gui` is a nested standalone workspace; iOS changes stay inside `hp41-gui/src-tauri/`. Root members remain `["hp41-core", "hp41-cli"]`.
+- **Do NOT add fastlane as a v4.1 CI dependency** — `xcrun altool` (bundled with Xcode) is sufficient for TestFlight-only internal distribution. Fastlane Match is appropriate for v5.x App Store submission.
+- **Do NOT use `tauri-plugin-shell` on iOS** — not supported on iOS; invoking shell commands is impossible in the iOS sandbox.
+- **Do NOT use `tauri-action` for the iOS CI job** — it does not support iOS builds. A custom GitHub Actions workflow using environment-variable signing is required.
+
+---
+
+## 9. Open Questions / Risks
+
+| Question | Risk | Mitigation |
+|----------|------|------------|
+| Does `ch.talent-factory.hp41` work as an iOS bundle ID with Tauri 2.11? | Low | Identifier uses only dots and alphanumeric chars; the known hyphen/underscore bug does not apply. |
+| Will the SVG-based HP-41 key layout fit acceptably on a 6.1" iPhone (390×844 pt)? | Medium | SVG scales cleanly; need to verify key hit targets are 44×44 pt minimum (Apple HIG). A CSS media query pass required in Phase 1. |
+| Does `tauri-plugin-fs` expose the iOS Documents container path correctly? | Medium | Plugin has iOS support; `BaseDirectory::Document` should resolve to the sandboxed container. Verify in Phase 1 implementation. |
+| Does `tauri ios build` run headless (non-interactive) in GitHub Actions? | Medium | Yes — `xcrun altool` and environment-variable signing work headless. Tauri's build shell script invokes `xcodebuild` non-interactively. macOS runner required. |
+| Will the auto-save thread (Mutex-protected, releases before I/O) work in Tauri iOS process model? | Low | Tauri on iOS runs Rust in the same process as the WKWebView host. The threading model is unchanged from desktop. |
+| Tauri's Xcode build phase may not use cargo's incremental build cache, causing slow iteration. | Low | Known DX friction; accept for v4.1. `tauri ios dev` with simulator avoids full rebuilds for frontend changes. |
+| The `tauri-plugin-dialog` native file picker is not available on iOS — `.raw` import/export needs a workaround. | Medium | Non-blocking for v4.1 TestFlight goal. Defer `.raw` iOS support to a follow-up phase. |
 
 ---
 
 ## Sources
 
-- `hp41-core/src/cardreader/raw.rs` inspected directly — confirmed `encode_program` / `decode_program` exist, END marker is `C0 00 0D`, codec is feature-complete for core HP-41 ops. HIGH confidence.
-- `hp41-core/src/cardreader/mod.rs` inspected directly — confirmed `CardOpRequest`, `insert_program_ops`. HIGH confidence.
-- `hp41-gui/package.json` inspected directly — confirmed tailwindcss v4.3 in devDependencies but NOT imported in any CSS file. HIGH confidence.
-- `hp41-gui/src/App.css` inspected directly — 395-line vanilla CSS, no CSS custom properties yet, well-structured BEM-style classes. HIGH confidence.
-- `hp41-gui/src/App.tsx` inspected directly — `resolveKeyId()` MAP, `window.addEventListener('keydown')` pattern, `localStorage` not yet used. HIGH confidence.
-- [`@tauri-apps/plugin-dialog` on npm](https://www.npmjs.com/package/@tauri-apps/plugin-dialog) — latest 2.7.1, published ~8 days ago. HIGH confidence.
-- [`tauri-plugin-store` on docs.rs](https://docs.rs/crate/tauri-plugin-store/latest) — v2.4.3, published 2026-05-02. HIGH confidence.
-- [CSS-Tricks: Easy Dark Mode and Multiple Color Themes in React](https://css-tricks.com/easy-dark-mode-and-multiple-color-themes-in-react/) — `data-theme` + CSS custom properties pattern. HIGH confidence.
-- [Aptabase: Persistent state in Tauri apps](https://aptabase.com/blog/persistent-state-tauri-apps) — localStorage stable in Tauri production builds (fixed `tauri://localhost` origin). MEDIUM confidence.
-- [finseth.com HP-41CX function list](https://www.finseth.com/hpdata/hp41cx.php) — EMDIR, EMDIRX, EMROOM, CRFLAS, CRFLD, CLFL, PURFL, FLSIZE, APPREC, etc. confirmed. HIGH confidence on function names.
-- [HP Museum forum archives on XMEM file types](https://www.hpmuseum.org/forum/thread-13684.html) — file types (Program/Key/Data/ASCII) confirmed. MEDIUM confidence (page blocked 403 during fetch; confirmed via search excerpts).
-- [Ángel Martin AMC_OS/X extended memory type table](https://slideplayer.com/slide/15657204/) — file type IDs 01=Program, 02=Data, 03=ASCII confirmed. MEDIUM confidence (secondary source; third-party extension system, not original HP).
-- [5 Best React Onboarding Libraries — OnboardJS](https://onboardjs.com/blog/5-best-react-onboarding-libraries-in-2025-compared) — react-joyride 5.1K stars, 2.5× download lead over shepherd.js. Evaluated and rejected for this use case. HIGH confidence on ecosystem state.
-
----
-*Stack research for: HP-41 Calculator Emulator v4.0 Platform Maturity*
-*Researched: 2026-05-27*
+| Source | URL | Confidence |
+|--------|-----|-----------|
+| Tauri v2 stable release announcement | https://v2.tauri.app/blog/tauri-20/ | HIGH |
+| Tauri App Store / iOS distribution guide | https://v2.tauri.app/distribute/app-store/ | HIGH |
+| Tauri iOS code signing guide | https://tauri.app/distribute/sign/ios/ | HIGH |
+| Tauri v2 prerequisites (iOS toolchain) | https://v2.tauri.app/start/prerequisites/ | HIGH |
+| Tauri v2 configuration reference (minimumSystemVersion default 14.0) | https://v2.tauri.app/reference/config/ | HIGH |
+| Tauri iOS DX community feedback | https://github.com/tauri-apps/tauri/discussions/10197 | MEDIUM |
+| Tauri iOS entitlements bug | https://github.com/tauri-apps/tauri/issues/11089 | MEDIUM |
+| Tauri iOS bundle ID bug | https://github.com/tauri-apps/tauri/issues/9851 | MEDIUM |
+| Tauri iOS build & development (DeepWiki) | https://deepwiki.com/tauri-apps/tauri/8.2-ios-development-and-build | MEDIUM |
+| Rust iOS platform support (Tier 2, minimum iOS 10.0, Xcode 12+) | https://doc.rust-lang.org/beta/rustc/platform-support/apple-ios.html | HIGH |
+| UniFFI crates.io (v0.31.1, released 2026-04-13) | https://crates.io/crates/uniffi | HIGH |
+| UniFFI Swift/Xcode integration guide | https://mozilla.github.io/uniffi-rs/latest/swift/xcode.html | HIGH |
+| swift-bridge GitHub (v0.1.59, released 2026-01-06) | https://github.com/chinedufn/swift-bridge | HIGH |
+| Ferrostar iOS/Rust xcframework production case study | https://stadiamaps.com/news/ferrostar-building-a-cross-platform-navigation-sdk-in-rust-part-2/ | MEDIUM |
+| Fastlane TestFlight + GitHub Actions tutorial | https://brightinventions.pl/blog/ios-testflight-github-actions-fastlane-match/ | MEDIUM |
+| cargo-swift tool | https://lib.rs/crates/cargo-swift | MEDIUM |

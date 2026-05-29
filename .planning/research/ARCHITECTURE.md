@@ -1,582 +1,626 @@
-# Architecture Research
+# Architecture: iOS Integration Research
 
-**Domain:** HP-41 Calculator Emulator v4.0 Platform Maturity (themes, onboarding, .raw I/O, X-MEM)
-**Researched:** 2026-05-27
-**Confidence:** HIGH (all claims verified against source code)
-
----
-
-## Standard Architecture
-
-### System Overview
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        hp41-gui (Tauri v2 + React)                        │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐  ┌─────────────┐ │
-│  │ App.tsx     │  │ Keyboard.tsx │  │ HelpOverlay.tsx│  │ ThemePicker │ │
-│  │ (root state)│  │ (KEY_DEFS)   │  │ (6 sections)   │  │ (NEW)       │ │
-│  └──────┬──────┘  └──────┬───────┘  └────────┬───────┘  └──────┬──────┘ │
-│         │                │                   │                  │        │
-│  ┌──────▼──────────────────────────────────────────────────────▼──────┐  │
-│  │     Tauri IPC: dispatch_op / get_state / import_raw / export_raw   │  │
-│  │                get_prefs / set_pref                                 │  │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────────────────────────┐    │
-│  │  hp41-gui/src-tauri: commands.rs | key_map.rs | types.rs         │    │
-│  │  persistence.rs | prgm_display.rs | cards.rs | prefs.rs (NEW)    │    │
-│  └──────────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────────┘
-                           │  hp41-core (lib)
-┌──────────────────────────────────────────────────────────────────────────┐
-│  CalcState  |  Op enum  |  dispatch()  |  run_program()                   │
-│  cardreader/raw.rs (encode_program / decode_program — ALREADY EXISTS)     │
-│  cardreader/data.rs  |  state.rs (migrate_after_load)                     │
-│  ops/xmem.rs (NEW: ExtendedMemory model + EMDIR/EMROOM/EMREG ops)         │
-└──────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────┐
-│  hp41-cli (ratatui TUI)                                                   │
-│  app.rs | keys.rs | ui.rs | help_data.rs | persistence.rs | cards.rs     │
-│  (keyboard parity: add physical key bindings to close GUI gaps)           │
-└──────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Persistence layer (shared + new)                                         │
-│  ~/.hp41/autosave.json  (CalcState: shared CLI + GUI, unchanged)          │
-│  ~/.hp41/prefs.json     (NEW: GuiPrefs { theme, onboarding_done })        │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `hp41-core/src/cardreader/raw.rs` | `.raw` byte codec (encode/decode) — **already exists, no change** | `cardreader/mod.rs`; frontends via CardOpRequest drain |
-| `hp41-core/src/ops/xmem.rs` (NEW) | Extended Memory ops: EMDIR, EMROOM, EMREG | `CalcState.xmem: ExtendedMemory`; `dispatch()` |
-| `hp41-core/src/state.rs` | Add `xmem: ExtendedMemory` field with `#[serde(default)]` | All ops via `&mut CalcState` |
-| `hp41-gui/src-tauri/src/commands.rs` | Add `import_raw`, `export_raw`, `get_prefs`, `set_pref` Tauri commands | hp41-core cardreader codec; `prefs.rs` |
-| `hp41-gui/src-tauri/src/prefs.rs` (NEW) | Load/save `~/.hp41/prefs.json`; `GuiPrefs { theme, onboarding_done }` | `commands.rs`; `lib.rs` setup |
-| `hp41-gui/src/App.tsx` | Consume theme from prefs; apply `data-theme` to root div; onboarding first-run gate | ThemePicker, OnboardingOverlay |
-| `hp41-gui/src/ThemePicker.tsx` (NEW) | Dropdown / radio for 3-4 theme presets; calls `set_pref('theme', …)` | `App.tsx` |
-| `hp41-gui/src/OnboardingOverlay.tsx` (NEW) | Full-screen first-run guide (3-5 slides); marks `onboarding_done=true` | `App.tsx` |
-| `hp41-gui/src/FunctionReference.tsx` (NEW) | Searchable full function reference (richer than `?` overlay) | `help_data.ts` (existing 5-pool) |
-| `hp41-gui/src/App.css` | Extract hard-coded hex colors to CSS custom properties; add 4 `[data-theme]` blocks | All styled components |
-| `hp41-cli/src/keys.rs` | Add physical keyboard bindings to close parity gaps with GUI | `app.rs` handle_key() |
+**Project:** HP-41 Calculator Emulator — v4.1 iOS Foundation
+**Researched:** 2026-05-29
+**Confidence:** HIGH (Approach A structural details), MEDIUM (Approach B FFI surface), MEDIUM (iOS lifecycle/persistence)
 
 ---
 
-## Recommended Project Structure (new and changed files only)
+## Overview
 
-```
-hp41-core/src/
-├── cardreader/
-│   └── raw.rs              EXISTING, no change needed for file I/O
-│                           (encode_program / decode_program already work + tested)
-├── ops/
-│   ├── mod.rs              MODIFY: add X-MEM Op variants
-│   ├── program.rs          MODIFY: execute_op() arms for X-MEM ops
-│   └── xmem.rs             NEW: EMDIR / EMROOM / EMREG ops + ExtendedMemory struct
-└── state.rs                MODIFY: add xmem: ExtendedMemory field
+This document answers how an iPhone target integrates with the existing `hp41-core` + Tauri/React architecture for both candidate approaches. The frozen invariant — `hp41-core` never depends on UI crates; `tauri`/`tauri-build` appear only in `hp41-gui/src-tauri/Cargo.toml`; root workspace members stay `["hp41-core", "hp41-cli"]` — is the binding constraint on every structural decision described here.
 
-hp41-gui/src-tauri/src/
-├── commands.rs             MODIFY: add import_raw, export_raw, get_prefs, set_pref
-├── key_map.rs              MODIFY: resolve() arms for X-MEM key IDs
-├── lib.rs                  MODIFY: manage Mutex<GuiPrefs>; load prefs at startup
-├── prgm_display.rs         MODIFY: op_display_name() arms for X-MEM ops (4-way arm 4)
-├── prefs.rs                NEW: GuiPrefs struct + load/save to ~/.hp41/prefs.json
-└── permissions/
-    ├── get-prefs.toml      NEW: Tauri v2.11 permission for get_prefs command
-    ├── set-pref.toml       NEW: Tauri v2.11 permission for set_pref command
-    ├── import-raw.toml     NEW: Tauri v2.11 permission for import_raw command
-    └── export-raw.toml     NEW: Tauri v2.11 permission for export_raw command
-
-hp41-gui/src/
-├── App.tsx                 MODIFY: theme data-attr init; onboarding gate; Import/Export UI
-├── App.css                 MODIFY: lift hex to CSS vars; add 4 [data-theme] blocks
-├── FunctionReference.tsx   NEW: searchable full reference (beyond ? overlay)
-├── OnboardingOverlay.tsx   NEW: multi-slide first-run guide
-├── ThemePicker.tsx         NEW: theme switcher component
-└── key_defs_ids.ts         MODIFY: verify/fill missing key bindings for parity
-
-hp41-cli/src/
-├── keys.rs                 MODIFY: add physical keyboard bindings for parity gaps
-└── prgm_display.rs         MODIFY: op_display_name() arms for X-MEM ops (4-way arm 3)
-```
+Two approaches are compared:
+- **Approach A:** Tauri v2 Mobile — add iOS target to the existing `hp41-gui` Tauri app, reusing the React frontend and `hp41-core` as-is.
+- **Approach B:** Native SwiftUI + Rust FFI — new SwiftUI UI, bind `hp41-core` via UniFFI through a thin adapter crate.
 
 ---
 
-## Architectural Patterns
+## Engine Reuse (hp41-core Unchanged)
 
-### Pattern 1: CSS Custom Properties for Theme Switching (HIGH confidence)
+`hp41-core` is a pure Rust library crate with zero UI or platform dependencies. Its `CalcState`, `Op` enum, `dispatch()`, and all XROM modules are entirely platform-agnostic. Both approaches reuse it identically:
 
-**What:** Each theme is a complete palette declared as CSS custom properties under a `[data-theme="X"]` attribute selector on `document.documentElement`. Components reference semantic tokens (`--bg-primary`, `--display-text`, `--key-fill`, etc.) rather than hard-coded color values. Switching themes is a single `document.documentElement.setAttribute('data-theme', id)` call — zero React re-renders, instant.
+- `hp41-core` compiles to `aarch64-apple-ios` without modification. The crate uses only `std`, `serde`, `serde_json`, `rust_decimal`, and `thiserror` — all of which cross-compile to this tier-2 Rust target without issues.
+- `SystemTime::now()` (used by the Time Pac for real-time clock) maps correctly to iOS; no platform stubs are needed.
+- The `dirs` crate (used in `hp41-gui` for `~/.hp41/autosave.json` path resolution) is NOT in `hp41-core` — it lives only in `hp41-gui`'s persistence layer. `hp41-core` has no filesystem knowledge.
+- `MSRV 1.88` is compatible with `aarch64-apple-ios` (tier-2 target, standard library available).
 
-**When to use:** Multiple named presets (dark, light, beige, high-contrast) that share the same component structure with different colors.
+**FROZEN INVARIANT STATUS:** The engine is unchanged regardless of approach chosen.
 
-**Trade-offs:** Pure CSS, no JavaScript branching per component. Requires auditing App.css to lift all hard-coded hex values to variables. The Keyboard.tsx SVG inline fills may also need conversion to reference CSS variables via `style={{ fill: 'var(--key-fill)' }}` — SVG `fill` attributes do NOT inherit from CSS custom properties unless explicitly set via style.
+---
 
-**Example:**
-```css
-/* App.css — theme variable declarations */
-[data-theme="dark"] {
-  --bg-calculator: #0d0d0d;
-  --bg-display: #111;
-  --display-text: #c8e6c9;
-  --key-primary-fill: #2a2a2a;
-  --key-shifted-label: #e8740c;
-  --key-alpha-label: #6eb5ff;
-  --annunciator-active: #e8e8c0;
-}
-[data-theme="light"] {
-  --bg-calculator: #e8e0d0;
-  --bg-display: #f5f0e8;
-  --display-text: #1a3a1a;
-  --key-primary-fill: #c8bfb0;
-  /* ... */
-}
-[data-theme="beige"] { /* authentic HP-41C beige — match original hardware */ }
-[data-theme="high-contrast"] { /* WCAG AA+ contrast ratios */ }
+## Approach A: Tauri v2 Mobile Integration
+
+### How It Works
+
+Tauri v2 compiles the React frontend into a WKWebView-hosted web app on iOS. The Rust backend (`hp41-gui/src-tauri`) becomes a static library (`staticlib`) that the generated Xcode project links. The existing Tauri command IPC (`dispatch_op`, `get_state`, etc.) and the React frontend are reused unchanged.
+
+### What Changes vs. What Carries Over
+
+**Carries over unchanged:**
+- All 10 Tauri commands in `commands.rs` (`dispatch_op`, `get_state`, `sst_step`, `bst_step`, `run_stop`, `request_cancel`, `tick_time`, `submit_modal`, `cancel_modal`, `submit_modal_with_label`)
+- `CalcStateView` / `GuiError` IPC types in `types.rs`
+- `key_map::resolve()` string-ID-to-Op translation
+- The entire React + TypeScript frontend (Keyboard.tsx, Display, help overlay, etc.)
+- `hp41-core` dependency path `../../hp41-core` — unchanged
+
+**Changes required in `hp41-gui/src-tauri/Cargo.toml`:**
+
+The `[lib]` section currently lacks `crate-type`. iOS requires `staticlib` for the Xcode link step:
+
+```toml
+[lib]
+name = "hp41_gui_lib"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib", "rlib"]
 ```
 
-```tsx
-// App.tsx — apply theme attribute + persist to prefs
-async function applyTheme(id: string) {
-  document.documentElement.setAttribute('data-theme', id);
-  await invoke('set_pref', { key: 'theme', value: id });
-}
-// On mount: load theme from prefs and apply
-useEffect(() => {
-  invoke<GuiPrefs>('get_prefs').then(prefs => {
-    document.documentElement.setAttribute('data-theme', prefs.theme);
-    if (!prefs.onboarding_done) setShowOnboarding(true);
-  });
-}, []);
+This is the single structural change needed to `src-tauri/Cargo.toml`. The `tauri` and `tauri-build` deps remain confined to this file — the frozen invariant is preserved.
+
+**`lib.rs` is already partially prepared:** The `#[cfg_attr(mobile, tauri::mobile_entry_point)]` attribute is already on the `run()` function. No further changes to `lib.rs` are needed for basic iOS function.
+
+**`main.rs` delegates to `lib.rs`:** The existing `main.rs` calls `hp41_gui_lib::run()` — this is the correct desktop entry point. On iOS the `mobile_entry_point` macro kicks in instead. No changes needed.
+
+**New files created by `tauri ios init`:**
+
+```
+hp41-gui/src-tauri/
+  gen/
+    apple/
+      project.yml          <- XcodeGen source of truth (commit this)
+      hp41-calculator/     <- generated Xcode project (regeneratable, commit per Tauri maintainer guidance)
+      Podfile              <- CocoaPods deps (generated)
 ```
 
-### Pattern 2: Separate GUI Preferences File — prefs.rs (HIGH confidence)
+The `gen/apple/Pods/`, `gen/apple/Externals/`, and `gen/apple/build/` subdirectories are auto-gitignored by the internal `.gitignore` Tauri generates. The `project.yml` is the authoritative source; running `tauri ios init` again is idempotent (regenerates from `project.yml`).
 
-**What:** User preferences (theme, onboarding_done) live in `~/.hp41/prefs.json`, strictly separate from `~/.hp41/autosave.json`. Implemented as a hand-coded `prefs.rs` module (mirrors the existing `persistence.rs` pattern exactly) rather than using `tauri-plugin-store`.
+**`tauri.ios.conf.json`** (new platform-override file at `hp41-gui/src-tauri/`):
 
-**Why not `tauri-plugin-store`:** The store plugin is a new runtime dependency. Given the project's zero-new-runtime-deps discipline (held since v3.0, `statrs`/`libc`/`chrono` all rejected), and given that `GuiPrefs` has only 2 fields, the 50-LOC hand-coded approach is the correct choice. It follows the identical `serde_json` round-trip pattern already proven in `persistence.rs`.
-
-**When to use:** Any new GUI-only preferences that must NOT pollute CalcState (CalcState is shared between CLI and GUI; UI preferences must not appear in `~/.hp41/autosave.json`).
-
-**Example:**
-```rust
-// hp41-gui/src-tauri/src/prefs.rs
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GuiPrefs {
-    #[serde(default = "default_theme")]
-    pub theme: String,
-    #[serde(default)]
-    pub onboarding_done: bool,
+```json
+{
+  "app": {
+    "backgroundThrottlingPolicy": "throttle"
+  }
 }
-fn default_theme() -> String { "dark".to_string() }
-
-pub fn default_prefs_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".hp41").join("prefs.json")
-}
-// load_prefs() / save_prefs() follow persistence.rs pattern exactly
 ```
+
+This prevents the WKWebView from fully suspending when the app moves to background (iOS 17+). Needed because `tick_time` setInterval runs on a 100ms cadence for the live clock/stopwatch display (D-11 / D-41.1).
+
+**`capabilities/ios.json`** (new capability file):
+
+The existing `capabilities/default.json` applies to all platforms. An iOS-specific capability file scopes mobile-only permissions and targets with `"platforms": ["iOS"]`.
+
+**iOS build commands (added to `justfile`):**
+
+```just
+ios-init:
+    cd hp41-gui && cargo tauri ios init
+
+ios-dev device="":
+    cd hp41-gui && cargo tauri ios dev {{device}}
+
+ios-build:
+    cd hp41-gui && cargo tauri ios build --export-method release-testing
+
+ios-testflight:
+    cd hp41-gui && cargo tauri ios build --export-method app-store-connect
+    xcrun altool --upload-app --type ios \
+      --file "hp41-gui/src-tauri/gen/apple/build/arm64/hp41-calculator.ipa" \
+      --apiKey $APPLE_API_KEY_ID --apiIssuer $APPLE_API_ISSUER
+```
+
+### Workspace Structure — Is the Frozen Invariant Preserved?
+
+Yes, completely. `tauri ios init` operates entirely within `hp41-gui/src-tauri/`. It:
+- Does NOT touch the root `Cargo.toml` or root workspace members
+- Does NOT add `tauri` to `hp41-core`
+- Does NOT create a new top-level workspace member
+- Creates `gen/apple/` inside `hp41-gui/src-tauri/` only
+
+The iOS target is an add-on to the **existing** nested standalone `hp41-gui` workspace, not a new workspace member at any level.
+
+### iOS App Type
+
+The iOS app is NOT a new separate product — it IS the same `hp41-gui` app with iOS as an additional build target. There is no separate nested workspace, no new `Cargo.toml`, no new crate. The iOS build shares the same `src-tauri/` Rust code, the same `src/` React code, and the same Tauri commands.
+
+### Data Flow in Approach A (iOS)
+
+```
+[Touch event: key tap]
+       |
+[React: key_map.resolve(keyId) -> string ID]
+       |
+[Tauri IPC: invoke("dispatch_op", {keyId})]
+       |
+[WKWebView JS bridge -> Rust tauri command]
+       |
+[commands::dispatch_op() -> handle_op_prepare(&mut CalcState, key_id)]
+       | (same dispatch() / xrom_resolve() / CalcState mutation as desktop)
+[CalcStateView serialized to JSON -> IPC return]
+       |
+[React: re-renders display, stack, annunciators]
+```
+
+This data flow is identical to the desktop Tauri app. The IPC bridge changes from a native WebKit message-passing mechanism on macOS to WKWebView's `window.webkit.messageHandlers` mechanism on iOS — but this is transparent to both the React frontend and the Rust command handlers.
+
+---
+
+## Approach B: SwiftUI + UniFFI Integration
+
+### How It Works
+
+A thin Rust adapter crate (`hp41-ios-bridge`) sits between `hp41-core` and the SwiftUI app. UniFFI generates Swift bindings from this adapter. SwiftUI calls into Rust synchronously for ops (since `hp41-core` has no async); state is returned as a Swift-friendly `StateView` value type after each call.
+
+### FFI Boundary Shape
+
+**What the adapter crate exposes (surface design):**
+
+The adapter crate wraps `hp41-core`'s `CalcState` in an `Arc<Mutex<CalcState>>` (required by UniFFI's `Sync + Send` constraint for object types) and exposes a Swift-callable class `Calculator`:
 
 ```rust
-// lib.rs: manage GuiPrefs as separate Tauri state (never mix with AppState)
-pub type PrefsState = Mutex<GuiPrefs>;
-// In setup(): app.manage(Mutex::new(loaded_prefs));
-```
+// hp41-ios-bridge/src/lib.rs
 
-### Pattern 3: .raw Import/Export — Plumbing Existing Codec (HIGH confidence)
+uniffi::setup_scaffolding!();
 
-**What:** The `.raw` byte codec (`encode_program` / `decode_program`) already exists in `hp41-core/src/cardreader/raw.rs` and is fully tested. The v4.0 work is GUI plumbing only: new Tauri commands that call the existing codec and optionally use a file dialog.
+#[derive(uniffi::Object)]
+pub struct Calculator {
+    state: std::sync::Mutex<hp41_core::CalcState>,
+}
 
-**MVP approach (zero new deps):** RDPRGM/WPRGM via the existing card reader already reads/writes `.raw` files from `~/.hp41/cards/<name>.raw`. This works today. The v4.0 enhancement is making it more discoverable (onboarding mention, Import/Export UI button that calls the card reader pattern).
+#[uniffi::export]
+impl Calculator {
+    #[uniffi::constructor]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self { state: std::sync::Mutex::new(hp41_core::CalcState::new()) })
+    }
 
-**Enhanced approach (one official Tauri plugin):** Add `tauri-plugin-dialog` (official Tauri ecosystem, not GPL) for a native file picker. This allows importing any `.raw` file from anywhere on disk, not just `~/.hp41/cards/`. Requires one dependency decision (recommend treating as a sanctioned exception; document in ADR).
+    pub fn dispatch_op(&self, key_id: String) -> StateView {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        // resolve key_id -> Op (reuse key_map logic from hp41-gui)
+        // call hp41_core::ops::dispatch(&op, &mut state)
+        StateView::from_state(&state)
+    }
 
-**Import flow (enhanced):**
-```rust
-// commands.rs
-#[tauri::command]
-pub async fn import_raw(state: State<'_, AppState>) -> Result<CalcStateView, GuiError> {
-    // 1. Show native file dialog (tauri-plugin-dialog OR path argument from frontend)
-    // 2. fs::read(path) → Vec<u8>
-    // 3. hp41_core::cardreader::decode_program(&bytes) → Vec<Op>
-    // 4. lock AppState, insert_program_ops(&mut calc, ops)
-    // 5. return CalcStateView
+    pub fn load_state_json(&self, json: String) -> bool { /* serde_json parse + replace */ true }
+    pub fn save_state_json(&self) -> String { /* serde_json::to_string(state) */ String::new() }
+}
+
+#[derive(uniffi::Record)]
+pub struct StateView {
+    pub display_str: String,
+    pub x_str: String,
+    pub y_str: String,
+    pub z_str: String,
+    pub t_str: String,
+    pub lastx_str: String,
+    pub print_lines: Vec<String>,
+    pub program_steps: Vec<String>,
+    pub pc: u64,
+    pub is_running: bool,
+    pub modal_prompt: Option<String>,
+    pub modal_requires_alpha_label: bool,
+    pub clock_active: bool,
+    pub stopwatch_running: bool,
+    // mirrors CalcStateView fields, using only UniFFI-compatible primitives
 }
 ```
 
-**Key constraint:** The codec logic stays in `hp41-core`. `commands.rs` provides only I/O plumbing. SC-4 invariant preserved.
+**Key UniFFI constraints affecting the design:**
 
-### Pattern 4: Extended Memory Model in hp41-core (MEDIUM confidence — needs OM verification)
+1. Objects exposed via `#[derive(uniffi::Object)]` cannot use `&mut self` — interior mutability (`Mutex`) is required. This aligns with the existing `AppState = Mutex<CalcState>` pattern in `hp41-gui`.
+2. `#[derive(uniffi::Record)]` is used for value types (passed by copy). `StateView` is a flat record with only primitive-compatible types — strings, booleans, u64, `Vec<String>`, `Option<String>`. This avoids the complexity of crossing `HpNum` (a `rust_decimal::Decimal` struct) across the boundary.
+3. `uniffi::setup_scaffolding!()` in the adapter crate's `lib.rs` — NOT in `hp41-core`.
+4. Generic functions are not supported by `#[uniffi::export]` — the `StateView::from_state` helper is a plain function in the adapter, not generic.
 
-**What:** HP-41CX X-MEM is a named-file store (up to 319 registers in the base CX, or 600 with two expansion modules) accessed by file name, completely separate from numbered registers (R00-R99) and Advantage Pac matrices (`adv_matrices`).
+**What crosses the boundary:**
+- `String` — key IDs, display strings, JSON for persistence
+- `Vec<String>` — print lines, program step listings
+- `bool`, `u64`, `Option<String>` — annunciators, PC, modal state
+- `StateView` record — the complete view snapshot returned by every dispatch call
+- `Calculator` object — held by SwiftUI as `@StateObject var calc: Calculator`
 
-**Key isolation rule:** `CalcState.xmem` must never touch `CalcState.regs`, `CalcState.matrix_dim`, or `CalcState.adv_matrices`. This mirrors D-43.5 (named-matrix isolation).
+**What does NOT cross the boundary:**
+- `CalcState` itself (stays in Rust, behind the Mutex)
+- `HpNum` / `rust_decimal::Decimal` (not UniFFI-annotatable without a wrapper)
+- `Op` enum (not exposed; the adapter resolves string key IDs to Op internally)
+- `ModalProgram` enum (not exposed; only `modal_prompt: Option<String>` and flags cross)
 
-**Data model:**
-```rust
-// hp41-core/src/ops/xmem.rs
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ExtendedMemory {
-    pub files: Vec<XMemFile>,
-}
+### Adapter Crate Location
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct XMemFile {
-    pub name: String,        // up to 7 chars per HP-41CX hardware limit
-    pub regs: Vec<HpValue>,  // data registers in this file
-}
+The adapter crate lives as a new nested standalone workspace — NOT added to the root `Cargo.toml` members list:
+
+```
+hp41-ios-bridge/          <- new nested standalone workspace
+  Cargo.toml              <- [workspace] + [package], depends on hp41-core via path ../hp41-core
+  src/
+    lib.rs
+  build.rs                <- uniffi build script for binding generation
+  uniffi-bindgen/
+    main.rs               <- uniffi-bindgen binary entry point
+  ios-app/                <- SwiftUI Xcode project
+    hp41-ios.xcodeproj/
+    Sources/
+    Tests/
+  scripts/
+    build-xcframework.sh
 ```
 
-**state.rs addition:**
-```rust
-#[serde(default)]
-pub xmem: ExtendedMemory,
+This strictly preserves the frozen invariant: `hp41-ios-bridge/Cargo.toml` has `[workspace]` with `resolver = "2"`, is completely isolated from the root workspace, and `tauri`/`tauri-build` remain confined to `hp41-gui/src-tauri/Cargo.toml` only.
+
+**FROZEN INVARIANT CHECK for Approach B:**
+- Root `Cargo.toml` `members` stays `["hp41-core", "hp41-cli"]` — NOT modified.
+- `hp41-core` is a dependency of the adapter, not the reverse. `hp41-core` gains zero new deps.
+- `tauri`/`tauri-build` remain confined to `hp41-gui/src-tauri/Cargo.toml`.
+
+**Tension:** If the adapter crate is accidentally added to root `members`, the invariant is violated. Prevention: the adapter Cargo.toml has its own `[workspace]` header, which prevents Cargo from rolling it up into the parent workspace even if placed in a subdirectory.
+
+### Data Flow in Approach B (SwiftUI)
+
+```
+[SwiftUI touch: key tap]
+       |
+[SwiftUI: calc.dispatch_op(keyId: "sin")]  <- generated Swift proxy
+       |
+[UniFFI FFI layer: lowers String to C-compatible, calls Rust]
+       |
+[adapter: key_id -> Op, dispatch(&mut CalcState), StateView::from_state()]
+       |
+[UniFFI: lifts StateView record fields to Swift struct]
+       |
+[SwiftUI: @Published stateView updated -> View re-renders]
 ```
 
-**migrate_after_load():** Extend with a no-op arm for v3.3→v4.0 (the field has `#[serde(default)]`, so old save files auto-populate with empty ExtendedMemory — no explicit migration needed).
+### Key Op Resolver for Approach B
 
-**Minimum op set for MVP:** EMDIR (list files, drains to print_buffer), EMROOM (returns free register count to X), EMREG (read/write a register within a named file). Program-file storage in X-MEM is more complex and can be deferred.
+The adapter needs its own key resolver (equivalent to `key_map::resolve()` in `hp41-gui`). This logic can be extracted from `hp41-gui/src-tauri/src/key_map.rs` into the adapter crate. The resolver is pure Rust logic with no Tauri dependency — extraction is straightforward and does not violate any invariant.
+
+### Build Pipeline for Approach B
+
+```bash
+# From hp41-ios-bridge/:
+cargo build --release --target aarch64-apple-ios        # device
+cargo build --release --target aarch64-apple-ios-sim    # ARM simulator
+cargo build --release --target x86_64-apple-ios         # Intel simulator
+
+# Combine simulators with lipo:
+lipo -create \
+  target/aarch64-apple-ios-sim/release/libhp41_ios_bridge.a \
+  target/x86_64-apple-ios/release/libhp41_ios_bridge.a \
+  -o target/iOS-sim/release/libhp41_ios_bridge.a
+
+# Generate Swift bindings:
+cargo run --bin uniffi-bindgen generate \
+  --library target/aarch64-apple-ios/release/libhp41_ios_bridge.a \
+  --language swift --out-dir bindings/
+
+# Create XCFramework:
+xcodebuild -create-xcframework \
+  -library target/aarch64-apple-ios/release/libhp41_ios_bridge.a \
+  -headers bindings/ \
+  -library target/iOS-sim/release/libhp41_ios_bridge.a \
+  -headers bindings/ \
+  -output ios-app/HP41Bridge.xcframework
+```
+
+This build script must run after every Rust change that affects the public API surface.
 
 ---
 
-## Data Flow
+## iOS Persistence and App Lifecycle
 
-### Theme Switching Flow
+### The Problem: `~/.hp41/autosave.json` Does Not Exist on iOS
 
+The desktop app uses `dirs::home_dir().join(".hp41").join("autosave.json")`. On iOS:
+- The iOS sandbox provides no traditional home directory accessible to app code.
+- `dirs::home_dir()` may return `None` or an unstable UUID-based path inside the app container under `/var/mobile/Containers/`.
+- The existing fallback `PathBuf::from(".")` in `persistence.rs` would resolve to an undefined relative path — unsuitable for iOS.
+- There is an open Tauri bug (#12552) where `app_handle.path().app_data_dir()` throws "Permission Denied" on iOS in some configurations.
+
+### The Correct iOS Paths
+
+**Approach A (Tauri):**
+Use `AppHandle::path().app_local_data_dir()` which resolves to `Library/Application Support/<bundle_id>` inside the app container. This must be threaded into the persistence layer through the `AppHandle`, replacing the direct `dirs::home_dir()` call in the auto-save setup. The file name stays `autosave.json` but under the iOS container path.
+
+A proven workaround for the `app_data_dir` bug: `dirs::home_dir()` reportedly works on iOS (returns a path inside the container). However, this is a low-confidence workaround — the `app_local_data_dir()` via `AppHandle` is the architecturally correct path and should be attempted first.
+
+**Approach B (SwiftUI):**
+Obtain the Application Support path entirely on the Swift side:
+```swift
+let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+let savePath = appSupport.appendingPathComponent("autosave.json")
 ```
-User clicks theme preset in ThemePicker.tsx
-    ↓
-App.tsx::applyTheme(id)
-    ↓
-document.documentElement.setAttribute('data-theme', id)  [instant CSS cascade]
-    ↓
-invoke('set_pref', { key: 'theme', value: id })           [async, no UI block]
-    ↓
-prefs.rs::set_pref → update GuiPrefs → save_prefs() → ~/.hp41/prefs.json
+Pass this as a `String` to the adapter's `load_state_json` / `save_state_json` methods. The adapter crate itself has no filesystem knowledge — the SwiftUI layer provides the path. The Application Support directory must be created before first use (`FileManager.createDirectory` with `withIntermediateDirectories: true`).
+
+### Concrete Changes to `persistence.rs` (Approach A)
+
+1. Add `pub fn state_path_for_app(handle: &tauri::AppHandle) -> PathBuf` that calls `handle.path().app_local_data_dir().expect("app_local_data_dir unavailable").join("autosave.json")`.
+2. Keep `default_state_path()` for the desktop fallback and existing unit tests (unchanged behavior).
+3. In `lib.rs` setup, call `state_path_for_app(&app.handle())` when building for mobile (`#[cfg(mobile)]`) or always (passing `AppHandle` to the setup path).
+4. Thread the resolved path into the auto-save thread via `move` capture.
+
+**The desktop `~/.hp41/autosave.json` path and the iOS sandbox path are different files on different platforms.** The "shared with CLI" property of the desktop path does not apply on iOS — iOS never runs the CLI. This is correct and expected.
+
+### Autosave on Resign-Active (iOS-specific)
+
+iOS suspends apps within seconds of moving to background. The 30-second periodic auto-save thread is insufficient for iOS — the app may be suspended before the next save fires.
+
+**Approach A mitigation (simplest for v4.1 foundation):**
+Add a `document.addEventListener("visibilitychange", ...)` handler in React's `App.tsx`. When `document.visibilityState === "hidden"`, call `invoke("save_state")`. This fires reliably in WKWebView when the user presses the Home button or switches apps, and requires no Swift plugin. This is well-tested in WKWebView environments.
+
+**Approach B mitigation:**
+Add a `NotificationCenter` observer for `UIApplication.willResignActiveNotification` in the SwiftUI app's `@main` entry point. On notification, call `calc.saveStateJson()` and write to the Application Support path. This is native iOS and entirely within the SwiftUI layer.
+
+### State Restoration on Relaunch
+
+`CalcState`'s serde format is stable (`#[serde(default)]` on all fields, `migrate_after_load()` auto-upgrades). No changes to the CalcState serde format are needed for iOS. The same `StateFile { version: u32, state: CalcState }` JSON wrapper works on all platforms. The iOS save file is simply a different path, not a different format.
+
+---
+
+## Real-Time Clock and Stopwatch Under iOS
+
+### `tick_time` and `setInterval` on iOS
+
+The existing `tick_time` Tauri command is called every 100ms via `setInterval` in the React frontend when `clock_active || stopwatch_keyboard_mode` is true (D-41.8). On iOS, WKWebView's `setInterval` behavior when the app is backgrounded is the critical concern.
+
+**Key findings:**
+- By default, iOS throttles and eventually suspends WKWebView tasks when backgrounded.
+- The `backgroundThrottlingPolicy: "throttle"` configuration (Tauri v2, iOS 17+) prevents full suspension while allowing some CPU throttling. For iOS 16 and below, timers will pause in background regardless.
+- `SystemTime::now()` in `hp41-core` always returns wall-clock time regardless of background pauses — the displayed time will "jump" correctly after backgrounding, which matches accurate behavior.
+- The stopwatch uses a monotonic `Instant` internally — iOS may affect `Instant` baselines after deep sleep, causing stopwatch drift. This is already a known limitation (stopwatch is frozen on save per CLAUDE.md).
+
+**Required behavior for v4.1 foundation:** Accept foreground-only live updates. Timers run normally in foreground; they pause in background; on return to foreground, the next `tick_time` call updates the display to current wall-clock time. This is correct HP-41CX emulation behavior (the hardware had no background running).
+
+**Approach B (SwiftUI):** Use a Swift `Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true)` that calls an adapter method (e.g., `calc.tickTime()` wrapping `hp41-core`'s clock ops). Invalidate the timer on `resign-active`, restart it on `become-active`. This is more controllable than the WKWebView `setInterval` approach and avoids the background throttling concern entirely.
+
+---
+
+## Build Pipeline Structure
+
+### Approach A: iOS CI alongside existing two-layer CI
+
+The existing CI is:
+- `ci.yml`: CLI + `hp41-core` tests + license-audit + MSRV check
+- `ci-gui.yml`: 3-OS Tauri GUI matrix + E2E smoke
+
+**New: `ci-ios.yml`** — macOS-only, iPhone simulator + device + TestFlight:
+
+```yaml
+name: iOS CI
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  ios-simulator:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Install cargo-tauri
+        run: cargo install tauri-cli --version "^2"
+      - name: Install CocoaPods
+        run: gem install cocoapods
+      - name: iOS init
+        run: cd hp41-gui && cargo tauri ios init --ci
+      - name: iOS simulator build
+        run: cd hp41-gui && cargo tauri ios build --target aarch64-sim
+      - name: iOS device build (debug)
+        run: cd hp41-gui && cargo tauri ios build --target aarch64
+
+  testflight:
+    runs-on: macos-15
+    if: github.ref == 'refs/heads/main'
+    environment: testflight
+    needs: ios-simulator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.DIST_CERT_P12 }}
+          p12-password: ${{ secrets.DIST_CERT_PASSWORD }}
+      - name: Install deps
+        run: |
+          cargo install tauri-cli --version "^2"
+          gem install cocoapods
+      - name: iOS init
+        run: cd hp41-gui && cargo tauri ios init --ci
+      - name: Build release IPA
+        run: cd hp41-gui && cargo tauri ios build --export-method app-store-connect
+      - name: Upload to TestFlight
+        run: |
+          xcrun altool --upload-app --type ios \
+            --file "hp41-gui/src-tauri/gen/apple/build/arm64/HP-41-Calculator.ipa" \
+            --apiKey ${{ secrets.APPLE_API_KEY_ID }} \
+            --apiIssuer ${{ secrets.APPLE_API_ISSUER }}
 ```
 
-On next app start:
-```
-lib.rs::setup() → prefs::load_prefs() → GuiPrefs { theme: "beige", ... }
-    ↓
-App.tsx::useEffect on mount → invoke('get_prefs')
-    ↓
-document.documentElement.setAttribute('data-theme', prefs.theme)
-if (!prefs.onboarding_done) setShowOnboarding(true)
-```
+**CI notes:**
+- iOS builds are macOS-only; they slot alongside (not inside) the existing `ci-gui.yml`.
+- `tauri ios init --ci` skips interactive prompts and rustup target installation (targets pre-installed by the toolchain step).
+- The IPA output path uses the app name from `tauri.conf.json` `productName`.
+- Signing secrets are stored in a GitHub Actions `environment: testflight` for approval gates.
+- `PrivacyInfo.xcprivacy` must be added to `gen/apple/` before App Store submission (foundation milestone: TestFlight only, so this is not yet blocking).
 
-### .raw Import Flow (MVP — existing card reader, zero new deps)
+### Approach B: iOS CI for SwiftUI + UniFFI
 
-```
-User sets ALPHA register to filename (e.g. "MYPRG")
-    ↓
-User triggers RDPRGM key (GUI keyboard or XEQ "RDPRGM")
-    ↓
-hp41-core::dispatch() → Op::Rdprgm → stages CardOpRequest::ReadProgram { name }
-    ↓
-commands.rs::dispatch_op phase-2 I/O: reads ~/.hp41/cards/MYPRG.raw bytes
-    ↓
-hp41_core::cardreader::decode_program(&bytes) → Vec<Op>
-    ↓
-hp41_core::cardreader::insert_program_ops(&mut state, ops)
-    ↓
-Return CalcStateView (program_steps updated, pc updated)
-```
-
-### .raw Import Flow (Enhanced — file dialog, one new plugin)
-
-```
-User clicks "Import .raw..." button in GUI toolbar
-    ↓
-invoke('import_raw')
-    ↓
-commands.rs::import_raw:
-    Show native file dialog (filter: .raw)
-    ↓ user selects file
-    fs::read(path) → Vec<u8>
-    hp41_core::cardreader::decode_program(&bytes) → Vec<Op>
-    lock AppState
-    insert_program_ops(&mut calc, ops)
-    Return CalcStateView
-```
-
-### Onboarding First-Run Flow
-
-```
-App.tsx::useEffect on mount
-    ↓
-invoke('get_prefs') → GuiPrefs { onboarding_done: false }
-    ↓
-setShowOnboarding(true) → <OnboardingOverlay> renders (full-screen, 3-5 slides)
-    ↓
-User clicks "Got it" / "Done" on final slide
-    ↓
-invoke('set_pref', { key: 'onboarding_done', value: true })
-setShowOnboarding(false)
-```
-
-### X-MEM EMDIR Flow (mirrors CATALOG pattern)
-
-```
-User runs XEQ "EMDIR"
-    ↓
-hp41-core::dispatch() → Op::Emdir
-    ↓
-ops/xmem.rs::op_emdir(&mut state)
-    state.xmem.files.iter() → push "<name> <size>REG" lines to state.print_buffer
-    if empty: state.display_override = Some("EMPTY".to_string())
-    ↓
-commands.rs drains print_buffer → print_lines in CalcStateView
-    ↓
-GUI print panel / CLI stdout shows directory listing
+```yaml
+name: iOS CI (SwiftUI/UniFFI)
+jobs:
+  ios-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Build XCFramework
+        run: cd hp41-ios-bridge && ./scripts/build-xcframework.sh
+      - name: Build Xcode project (simulator)
+        run: |
+          xcodebuild -project hp41-ios-bridge/ios-app/hp41-ios.xcodeproj \
+            -scheme HP41 \
+            -destination "generic/platform=iOS Simulator" \
+            build
 ```
 
 ---
 
-## Integration Points
+## Component Inventory
 
-### Feature: Skin Themes
-
-| Touch Point | Action | Layer |
-|------------|--------|-------|
-| `hp41-gui/src/App.css` | Audit all ~20 hard-coded hex values; convert to CSS custom properties; add 4 `[data-theme]` blocks | CSS |
-| `hp41-gui/src/Keyboard.tsx` | SVG key fills currently hardcoded — must reference `var(--key-fill)` via `style` prop, not bare `fill` attribute | TypeScript (MODIFY) |
-| `hp41-gui/src/App.tsx` | `useEffect` on mount to load prefs and apply initial theme; pass `applyTheme` handler to `ThemePicker` | React (MODIFY) |
-| `hp41-gui/src/ThemePicker.tsx` | New component: 4 theme swatches (radio or dropdown) | React (NEW) |
-| `hp41-gui/src-tauri/src/prefs.rs` | `GuiPrefs { theme, onboarding_done }` + `load_prefs()` / `save_prefs()` | Rust (NEW) |
-| `hp41-gui/src-tauri/src/commands.rs` | `get_prefs` and `set_pref` Tauri commands | Rust (MODIFY) |
-| `hp41-gui/src-tauri/src/lib.rs` | Manage `Mutex<GuiPrefs>` as Tauri state (separate from `AppState = Mutex<CalcState>`) | Rust (MODIFY) |
-| `hp41-gui/src-tauri/permissions/` | `get-prefs.toml` and `set-pref.toml` permission files | Tauri config (NEW) |
-| `hp41-core` | **No changes** — themes are pure GUI concern | — |
-| `hp41-cli` | **No changes** — ratatui has its own color model | — |
-
-**CSS audit scope:** Current hard-coded values in App.css: `#0d0d0d` (calculator bg), `#1a1a1a` (panels), `#111` (display bg), `#c8e6c9` (display text green), `#e8740c` (shifted orange label), `#6eb5ff` (alpha blue label), `#e8e8c0` (annunciator active), `#555`/`#666`/`#888`/`#aaa` (muted grays), `#333`/`#222` (borders), `#c8c8c8` (print text), `#252525` (header bg), `#3a1a1a`/`#ffb4a8` (error row). All must become `var(--name)` tokens in a `[data-theme]` block.
-
-### Feature: Onboarding UI + Function Reference
-
-| Touch Point | Action | Layer |
-|------------|--------|-------|
-| `hp41-gui/src/App.tsx` | First-run gate: if `!prefs.onboarding_done`, render `<OnboardingOverlay>` | React (MODIFY) |
-| `hp41-gui/src/OnboardingOverlay.tsx` | Multi-slide overlay: RPN intro, key layout tour, function access, card reader | React (NEW) |
-| `hp41-gui/src/FunctionReference.tsx` | Full-screen searchable reference; tabbed by module; adds usage examples column | React (NEW) |
-| `hp41-gui/src/App.tsx` | Add "Reference" trigger button (next to `?` overlay trigger) | React (MODIFY) |
-| `hp41-gui/src/help_data.ts` | **No changes** — existing `helpEntriesAll()` 5-pool is the data source | — |
-| `hp41-core` | **No changes** | — |
-| `hp41-cli` | **No changes** (first-run CLI message is a stretch goal, not required) | — |
-
-**HelpOverlay vs FunctionReference:** The existing `?` HelpOverlay is a compact searchable list for quick lookup during operation. The FunctionReference is a broader, learning-oriented panel — aimed at new users. They share `helpEntriesAll()` but are different UI surfaces. The FunctionReference should add usage examples (currently absent from the JSON source data — new content needed).
-
-### Feature: GUI Keyboard Parity (KBD-01)
-
-| Touch Point | Action | Layer |
-|------------|--------|-------|
-| `hp41-gui/src/App.tsx` `resolveKeyId()` | Audit against `hp41-cli/src/keys.rs key_to_op()` and `shifted_key_to_op()`; add missing physical key mappings | React (MODIFY) |
-| `hp41-gui/src/pending_input.ts` | Add any missing `PendingInput` variant handlers that exist in CLI but not GUI | TypeScript (MODIFY) |
-| `hp41-gui/src/key_defs_ids.ts` | Verify `KEY_DEFS` entries have correct `id`, `shifted.id`, `shiftedInPrgm`, `alphaChar` | TypeScript (MODIFY) |
-| `hp41-cli/src/keys.rs` | Reciprocally add any GUI-side bindings absent from CLI physical keyboard map | Rust (MODIFY) |
-
-**Audit approach:** Diff `hp41-cli/src/keys.rs::key_to_op()` against `hp41-gui/src/App.tsx::resolveKeyId()`. Produce a gap list. The 4-way exhaustive-match invariant applies only to new `Op` variants — keyboard parity work does not add new Ops, only adds key→existing-Op bindings.
-
-### Feature: .raw Import/Export
-
-| Touch Point | Action | Layer |
-|------------|--------|-------|
-| `hp41-core/src/cardreader/raw.rs` | **No changes** — codec already exists | — |
-| `hp41-core/src/cardreader/mod.rs` | **No changes** — CardOpRequest variants already cover ReadProgram/WriteProgram | — |
-| `hp41-gui/src-tauri/src/commands.rs` | Add `import_raw` (dialog → bytes → decode → insert) and `export_raw` (encode → dialog → write) | Rust (MODIFY) |
-| `hp41-gui/src/App.tsx` | Add Import/Export buttons (toolbar or context menu) | React (MODIFY) |
-| `hp41-gui/src-tauri/permissions/` | `import-raw.toml` and `export-raw.toml` | Tauri config (NEW) |
-| `hp41-cli` | **No changes needed** — `Ctrl+R`/`Ctrl+W` already invoke RDPRGM/WPRGM | — |
-
-**Dependency decision point:** `import_raw`/`export_raw` with native file picker requires `tauri-plugin-dialog`. This is an official Tauri plugin. Recommend treating as a sanctioned exception to zero-new-runtime-deps (document in ADR). Alternative: expose an `import_raw_from_path(path: String)` command and let the frontend use Tauri's built-in JS dialog API — no new Rust dependency.
-
-### Feature: Extended Memory (EMDIR / EMROOM / EMREG)
-
-| Touch Point | Action | Layer |
-|------------|--------|-------|
-| `hp41-core/src/ops/xmem.rs` | New module: `ExtendedMemory` + `XMemFile` structs + op implementations | Rust (NEW) |
-| `hp41-core/src/state.rs` | Add `xmem: ExtendedMemory` field with `#[serde(default)]` | Rust (MODIFY) |
-| `hp41-core/src/ops/mod.rs` | Add Op variants: `Emdir`, `Emroom`, `Emreg`, (potentially `Xmemwr`/`Xmemrd`) | Rust (MODIFY) |
-| `hp41-core/src/ops/program.rs` | `execute_op()` exhaustive match arms for X-MEM ops | Rust (MODIFY) |
-| `hp41-cli/src/prgm_display.rs` | `op_display_name()` arms for X-MEM ops (4-way invariant arm 3) | Rust (MODIFY) |
-| `hp41-gui/src-tauri/src/prgm_display.rs` | `op_display_name()` arms for X-MEM ops (4-way invariant arm 4) | Rust (MODIFY) |
-| `hp41-gui/src-tauri/src/key_map.rs` | `resolve()` arms for X-MEM key IDs | Rust (MODIFY) |
-
-**X-MEM MVP scope:** Data-register files only (EMREG read/write, EMDIR list, EMROOM free space). Program files in X-MEM (XMEMWR/XMEMRD for stored programs) are more complex — defer to v4.1 or later.
+| Component | Status | Approach A | Approach B |
+|-----------|--------|-----------|-----------|
+| `hp41-core` (entire crate) | REUSED UNCHANGED | Compiled to `aarch64-apple-ios` | Compiled to `aarch64-apple-ios` |
+| `hp41-cli` | REUSED UNCHANGED | Not involved | Not involved |
+| Root `Cargo.toml` members | REUSED UNCHANGED | `["hp41-core", "hp41-cli"]` — not modified | `["hp41-core", "hp41-cli"]` — not modified |
+| `hp41-gui/src-tauri/Cargo.toml` | MODIFIED | Add `crate-type` to existing `[lib]` section | Not involved |
+| `hp41-gui/src-tauri/src/lib.rs` | REUSED UNCHANGED | `mobile_entry_point` already present | Not involved |
+| `hp41-gui/src-tauri/src/main.rs` | REUSED UNCHANGED | Delegates to `lib.rs` unchanged | Not involved |
+| `hp41-gui/src-tauri/src/commands.rs` | REUSED UNCHANGED | All 10 commands work as-is | Not involved |
+| `hp41-gui/src-tauri/src/types.rs` | REUSED UNCHANGED | `CalcStateView` unchanged | Not involved |
+| `hp41-gui/src-tauri/src/key_map.rs` | REUSED UNCHANGED (A) / EXTRACTED (B) | iOS uses same resolver | Logic extracted/copied to adapter crate |
+| `hp41-gui/src-tauri/src/persistence.rs` | MODIFIED | `state_path_for_app(handle)` function added; `default_state_path()` kept | Not involved |
+| `hp41-gui/src-tauri/src/lib.rs` (setup block) | MODIFIED | Auto-save thread uses `state_path_for_app` on iOS | Not involved |
+| `hp41-gui/src/` (React/TS) | MODIFIED (touch UI) | Touch targets, safe-area CSS, portrait layout, `visibilitychange` autosave | Not involved |
+| `hp41-gui/src-tauri/tauri.conf.json` | REUSED UNCHANGED | Bundle ID `ch.talent-factory.hp41` already correct | Not involved |
+| `hp41-gui/src-tauri/tauri.ios.conf.json` | NEW | `backgroundThrottlingPolicy`, iOS window config | Not involved |
+| `hp41-gui/src-tauri/capabilities/ios.json` | NEW | iOS-scoped permissions capability | Not involved |
+| `hp41-gui/src-tauri/gen/apple/` | NEW | Generated by `tauri ios init` | Not involved |
+| `hp41-gui/src-tauri/gen/apple/project.yml` | NEW | XcodeGen source of truth (commit this) | Not involved |
+| `hp41-gui/src-tauri/gen/schemas/` | EXISTS (no iOS yet) | Schemas only; `gen/apple/` still missing | Not involved |
+| `hp41-ios-bridge/` | NOT INVOLVED | — | NEW nested standalone workspace |
+| `hp41-ios-bridge/src/lib.rs` | NOT INVOLVED | — | NEW adapter crate |
+| `hp41-ios-bridge/ios-app/` | NOT INVOLVED | — | NEW SwiftUI Xcode project |
+| `ci-ios.yml` | NEW | New CI file (3rd layer alongside ci.yml + ci-gui.yml) | New CI file (different build steps) |
+| `justfile` | MODIFIED | New `ios-init`, `ios-dev`, `ios-build`, `ios-testflight` recipes | New `ios-bridge-build`, `ios-bridge-xcframework` recipes |
 
 ---
 
-## New vs Modified Components Summary
+## Suggested Build Order
 
-### New (6 files)
+### Foundation Milestone Build Order (Approach A — Recommended Path)
 
-| File | Size Estimate | Purpose |
-|------|--------------|---------|
-| `hp41-gui/src/ThemePicker.tsx` | ~80 LOC | Theme switcher component with 4 presets |
-| `hp41-gui/src/OnboardingOverlay.tsx` | ~150 LOC | First-run multi-slide guide |
-| `hp41-gui/src/FunctionReference.tsx` | ~200 LOC | Full searchable function reference |
-| `hp41-gui/src-tauri/src/prefs.rs` | ~80 LOC | GuiPrefs struct + load/save |
-| `hp41-core/src/ops/xmem.rs` | ~250 LOC | X-MEM model + EMDIR/EMROOM/EMREG ops |
-| `hp41-gui/src-tauri/permissions/*.toml` | ~10 LOC each | 4 Tauri v2 permission files |
+The recommended sequence verifies the build pipeline before investing in UI adaptation.
 
-### Modified (existing files touched)
+**Phase A1: Core iOS Build Scaffold (unlock simulator run)**
+1. Add `crate-type = ["staticlib", "cdylib", "rlib"]` to `hp41-gui/src-tauri/Cargo.toml [lib]`.
+2. Run `cargo check --target aarch64-apple-ios` inside `hp41-gui/src-tauri/` to verify `hp41-core` and all deps cross-compile.
+3. Run `cargo tauri ios init` — generates `gen/apple/`, Podfile, `project.yml`.
+4. Run `cargo tauri ios build --target aarch64-sim` — first simulator IPA.
+5. Verify app launches in iOS Simulator (smoke test: display renders, one key tap dispatches).
+6. Write ADR `v4.1-001-build-approach-tauri-mobile.md`.
 
-| File | Changes |
-|------|---------|
-| `hp41-gui/src/App.css` | Extract ~20 hex colors to CSS vars; add 4 `[data-theme]` blocks (~60 lines) |
-| `hp41-gui/src/Keyboard.tsx` | SVG key fill colors: convert to `style={{ fill: 'var(--key-fill)' }}` |
-| `hp41-gui/src/App.tsx` | Theme init on mount; onboarding gate; Import/Export buttons; Reference trigger |
-| `hp41-gui/src-tauri/src/commands.rs` | Add `import_raw`, `export_raw`, `get_prefs`, `set_pref` |
-| `hp41-gui/src-tauri/src/lib.rs` | Manage `Mutex<GuiPrefs>` state; load prefs in `setup()` |
-| `hp41-core/src/state.rs` | Add `xmem: ExtendedMemory` field; extend `migrate_after_load()` |
-| `hp41-core/src/ops/mod.rs` | Add X-MEM Op variants (Emdir, Emroom, Emreg) |
-| `hp41-core/src/ops/program.rs` | `execute_op()` arms for X-MEM ops |
-| `hp41-cli/src/prgm_display.rs` | `op_display_name()` arms for X-MEM ops |
-| `hp41-gui/src-tauri/src/prgm_display.rs` | `op_display_name()` arms for X-MEM ops |
-| `hp41-gui/src-tauri/src/key_map.rs` | `resolve()` arms for X-MEM key IDs |
-| `hp41-gui/src/App.tsx` `resolveKeyId()` | Fill keyboard parity gaps |
-| `hp41-cli/src/keys.rs` | Mirror parity gap closures |
+**Phase A2: Persistence Layer (iOS Path)**
+1. Add `state_path_for_app(handle: &AppHandle) -> PathBuf` to `persistence.rs` using `handle.path().app_local_data_dir()`.
+2. Update `lib.rs` auto-save thread to use `state_path_for_app`.
+3. Add `visibilitychange` listener in React (`App.tsx`) — `invoke("save_state")` on hidden.
+4. Verify save/load round-trip in simulator (container path, not `~/.hp41/`).
+5. Verify desktop behavior is unaffected (existing `default_state_path()` still used for desktop).
 
-### hp41-core Isolation: Preserved Throughout
+**Phase A3: Touch UI Adaptation**
+1. Add `viewport-fit=cover` meta tag and `env(safe-area-inset-*)` CSS.
+2. Resize touch targets (HP-41 keys: minimum 44×44pt per Apple HIG).
+3. Portrait-only orientation lock in `tauri.ios.conf.json`.
+4. Remove or guard hardware-keyboard-specific behavior (Ctrl shortcuts) in mobile path.
+5. Visual validation on device or simulator with iPhone 15 Pro skin.
 
-The `hp41-core` isolation invariant (no CLI/GUI deps) is preserved. The X-MEM module (`xmem.rs`) is a pure-Rust, no-I/O library module. `prefs.rs` lives in `hp41-gui/src-tauri/` only. Theme switching is 100% CSS/React. `CalcState` gains one new field (`xmem`) but no UI or I/O dependencies.
+**Phase A4: Clock/Stopwatch iOS Behavior**
+1. Add `tauri.ios.conf.json` with `backgroundThrottlingPolicy: "throttle"`.
+2. Verify `tick_time` setInterval survives brief backgrounding (notification check → return).
+3. Verify clock display resumes correctly after background/foreground cycle.
 
----
+**Phase A5: Signing + TestFlight**
+1. Configure Apple Developer provisioning profile for `ch.talent-factory.hp41`.
+2. Add `PrivacyInfo.xcprivacy` to `gen/apple/` (Apple requires this for file access APIs).
+3. Run `cargo tauri ios build --export-method app-store-connect`.
+4. Upload IPA to TestFlight via `altool`.
+5. Add `ci-ios.yml` GitHub Actions workflow.
 
-## Build Order (considering dependencies)
+### Foundation Milestone Build Order (Approach B — Alternative Path)
 
-### Phase A: hp41-core X-MEM (prerequisite for CLI + GUI X-MEM integration)
+**Phase B1: Core iOS Build Scaffold**
+1. Create `hp41-ios-bridge/` as a standalone nested workspace with `[workspace]` header.
+2. Add `[lib]` with `crate-type = ["staticlib", "cdylib"]`, `uniffi` dep, `hp41-core` path dep.
+3. Expose minimal `Calculator` object with `new()` + `dispatch_op()` + `save_state_json()`.
+4. Write `build-xcframework.sh` script; verify it produces a valid XCFramework.
+5. Create minimal SwiftUI app linking the XCFramework.
+6. Verify `Calculator().dispatch_op("enter")` works in Swift. Write ADR `v4.1-001-build-approach-swiftui-uniffi.md`.
 
-- Add `ops/xmem.rs` (ExtendedMemory + XMemFile + op implementations)
-- Add X-MEM Op variants to `ops/mod.rs` and `execute_op()` in `program.rs`
-- Add `xmem: ExtendedMemory` to `CalcState` with `#[serde(default)]`
-- Extend `migrate_after_load()` (field self-defaults, but note the extension point)
-- Write unit tests (EMDIR on empty + populated, EMROOM, EMREG round-trip)
-- **Gate:** `just ci` green before proceeding
+**Phase B2: Full Op Surface + StateView**
+1. Define `StateView` record mirroring `CalcStateView` fields (primitives only).
+2. Expose all ops as adapter methods (sst_step, bst_step, run_stop, etc.).
+3. Implement `load_state_json` / `save_state_json` for persistence.
+4. Extract and adapt `key_map::resolve()` into the adapter crate.
 
-### Phase B: CLI Integration + Keyboard Parity (hp41-cli only, no Tauri risk)
+**Phase B3: SwiftUI UI + Persistence**
+1. Build SwiftUI calculator keyboard (44 touch targets, safe-area aware).
+2. Wire persistence to Application Support path via `FileManager`.
+3. Add `willResignActiveNotification` observer for autosave.
+4. Add Swift `Timer` for `tick_time` equivalent.
 
-- Wire X-MEM Op variants into CLI `prgm_display.rs` (arm 3 of 4-way invariant)
-- Audit keyboard parity gaps; add missing bindings to `keys.rs`
-- **Gate:** `just ci` green (must hold before touching GUI — 4-way invariant requires all 4 arms in sync)
-
-### Phase C: GUI Infrastructure (prefs, themes)
-
-- Implement `prefs.rs` (GuiPrefs + load/save)
-- Modify `lib.rs` to load prefs at startup and manage `Mutex<GuiPrefs>`
-- Add `get_prefs` / `set_pref` commands + Tauri permission TOMLs
-- Audit `App.css` hex colors → CSS custom properties; add 4 `[data-theme]` blocks
-- Implement `ThemePicker.tsx`; wire into `App.tsx`
-- Fix SVG key fill references in `Keyboard.tsx` to use CSS vars
-- **Gate:** `just gui-ci` green
-
-### Phase D: GUI .raw Import/Export + X-MEM Commands
-
-- Add `import_raw` / `export_raw` commands to `commands.rs`
-- Decision point: add `tauri-plugin-dialog` OR use path-argument approach
-- Wire X-MEM Op variants into GUI `prgm_display.rs` and `key_map.rs` (arm 4 of 4-way)
-- Add Import/Export UI buttons in `App.tsx`
-- Close keyboard parity gaps in `App.tsx::resolveKeyId()`
-- **Gate:** `just gui-ci` green; E2E smoke passes
-
-### Phase E: Onboarding + Function Reference
-
-- Implement `OnboardingOverlay.tsx` (slides content; no backend dependency)
-- Implement `FunctionReference.tsx` (reuses `helpEntriesAll()`)
-- Wire first-run gate into `App.tsx` using `prefs.onboarding_done`
-- **Dependency:** Phase C must be complete (prefs backend needed for `onboarding_done`)
-- **Gate:** Vitest passes for new components
-
-### Phase F: Test Hardening + Documentation
-
-- Serde round-trip test for `CalcState` with `xmem` field
-- Vitest tests for ThemePicker, OnboardingOverlay, FunctionReference search
-- ADRs: theme approach (CSS vars), `tauri-plugin-dialog` exception (if taken), X-MEM model
-- Update `CLAUDE.md`, `docs/architecture-history.md`, README
+**Phase B4: Signing + TestFlight** (same as Approach A Phase A5)
 
 ---
 
-## Anti-Patterns
+## Frozen Invariant Check
 
-### Anti-Pattern 1: Putting Theme State in CalcState
+| Invariant | Approach A | Approach B |
+|-----------|-----------|-----------|
+| Root `Cargo.toml` members stay `["hp41-core", "hp41-cli"]` | PRESERVED — `tauri ios init` does not modify root Cargo.toml | PRESERVED — adapter is a separate nested standalone workspace |
+| `hp41-core` never depends on `hp41-cli` or `hp41-gui` | PRESERVED — `hp41-core` gains no new deps | PRESERVED — adapter depends on core, not the reverse |
+| `tauri`/`tauri-build` appear ONLY in `hp41-gui/src-tauri/Cargo.toml` | PRESERVED — iOS builds inside existing `hp41-gui/src-tauri/` | PRESERVED — `hp41-ios-bridge` uses `uniffi`, no `tauri` |
+| Bundle ID `ch.talent-factory.hp41` | PRESERVED — `tauri.conf.json` identifier unchanged | ADAPTED — SwiftUI app uses same bundle ID; no conflict |
+| MSRV 1.88 | PRESERVED — `aarch64-apple-ios` tier-2 target, MSRV 1.88 compiles | PRESERVED — same MSRV declared in adapter crate |
+| SC-4 (no core logic duplication) | PRESERVED — no new `op_*` functions in any iOS-specific file | PRESERVED — adapter is a thin wrapper only |
+| 4-way exhaustive-match invariant | PRESERVED — no new `Op` variants in iOS foundation milestone | PRESERVED — same |
+| `#[serde(default)]` on new CalcState fields | PRESERVED — no new CalcState fields in this milestone | PRESERVED — same |
+| No polling (D-11) | PRESERVED — setInterval only when `clock_active` (same rule) | ADAPTED — Swift Timer equivalent replaces setInterval |
 
-**What people do:** Add `theme: String` to `CalcState` so theme persists via the existing autosave mechanism.
-
-**Why it's wrong:** `CalcState` is shared between `hp41-cli` and `hp41-gui` via `~/.hp41/autosave.json`. The CLI has no concept of themes. Adding UI preferences to `CalcState` violates the SC-4 isolation invariant and pollutes the calculator state with GUI concerns. Every CLI save/load would carry a meaningless theme field.
-
-**Do this instead:** Separate `~/.hp41/prefs.json` (GUI-only) via `prefs.rs`. The CLI never reads or writes this file.
-
-### Anti-Pattern 2: Implementing .raw Codec in hp41-gui
-
-**What people do:** Write the `.raw` byte parsing logic in `commands.rs` because "it's a GUI feature."
-
-**Why it's wrong:** The codec already exists in `hp41-core/src/cardreader/raw.rs` and is fully tested. Duplicating it in `hp41-gui` would violate SC-4 (no core logic duplication in GUI) and create two implementations that diverge over time.
-
-**Do this instead:** Call `hp41_core::cardreader::decode_program()` and `encode_program()` from `commands.rs`. The GUI's job is I/O plumbing (file dialog, reading bytes), not instruction decoding.
-
-### Anti-Pattern 3: Hard-Coded Hex Colors in SVG Fills
-
-**What people do:** Leave SVG key colors as hard-coded hex literals in `Keyboard.tsx` `<rect fill="#2a2a2a">` attributes.
-
-**Why it's wrong:** SVG `fill` attributes bypass the CSS cascade entirely. `[data-theme]` CSS custom property blocks will not affect SVG `fill` attributes specified inline. Theme switching will change the calculator shell colors but leave the keys stuck in dark mode.
-
-**Do this instead:** Convert SVG fills to reference CSS variables via the `style` prop: `style={{ fill: 'var(--key-fill)' }}`. The CSS variable value is then controlled by the active `[data-theme]` block.
-
-### Anti-Pattern 4: Conflating X-MEM with Numbered Registers
-
-**What people do:** Store X-MEM file data inside `state.regs` (growing the Vec beyond R99) or inside `state.adv_matrices`.
-
-**Why it's wrong:** `state.regs` is R00-R99 (calculator main memory). `state.adv_matrices` is the Advantage Pac named-matrix model (per D-43.5). X-MEM is a third completely separate storage model on the HP-41CX. Mixing them makes EMREG, RCL, STO, and GETM behavior indeterminate.
-
-**Do this instead:** `CalcState.xmem: ExtendedMemory` with its own `Vec<XMemFile>`. No connection to `state.regs` or `state.adv_matrices`.
-
-### Anti-Pattern 5: Partial 4-Way Invariant Compliance for X-MEM Ops
-
-**What people do:** Add X-MEM Op variants to `ops/mod.rs` and `execute_op()` but leave `prgm_display.rs` (CLI) or `prgm_display.rs` (GUI) until "later."
-
-**Why it's wrong:** Both `prgm_display.rs` files use exhaustive matches with NO wildcard catch-all. Missing arm = compile error. The build will not compile until all four locations are updated. The correct approach is one atomic change: add all four arms simultaneously.
-
-**Do this instead:** Add X-MEM variants to all four locations in a single commit: `Op` definition + `dispatch()` + `execute_op()` + CLI `op_display_name()` + GUI `op_display_name()`. This is the 4-way invariant discipline established since v3.0.
+**Tension for Approach A — persistence layer:** The `default_state_path()` function uses `dirs::home_dir()`, which is desktop-only. If `state_path_for_app(handle)` is not correctly conditioned, both paths might be used on desktop. Mitigation: `state_path_for_app` replaces the path construction in `lib.rs` setup unconditionally (AppHandle is always available there); `default_state_path()` is retained only for unit tests.
 
 ---
 
-## Scaling Considerations
+## Confidence Assessment
 
-This is a single-user desktop application. "Scaling" means maintainability.
-
-| Concern | Current State | v4.0 Addition | Risk |
-|---------|--------------|---------------|------|
-| CSS complexity | ~200 lines, single dark theme | +~80 lines for 4 `[data-theme]` blocks + CSS var declarations | LOW — additive |
-| CalcState fields | ~45 persistent fields | +1 (`xmem: ExtendedMemory`) | LOW — `#[serde(default)]` pattern is proven |
-| Op enum size | ~325 variants | +3-5 for X-MEM MVP | LOW — 4-way invariant catches gaps at compile time |
-| IPC payload (CalcStateView) | ~500 bytes (empty), ~625 (loaded) | No new `CalcStateView` fields needed | NONE |
-| `prgm_display.rs` match arms | ~325 arms × 2 files | +3-5 arms × 2 | LOW — compiler-enforced |
-| Test count | ~3,262 total | +~25-40 (xmem unit, serde, Vitest UI) | Healthy growth |
-| Theme maintainability | 1 color set | 4 color sets (each ~15 properties) | LOW — CSS vars are easy to update |
+| Area | Confidence | Source |
+|------|-----------|--------|
+| Tauri v2 iOS `crate-type = ["staticlib", ...]` requirement | HIGH | Tauri docs + community confirmed |
+| `mobile_entry_point` already in `lib.rs` | HIGH | Direct code inspection |
+| `gen/apple/` structure from `tauri ios init` | HIGH | Tauri maintainer guidance + community docs |
+| Approach A carries IPC/React unchanged to iOS | HIGH | Tauri architecture docs + WKWebView evidence |
+| iOS path via `app_local_data_dir` (Tauri) | MEDIUM | Open bug #12552 — may need `dirs` workaround |
+| `backgroundThrottlingPolicy` for iOS 17+ | HIGH | Tauri commit a2d36b8 + config schema |
+| Timer behavior on iOS 16 and below | MEDIUM | iOS platform documentation |
+| UniFFI `Arc<Mutex>` pattern for stateful objects | HIGH | UniFFI user guide (interface docs) |
+| Approach B `StateView` UniFFI Record | HIGH | UniFFI Record type documentation |
+| Approach B binary size (~25MB static lib) | MEDIUM | One real-world measurement; hp41 core is smaller |
+| TestFlight `altool` upload command | HIGH | Tauri App Store distribution docs |
+| `visibilitychange` autosave on iOS WKWebView | MEDIUM | General WKWebView behavior; needs verification |
 
 ---
 
 ## Sources
 
-- `hp41-core/src/cardreader/raw.rs` — `.raw` codec already present and tested (HIGH confidence, verified in source)
-- `hp41-core/src/cardreader/mod.rs` — CardOpRequest drain pattern (HIGH confidence, verified in source)
-- `hp41-core/src/state.rs` — CalcState fields, `#[serde(default)]` discipline, `migrate_after_load()` pattern (HIGH confidence, verified in source)
-- `hp41-gui/src-tauri/src/types.rs` — CalcStateView shape, IPC payload budget tests (HIGH confidence, verified in source)
-- `hp41-gui/src-tauri/src/lib.rs` — Tauri setup() pattern, AppState management, auto-save thread (HIGH confidence, verified in source)
-- `hp41-gui/src-tauri/src/persistence.rs` — prefs.rs template (hand-coded serde_json pattern) (HIGH confidence, verified in source)
-- `hp41-gui/src/App.css` — existing dark theme colors to audit for CSS variable extraction (HIGH confidence, verified in source)
-- `hp41-gui/src/App.tsx` — resolveKeyId(), keyboard map, component structure (HIGH confidence, verified in source)
-- `hp41-gui/src/HelpOverlay.tsx` — 6-section structure, helpEntriesAll() usage pattern (HIGH confidence, verified in source)
-- CSS custom properties `[data-theme]` pattern: [Multi-Theme Design System: CSS Variables + Data Attributes](https://www.hirejeffgreen.com/blog/multi-theme-design-system-css-variables) (MEDIUM confidence — standard web pattern, confirmed applicable to Tauri/React)
-- Tauri v2 Store plugin (considered and rejected): [v2.tauri.app/plugin/store](https://v2.tauri.app/plugin/store/) — rejected in favor of hand-coded prefs.rs per zero-new-deps policy
-- HP-41CX Extended Memory overview: [HP-41C Wikipedia](https://en.wikipedia.org/wiki/HP-41C), [hpmuseum.org X-MEM thread](https://archived.hpcalc.org/museumforum/thread-54029.html) (MEDIUM confidence — capacity figures confirmed; per-op behavior needs HP-41CX OM verification during Phase A)
-- HP-41 .raw format: [Free42 Import/Export docs](https://thomasokken.com/free42/importexport.html), [HP41UC SourceForge](https://sourceforge.net/p/hp41uc/code/ci/master/tree/) (HIGH confidence — corroborates existing raw.rs implementation byte-by-byte)
-
----
-*Architecture research for: HP-41 Calculator Emulator v4.0 Platform Maturity*
-*Researched: 2026-05-27*
+- [Tauri v2 iOS Prerequisites](https://v2.tauri.app/start/prerequisites/) — rustup targets, Xcode requirements
+- [Tauri v2 iOS CLI Reference](https://v2.tauri.app/reference/cli/) — `tauri ios init/dev/build` commands
+- [Tauri v2 App Store Distribution](https://v2.tauri.app/distribute/app-store/) — TestFlight upload, signing
+- [Tauri v2 File System Plugin](https://v2.tauri.app/plugin/file-system/) — iOS access restrictions
+- [Tauri GitHub: gen/ folder discussion #8323](https://github.com/tauri-apps/tauri/discussions/8323) — commit gen/ recommendation
+- [Tauri GitHub: iOS app data dir bug #12552](https://github.com/tauri-apps/tauri/issues/12552) — Permission Denied on iOS
+- [Tauri GitHub: iOS/Android path resolution bug #12276](https://github.com/tauri-apps/tauri/issues/12276) — path inconsistency
+- [Tauri background throttling commit](https://github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) — `backgroundThrottlingPolicy` iOS 17+
+- [WKWebView Gotchas on iOS](https://takazudomodular.com/pj/zudo-tauri/docs/mobile/wkwebview-gotchas/) — safe area, viewport, service workers
+- [iOS Project Structure (Tauri)](https://takazudomodular.com/pj/zudo-tauri/docs/mobile/ios-project-structure/) — gen/apple/ layout, project.yml
+- [UniFFI Interfaces/Objects Guide](https://mozilla.github.io/uniffi-rs/0.27/udl/interfaces.html) — `Arc<T>`, `Sync+Send`, no `&mut self`
+- [Rust aarch64-apple-ios Target](https://doc.rust-lang.org/beta/rustc/platform-support/apple-ios.html) — Tier 2, iOS 10+ minimum
+- [Building iOS App with Rust using UniFFI](https://dev.to/almaju/building-an-ios-app-with-rust-using-uniffi-200a) — build workflow, XCFramework
+- [Setting up UniFFI for iOS Simulators](https://codethoughts.io/posts/2024-06-24-setting-up-uniffi-for-ios-simulators-and-watchos/) — lipo, XCFramework creation
+- [State replication across Rust-Swift barriers](https://www.tantaluspath.com/tech/rust_to_swift_state_syncing/) — diff-based state sync pattern with UniFFI
+- [UniFFI Starter project](https://github.com/ianthetechie/uniffi-starter) — workspace structure, build script pattern
+- [Multiplatform with Rust on iOS](https://mobilesystemdesign.substack.com/p/multiplatform-with-rust-on-ios-2c4) — adapter crate pattern
