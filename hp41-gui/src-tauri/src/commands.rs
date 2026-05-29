@@ -40,6 +40,15 @@ use std::path::Path;
 /// RAII guard: while alive, sets PopoverState.suppress_hide so the macOS
 /// auto-hide-on-blur handler does not dismiss the popover while a native file
 /// dialog is open. Clearing on drop is panic-safe and covers early returns / `?`.
+///
+/// CORRECTNESS DEPENDS ON THE DIALOG COMMANDS STAYING SYNCHRONOUS. They run on
+/// Tauri's main thread, so `store(true)` happens-before the blur handler's
+/// `load` on that same thread, and `Relaxed` ordering suffices (the flag is a
+/// standalone signal, publishing no other data). If any of the four dialog
+/// commands is ever made `async`, Tauri moves it to a worker thread and the
+/// set/blur-read becomes a genuine cross-thread race where the blur could
+/// observe `false` before the store lands — hiding the popover under the dialog.
+/// Keep them synchronous, or revisit the ordering here.
 #[cfg(target_os = "macos")]
 struct SuppressHideGuard<'a> {
     flag: Option<tauri::State<'a, crate::tray::PopoverState>>,

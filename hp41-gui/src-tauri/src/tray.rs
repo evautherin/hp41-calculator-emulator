@@ -26,14 +26,14 @@ use crate::tray_helpers::{compute_popover_position, fit_inner_height, should_sho
 #[derive(Default)]
 pub struct PopoverState {
     pub last_hidden: Mutex<Option<Instant>>,
-    // Read/written by commands.rs (file-dialog suppression) in a later task of
-    // the menu-bar plan; declared here so the managed state already carries the
-    // field. Scoped allow (not blanket) until that wiring lands.
-    #[allow(dead_code)]
     pub suppress_hide: AtomicBool,
 }
 
 const DEBOUNCE: Duration = Duration::from_millis(250);
+// DESIGN_WIDTH/HEIGHT mirror the frontend layout size in `../../src/scale.ts`
+// (DESIGN_WIDTH/DESIGN_HEIGHT) and the window size in `tauri.conf.json`. These
+// three are a frozen triple — change all of them together or the popover window
+// will desync from the React layout's letterboxing.
 const DESIGN_HEIGHT: f64 = 1020.0;
 const DESIGN_WIDTH: f64 = 440.0;
 const MAX_SCREEN_FRACTION: f64 = 0.92;
@@ -63,6 +63,13 @@ fn show_popover(window: &WebviewWindow, icon_x: i32, icon_w: i32, icon_bottom: i
 
 fn hide_popover(app: &AppHandle, window: &WebviewWindow) {
     let _ = window.hide();
+    // `last_hidden` is also written by the blur handler in lib.rs. The two writes
+    // both feed the 250ms `should_show_after_hide` debounce, which suppresses the
+    // tray click that immediately follows a blur-hide (the click-to-close gesture).
+    // KNOWN LIMITATION: a "click away → click tray to reopen" within 250ms can be
+    // wrongly suppressed. Whether this is perceptible depends on macOS AppKit event
+    // ordering and must be confirmed in the interactive smoke; if it misbehaves,
+    // arming the debounce only from the blur handler (not here) is the first fix to try.
     if let Some(state) = app.try_state::<PopoverState>() {
         if let Ok(mut g) = state.last_hidden.lock() {
             *g = Some(Instant::now());
