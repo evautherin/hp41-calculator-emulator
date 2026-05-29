@@ -9,6 +9,7 @@ mod key_map;
 mod persistence;
 mod prefs; // Phase 48 — GUI preferences (theme, future onboarding flag) — stored in ~/.hp41/prefs.json (P59/THEME-05)
 mod prgm_display; // Phase 18 D-03
+mod tray_helpers; // pure geometry/debounce helpers for the macOS menu-bar popover
 pub mod types; // pub so integration tests (lcd_alternation_modal_prompt.rs) can access CalcStateView::from_state
 
 pub type AppState = Mutex<hp41_core::CalcState>;
