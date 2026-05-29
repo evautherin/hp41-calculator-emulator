@@ -16,6 +16,7 @@
 - ✅ **v3.2 Time Pac Emulation** — Phases 38–42, third XROM application module (HP 82182A Time Module, XROM 26, 35 XEQ entry points, first real-time behavior, 96.01% region coverage) — SHIPPED 2026-05-25 · [Archive](milestones/v3.2-ROADMAP.md)
 - ✅ **v3.3 Advantage Pac Emulation** — Phases 43–47, fourth XROM application module (XROM 22 + XROM 24, 114 XEQ entry points: bitwise/base conversion, named-matrix operations, advanced math/complex/solver/curve-fit, TVM) — SHIPPED 2026-05-26 · [Archive](milestones/v3.3-ROADMAP.md)
 - ✅ **v4.0 Platform Maturity** — Phases 48–52, visual themes, onboarding, GUI keyboard parity, `.raw` file I/O, Extended Memory — SHIPPED 2026-05-28 · [Archive](milestones/v4.0-ROADMAP.md)
+- 🚧 **v4.1 iOS Foundation** — Phases 53–57, touch-first iPhone build to TestFlight — IN PROGRESS
 
 ---
 
@@ -91,6 +92,99 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 </details>
 
+### v4.1 iOS Foundation (Phases 53–57)
+
+- [ ] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-001-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine
+- [ ] **Phase 54: iOS Persistence Layer** — iOS sandbox path replaces `~/.hp41`; autosave fires on backgrounding; state survives kill/relaunch; desktop path unchanged; serde backward-compat preserved
+- [ ] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression
+- [ ] **Phase 56: App Lifecycle + Clock** — `backgroundThrottlingPolicy` configured; clock display refreshes immediately on foreground return via forced `tick_time`
+- [ ] **Phase 57: Signing + TestFlight Pipeline** — Distribution cert + provisioning profile; `PrivacyInfo.xcprivacy`; app icon + launch screen; `ci-ios.yml` GitHub Actions workflow; build uploaded and available in TestFlight
+
 ---
 
-*Last updated: 2026-05-28 — v4.0 Platform Maturity shipped (Phases 48–52). Next milestone: `/gsd-new-milestone`.*
+## Phase Details
+
+### Phase 53: Build-Approach Decision + iOS Scaffold Spike
+**Goal**: The iOS build approach is decided and the app runs on both the Simulator and a physical device with one key dispatching through the engine
+**Depends on**: Nothing (first phase of v4.1; gates all subsequent phases)
+**Requirements**: BUILD-01, BUILD-02, BUILD-03, BUILD-04
+**Success Criteria** (what must be TRUE):
+  1. Running `cargo tauri ios build` inside `hp41-gui/` either succeeds (Approach A confirmed) or fails at the Xcode assembly step with the nested-workspace path error (Approach B fallback triggered), and ADR `docs/adr/v4.1-001-build-approach.md` records which approach was chosen and why
+  2. The app launches in the iOS Simulator and tapping one calculator key (e.g., SIN) dispatches through the existing `hp41-core` engine and updates the display
+  3. The same signed debug build installs and runs on a physical iPhone connected via Xcode
+  4. Bundle ID `ch.talent-factory.hp41` is registered as an explicit App ID in App Store Connect (Identifiers) and as an app record, unblocking any future provisioning profile creation
+**Plans**: TBD
+**UI hint**: yes
+
+**Note**: The spike outcome in this phase may require altering the scope or approach of Phases 54–57 (particularly Phase 55 if Approach B is chosen, which requires a new SwiftUI keyboard instead of CSS adaptation). ADR `v4.1-001-build-approach.md` must be written before planning subsequent phases in detail.
+
+---
+
+### Phase 54: iOS Persistence Layer
+**Goal**: Calculator state is saved and restored correctly inside the iOS app sandbox, with no regression on the desktop path
+**Depends on**: Phase 53
+**Requirements**: PERSIST-01, PERSIST-02, PERSIST-03
+**Success Criteria** (what must be TRUE):
+  1. After a session on the iPhone (Simulator or device), killing and relaunching the app restores the exact calculator state (X/Y/Z/T registers, program memory, XROM module state) that existed before the kill
+  2. Moving the app to the background (pressing the Home button or switching apps) triggers an immediate autosave; the 30-second periodic timer alone is not relied upon for iOS
+  3. The save file is written to the iOS app-sandbox container path (not `~/.hp41/`), and the desktop app continues reading from `~/.hp41/autosave.json` unaffected
+  4. A v4.0 `autosave.json` from the desktop loads without error in the iOS build (serde backward-compat preserved; `#[serde(default)]` policy verified)
+**Plans**: TBD
+
+---
+
+### Phase 55: Touch UI Adaptation
+**Goal**: The calculator is fully operable by touch on an iPhone, with all 44 keys reachable, native iOS feedback, and the layout respecting the device form factor
+**Depends on**: Phase 53 (approach confirmed); Phase 54 can overlap (different files)
+**Requirements**: TOUCH-01, TOUCH-02, TOUCH-03, TOUCH-04, TOUCH-05, TOUCH-06, TOUCH-07, TOUCH-08, TOUCH-09, TOUCH-10, TOUCH-11
+**Success Criteria** (what must be TRUE):
+  1. Every one of the 44 calculator keys can be tapped accurately on an iPhone SE (smallest iPhone) without accidental adjacent key activation; hit targets are ≥44×44pt with the layout respecting safe-area insets (no keys hidden behind the notch, Dynamic Island, or home indicator)
+  2. Tapping a key produces immediate visual press feedback (`:active` state), no tap-highlight flash, and no perceptible 300ms delay; the first tap and rapid successive taps all feel equally responsive
+  3. ALPHA-mode character entry works without a hardware keyboard: an on-screen text input or character grid is presented, stays visible above the iOS software keyboard, and characters are correctly committed into the ALPHA register
+  4. Every key tap triggers haptic feedback; feedback intensity varies by key type (standard vs. function vs. ENTER); a distinct haptic pattern fires when the display shows DATA ERROR or NO ROOM
+  5. TONE n / BEEP produce audio on the first use after launch (AudioContext is resumed inside the first user-gesture handler; the silent-switch behavior is documented and accepted)
+  6. The SHIFT and ALPHA annunciators and the X/Y/Z/T stack panel are visible and legible without zooming; the print panel and PRGM-mode listing are accessible via pull-up bottom sheets; the stack panel can be collapsed to give the keypad more vertical room; rubber-band overscroll is suppressed on the calculator body
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
+### Phase 56: App Lifecycle + Clock
+**Goal**: The app's WKWebView is not fully suspended on brief backgrounding, and the clock/stopwatch display is immediately correct when the user returns to the app
+**Depends on**: Phase 55 (touch UI in place; lifecycle polish layered on top)
+**Requirements**: LIFE-01, LIFE-02
+**Success Criteria** (what must be TRUE):
+  1. After briefly backgrounding and returning to the app (not a kill/relaunch), the clock display updates to the current time within one rendering frame — no stale time is visible even momentarily
+  2. The `backgroundThrottlingPolicy` configuration prevents the WKWebView from fully suspending during brief backgrounding on iOS 17+; the setting is present in `tauri.ios.conf.json` and the behavior is verified on a real device
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
+### Phase 57: Signing + TestFlight Pipeline
+**Goal**: A signed IPA is produced by CI and at least one build is distributed to testers via TestFlight internal distribution
+**Depends on**: Phase 56 (full app ready for distribution); Phase 53 (bundle ID registered, unblocks signing)
+**Requirements**: SHIP-01, SHIP-02, SHIP-03, SHIP-04, SHIP-05
+**Success Criteria** (what must be TRUE):
+  1. A signed IPA is produced by `cargo tauri ios build --export-method app-store-connect` using a distribution certificate and provisioning profile for `ch.talent-factory.hp41`; the IPA installs and runs on a real iPhone
+  2. `gen/apple/PrivacyInfo.xcprivacy` declares `NSPrivacyAccessedAPICategoryFileTimestamp` with reason `C617.1`; an upload to TestFlight does not trigger ITMS-91053
+  3. The app has a custom app icon (all required sizes) and a launch screen (not a blank white screen)
+  4. `ci-ios.yml` runs on a macOS GitHub Actions runner, builds the signed IPA, and uploads it via `xcrun altool` on every push to `main`
+  5. At least one internal TestFlight build is distributed to testers and the app can be installed from TestFlight on a real iPhone
+**Plans**: TBD
+
+---
+
+## Progress Table
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 53. Build-Approach Decision + iOS Scaffold Spike | 0/? | Not started | - |
+| 54. iOS Persistence Layer | 0/? | Not started | - |
+| 55. Touch UI Adaptation | 0/? | Not started | - |
+| 56. App Lifecycle + Clock | 0/? | Not started | - |
+| 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
+
+---
+
+*Last updated: 2026-05-29 — v4.1 iOS Foundation roadmap created (Phases 53–57, 25 requirements). Next: `/gsd-plan-phase 53`.*

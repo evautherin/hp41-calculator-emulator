@@ -1,8 +1,17 @@
 # HP-41 Calculator Emulator
 
-## Current Milestone: — none active (v4.0 shipped 2026-05-28)
+## Current Milestone: v4.1 iOS Foundation
 
-No milestone in progress. Run `/gsd-new-milestone` to start the next one. Candidate scope (tracked at milestone close): X-MEM ASCII/STATUS file types (XMEM-F01/F02), LIF disk-image mounting (RAW-F01), interactive keystroke tutorial (ONBOARD-F01) — see `milestones/v4.0-REQUIREMENTS.md` v4.1+ section.
+**Goal:** Bring the HP-41 emulator to iPhone with a touch-first UI and a working signed build distributed via TestFlight — laying the foundation for a later App Store release.
+
+**Target features (foundation-first, iPhone-only):**
+- Build-approach decision — research evaluates Tauri v2 Mobile vs. native SwiftUI + Rust FFI; outcome captured as an ADR
+- iOS build pipeline — `hp41-core` compiles to `aarch64-apple-ios`; app runs in the simulator and on a real device
+- Touch-first UI — skin/keys adapted for iPhone (touch targets, portrait, safe areas, no hardware-keyboard dependency)
+- iOS persistence — app-sandbox path instead of `~/.hp41/` (autosave in the iOS Documents container)
+- Signing + TestFlight — provisioning/code-signing with the Apple Developer cert; build distributed via TestFlight
+
+**Explicitly out of scope (deferred to a follow-up milestone):** App Store submission, store assets, Apple review, and "HP-41" trademark navigation. `hp41-core` stays UI-agnostic — mobile is another adapter; the workspace Frozen Invariant is preserved.
 
 <details>
 <summary>v4.0 Platform Maturity (shipped 2026-05-28 — see <code>milestones/v4.0-ROADMAP.md</code>)</summary>
@@ -268,13 +277,13 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 
 ### Active
 
-_All v4.0 Platform Maturity requirements validated — milestone complete (2026-05-28). Run `/gsd-complete-milestone` to archive and start the next milestone._
+_v4.1 iOS Foundation in progress (started 2026-05-29) — requirements being defined. Goal: touch-first iPhone build distributed via TestFlight; build approach (Tauri v2 Mobile vs. native SwiftUI + Rust FFI) to be chosen in research._
 
 ### Out of Scope
 
 - FR-18 Multiple skin themes — GUI-only, post-v3.x
 - FR-22 `.raw` HP-41 program file import/export — could-have
-- FR-23 Mobile (iOS/Android) — defer until desktop stable
+- iPhone (iOS) — now IN SCOPE for v4.1 iOS Foundation (desktop-stable precondition met at v4.0); iPad and Android remain deferred
 - Binary releases (signed cross-platform CLI + GUI installers via cargo-dist + tauri-action) — deferred post-v3.3
 - X-MEM / Extended Memory file model — post-v3.x scope
 - Interrupting control alarm execution — data model ready (D-38.4), requires re-entrancy against 4-level call stack
@@ -371,4 +380,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-05-28 — Phase 52 (Test Hardening + Documentation) complete; XMEM-08..10 validated. v4.0 Platform Maturity milestone complete (all 5 phases shipped). Next: `/gsd-complete-milestone` to archive.*
+*Last updated: 2026-05-29 — v4.1 iOS Foundation milestone started. Goal: touch-first iPhone build to TestFlight; build approach chosen in research. v4.0 Platform Maturity shipped + archived 2026-05-28.*
