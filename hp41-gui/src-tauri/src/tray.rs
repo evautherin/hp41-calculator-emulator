@@ -155,7 +155,7 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
 /// Apply pure menu-bar presentation to the main window: no Dock icon, no
 /// decorations, always on top, hidden until the tray toggles it.
 pub fn apply_menu_bar_mode(app: &mut App) -> tauri::Result<()> {
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.set_decorations(false);
         let _ = win.set_always_on_top(true);
