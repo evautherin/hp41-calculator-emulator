@@ -98,13 +98,15 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
     // a toggle (CheckMenuItem handles are Arc-backed in Tauri 2).
     let start_login_for_event = start_login_i.clone();
 
-    let icon_path = app
-        .path()
-        .resolve("icons/tray-template.png", tauri::path::BaseDirectory::Resource)
-        .unwrap_or_else(|_| "icons/tray-template.png".into());
+    // Embed the icon in the binary rather than resolving it from the bundle's
+    // resource dir: BaseDirectory::Resource is not populated in `tauri dev`
+    // (the PNG isn't a declared bundle resource), which made from_path fail with
+    // ENOENT and abort menu-bar mode. include_bytes works identically in dev and
+    // bundled builds. The `tray-icon` + `image-png` Cargo features decode it.
+    let icon_bytes = include_bytes!("../icons/tray-template.png");
 
     TrayIconBuilder::with_id("hp41-tray")
-        .icon(tauri::image::Image::from_path(icon_path)?)
+        .icon(tauri::image::Image::from_bytes(icon_bytes)?)
         .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(false) // left click is the popover toggle, not the menu
