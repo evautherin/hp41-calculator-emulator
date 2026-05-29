@@ -16,6 +16,8 @@
     "allow-tick-time",
     "allow-get-prefs",
     "allow-set-pref",
+    "allow-restart-app",
+    "allow-is-macos",
     "allow-save-state",
     "allow-import-raw-dialog",
     "allow-export-raw-dialog",

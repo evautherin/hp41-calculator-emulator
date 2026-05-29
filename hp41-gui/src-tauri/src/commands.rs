@@ -521,6 +521,28 @@ pub fn set_pref(
     save_prefs(&default_prefs_path(), &*p).map_err(|e| e.to_string())
 }
 
+/// Tauri command: restart the application.
+///
+/// Used by the Settings panel after the user changes `macos_launch_mode` — the new
+/// launch mode is decided in `setup()` (lib.rs) and only takes effect on the next
+/// launch, so we offer an immediate relaunch. `AppHandle::restart()` is `-> !` and
+/// never returns; the IPC promise on the frontend therefore never resolves, which is
+/// correct (the process is replaced).
+#[tauri::command]
+pub fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
+/// Tauri command: report whether the backend was compiled for macOS.
+///
+/// The frontend uses this to render the macOS-only launch-mode control. The launch-mode
+/// preference has no effect on Windows/Linux (the `setup()` branch is `cfg(macos)`), so
+/// showing the control there would mislead the user.
+#[tauri::command]
+pub fn is_macos() -> bool {
+    cfg!(target_os = "macos")
+}
+
 /// Tauri command: persist the current CalcState to disk on demand (Ctrl+S / F5 in GUI).
 ///
 /// Mirrors the CLI's Ctrl+S handler (`hp41-cli/src/app.rs` lines 324-330). Follows
