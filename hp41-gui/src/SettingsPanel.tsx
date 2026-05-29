@@ -44,6 +44,7 @@ export function SettingsPanel({
     isMacos, currentLaunchMode, onLaunchModeChange,
 }: SettingsPanelProps) {
     const panelRef = useRef<HTMLDivElement>(null);
+    // Resets to false on each open: the component unmounts (returns null) when open=false.
     const [launchModeChanged, setLaunchModeChanged] = useState(false);
 
     // Click-outside dismiss — only register listener when open (D-48.4).

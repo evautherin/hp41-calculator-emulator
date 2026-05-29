@@ -272,6 +272,9 @@ function App() {
   // Theme defaults to 'dark'; overridden by get_prefs on mount.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<string>('dark');
+  // macOS launch mode — overridden by get_prefs on mount; only meaningful on macOS.
+  const [macosLaunchMode, setMacosLaunchMode] = useState<string>('menu-bar');
+  const [isMacos, setIsMacos] = useState(false);
   // Phase 49 D-49.4/D-49.8/ONBOARD-01 — onboarding wizard overlay state.
   // onboardingOpen: wizard visible; isFirstRun: true when auto-opened on first launch
   //   (Esc blocked in first-run mode per D-49.9), false when re-opened from settings.
@@ -309,6 +312,16 @@ function App() {
     document.body.dataset.theme = newTheme;
     invoke('set_pref', { key: 'theme', value: newTheme }).catch(() => {
       // Persistence failure is non-fatal — theme applies visually regardless.
+    });
+  }, []);
+
+  // macOS launch-mode change — persist via fire-and-forget IPC (D-48.13 pattern).
+  // The new mode is applied at next startup (decided in setup()), so SettingsPanel
+  // reveals a "Restart now" affordance after the change.
+  const handleLaunchModeChange = useCallback((mode: string) => {
+    setMacosLaunchMode(mode);
+    invoke('set_pref', { key: 'macos_launch_mode', value: mode }).catch(() => {
+      // Persistence failure is non-fatal — the choice is re-applied on next change.
     });
   }, []);
 
@@ -478,16 +491,21 @@ function App() {
       .catch(err => setErrorMessage(`Load failed: ${err}`));
   }, []);
 
+  useEffect(() => {
+    invoke<boolean>('is_macos').then(setIsMacos).catch(() => setIsMacos(false));
+  }, []);
+
   // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
   // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
   // Checks onboarding_done to auto-open wizard on first run (P59: lives in prefs.json,
   // NEVER in autosave.json). Silently falls back to 'dark' and opens wizard if prefs.json
   // is missing (first-run fallback — D-49.4 / RESEARCH Pitfall 3).
   useEffect(() => {
-    invoke<{ theme: string; onboarding_done: boolean }>('get_prefs')
+    invoke<{ theme: string; onboarding_done: boolean; macos_launch_mode: string }>('get_prefs')
       .then(prefs => {
         setTheme(prefs.theme);
         document.body.dataset.theme = prefs.theme;
+        setMacosLaunchMode(prefs.macos_launch_mode);
         if (!prefs.onboarding_done) {
           // First launch: auto-open wizard in first-run mode (Esc blocked per D-49.9).
           setIsFirstRun(true);
@@ -1062,6 +1080,9 @@ function App() {
           currentTheme={theme}
           onThemeChange={handleThemeChange}
           onShowOnboarding={handleShowOnboarding}
+          isMacos={isMacos}
+          currentLaunchMode={macosLaunchMode}
+          onLaunchModeChange={handleLaunchModeChange}
         />
       </div>
       <div className="annunciators">
