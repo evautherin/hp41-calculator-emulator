@@ -79,17 +79,49 @@ jobs:
         working-directory: hp41-gui
         run: npm ci
 
-      - name: Build, sign + notarize hp41-gui (tauri-action)
-        uses: tauri-apps/tauri-action@v0
+      # Only enable macOS signing when a certificate is actually configured.
+      # tauri's bundler attempts `security import` whenever APPLE_CERTIFICATE is
+      # present in the environment — even as an empty string — and hard-fails
+      # with "failed to import keychain certificate". So we export the signing
+      # vars to $GITHUB_ENV ONLY when the cert secret is non-empty; otherwise the
+      # build runs unsigned (ad-hoc, Gatekeeper warning on first launch). Add the
+      # APPLE_CERTIFICATE / _PASSWORD / APPLE_SIGNING_IDENTITY secrets later and
+      # signing turns on automatically — no workflow edit needed.
+      - name: Configure macOS code signing (skips cleanly without a cert)
+        if: matrix.platform == 'macos-latest'
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS code signing + notarization (no-op on other platforms)
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -n "${APPLE_CERTIFICATE:-}" ] && [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            echo "Apple signing certificate present — enabling signed + notarized macOS build."
+            # APPLE_CERTIFICATE is base64 and may span multiple lines → heredoc form.
+            {
+              echo "APPLE_CERTIFICATE<<__P12__"
+              echo "${APPLE_CERTIFICATE}"
+              echo "__P12__"
+              echo "APPLE_CERTIFICATE_PASSWORD=${APPLE_CERTIFICATE_PASSWORD}"
+              echo "APPLE_SIGNING_IDENTITY=${APPLE_SIGNING_IDENTITY}"
+              echo "APPLE_ID=${APPLE_ID}"
+              echo "APPLE_PASSWORD=${APPLE_PASSWORD}"
+              echo "APPLE_TEAM_ID=${APPLE_TEAM_ID}"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning::No APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY configured — building UNSIGNED macOS bundle (Gatekeeper warning on first launch). Add the cert secrets to enable signing + notarization."
+          fi
+
+      - name: Build, sign + notarize hp41-gui (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        # Signing env (APPLE_*) is injected via $GITHUB_ENV by the step above,
+        # but only when a certificate is configured — see the comment there.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: hp41-gui
           tagName: ${{ inputs.tag || github.ref_name }}
