@@ -121,10 +121,22 @@ pub fn run() {
                         let _ = win.show();
                         let _ = win.set_focus();
                     }
-                } else if let Err(e) = crate::tray::apply_menu_bar_mode(app) {
-                    eprintln!("hp41-gui: failed to enter menu-bar mode: {e}; showing window");
-                    if let Some(win) = app.get_webview_window("main") {
-                        let _ = win.show();
+                } else {
+                    match crate::tray::apply_menu_bar_mode(app) {
+                        Ok(()) => {
+                            // Menu-bar (popover) mode is active — enable auto-hide-on-blur.
+                            app.state::<crate::tray::PopoverState>()
+                                .menu_bar_active
+                                .store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "hp41-gui: failed to enter menu-bar mode: {e}; showing window"
+                            );
+                            if let Some(win) = app.get_webview_window("main") {
+                                let _ = win.show();
+                            }
+                        }
                     }
                 }
             }
@@ -171,15 +183,21 @@ pub fn run() {
                         return;
                     }
                     let app = window.app_handle();
-                    // Don't hide while a native file dialog is open (it steals
-                    // focus and would otherwise dismiss the popover mid-operation).
-                    if let Some(state) = app.try_state::<crate::tray::PopoverState>() {
-                        if state.suppress_hide.load(std::sync::atomic::Ordering::Relaxed) {
-                            return;
-                        }
-                        if let Ok(mut g) = state.last_hidden.lock() {
-                            *g = Some(std::time::Instant::now());
-                        }
+                    let Some(state) = app.try_state::<crate::tray::PopoverState>() else {
+                        return;
+                    };
+                    // Auto-hide on blur ONLY in menu-bar (popover) mode. In "window"
+                    // launch mode the window must stay visible when it loses focus.
+                    if !state.menu_bar_active.load(std::sync::atomic::Ordering::Relaxed) {
+                        return;
+                    }
+                    // Don't hide while a native file dialog is open (it steals focus and
+                    // would otherwise dismiss the popover mid-operation).
+                    if state.suppress_hide.load(std::sync::atomic::Ordering::Relaxed) {
+                        return;
+                    }
+                    if let Ok(mut g) = state.last_hidden.lock() {
+                        *g = Some(std::time::Instant::now());
                     }
                     let _ = window.hide();
                 }

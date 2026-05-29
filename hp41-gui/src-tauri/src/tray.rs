@@ -23,10 +23,14 @@ use crate::tray_helpers::{compute_popover_position, fit_inner_height, should_sho
 /// - `last_hidden`: when the window was last hidden (flicker-guard, see tray_helpers).
 /// - `suppress_hide`: true while a native file dialog is open, so the blur it
 ///   causes does not hide the popover (set/cleared in commands.rs).
+/// - `menu_bar_active`: true only when the app actually entered menu-bar (popover)
+///   mode at startup. The blur handler auto-hides the window ONLY when this is set,
+///   so the "window" launch mode keeps a normal window that stays visible on blur.
 #[derive(Default)]
 pub struct PopoverState {
     pub last_hidden: Mutex<Option<Instant>>,
     pub suppress_hide: AtomicBool,
+    pub menu_bar_active: AtomicBool,
 }
 
 const DEBOUNCE: Duration = Duration::from_millis(250);
