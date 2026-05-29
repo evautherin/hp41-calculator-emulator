@@ -18,7 +18,7 @@
 use crate::cards;
 use crate::key_map;
 use crate::persistence;
-use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_THEMES};
+use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_LAUNCH_MODES, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
 use hp41_core::cardreader::{
@@ -484,6 +484,7 @@ pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
 ///
 /// # Supported keys
 /// - `"theme"`: one of `"dark"` | `"light"` | `"classic-beige"` | `"high-contrast"`.
+/// - `"macos_launch_mode"`: one of `"menu-bar"` | `"window"` (macOS-only effect).
 ///
 /// Returns `Err(String)` for unknown keys or invalid theme values (T-48-01 threat mitigation).
 /// Persists immediately to `~/.hp41/prefs.json` via `save_prefs` after updating in-memory state.
@@ -508,6 +509,12 @@ pub fn set_pref(
         // which matches the HP-41 philosophy of safe fallbacks).
         "onboarding_done" => {
             p.onboarding_done = value == "true";
+        }
+        "macos_launch_mode" => {
+            if !VALID_LAUNCH_MODES.contains(&value.as_str()) {
+                return Err(format!("unknown launch mode: {value}"));
+            }
+            p.macos_launch_mode = value;
         }
         _ => return Err(format!("unknown pref key: {key}")),
     }
@@ -1188,5 +1195,17 @@ mod tests {
             view.clock_active,
             "view.clock_active must mirror CalcState.clock_active (true)"
         );
+    }
+
+    #[test]
+    fn test_valid_launch_modes_accepts_known() {
+        assert!(VALID_LAUNCH_MODES.contains(&"menu-bar"));
+        assert!(VALID_LAUNCH_MODES.contains(&"window"));
+    }
+
+    #[test]
+    fn test_valid_launch_modes_rejects_unknown() {
+        assert!(!VALID_LAUNCH_MODES.contains(&"hologram"));
+        assert!(!VALID_LAUNCH_MODES.contains(&""));
     }
 }
