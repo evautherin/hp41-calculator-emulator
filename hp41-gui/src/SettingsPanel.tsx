@@ -7,8 +7,14 @@
 // Phase 49 Plan 04 — Extended with Quick Start section (D-48.3 / D-49.8 / D-49.9):
 // - onShowOnboarding prop added to SettingsPanelProps
 // - Quick Start section with "Show Guide" button added below Theme section
+//
+// Phase 50 — Launch Mode section (macOS-only, ADR-v4.1-001):
+// - isMacos, currentLaunchMode, onLaunchModeChange props added
+// - "Launch Mode (macOS)" radio section rendered only when isMacos=true
+// - Selecting a mode reveals a "Restart now" affordance (invoke restart_app)
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 export type SettingsPanelProps = {
     open: boolean;
@@ -16,6 +22,9 @@ export type SettingsPanelProps = {
     currentTheme: string;
     onThemeChange: (theme: string) => void;
     onShowOnboarding: () => void;  // D-49.8 / D-49.9: re-open wizard from settings
+    isMacos: boolean;
+    currentLaunchMode: string;            // "menu-bar" | "window"
+    onLaunchModeChange: (mode: string) => void;
 };
 
 const THEMES = [
@@ -25,8 +34,17 @@ const THEMES = [
     { id: 'high-contrast', label: 'High Contrast' },
 ] as const;
 
-export function SettingsPanel({ open, onClose, currentTheme, onThemeChange, onShowOnboarding }: SettingsPanelProps) {
+const LAUNCH_MODES = [
+    { id: 'menu-bar', label: 'Menu Bar' },
+    { id: 'window', label: 'Window' },
+] as const;
+
+export function SettingsPanel({
+    open, onClose, currentTheme, onThemeChange, onShowOnboarding,
+    isMacos, currentLaunchMode, onLaunchModeChange,
+}: SettingsPanelProps) {
     const panelRef = useRef<HTMLDivElement>(null);
+    const [launchModeChanged, setLaunchModeChanged] = useState(false);
 
     // Click-outside dismiss — only register listener when open (D-48.4).
     // Use `mousedown` (not `click`) so the gear-button's `onMouseDown` with
@@ -77,6 +95,37 @@ export function SettingsPanel({ open, onClose, currentTheme, onThemeChange, onSh
                     Show Guide
                 </button>
             </section>
+            {isMacos && (
+                <>
+                    <hr className="settings-section-divider" />
+                    <section className="settings-section">
+                        <h3 className="settings-section-heading">Launch Mode (macOS)</h3>
+                        {LAUNCH_MODES.map(m => (
+                            <label key={m.id} className="settings-radio-row">
+                                <input
+                                    type="radio"
+                                    name="launch-mode"
+                                    value={m.id}
+                                    checked={currentLaunchMode === m.id}
+                                    onChange={() => { onLaunchModeChange(m.id); setLaunchModeChanged(true); }}
+                                />
+                                {m.label}
+                            </label>
+                        ))}
+                        {launchModeChanged && (
+                            <div className="settings-restart-hint">
+                                <span>Takes effect after restart.</span>
+                                <button
+                                    className="settings-action-btn"
+                                    onClick={() => { invoke('restart_app').catch(() => {}); }}
+                                >
+                                    Restart now
+                                </button>
+                            </div>
+                        )}
+                    </section>
+                </>
+            )}
         </div>
     );
 }
