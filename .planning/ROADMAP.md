@@ -94,7 +94,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 ### v4.1 iOS Foundation (Phases 53–57)
 
-- [ ] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-001-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine
+- [ ] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-002-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine
 - [ ] **Phase 54: iOS Persistence Layer** — iOS sandbox path replaces `~/.hp41`; autosave fires on backgrounding; state survives kill/relaunch; desktop path unchanged; serde backward-compat preserved
 - [ ] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression
 - [ ] **Phase 56: App Lifecycle + Clock** — `backgroundThrottlingPolicy` configured; clock display refreshes immediately on foreground return via forced `tick_time`
@@ -109,14 +109,18 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 **Depends on**: Nothing (first phase of v4.1; gates all subsequent phases)
 **Requirements**: BUILD-01, BUILD-02, BUILD-03, BUILD-04
 **Success Criteria** (what must be TRUE):
-  1. Running `cargo tauri ios build` inside `hp41-gui/` either succeeds (Approach A confirmed) or fails at the Xcode assembly step with the nested-workspace path error (Approach B fallback triggered), and ADR `docs/adr/v4.1-001-build-approach.md` records which approach was chosen and why
+  1. Running `cargo tauri ios build` inside `hp41-gui/` either succeeds (Approach A confirmed) or fails at the Xcode assembly step with the nested-workspace path error (Approach B fallback triggered), and ADR `docs/adr/v4.1-002-build-approach.md` records which approach was chosen and why
   2. The app launches in the iOS Simulator and tapping one calculator key (e.g., SIN) dispatches through the existing `hp41-core` engine and updates the display
   3. The same signed debug build installs and runs on a physical iPhone connected via Xcode
   4. Bundle ID `ch.talent-factory.hp41` is registered as an explicit App ID in App Store Connect (Identifiers) and as an app record, unblocking any future provisioning profile creation
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 53-01-PLAN.md — Toolchain preflight, crate-type edit, `just ios-*` recipes, `tauri ios init`, gen/apple gitignore policy
+- [ ] 53-02-PLAN.md — Register bundle ID `ch.talent-factory.hp41` in App Store Connect (App ID + app record) [checkpoint]
+- [ ] 53-03-PLAN.md — Decisive `cargo tauri ios build` spike, Simulator RPN smoke, write ADR v4.1-002-build-approach.md
+- [ ] 53-04-PLAN.md — Physical-iPhone signing-team selection + on-device RPN smoke [checkpoint]
 **UI hint**: yes
 
-**Note**: The spike outcome in this phase may require altering the scope or approach of Phases 54–57 (particularly Phase 55 if Approach B is chosen, which requires a new SwiftUI keyboard instead of CSS adaptation). ADR `v4.1-001-build-approach.md` must be written before planning subsequent phases in detail.
+**Note**: The spike outcome in this phase may require altering the scope or approach of Phases 54–57 (particularly Phase 55 if Approach B is chosen, which requires a new SwiftUI keyboard instead of CSS adaptation). ADR `v4.1-002-build-approach.md` must be written before planning subsequent phases in detail.
 
 ---
 
@@ -179,7 +183,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 53. Build-Approach Decision + iOS Scaffold Spike | 0/? | Not started | - |
+| 53. Build-Approach Decision + iOS Scaffold Spike | 0/4 | Planned | - |
 | 54. iOS Persistence Layer | 0/? | Not started | - |
 | 55. Touch UI Adaptation | 0/? | Not started | - |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
