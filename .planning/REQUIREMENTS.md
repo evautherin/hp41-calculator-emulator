@@ -14,7 +14,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 ### Build Pipeline
 
 - [ ] **BUILD-01**: Build approach (Tauri v2 Mobile vs. native SwiftUI + Rust FFI) is decided via a hands-on `cargo tauri ios build` spike and captured in ADR `v4.1-001-build-approach.md`
-- [ ] **BUILD-02**: `hp41-core` compiles to the iOS targets and the app builds and launches in the iOS Simulator (one key dispatches through the existing engine)
+- [x] **BUILD-02**: `hp41-core` compiles to the iOS targets and the app builds and launches in the iOS Simulator (one key dispatches through the existing engine)
 - [ ] **BUILD-03**: The app builds, installs, and runs on a physical iPhone
 - [ ] **BUILD-04**: Bundle ID `ch.talent-factory.hp41` is registered in App Store Connect (App ID + app record)
 
@@ -91,7 +91,7 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BUILD-01 | Phase 53 | Pending |
-| BUILD-02 | Phase 53 | Pending |
+| BUILD-02 | Phase 53 | Complete |
 | BUILD-03 | Phase 53 | Pending |
 | BUILD-04 | Phase 53 | Pending |
 | PERSIST-01 | Phase 54 | Pending |

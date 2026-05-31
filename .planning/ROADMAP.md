@@ -114,7 +114,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
   3. The same signed debug build installs and runs on a physical iPhone connected via Xcode
   4. Bundle ID `ch.talent-factory.hp41` is registered as an explicit App ID in App Store Connect (Identifiers) and as an app record, unblocking any future provisioning profile creation
 **Plans**: 4 plans
-- [ ] 53-01-PLAN.md — Toolchain preflight, crate-type edit, `just ios-*` recipes, `tauri ios init`, gen/apple gitignore policy
+- [x] 53-01-PLAN.md — Toolchain preflight, crate-type edit, `just ios-*` recipes, `tauri ios init`, gen/apple gitignore policy
 - [ ] 53-02-PLAN.md — Register bundle ID `ch.talent-factory.hp41` in App Store Connect (App ID + app record) [checkpoint]
 - [ ] 53-03-PLAN.md — Decisive `cargo tauri ios build` spike, Simulator RPN smoke, write ADR v4.1-002-build-approach.md
 - [ ] 53-04-PLAN.md — Physical-iPhone signing-team selection + on-device RPN smoke [checkpoint]
@@ -183,7 +183,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 53. Build-Approach Decision + iOS Scaffold Spike | 0/4 | Planned | - |
+| 53. Build-Approach Decision + iOS Scaffold Spike | 1/4 | In Progress|  |
 | 54. iOS Persistence Layer | 0/? | Not started | - |
 | 55. Touch UI Adaptation | 0/? | Not started | - |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
