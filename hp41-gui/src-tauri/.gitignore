@@ -1,5 +1,19 @@
 # Rust build output
 target/
 
-# Tauri build-time generated files (schema, capabilities)
-gen/
+# Tauri build-time generated files.
+#
+# gen/schemas/ (desktop capability/permission schemas) is regenerated on every
+# build and stays ignored.
+#
+# gen/apple/ (the iOS scaffold from `just ios-init`) IS tracked: project.yml is
+# the XcodeGen source of truth and the generated Xcode project is committed per
+# Tauri maintainer guidance, so CI and Phases 54-57 build from a reproducible
+# scaffold and can edit it (tauri.ios.conf.json, capabilities/ios.json,
+# PrivacyInfo.xcprivacy). The transient subdirs (xcuserdata/, build/, Externals/)
+# are handled by the nested gen/apple/.gitignore that `tauri ios init` writes.
+gen/schemas/
+
+# Pods/ is fetched by `pod install` at build time (not covered by the nested
+# gen/apple/.gitignore) — never commit it.
+gen/apple/Pods/
