@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: executing
-last_updated: "2026-05-31T19:11:32.739Z"
+last_updated: "2026-05-31T19:26:15.041Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 5
+  completed_plans: 2
+  percent: 10
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,22 +30,22 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 ## Current Position
 
 Phase: 53 (build-approach-decision-ios-scaffold-spike) — EXECUTING
-Plan: 2 of 4
-Status: Ready to execute
+Plan: 53-01 ✓ + 53-03 ✓ done; 53-02 + 53-04 (human checkpoints) pending
+Status: Awaiting human-gated steps (App ID registration, device install/signing)
 Resume file: .planning/phases/53-build-approach-decision-ios-scaffold-spike/53-CONTEXT.md
-Last activity: 2026-05-31
+Last activity: 2026-05-31 -- Approach A confirmed by the build spike (ADR v4.1-002)
 
 ## Progress Bar
 
 ```
 v4.1 iOS Foundation
-Phase 53 ██▌░░░░░░░ 25%   Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
-Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  ▌░░░░░░░░░  5%
+Phase 53 █████░░░░░ 50%   Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
+Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  █░░░░░░░░░ 10%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 53 | Build-Approach Decision + iOS Scaffold Spike | Not started |
+| 53 | Build-Approach Decision + iOS Scaffold Spike | In Progress (2/4 plans; Approach A confirmed) |
 | 54 | iOS Persistence Layer | Not started |
 | 55 | Touch UI Adaptation | Not started |
 | 56 | App Lifecycle + Clock | Not started |
@@ -66,13 +66,19 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 | Tests passing | — | 3371 (v4.0 baseline) |
 
 ---
+
+## Execution Metrics (Phase 53)
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
 | Phase 53 P01 | 25 min | 3 tasks | 4 files |
+| Phase 53 P03 | 35 min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions (pre-resolved from research)
 
-- **Build approach:** Approach A (Tauri v2 Mobile) is recommended, contingent on a Phase-53 spike verifying the nested-workspace bundler bug (#5865) does not block the iOS assembly step in v2.11. Fallback: Approach B (SwiftUI + UniFFI 0.31.1). Outcome captured in ADR `docs/adr/v4.1-001-build-approach.md`.
+- **Build approach (RESOLVED 2026-05-31):** Approach A (Tauri v2 Mobile) **confirmed** by the Phase-53 spike — `just ios-build` passed Rust compile + Xcode assembly with no #5865 nested-workspace path error (stopped only at the expected signing gate); the simulator build ran the RPN smoke through `hp41-core`. Approach B (SwiftUI + UniFFI 0.31.1) not pursued. Outcome captured in ADR `docs/adr/v4.1-002-build-approach.md` (note: **-002**; v4.1-001 is the macOS menu-bar ADR).
 - **Frozen Invariant:** Both approaches preserve it — root `Cargo.toml` members stay `["hp41-core", "hp41-cli"]`; `tauri`/`tauri-build` confined to `hp41-gui/src-tauri/Cargo.toml` only; `hp41-core` unchanged.
 - **No new calculator functions:** Engine is feature-complete at v4.0; this milestone is form-factor only.
 - **Persistence path:** iOS uses `app_local_data_dir()` (Tauri) resolving to `Library/Application Support/ch.talent-factory.hp41/autosave.json`; desktop keeps `~/.hp41/autosave.json` unchanged. Workaround for Tauri bug #12552: fall back to `dirs::home_dir()` if `app_local_data_dir()` returns Permission Denied.
