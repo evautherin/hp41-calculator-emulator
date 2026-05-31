@@ -36,12 +36,20 @@ pub type CancelFlag = std::sync::Arc<std::sync::atomic::AtomicBool>;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init()) // Phase 50 — file dialog plugin for .raw/.card.json import/export
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
-        ))
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init()); // Phase 50 — file dialog plugin for .raw/.card.json import/export
+
+    // tauri-plugin-autostart is desktop-only: its `init`/`MacosLauncher` symbols do
+    // not exist on the iOS/Android mobile targets, so registering it unconditionally
+    // breaks the `aarch64-apple-ios` cross-compile (v4.1 Phase 53 scaffold spike,
+    // P-iOS-08 smoke). Gate it to desktop — desktop behavior is unchanged.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_autostart::init(
+        tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+        None,
+    ));
+
+    builder
         .setup(|app| {
             // D-03: attempt to load ~/.hp41/autosave.json; fall back to fresh state on any error.
             // D-04: load_state() always resets is_running = false (Pitfall 4 guard).
