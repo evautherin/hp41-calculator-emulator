@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Prove out the iOS build path and lock the build-approach decision. Concretely: scaffold the Tauri iOS target inside the nested `hp41-gui` workspace, run the decisive `cargo tauri ios build` spike (confirms Approach A or triggers the Approach B fallback), boot the app in the iOS Simulator and on a physical iPhone with the engine dispatching live, register the bundle ID in App Store Connect, and record the outcome in ADR `docs/adr/v4.1-001-build-approach.md`.
+Prove out the iOS build path and lock the build-approach decision. Concretely: scaffold the Tauri iOS target inside the nested `hp41-gui` workspace, run the decisive `cargo tauri ios build` spike (confirms Approach A or triggers the Approach B fallback), boot the app in the iOS Simulator and on a physical iPhone with the engine dispatching live, register the bundle ID in App Store Connect, and record the outcome in ADR `docs/adr/v4.1-002-build-approach.md` (the `v4.1-001` slot is already taken by `v4.1-001-macos-menu-bar-mode.md`).
 
 **In scope:** `crate-type` line on `[lib]`; `tauri ios init`; toolchain preflight/installs; Simulator + on-device smoke; App Store Connect bundle-ID registration; ADR; `just ios-*` recipes.
 
@@ -62,7 +62,7 @@ Prove out the iOS build path and lock the build-approach decision. Concretely: s
 - `.planning/ROADMAP.md` §"Phase 53" — goal, 4 success criteria, the note that the spike outcome may reshape Phases 54–57 (esp. 55 if Approach B)
 
 ### ADR to be written this phase
-- `docs/adr/v4.1-001-build-approach.md` — records which approach was chosen and why (decision criterion = failure stage per D-53.5). Must be written before Phases 54–57 are planned in detail.
+- `docs/adr/v4.1-002-build-approach.md` — records which approach was chosen and why (decision criterion = failure stage per D-53.5). Must be written before Phases 54–57 are planned in detail. (Numbered `v4.1-002` because `v4.1-001` is already used by `v4.1-001-macos-menu-bar-mode.md`.)
 
 ### Code touch points (verified during scout)
 - `hp41-gui/src-tauri/Cargo.toml` — `[lib]` (`name = "hp41_gui_lib"`, `path = "src/lib.rs"`) currently has **no** `crate-type` line → add per D-53.2
