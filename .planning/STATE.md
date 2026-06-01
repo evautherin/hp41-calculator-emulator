@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: executing
-last_updated: "2026-05-31T19:26:15.041Z"
-last_activity: 2026-05-31
+last_updated: "2026-06-01T04:29:27.086Z"
+last_activity: 2026-06-01 -- App ID registered (53-02); Approach A confirmed (ADR v4.1-002)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 10
+  completed_plans: 3
+  percent: 15
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,22 +30,22 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 ## Current Position
 
 Phase: 53 (build-approach-decision-ios-scaffold-spike) — EXECUTING
-Plan: 53-01 ✓ + 53-03 ✓ done; 53-02 + 53-04 (human checkpoints) pending
-Status: Awaiting human-gated steps (App ID registration, device install/signing)
+Plan: 53-01 ✓ 53-02 ✓ 53-03 ✓ done; 53-04 (physical-device install + signing) pending
+Status: Awaiting the final human-gated step (53-04: connect iPhone + select Xcode signing team)
 Resume file: .planning/phases/53-build-approach-decision-ios-scaffold-spike/53-CONTEXT.md
-Last activity: 2026-05-31 -- Approach A confirmed by the build spike (ADR v4.1-002)
+Last activity: 2026-06-01 -- App ID registered (53-02)
 
 ## Progress Bar
 
 ```
 v4.1 iOS Foundation
-Phase 53 █████░░░░░ 50%   Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
-Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  █░░░░░░░░░ 10%
+Phase 53 ███████▌░░ 75%   Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
+Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  █▌░░░░░░░░ 15%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 53 | Build-Approach Decision + iOS Scaffold Spike | In Progress (2/4 plans; Approach A confirmed) |
+| 53 | Build-Approach Decision + iOS Scaffold Spike | In Progress (3/4 plans; only on-device install left) |
 | 54 | iOS Persistence Layer | Not started |
 | 55 | Touch UI Adaptation | Not started |
 | 56 | App Lifecycle + Clock | Not started |
