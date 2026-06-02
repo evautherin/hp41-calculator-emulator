@@ -4,7 +4,7 @@ milestone: v4.1
 milestone_name: iOS Foundation
 status: phase-complete
 last_updated: "2026-06-02T13:02:32.162Z"
-last_activity: 2026-06-02 -- Quick task 260602-kw4: GUI upscale-to-fill (CI-green; visual verify pending)
+last_activity: 2026-06-02 -- Quick task 260602-kw4 complete: GUI fills viewport (upscale-to-fill, themed letterbox, iOS scroll lock) — approved
 progress:
   total_phases: 5
   completed_phases: 1
@@ -55,7 +55,7 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
-| 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | e4ed7dd | CI-green · visual verify pending | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
+| 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | dd71fb2 | Complete ✓ | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 
