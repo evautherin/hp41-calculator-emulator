@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: phase-complete
-last_updated: "2026-06-02T12:50:42.368Z"
-last_activity: 2026-06-02 -- Phase 53 complete; signed build runs on a physical iPhone (SC-3)
+last_updated: "2026-06-02T13:02:32.162Z"
+last_activity: 2026-06-02 -- Quick task 260602-kw4: GUI upscale-to-fill (CI-green; visual verify pending)
 progress:
   total_phases: 5
   completed_phases: 1
@@ -50,6 +50,12 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 | 55 | Touch UI Adaptation | Not started |
 | 56 | App Lifecycle + Clock | Not started |
 | 57 | Signing + TestFlight Pipeline | Not started |
+
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | e4ed7dd | CI-green · visual verify pending | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 

@@ -1,0 +1,92 @@
+---
+phase: quick-260602-kw4
+plan: "01"
+subsystem: frontend-scaling
+tags: [scaling, css, tdd, frontend-only]
+dependency_graph:
+  requires: []
+  provides: [upscale-to-fill-scaling, corrected-design-box, max-scale-cap]
+  affects: [hp41-gui/src/scale.ts, hp41-gui/src/scale.test.ts, hp41-gui/src/main.tsx, hp41-gui/src/App.css]
+tech_stack:
+  added: []
+  patterns: [TDD RED-GREEN, MAX_SCALE upscale cap, CSS margin removal]
+key_files:
+  modified:
+    - hp41-gui/src/scale.ts
+    - hp41-gui/src/scale.test.ts
+    - hp41-gui/src/main.tsx
+    - hp41-gui/src/App.css
+decisions:
+  - "MAX_SCALE=2 chosen per plan spec; caps absurd upscaling on 4K without preventing useful viewport fill"
+  - "DESIGN_WIDTH=392 (was 440), DESIGN_HEIGHT=900 (was 1020) — corrected to match real rendered footprint (keyboard 392×668 + ~213px header)"
+  - "margin: 16px auto removed from .calculator — outer ScaledApp flex wrapper handles centering; DESIGN_HEIGHT=900 assumes margin absent"
+metrics:
+  duration: "~10 min"
+  completed: "2026-06-02"
+  tasks_completed: 3
+  files_modified: 4
+---
+
+# Quick Task kw4: Eliminate Whitespace Around the Calculator — Summary
+
+## One-liner
+
+Corrected design box (392×900), MAX_SCALE=2 upscale-to-fill cap replacing cap-at-1, and `.calculator` centering margin removed; all 224 frontend tests green.
+
+## Tasks Completed
+
+| Task | Name | Commit | Files |
+|------|------|--------|-------|
+| 1 | Replace cap-at-1 with MAX_SCALE upscale (TDD) | `6727b64` | scale.ts, scale.test.ts |
+| 2 | Remove dead-space sources (margin + doc comment) | `e4ed7dd` | main.tsx, App.css |
+| 3 | Full GUI CI gate | — (verification only) | — |
+
+## What Changed
+
+### scale.ts
+- `DESIGN_WIDTH`: 440 → 392 (removes ~48px horizontal slack)
+- `DESIGN_HEIGHT`: 1020 → 900 (removes ~120px vertical dead space)
+- `MAX_SCALE = 2` exported (caps absurd upscaling on 4K)
+- `Math.min(1, …)` → `Math.min(MAX_SCALE, …)` — the only logic change; downscale path preserved
+- JSDoc updated: no longer claims "Never upscales (capped at 1)"
+
+### scale.test.ts (TDD — RED then GREEN)
+- 10 test cases replacing the old 6; new upscale + cap cases added; old cap-at-1 assertions removed
+- Imports `MAX_SCALE` from `./scale`; covers: design-box constants, MAX_SCALE value, 2× upscale, 1.5× upscale, 4K cap, neutral, downscale-height, downscale-width, smaller-of-two-ratios, zero/negative guard
+
+### App.css
+- Removed `margin: 16px auto` from `.calculator` rule — eliminates 32px of vertical dead space inside the design box; all other properties unchanged
+
+### main.tsx
+- ScaledApp JSDoc updated to describe upscale-to-fill behavior; dropped "scale is 1 (no visual change)" claim; no structural changes
+
+## Verification Results
+
+- `npx vitest run src/scale.test.ts`: 10/10 pass (GREEN)
+- `just gui-ci`: TypeScript clean, 82 Rust tests pass, 224 frontend tests pass
+- Frozen-invariant check: `git diff --name-only HEAD~2 HEAD` shows ONLY the 4 plan-owned files
+
+## Deviations from Plan
+
+None — plan executed exactly as written.
+
+## Threat Surface Scan
+
+No new network endpoints, auth paths, file access patterns, or schema changes introduced. Changes are pure frontend CSS/TS — viewport dimensions feed a visual CSS scale transform only (T-kw4-01, T-kw4-02 per plan threat model; both accepted/mitigated as designed).
+
+## Known Stubs
+
+None.
+
+## Checkpoint Status
+
+Stopped at `checkpoint:human-verify` (Task 4) as required. `just gui-ci` is green. Human visual verification of scaling behavior in `just gui-dev` is pending.
+
+## Self-Check: PASSED
+
+- `hp41-gui/src/scale.ts` — exists and modified
+- `hp41-gui/src/scale.test.ts` — exists and modified
+- `hp41-gui/src/main.tsx` — exists and modified
+- `hp41-gui/src/App.css` — exists and modified
+- Commit `6727b64` — exists (`git log --oneline | grep 6727b64`)
+- Commit `e4ed7dd` — exists (`git log --oneline | grep e4ed7dd`)
