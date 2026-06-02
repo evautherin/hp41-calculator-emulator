@@ -134,8 +134,8 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
   3. The save file is written to the iOS app-sandbox container path (not `~/.hp41/`), and the desktop app continues reading from `~/.hp41/autosave.json` unaffected
   4. A v4.0 `autosave.json` from the desktop loads without error in the iOS build (serde backward-compat preserved; `#[serde(default)]` policy verified)
 **Plans**: 3 plans
-- [ ] 54-01-PLAN.md — AppHandle-aware path resolvers (`state_path_for_app` / `prefs_path_for_app`) + all five call-site rewrites + v4.0 backward-compat fixture/test + P-iOS-29 audit (PERSIST-01, PERSIST-03)
-- [ ] 54-02-PLAN.md — `visibilitychange` → `invoke('save_state')` background-save listener in App.tsx (PERSIST-02)
+- [x] 54-01-PLAN.md — AppHandle-aware path resolvers (`state_path_for_app` / `prefs_path_for_app`) + all five call-site rewrites + v4.0 backward-compat fixture/test + P-iOS-29 audit (PERSIST-01, PERSIST-03)
+- [x] 54-02-PLAN.md — `visibilitychange` → `invoke('save_state')` background-save listener in App.tsx (PERSIST-02)
 - [ ] 54-03-PLAN.md — On-device build + background→kill→relaunch round-trip + #12552 / AppDataWrite resolution [checkpoints] (PERSIST-01/02/03)
 
 ---
@@ -187,7 +187,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
-| 54. iOS Persistence Layer | 0/3 | Planned | - |
+| 54. iOS Persistence Layer | 2/3 | In Progress|  |
 | 55. Touch UI Adaptation | 0/? | Not started | - |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
 | 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
