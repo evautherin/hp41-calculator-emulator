@@ -647,7 +647,16 @@ let initial_state = match persistence::load_state(&save_path) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> **Resolution (plan-checker gate, 2026-06-02):** All three questions are dispositioned by the
+> Phase 54 plan decisions below. Q1 and Q2 are inherently device-observable and are intentionally
+> deferred to the on-device checkpoints in plan **54-03** (not blockers for host/CI work); Q3 is
+> fully resolved in plan **54-01 Task 3**.
+>
+> - **Q1 → deferred to 54-03 Task 2** (on-device round-trip observes `app_local_data_dir()` behavior; implementation emits a distinctive `eprintln!` on fallback).
+> - **Q2 → deferred to 54-03 Task 3** (conditional `AppDataWrite` capability fix, applied only if `std::fs::File::create` returns EPERM on device).
+> - **Q3 → RESOLVED: `hp41-gui/src-tauri/tests/fixtures/v40-autosave.json`** (new fixtures dir mirroring `hp41-core/tests/fixtures/`), per plan 54-01 Task 3.
 
 1. **Does `app_local_data_dir()` succeed on the physical iPhone 15 Pro used in Phase 53?**
    - What we know: Tauri #12552 reports it fails "on some iOS configurations"; the Phase 53 smoke

@@ -1,8 +1,8 @@
 ---
 phase: 54
 slug: ios-persistence-layer
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-02
 ---
@@ -19,16 +19,16 @@ created: 2026-06-02
 |----------|-------|
 | **Framework** | Rust built-in `#[test]` (cargo test via `just`) |
 | **Config file** | none — workspace `Cargo.toml` |
-| **Quick run command** | `just gui-test` (hp41-gui src-tauri unit tests) |
-| **Full suite command** | `just ci` |
+| **Quick run command** | `cargo test --manifest-path hp41-gui/src-tauri/Cargo.toml` (no `just gui-test` recipe exists) |
+| **Full suite command** | `just gui-ci` |
 | **Estimated runtime** | ~30–60 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `just gui-test`
-- **After every plan wave:** Run `just ci`
+- **After every task commit:** Run `cargo test --manifest-path hp41-gui/src-tauri/Cargo.toml`
+- **After every plan wave:** Run `just gui-ci`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 60 seconds
 
@@ -38,7 +38,7 @@ created: 2026-06-02
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 54-01-01 | 01 | 1 | PERSIST-01 | — | N/A | unit | `just gui-test` | ❌ W0 | ⬜ pending |
+| 54-01-01 | 01 | 1 | PERSIST-01 | — | N/A | unit | `cargo test --manifest-path hp41-gui/src-tauri/Cargo.toml` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -68,11 +68,11 @@ created: 2026-06-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-06-02
