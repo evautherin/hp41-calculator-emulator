@@ -259,4 +259,54 @@ mod tests {
         assert!(loaded.print_buffer.is_empty());
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
+
+    /// Phase 54 PERSIST-03 (compat half): a committed v4.0-era fixture deserializes
+    /// without error via load_state() + migrate_after_load().
+    ///
+    /// Verifies:
+    /// - StateFile wrapper (`{"version":1,"state":{…}}`) is deserialized correctly.
+    /// - is_running == false after load (Pitfall 4 / D-54.2b guard).
+    /// - xrom_modules == 0b0001_1111 (all 5 XROM modules present and preserved).
+    /// - xmem_files is non-empty (v4.0 X-MEM state survives round-trip, D-51.0a).
+    /// - Two serde-exception fields (rand_seed non-zero, adv_tvm_state present) survive.
+    ///
+    /// The fixture at tests/fixtures/v40-autosave.json is committed source; serde path
+    /// is byte-for-byte identical across all targets — a passing host/CI test proves
+    /// iOS compatibility without device injection (D-54.4 / D-54.4b).
+    #[test]
+    fn test_loads_v40_autosave_fixture() {
+        use hp41_core::num::HpNum;
+
+        let fixture = include_str!("../tests/fixtures/v40-autosave.json");
+        let path = temp_path("v40_compat");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, fixture.as_bytes()).unwrap();
+        let loaded = load_state(&path).expect("v4.0-format save must load");
+        assert!(!loaded.is_running, "is_running must be false after load (Pitfall 4)");
+        assert_eq!(
+            loaded.xrom_modules, 0b0001_1111u8,
+            "v4.0 xrom_modules (all 5 modules) must be preserved"
+        );
+        // v4.0 X-MEM state: at least one xmem_files entry (DATFILE)
+        assert!(
+            !loaded.xmem_files.is_empty(),
+            "xmem_files must be non-empty in v4.0 fixture"
+        );
+        assert_eq!(
+            loaded.xmem_active_file.as_deref(),
+            Some("DATFILE"),
+            "xmem_active_file must be 'DATFILE'"
+        );
+        // Two serde-exception fields (rand_seed, adv_tvm_state) survive round-trip (Pitfall 20).
+        assert_ne!(
+            loaded.rand_seed,
+            HpNum::zero(),
+            "rand_seed (serde-exception field) must survive round-trip"
+        );
+        assert!(
+            loaded.adv_tvm_state.is_some(),
+            "adv_tvm_state (serde-exception field) must survive round-trip"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
 }
