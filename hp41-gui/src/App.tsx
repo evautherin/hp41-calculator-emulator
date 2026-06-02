@@ -935,6 +935,24 @@ function App() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
 
+  // Phase 54 PERSIST-02: save state when the app is backgrounded (iOS resign-active).
+  // Fires in WKWebView when the user presses the Home button or switches apps.
+  // Fire-and-forget: the 30s auto-save thread (D-54.2a) is the safety net.
+  // Empty deps: handler has no dependency on React state — invoke always saves current state.
+  // D-54.2c: no page-hide or unload listeners added (redundant, risk double-saves).
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        void invoke<void>('save_state').catch((err: unknown) => {
+          // Silent failure acceptable: the 30s timer is the safety net (D-54.2a)
+          console.warn('background save failed:', extractErrMessage(err));
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []); // empty deps: listener is stable, registered once on mount
+
   // Accumulate print_lines from each IPC response into local React state.
   // D-09: print_buffer is drained per IPC call; React retains full history.
   // D-07: setPrintPanelOpen(true) auto-shows panel on first print output.
