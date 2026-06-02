@@ -73,12 +73,19 @@ function ScaledApp(): React.ReactElement {
   return (
     <div
       style={{
-        width: '100vw',
-        height: '100vh',
+        // Use 100% (not 100vw/100vh) so the outer wrapper tracks the fixed,
+        // locked body rather than the iOS toolbar-inclusive viewport unit.
+        // This eliminates the few-px scroll that 100vh can introduce on
+        // mobile browsers where 100vh > the visible area (#iOS-100vh quirk).
+        width: '100%',
+        height: '100%',
         overflow: 'hidden',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-start',
+        // Belt-and-suspenders: prevents a white flash on the wrapper itself
+        // before the CSS cascade applies the html/body background.
+        background: 'var(--calc-bg, #0d0d0d)',
       }}
     >
       <div

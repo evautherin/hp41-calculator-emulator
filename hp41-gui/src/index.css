@@ -2,7 +2,30 @@
   box-sizing: border-box;
 }
 
-body {
+/* Scroll lock — kills iOS WKWebView rubber-band bounce and pins the app.
+   `position: fixed` on body means height:100% tracks the FIXED viewport,
+   not the document height; `overflow: hidden` on html prevents the
+   over-scroll layer from scrolling. Together they make the whole-app
+   drag/bounce impossible on mobile WebViews. */
+html, body, #root {
+  height: 100%;
   margin: 0;
   padding: 0;
+}
+
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Theme-aware background fills the letterbox area behind the calculator.
+     Fallback #0d0d0d covers the brief first paint before App.tsx sets
+     data-theme on <body> (dark theme default, D-48.8). */
+  background: var(--calc-bg, #0d0d0d);
+}
+
+body {
+  /* Fixed body: ensures overflow area (iOS overscroll region) also gets the
+     background, and height:100% on #root resolves to the viewport correctly. */
+  position: fixed;
+  inset: 0;
+  width: 100%;
 }
