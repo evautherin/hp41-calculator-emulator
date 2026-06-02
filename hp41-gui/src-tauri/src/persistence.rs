@@ -36,6 +36,35 @@ pub fn default_state_path() -> PathBuf {
         .join("autosave.json")
 }
 
+/// AppHandle-aware path resolver. On mobile (iOS) uses app_local_data_dir()
+/// → Library/Application Support/<bundle_id>/autosave.json.
+/// On desktop delegates to default_state_path() — desktop behavior unchanged.
+///
+/// Phase 54 PERSIST-01: iOS sandbox container path; desktop `~/.hp41/` unchanged.
+/// Pitfall 2: unwrap_or_else handles Tauri #12552 "Permission Denied" gracefully.
+/// Pitfall 3: fallback uses Library/Application Support, NOT .hp41 (container-root dot-dir).
+pub fn state_path_for_app(handle: &tauri::AppHandle) -> PathBuf {
+    #[cfg(mobile)]
+    {
+        handle
+            .path()
+            .app_local_data_dir()
+            .unwrap_or_else(|e| {
+                eprintln!("hp41: app_local_data_dir failed ({e}), falling back to HOME");
+                dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("Library")
+                    .join("Application Support")
+                    .join("ch.talent-factory.hp41")
+            })
+            .join("autosave.json")
+    }
+    #[cfg(not(mobile))]
+    {
+        default_state_path()
+    }
+}
+
 /// Save CalcState to path as pretty-printed JSON with version wrapper.
 /// Creates the parent directory if it does not exist (D-01).
 /// Returns Err on I/O failure; caller shows error in status bar (D-03).
@@ -146,6 +175,53 @@ mod tests {
             "JSON must contain state wrapper"
         );
         let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Phase 54 PERSIST-01: desktop path unchanged after adding state_path_for_app().
+    /// Ensures the new resolver does not break the existing default_state_path() output.
+    #[test]
+    fn test_default_state_path_ends_with_dot_hp41_autosave() {
+        let path = default_state_path();
+        assert!(
+            path.ends_with(".hp41/autosave.json"),
+            "default_state_path() must end with .hp41/autosave.json, got: {}",
+            path.display()
+        );
+    }
+
+    /// Phase 54 PERSIST-01: mobile fallback path construction test.
+    /// The #[cfg(mobile)] live branch is compile-gated to iOS targets; on the host
+    /// we test the fallback PathBuf construction directly (RESEARCH Validation Architecture).
+    /// The fallback must use Library/Application Support/ch.talent-factory.hp41, not .hp41.
+    #[test]
+    fn test_mobile_fallback_path_construction() {
+        // Simulate the fallback chain from state_path_for_app's #[cfg(mobile)] branch.
+        // Mirrors Pattern 1 / Pitfall 3: fallback must NOT use .hp41 (container-root dot-dir).
+        let base = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        let fallback = base
+            .join("Library")
+            .join("Application Support")
+            .join("ch.talent-factory.hp41")
+            .join("autosave.json");
+        let s = fallback.to_string_lossy();
+        assert!(
+            s.contains("Application Support"),
+            "mobile fallback path must contain 'Application Support', got: {s}"
+        );
+        assert!(
+            s.contains("ch.talent-factory.hp41"),
+            "mobile fallback path must contain bundle id 'ch.talent-factory.hp41', got: {s}"
+        );
+        assert!(
+            s.ends_with("autosave.json"),
+            "mobile fallback path must end with autosave.json, got: {s}"
+        );
+        // Verify the fallback does NOT land at the container-root .hp41/ location (Pitfall 3).
+        let wrong = base.join(".hp41").join("autosave.json");
+        assert_ne!(
+            fallback, wrong,
+            "mobile fallback must NOT use .hp41/ (container-root dot-dir)"
+        );
     }
 
     /// PR #5 review (pr-test-analyzer) flagged that no test exercised the
