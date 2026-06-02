@@ -94,7 +94,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 ### v4.1 iOS Foundation (Phases 53–57)
 
-- [ ] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-002-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine
+- [x] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-002-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine (completed 2026-06-02)
 - [ ] **Phase 54: iOS Persistence Layer** — iOS sandbox path replaces `~/.hp41`; autosave fires on backgrounding; state survives kill/relaunch; desktop path unchanged; serde backward-compat preserved
 - [ ] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression
 - [ ] **Phase 56: App Lifecycle + Clock** — `backgroundThrottlingPolicy` configured; clock display refreshes immediately on foreground return via forced `tick_time`
@@ -117,7 +117,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 - [x] 53-01-PLAN.md — Toolchain preflight, crate-type edit, `just ios-*` recipes, `tauri ios init`, gen/apple gitignore policy
 - [x] 53-02-PLAN.md — Register bundle ID `ch.talent-factory.hp41` in App Store Connect (App ID + app record) [checkpoint]
 - [x] 53-03-PLAN.md — Decisive `cargo tauri ios build` spike, Simulator RPN smoke, write ADR v4.1-002-build-approach.md
-- [ ] 53-04-PLAN.md — Physical-iPhone signing-team selection + on-device RPN smoke [checkpoint]
+- [x] 53-04-PLAN.md — Physical-iPhone signing-team selection + on-device RPN smoke [checkpoint]
 **UI hint**: yes
 
 **Note**: The spike outcome in this phase may require altering the scope or approach of Phases 54–57 (particularly Phase 55 if Approach B is chosen, which requires a new SwiftUI keyboard instead of CSS adaptation). ADR `v4.1-002-build-approach.md` must be written before planning subsequent phases in detail.
@@ -183,7 +183,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 53. Build-Approach Decision + iOS Scaffold Spike | 3/4 | In Progress|  |
+| 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
 | 54. iOS Persistence Layer | 0/? | Not started | - |
 | 55. Touch UI Adaptation | 0/? | Not started | - |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |

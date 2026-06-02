@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
-status: executing
-last_updated: "2026-06-01T04:29:27.086Z"
-last_activity: 2026-06-01 -- App ID registered (53-02); Approach A confirmed (ADR v4.1-002)
+status: phase-complete
+last_updated: "2026-06-02T12:50:42.368Z"
+last_activity: 2026-06-02 -- Phase 53 complete; signed build runs on a physical iPhone (SC-3)
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 15
+  completed_plans: 4
+  percent: 20
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,23 +29,23 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 ## Current Position
 
-Phase: 53 (build-approach-decision-ios-scaffold-spike) — EXECUTING
-Plan: 53-01 ✓ 53-02 ✓ 53-03 ✓ done; 53-04 (physical-device install + signing) pending
-Status: Awaiting the final human-gated step (53-04: connect iPhone + select Xcode signing team)
-Resume file: .planning/phases/53-build-approach-decision-ios-scaffold-spike/53-CONTEXT.md
-Last activity: 2026-06-01 -- App ID registered (53-02)
+Phase: 53 (build-approach-decision-ios-scaffold-spike) — ✅ COMPLETE (4/4 plans)
+Plan: 53-01 ✓ 53-02 ✓ 53-03 ✓ 53-04 ✓ — all done
+Status: Phase complete — ready for /gsd-verify-work 53 then /gsd-plan-phase 54
+Resume file: —
+Last activity: 2026-06-02 -- Phase 53 complete; signed iOS build runs on a physical iPhone (SC-3)
 
 ## Progress Bar
 
 ```
 v4.1 iOS Foundation
-Phase 53 ███████▌░░ 75%   Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
-Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  █▌░░░░░░░░ 15%
+Phase 53 ██████████ 100%  Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
+Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  ██░░░░░░░░ 20%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 53 | Build-Approach Decision + iOS Scaffold Spike | In Progress (3/4 plans; only on-device install left) |
+| 53 | Build-Approach Decision + iOS Scaffold Spike | ✅ Complete (4/4; Approach A confirmed, runs on device) |
 | 54 | iOS Persistence Layer | Not started |
 | 55 | Touch UI Adaptation | Not started |
 | 56 | App Lifecycle + Clock | Not started |
@@ -66,13 +66,16 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 | Tests passing | — | 3371 (v4.0 baseline) |
 
 ---
+| Phase 53 P04 | 45 min | 2 tasks | 5 files |
 
 ## Execution Metrics (Phase 53)
 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 53 P01 | 25 min | 3 tasks | 4 files |
+| Phase 53 P02 | 5 min  | 1 task  | 0 files (App ID portal) |
 | Phase 53 P03 | 35 min | 3 tasks | 1 files |
+| Phase 53 P04 | 45 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -92,6 +95,9 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 - **PrivacyInfo.xcprivacy:** Required before first TestFlight upload (ITMS-91053). Create in `gen/apple/` with `NSPrivacyAccessedAPICategoryFileTimestamp` + reason `C617.1` (Phase 57).
 - **ALPHA touch entry:** Design spike at start of Phase 55. Options: `<input type="text">` + `window.visualViewport` listener to stay above the iOS software keyboard; or an on-screen character grid that avoids the system keyboard entirely.
 - **Phase dependency order:** 53 → (54, 55 can overlap — different files) → 56 → 57.
+- **iOS build env (P-iOS-09, RESOLVED 53-04):** the Xcode "Build Rust Code" phase sources `gen/apple/.xcode.env` (committed, `$HOME/.cargo/bin`) + `.xcode.env.local` (gitignored, nvm node) so GUI-launched Xcode finds cargo/node. Reuse this pattern in Phase 57 CI.
+- **iOS signing (53-04):** `DEVELOPMENT_TEAM 2P4R8QSWT4` (Talent Factory AG) + automatic signing committed in `gen/apple/project.yml`. App ID `ch.talent-factory.hp41` registered (53-02).
+- **Device-install caveat (53-04):** Xcode debug ⌘R panics on the missing Tauri dev-server addr file (expects `tauri ios dev`). For standalone installs use release `just ios-build` IPA + `xcrun devicectl install/launch`.
 
 ### Pitfalls to watch (iOS-specific)
 
