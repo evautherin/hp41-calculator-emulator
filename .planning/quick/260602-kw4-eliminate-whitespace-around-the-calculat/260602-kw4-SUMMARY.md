@@ -90,3 +90,28 @@ Stopped at `checkpoint:human-verify` (Task 4) as required. `just gui-ci` is gree
 - `hp41-gui/src/App.css` — exists and modified
 - Commit `6727b64` — exists (`git log --oneline | grep 6727b64`)
 - Commit `e4ed7dd` — exists (`git log --oneline | grep e4ed7dd`)
+
+## Refinement: Measure-and-Fit via ResizeObserver (commit `0d2a1c5`)
+
+**Problem surfaced at checkpoint:** `DESIGN_HEIGHT=900` is still taller than the real rendered
+`.calculator` content (~820px). On the iPhone the scale is height-bound, so the 900px design box
+fills the viewport height but the calculator inside only occupies ~820px → ~76-80px dead black band
+at the bottom. Any hardcoded height is fragile: display/stack/header heights are font-metric
+dependent and can't be reliably predicted by arithmetic.
+
+**Fix applied in `hp41-gui/src/main.tsx` only:**
+
+- Removed `width: DESIGN_WIDTH` / `height: DESIGN_HEIGHT` from the inner content div.
+- The inner div now uses `display: 'inline-block'` with no explicit size, so it collapses to the
+  natural `.calculator` footprint (392px wide, height auto).
+- A `ResizeObserver` watches the content node and calls `recompute()` on every layout change;
+  the existing `window resize` listener handles viewport changes.
+- `recompute()` reads `node.offsetWidth` / `node.offsetHeight` (LAYOUT values — not affected by
+  the CSS `transform` on the same node, so there is no measurement/feedback loop) and feeds them
+  to `computeScale(window.innerWidth, window.innerHeight, measuredW, measuredH)`.
+- `DESIGN_WIDTH`/`DESIGN_HEIGHT` are used only as the pre-measurement first-paint fallback.
+- `ResizeObserver` is guarded with `typeof ResizeObserver !== 'undefined'` so jsdom test
+  environments (which lack `ResizeObserver`) work without mocking.
+- `scale.ts` and `scale.test.ts` unchanged — `computeScale` signature was already parameterized
+  on `designWidth`/`designHeight`, so no test changes were needed. All 224 frontend + 82 Rust
+  tests remain green; `just gui-ci` fully clean.
