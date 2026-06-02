@@ -12,6 +12,11 @@ settingGroups:
     base:
       PRODUCT_NAME: HP-41 Calculator
       PRODUCT_BUNDLE_IDENTIFIER: ch.talent-factory.hp41
+      # Talent Factory AG team — automatic signing (Phase 53 / 53-04). Team IDs
+      # are not secret; this keeps the device build self-signing and survives
+      # `xcodegen`/`tauri ios init` regeneration of the Xcode project.
+      DEVELOPMENT_TEAM: 2P4R8QSWT4
+      CODE_SIGN_STYLE: Automatic
 targetTemplates:
   app:
     type: application
@@ -80,7 +85,14 @@ targets:
       - sdk: UIKit.framework
       - sdk: WebKit.framework
     preBuildScripts:
-      - script: npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      - script: |
+          # P-iOS-09: Xcode (GUI-launched) does not inherit the shell PATH, so
+          # cargo/node are missing in this build phase. Source the env files:
+          # .xcode.env (committed, portable — adds $HOME/.cargo/bin) and
+          # .xcode.env.local (gitignored, machine-local — e.g. the nvm node bin).
+          if [ -f "$SRCROOT/.xcode.env" ]; then . "$SRCROOT/.xcode.env"; fi
+          if [ -f "$SRCROOT/.xcode.env.local" ]; then . "$SRCROOT/.xcode.env.local"; fi
+          npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:

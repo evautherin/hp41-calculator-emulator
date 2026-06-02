@@ -17,3 +17,6 @@ gen/schemas/
 # Pods/ is fetched by `pod install` at build time (not covered by the nested
 # gen/apple/.gitignore) — never commit it.
 gen/apple/Pods/
+
+# Machine-local Xcode build-phase PATH overrides (P-iOS-09) — never commit.
+gen/apple/.xcode.env.local

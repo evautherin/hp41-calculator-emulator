@@ -10,6 +10,7 @@
 		1F2D0C3695990D80F9961A5D /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 30938F0CED32A1EE6B72A4BE /* Security.framework */; };
 		24CBCB99F6C6F7F5E5CCC9FB /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 710F04BF87A9B2C1836CACB8 /* main.mm */; };
 		418CF37C461A97BFF632CE9E /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 814321B5C0351DF93006D869 /* QuartzCore.framework */; };
+		429E59CAA709D9A5AD96B99D /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 81CFA43A0865A4F489C55694 /* libapp.a */; };
 		5382ABA20143A0F3C59CD2DA /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B8C4793F6D6A9BABFFC5656D /* UIKit.framework */; };
 		959A09B49B8290A2C76DAF16 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 191655FD04DA96D71648AA0E /* CoreGraphics.framework */; };
 		AA8A23732E36B42EA2E34969 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B33C58E70A40EEB21FB40930 /* libapp.a */; };
@@ -38,6 +39,7 @@
 		75F6560448483C7283B4E9D0 /* types.rs */ = {isa = PBXFileReference; path = types.rs; sourceTree = "<group>"; };
 		79CC14F1A7CD7366748B4C7F /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		814321B5C0351DF93006D869 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		81CFA43A0865A4F489C55694 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		874328C6A340FBC82EA3711F /* persistence.rs */ = {isa = PBXFileReference; path = persistence.rs; sourceTree = "<group>"; };
 		8AB5A6B231EEA2D76FA73292 /* prgm_display.rs */ = {isa = PBXFileReference; path = prgm_display.rs; sourceTree = "<group>"; };
 		8CF1E7DEA384EA368618E9E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -78,9 +80,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		453BE5782A254AF6460535E2 /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				ECBC546B865CEBBC4AE0A7AB /* debug */,
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
 		5F2B819AF9326AA125E6E110 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				453BE5782A254AF6460535E2 /* arm64 */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -168,6 +179,21 @@
 			path = "hp41-gui";
 			sourceTree = "<group>";
 		};
+		ECBC546B865CEBBC4AE0A7AB /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				81CFA43A0865A4F489C55694 /* libapp.a */,
+			);
+			path = debug;
+			sourceTree = "<group>";
+		};
+		"TEMP_B1A0916D-EFF8-4129-A3C2-5E6C8D5D82A8" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -200,6 +226,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					362330FBFA4202F060D3A9BA = {
+						DevelopmentTeam = 2P4R8QSWT4;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 6E0C3C237518235B47900B8F /* Build configuration list for PBXProject "hp41-gui" */;
@@ -229,6 +259,7 @@
 				B704460E217F3DEC1FE5D8CF /* Assets.xcassets in Resources */,
 				AFAF383DED89AD5FC7BC5D88 /* LaunchScreen.storyboard in Resources */,
 				D2A2B64B31436B6FB60FFC60 /* assets in Resources */,
+				429E59CAA709D9A5AD96B99D /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -254,7 +285,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "# P-iOS-09: Xcode (GUI-launched) does not inherit the shell PATH, so\n# cargo/node are missing in this build phase. Source the env files:\n# .xcode.env (committed, portable — adds $HOME/.cargo/bin) and\n# .xcode.env.local (gitignored, machine-local — e.g. the nvm node bin).\nif [ -f \"$SRCROOT/.xcode.env\" ]; then . \"$SRCROOT/.xcode.env\"; fi\nif [ -f \"$SRCROOT/.xcode.env.local\" ]; then . \"$SRCROOT/.xcode.env.local\"; fi\nnpm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -280,6 +311,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "hp41-gui_iOS/hp41-gui_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2P4R8QSWT4;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -293,7 +326,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = "ch.talent-factory.hp41";
+				PRODUCT_BUNDLE_IDENTIFIER = ch.talent-factory.hp41;
 				PRODUCT_NAME = "HP-41 Calculator";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -430,6 +463,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "hp41-gui_iOS/hp41-gui_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2P4R8QSWT4;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -443,7 +478,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = "ch.talent-factory.hp41";
+				PRODUCT_BUNDLE_IDENTIFIER = ch.talent-factory.hp41;
 				PRODUCT_NAME = "HP-41 Calculator";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
