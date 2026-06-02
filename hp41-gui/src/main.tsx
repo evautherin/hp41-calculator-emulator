@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { computeScale, DESIGN_WIDTH, DESIGN_HEIGHT } from './scale'
@@ -7,24 +7,67 @@ import './index.css'
 import './themes.css'
 
 /**
- * Wraps <App/> in a fixed-size (DESIGN_WIDTH x DESIGN_HEIGHT) box and applies a
- * uniform CSS transform so the layout fills the current window without distortion.
- * Upscales up to MAX_SCALE on large viewports (macOS window mode, 4K displays) and
- * downscales below 1 on small viewports (macOS menu-bar popover, short windows) so
- * nothing is clipped. transformOrigin 'top center' keeps the scaled box anchored at
- * the top; alignItems 'flex-start' on the outer container prevents vertical centering
- * gaps on tall viewports.
+ * Wraps <App/> in a content-hugging box and applies a uniform CSS transform so
+ * the layout fills the current window without distortion.
+ *
+ * Measure-and-fit: instead of a hardcoded design box, a ResizeObserver watches
+ * the INNER content node (the div wrapping <App/>). That node has no explicit
+ * width/height so it collapses to the natural size of .calculator (392px wide,
+ * height auto). offsetWidth/offsetHeight read the LAYOUT size — they are not
+ * affected by the CSS transform applied to the same node, so there is no
+ * measurement/feedback loop. The measured size is fed to computeScale on every
+ * content resize AND on every window resize.
+ *
+ * Upscales up to MAX_SCALE on large viewports (macOS window mode, 4K displays)
+ * and downscales below 1 on small viewports (macOS menu-bar popover, short
+ * windows) so nothing is clipped. transformOrigin 'top center' keeps the scaled
+ * box anchored at the top; alignItems 'flex-start' on the outer container
+ * prevents vertical centering gaps on tall viewports.
+ *
+ * DESIGN_WIDTH/DESIGN_HEIGHT are used only as the pre-measurement fallback for
+ * the first paint; after the first ResizeObserver callback the real measured
+ * dimensions drive scaling.
  */
 function ScaledApp(): React.ReactElement {
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Pre-measurement first paint: fall back to design constants so there is no
+  // blank flash before the ResizeObserver callback fires.
   const [scale, setScale] = useState(() =>
-    computeScale(window.innerWidth, window.innerHeight),
+    computeScale(window.innerWidth, window.innerHeight, DESIGN_WIDTH, DESIGN_HEIGHT),
   )
 
   useEffect(() => {
-    const update = () => setScale(computeScale(window.innerWidth, window.innerHeight))
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
+    // Recompute scale from the current window size and the measured content size.
+    const recompute = () => {
+      const node = contentRef.current
+      const measuredW = node ? node.offsetWidth : DESIGN_WIDTH
+      const measuredH = node ? node.offsetHeight : DESIGN_HEIGHT
+      setScale(computeScale(window.innerWidth, window.innerHeight, measuredW, measuredH))
+    }
+
+    // (a) Window resize listener
+    window.addEventListener('resize', recompute)
+
+    // (b) Content resize observer — fires whenever the calculator's layout height
+    // changes (different viewport, font-metric variance, etc.).
+    // Guard: ResizeObserver is not available in jsdom test environments.
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(recompute)
+      if (contentRef.current) {
+        ro.observe(contentRef.current)
+      }
+    }
+
+    // Initial measurement after mount (ResizeObserver fires asynchronously on
+    // first observation, so also call synchronously to update before first paint).
+    recompute()
+
+    return () => {
+      window.removeEventListener('resize', recompute)
+      if (ro) ro.disconnect()
+    }
   }, [])
 
   return (
@@ -39,9 +82,9 @@ function ScaledApp(): React.ReactElement {
       }}
     >
       <div
+        ref={contentRef}
         style={{
-          width: DESIGN_WIDTH,
-          height: DESIGN_HEIGHT,
+          display: 'inline-block',
           transform: `scale(${scale})`,
           transformOrigin: 'top center',
           flex: '0 0 auto',
