@@ -61,6 +61,7 @@ Declared values (multiples of 4; existing tokens preserved):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, annunciator row padding |
 | sm | 8px | Key gap (existing `GAP=8` SVG unit), compact element spacing |
+| sm-plus | 12px | ALPHA input bar top padding, input field horizontal padding, bottom-sheet handle top margin |
 | md | 16px | Default element spacing, sheet header padding |
 | lg | 24px | Section padding, bottom-sheet drag handle area |
 | xl | 32px | Bottom-sheet peek height (collapsed state) |
@@ -278,7 +279,7 @@ Call `ensureAudioResumed(audioCtx)` at the top of the `pointerdown` handler, bef
   right: env(safe-area-inset-right, 0px);
   background: var(--panel-header-bg);
   border-top: 1px solid var(--panel-border);
-  padding: 4px 12px 8px 12px;
+  padding: 4px 12px 8px 12px;  /* 4px=xs, 12px=sm-plus, 8px=sm */
   z-index: 80;  /* above all overlays (z-index 60-70 used by help/wizard/settings) */
   /* bottom is set dynamically via visualViewport resize listener */
 }
@@ -289,7 +290,7 @@ Call `ensureAudioResumed(audioCtx)` at the top of the `pointerdown` handler, bef
   color: var(--display-text);
   font-family: 'Courier New', Courier, monospace;
   font-size: 16px;  /* prevents iOS auto-zoom on focus (must be >= 16px) */
-  padding: 8px 12px;  /* 8px = sm token; 12px = 3×4 — replaces non-grid 6px/10px */
+  padding: 8px 12px;  /* 8px=sm, 12px=sm-plus */
   border: 1px solid var(--panel-border);
   border-radius: 4px;
   caret-color: var(--accent);
@@ -369,7 +370,7 @@ Print panel and PRGM-mode program listing are currently rendered as inline panel
   height: 4px;
   border-radius: 2px;
   background: var(--text-muted);
-  margin: 12px auto 8px auto;
+  margin: 12px auto 8px auto;  /* 12px=sm-plus, 8px=sm */
 }
 
 .bottom-sheet-content {
@@ -422,7 +423,7 @@ The X/Y/Z/T/L stack panel is useful on desktop but competes for vertical space o
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -434,7 +435,7 @@ The X/Y/Z/T/L stack panel is useful on desktop but competes for vertical space o
 
 Current annunciator size: 11px, opacity 0.35 (inactive). On iPhone SE at scale 0.957, rendered at ~10.5px — legible but tight.
 
-**Contract:** No size change. The scaled display at ≈10.5px with 0.35 opacity inactive / 1.0 opacity active is sufficient for the annunciator indicators given their all-caps + letter-spacing: 0.05em rendering. If legibility testing on device reveals issues, bump to 12px in a follow-up task (not blocking Phase 55).
+**Contract:** No size change. The scaled display at ≈10.5px with 0.35 opacity inactive / 1.0 opacity active is sufficient for the annunciator indicators given their all-caps + letter-spacing: 0.05em rendering. If legibility testing on device reveals issues, bump to 13px in a follow-up task (not blocking Phase 55).
 
 **SHIFT annunciator:** Already styled with `--annunciator-shift-active` (orange) and `--annunciator-active` (cream). No change needed.
 
