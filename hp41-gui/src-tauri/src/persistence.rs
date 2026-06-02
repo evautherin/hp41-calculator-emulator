@@ -47,6 +47,7 @@ pub fn default_state_path() -> PathBuf {
 pub fn state_path_for_app(handle: &tauri::AppHandle) -> PathBuf {
     #[cfg(mobile)]
     {
+        use tauri::Manager; // `.path()` is a Manager-trait method; scoped to mobile to avoid a desktop unused-import warning
         handle
             .path()
             .app_local_data_dir()
