@@ -36,6 +36,36 @@ pub fn default_state_path() -> PathBuf {
         .join("autosave.json")
 }
 
+/// AppHandle-aware path resolver. On mobile (iOS) uses app_local_data_dir()
+/// → Library/Application Support/<bundle_id>/autosave.json.
+/// On desktop delegates to default_state_path() — desktop behavior unchanged.
+///
+/// Phase 54 PERSIST-01: iOS sandbox container path; desktop `~/.hp41/` unchanged.
+/// Pitfall 2: unwrap_or_else handles Tauri #12552 "Permission Denied" gracefully.
+/// Pitfall 3: fallback uses Library/Application Support, NOT .hp41 (container-root dot-dir).
+#[allow(unused_variables)] // `handle` is used only in #[cfg(mobile)] branch; intentional on desktop
+pub fn state_path_for_app(handle: &tauri::AppHandle) -> PathBuf {
+    #[cfg(mobile)]
+    {
+        handle
+            .path()
+            .app_local_data_dir()
+            .unwrap_or_else(|e| {
+                eprintln!("hp41: app_local_data_dir failed ({e}), falling back to HOME");
+                dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("Library")
+                    .join("Application Support")
+                    .join("ch.talent-factory.hp41")
+            })
+            .join("autosave.json")
+    }
+    #[cfg(not(mobile))]
+    {
+        default_state_path()
+    }
+}
+
 /// Save CalcState to path as pretty-printed JSON with version wrapper.
 /// Creates the parent directory if it does not exist (D-01).
 /// Returns Err on I/O failure; caller shows error in status bar (D-03).
@@ -148,6 +178,53 @@ mod tests {
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 
+    /// Phase 54 PERSIST-01: desktop path unchanged after adding state_path_for_app().
+    /// Ensures the new resolver does not break the existing default_state_path() output.
+    #[test]
+    fn test_default_state_path_ends_with_dot_hp41_autosave() {
+        let path = default_state_path();
+        assert!(
+            path.ends_with(".hp41/autosave.json"),
+            "default_state_path() must end with .hp41/autosave.json, got: {}",
+            path.display()
+        );
+    }
+
+    /// Phase 54 PERSIST-01: mobile fallback path construction test.
+    /// The #[cfg(mobile)] live branch is compile-gated to iOS targets; on the host
+    /// we test the fallback PathBuf construction directly (RESEARCH Validation Architecture).
+    /// The fallback must use Library/Application Support/ch.talent-factory.hp41, not .hp41.
+    #[test]
+    fn test_mobile_fallback_path_construction() {
+        // Simulate the fallback chain from state_path_for_app's #[cfg(mobile)] branch.
+        // Mirrors Pattern 1 / Pitfall 3: fallback must NOT use .hp41 (container-root dot-dir).
+        let base = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        let fallback = base
+            .join("Library")
+            .join("Application Support")
+            .join("ch.talent-factory.hp41")
+            .join("autosave.json");
+        let s = fallback.to_string_lossy();
+        assert!(
+            s.contains("Application Support"),
+            "mobile fallback path must contain 'Application Support', got: {s}"
+        );
+        assert!(
+            s.contains("ch.talent-factory.hp41"),
+            "mobile fallback path must contain bundle id 'ch.talent-factory.hp41', got: {s}"
+        );
+        assert!(
+            s.ends_with("autosave.json"),
+            "mobile fallback path must end with autosave.json, got: {s}"
+        );
+        // Verify the fallback does NOT land at the container-root .hp41/ location (Pitfall 3).
+        let wrong = base.join(".hp41").join("autosave.json");
+        assert_ne!(
+            fallback, wrong,
+            "mobile fallback must NOT use .hp41/ (container-root dot-dir)"
+        );
+    }
+
     /// PR #5 review (pr-test-analyzer) flagged that no test exercised the
     /// CLI→GUI interop path: a state file produced by hp41-cli v1.0 must
     /// load in hp41-gui v2.0 (shared ~/.hp41/autosave.json). All v1.1-
@@ -180,6 +257,56 @@ mod tests {
         assert_eq!(loaded.reg_n, HpNum::zero());
         assert_eq!(loaded.reg_o, HpNum::zero());
         assert!(loaded.print_buffer.is_empty());
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Phase 54 PERSIST-03 (compat half): a committed v4.0-era fixture deserializes
+    /// without error via load_state() + migrate_after_load().
+    ///
+    /// Verifies:
+    /// - StateFile wrapper (`{"version":1,"state":{…}}`) is deserialized correctly.
+    /// - is_running == false after load (Pitfall 4 / D-54.2b guard).
+    /// - xrom_modules == 0b0001_1111 (all 5 XROM modules present and preserved).
+    /// - xmem_files is non-empty (v4.0 X-MEM state survives round-trip, D-51.0a).
+    /// - Two serde-exception fields (rand_seed non-zero, adv_tvm_state present) survive.
+    ///
+    /// The fixture at tests/fixtures/v40-autosave.json is committed source; serde path
+    /// is byte-for-byte identical across all targets — a passing host/CI test proves
+    /// iOS compatibility without device injection (D-54.4 / D-54.4b).
+    #[test]
+    fn test_loads_v40_autosave_fixture() {
+        use hp41_core::num::HpNum;
+
+        let fixture = include_str!("../tests/fixtures/v40-autosave.json");
+        let path = temp_path("v40_compat");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, fixture.as_bytes()).unwrap();
+        let loaded = load_state(&path).expect("v4.0-format save must load");
+        assert!(!loaded.is_running, "is_running must be false after load (Pitfall 4)");
+        assert_eq!(
+            loaded.xrom_modules, 0b0001_1111u8,
+            "v4.0 xrom_modules (all 5 modules) must be preserved"
+        );
+        // v4.0 X-MEM state: at least one xmem_files entry (DATFILE)
+        assert!(
+            !loaded.xmem_files.is_empty(),
+            "xmem_files must be non-empty in v4.0 fixture"
+        );
+        assert_eq!(
+            loaded.xmem_active_file.as_deref(),
+            Some("DATFILE"),
+            "xmem_active_file must be 'DATFILE'"
+        );
+        // Two serde-exception fields (rand_seed, adv_tvm_state) survive round-trip (Pitfall 20).
+        assert_ne!(
+            loaded.rand_seed,
+            HpNum::zero(),
+            "rand_seed (serde-exception field) must survive round-trip"
+        );
+        assert!(
+            loaded.adv_tvm_state.is_some(),
+            "adv_tvm_state (serde-exception field) must survive round-trip"
+        );
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 }

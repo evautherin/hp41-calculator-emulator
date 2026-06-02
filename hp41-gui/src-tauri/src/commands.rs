@@ -18,7 +18,7 @@
 use crate::cards;
 use crate::key_map;
 use crate::persistence;
-use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_LAUNCH_MODES, VALID_THEMES};
+use crate::prefs::{prefs_path_for_app, save_prefs, GuiPrefs, VALID_LAUNCH_MODES, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
 use hp41_core::cardreader::{
@@ -492,6 +492,7 @@ pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
 /// P59/THEME-05: never touches `CalcState` or `autosave.json`.
 #[tauri::command]
 pub fn set_pref(
+    app: AppHandle,
     key: String,
     value: String,
     prefs: State<'_, PrefsState>,
@@ -518,7 +519,8 @@ pub fn set_pref(
         }
         _ => return Err(format!("unknown pref key: {key}")),
     }
-    save_prefs(&default_prefs_path(), &*p).map_err(|e| e.to_string())
+    // Phase 54 PERSIST-01: use AppHandle-aware resolver so iOS writes to the app container.
+    save_prefs(&prefs_path_for_app(&app), &*p).map_err(|e| e.to_string())
 }
 
 /// Tauri command: restart the application.
@@ -556,10 +558,13 @@ pub fn is_macos() -> bool {
 /// GUI divergence (KBD-02 / D-49.13): F5 triggers save in the GUI; CLI uses F5 for
 /// `run_program("A")`. This is intentional and documented — desktop keyboard idiom.
 #[tauri::command]
-pub fn save_state(state: State<'_, AppState>) -> Result<(), String> {
+pub fn save_state(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // CR-01: clone under lock, then release lock before disk I/O.
     let snapshot = state.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let path = persistence::default_state_path();
+    // Phase 54 PERSIST-01: use AppHandle-aware resolver so iOS saves to the app container.
+    // This is the visibilitychange invoke target (PERSIST-02); a wrong path silently discards
+    // the background save — must use the resolved path (RESEARCH Pitfall 1).
+    let path = persistence::state_path_for_app(&app);
     persistence::save_state(&path, &snapshot).map_err(|e| e.to_string())
 }
 

@@ -75,6 +75,36 @@ pub fn default_prefs_path() -> PathBuf {
         .join("prefs.json")
 }
 
+/// AppHandle-aware preferences path resolver. On mobile (iOS) uses app_local_data_dir()
+/// → Library/Application Support/<bundle_id>/prefs.json.
+/// On desktop delegates to default_prefs_path() — desktop behavior unchanged.
+///
+/// Phase 54 PERSIST-01 / D-54.3: mirrors persistence::state_path_for_app(), filename only differs.
+/// Pitfall 2: unwrap_or_else handles Tauri #12552 "Permission Denied" gracefully.
+/// Pitfall 3: fallback uses Library/Application Support, NOT .hp41 (container-root dot-dir).
+#[allow(unused_variables)] // `handle` is used only in #[cfg(mobile)] branch; intentional on desktop
+pub fn prefs_path_for_app(handle: &tauri::AppHandle) -> PathBuf {
+    #[cfg(mobile)]
+    {
+        handle
+            .path()
+            .app_local_data_dir()
+            .unwrap_or_else(|e| {
+                eprintln!("hp41: app_local_data_dir failed ({e}), falling back to HOME");
+                dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("Library")
+                    .join("Application Support")
+                    .join("ch.talent-factory.hp41")
+            })
+            .join("prefs.json")
+    }
+    #[cfg(not(mobile))]
+    {
+        default_prefs_path()
+    }
+}
+
 /// Persist `prefs` to `path` as pretty-printed JSON.
 ///
 /// Creates the parent directory if it does not exist (mirrors `save_state`).

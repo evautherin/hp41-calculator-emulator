@@ -61,7 +61,7 @@ pub fn run() {
             // Phase 48: load GUI preferences FIRST (before CalcState) — preferences are
             // completely independent of CalcState (P59/THEME-05). A missing prefs.json
             // is normal (first-run); load_prefs() silently returns GuiPrefs::default().
-            let prefs_path = prefs::default_prefs_path();
+            let prefs_path = prefs::prefs_path_for_app(app.handle());
             let initial_prefs = prefs::load_prefs(&prefs_path);
             // Capture the macOS launch mode before initial_prefs is moved into the
             // managed Mutex — used by the macOS setup branch below. Unused on non-macOS.
@@ -69,7 +69,7 @@ pub fn run() {
             let macos_launch_mode = initial_prefs.macos_launch_mode.clone();
             app.manage(Mutex::new(initial_prefs));
 
-            let save_path = persistence::default_state_path();
+            let save_path = persistence::state_path_for_app(app.handle());
             let initial_state = match persistence::load_state(&save_path) {
                 Ok(state) => state,
                 Err(e) if save_path.exists() => {
@@ -99,9 +99,12 @@ pub fn run() {
 
             // D-01: spawn auto-save background thread — 30s sleep, then lock, then save.
             // D-02: save failures are logged to stderr; no UI notification.
+            // Phase 54 PERSIST-01: resolve the iOS-aware path BEFORE spawning, then move-capture
+            // the PathBuf into the closure (RESEARCH Pattern 2 — AppHandle not reconstructible
+            // inside std::thread::spawn without cloning; resolving here is cleaner).
             let handle = app.handle().clone();
+            let thread_save_path = persistence::state_path_for_app(&handle);
             std::thread::spawn(move || {
-                let thread_save_path = persistence::default_state_path();
                 loop {
                     std::thread::sleep(std::time::Duration::from_secs(30));
                     // Clone state under lock, then drop guard before disk I/O (CR-01).
