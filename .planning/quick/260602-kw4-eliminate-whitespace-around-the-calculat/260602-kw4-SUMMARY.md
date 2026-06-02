@@ -91,6 +91,32 @@ Stopped at `checkpoint:human-verify` (Task 4) as required. `just gui-ci` is gree
 - Commit `6727b64` — exists (`git log --oneline | grep 6727b64`)
 - Commit `e4ed7dd` — exists (`git log --oneline | grep e4ed7dd`)
 
+## Refinement 2: Themed Letterbox Background + iOS Scroll Lock (commit `dd71fb2`)
+
+**Problems surfaced at checkpoint:** (1) The aspect-ratio letterbox around the calculator showed
+the browser's default white background on left/right margins — most visible on iPhone in portrait
+orientation. (2) The entire calculator could be dragged up/down via iOS WKWebView overscroll
+rubber-band bounce, breaking the native-app feel.
+
+**Fix applied in `hp41-gui/src/index.css` and `hp41-gui/src/main.tsx` only:**
+
+- `index.css`: `html, body { background: var(--calc-bg, #0d0d0d) }` — letterbox area now shows the
+  current theme color (dark #0d0d0d, light #e8e8e8, classic-beige #c8b890, high-contrast #000000);
+  fallback `#0d0d0d` covers the brief first paint before `App.tsx` sets `data-theme` on `<body>`.
+  Because `data-theme` is set on `<body>`, `var(--calc-bg)` resolves correctly on `html`/`body`.
+- `index.css`: `body { position: fixed; inset: 0; width: 100% }` + `html, body { overflow: hidden;
+  overscroll-behavior: none }` — pins WKWebView so whole-app rubber-band bounce is impossible; the
+  overscroll area also renders the themed background.
+- `index.css`: `html, body, #root { height: 100% }` — `#root` fills the fixed body correctly.
+- `main.tsx`: outer wrapper `width`/`height` changed from `'100vw'`/`'100vh'` to `'100%'` —
+  tracks the fixed, locked body rather than the iOS toolbar-inclusive viewport unit (eliminates the
+  few-px scroll the 100vh quirk can introduce on mobile browsers).
+- `main.tsx`: outer wrapper gains `background: 'var(--calc-bg, #0d0d0d)'` as belt-and-suspenders.
+- Internal overlay scroll containers (help, wizard, raw-picker) are unaffected — they scroll inside
+  `.calculator` via their own `overflow-y: auto`, which is independent of body lock.
+- `just gui-ci`: TypeScript clean, 82 Rust + 84 integration tests pass, 224 frontend tests pass.
+- `git diff --name-only` shows ONLY `hp41-gui/src/index.css` and `hp41-gui/src/main.tsx`.
+
 ## Refinement: Measure-and-Fit via ResizeObserver (commit `0d2a1c5`)
 
 **Problem surfaced at checkpoint:** `DESIGN_HEIGHT=900` is still taller than the real rendered
