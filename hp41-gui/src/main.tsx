@@ -8,9 +8,12 @@ import './themes.css'
 
 /**
  * Wraps <App/> in a fixed-size (DESIGN_WIDTH x DESIGN_HEIGHT) box and applies a
- * uniform CSS transform so the layout fits the current window without scrolling.
- * Used by the macOS menu-bar popover (which may be shorter than 1020px) and any
- * small display. On a full-height window the scale is 1 (no visual change).
+ * uniform CSS transform so the layout fills the current window without distortion.
+ * Upscales up to MAX_SCALE on large viewports (macOS window mode, 4K displays) and
+ * downscales below 1 on small viewports (macOS menu-bar popover, short windows) so
+ * nothing is clipped. transformOrigin 'top center' keeps the scaled box anchored at
+ * the top; alignItems 'flex-start' on the outer container prevents vertical centering
+ * gaps on tall viewports.
  */
 function ScaledApp(): React.ReactElement {
   const [scale, setScale] = useState(() =>
