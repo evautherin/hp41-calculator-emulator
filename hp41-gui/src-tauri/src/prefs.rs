@@ -82,6 +82,7 @@ pub fn default_prefs_path() -> PathBuf {
 /// Phase 54 PERSIST-01 / D-54.3: mirrors persistence::state_path_for_app(), filename only differs.
 /// Pitfall 2: unwrap_or_else handles Tauri #12552 "Permission Denied" gracefully.
 /// Pitfall 3: fallback uses Library/Application Support, NOT .hp41 (container-root dot-dir).
+#[allow(unused_variables)] // `handle` is used only in #[cfg(mobile)] branch; intentional on desktop
 pub fn prefs_path_for_app(handle: &tauri::AppHandle) -> PathBuf {
     #[cfg(mobile)]
     {
