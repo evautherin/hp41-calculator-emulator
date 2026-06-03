@@ -1222,18 +1222,63 @@ function App() {
         }}
       />
       {/* Phase 55 Plan 04 — AlphaTouchInput: iOS-gated touch text entry bar (TOUCH-04 + D-55.2).
-          Renders when isIos AND (ALPHA-register mode OR modal-label prompt is active).
-          Routes via the EXISTING alpha_<X> dispatch and submit_modal_with_label IPC paths.
+          Renders when isIos AND (ALPHA-register mode OR backend modal-label prompt OR
+          frontend text-label pendingInput is active).
+          Phase 55 Plan 06 gap-fix: frontend text-label kinds (xeq_name, clp, assign_label)
+          set pendingInput but do NOT set calcState.modal_requires_alpha_label — now covered
+          via isFrontendModalMode so iOS users can type function/label names (incl. 'N').
           Desktop (isIos=false) renders nothing — existing physical-keyboard path unchanged. */}
-      {isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && (
-        <AlphaTouchInput
-          isAlphaMode={calcState.annunciators.alpha}
-          isModalLabelMode={calcState.modal_requires_alpha_label}
-          modalPrompt={calcState.modal_prompt}
-          onDispatch={dispatchKeyId}
-          onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
-        />
-      )}
+      {(() => {
+        // Compute frontend-modal mode: pendingInput is a text-label kind on iOS.
+        const frontendLabelModal = isIos && pendingInput !== null && (
+          pendingInput.kind === 'xeq_name' ||
+          pendingInput.kind === 'clp' ||
+          pendingInput.kind === 'assign_label'
+        );
+        // Derive a human-readable prompt for frontend modal kinds.
+        const frontendModalPrompt: string | null = (() => {
+          if (!frontendLabelModal || pendingInput === null) return null;
+          if (pendingInput.kind === 'xeq_name') {
+            const prefix = pendingInput.dispatchPrefix.toUpperCase();
+            return `${prefix} NAME?`;
+          }
+          if (pendingInput.kind === 'clp') return 'CLP NAME?';
+          if (pendingInput.kind === 'assign_label') return 'ASN NAME?';
+          return 'ENTER LABEL';
+        })();
+        const showBar = isIos && (
+          calcState.annunciators.alpha ||
+          calcState.modal_requires_alpha_label ||
+          frontendLabelModal
+        );
+        if (!showBar) return null;
+        return (
+          <AlphaTouchInput
+            isAlphaMode={calcState.annunciators.alpha}
+            isModalLabelMode={calcState.modal_requires_alpha_label}
+            modalPrompt={calcState.modal_prompt}
+            onDispatch={dispatchKeyId}
+            onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
+            isFrontendModalMode={!!frontendLabelModal}
+            frontendModalPrompt={frontendModalPrompt}
+            onFrontendModalChar={(ch) => {
+              if (pendingInput === null) return;
+              const result = handleModalKey(ch, pendingInput, shiftActive);
+              void applyModalResult(result);
+            }}
+            onFrontendModalBackspace={() => {
+              if (pendingInput === null) return;
+              const result = handleModalKey('Backspace', pendingInput, shiftActive);
+              void applyModalResult(result);
+            }}
+            onFrontendModalDone={() => {
+              if (pendingInput === null) return;
+              const result = handleModalKey('Enter', pendingInput, shiftActive);
+              void applyModalResult(result);
+            }}
+          />
+        );
+      })()}
       {/* Phase 55 Plan 05 — PRGM panel: bottom sheet on iOS, inline panel on desktop.
           iOS: pull-up sheet with active-step highlight + scroll-into-view.
           Desktop: existing inline .prgm-panel (byte-for-byte unchanged). */}
