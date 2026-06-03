@@ -73,7 +73,8 @@ fn stack_clear_resolves() {
     assert_eq!(resolve("R\u{2191}"), Some(Rup));
     assert_eq!(resolve("RUP"), Some(Rup));
     assert_eq!(resolve("CLST"), Some(Clst));
-    assert_eq!(resolve("CLREG"), Some(Clreg));
+    assert_eq!(resolve("CLRG"), Some(Clreg)); // authentic HP-41 mnemonic
+    assert_eq!(resolve("CLREG"), Some(Clreg)); // back-compat alias
     assert_eq!(resolve("CLA"), Some(Cla));
 }
 
