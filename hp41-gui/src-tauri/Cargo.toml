@@ -25,6 +25,9 @@ serde_json = "1"
 hp41-core = { path = "../../hp41-core" }
 dirs = "6"
 
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-haptics = "2.3.2"
+
 [dev-dependencies]
 rust_decimal = "1.42"
 tempfile = "3"

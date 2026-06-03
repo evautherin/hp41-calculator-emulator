@@ -49,6 +49,13 @@ pub fn run() {
         None,
     ));
 
+    // tauri-plugin-haptics is mobile-only: iOS UIImpactFeedbackGenerator symbols
+    // do not exist on desktop targets. Gating with #[cfg(mobile)] mirrors the
+    // #[cfg(desktop)] pattern for autostart above. The JS haptic calls are
+    // iOS-gated via isIos, so desktop code never reaches the IPC endpoint.
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_haptics::init());
+
     builder
         .setup(|app| {
             // D-03: attempt to load ~/.hp41/autosave.json; fall back to fresh state on any error.
