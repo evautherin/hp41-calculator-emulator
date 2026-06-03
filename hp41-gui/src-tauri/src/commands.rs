@@ -225,7 +225,13 @@ pub fn handle_op_prepare(
     // ── '.' — block duplicate '.' and '.' after 'e' ──────────────────────────
     if key_id == "." {
         if !calc.entry_buf.contains('.') && !calc.entry_buf.contains('e') {
-            calc.entry_buf.push('.');
+            // Real HP-41CV leading-zero entry: '.' on an empty buffer shows "0." not ".".
+            // Seeding "0." matches hardware behavior and makes the display read "0.1" for ".1".
+            if calc.entry_buf.is_empty() {
+                calc.entry_buf.push_str("0.");
+            } else {
+                calc.entry_buf.push('.');
+            }
         }
         return Ok(None);
     }
@@ -1048,6 +1054,62 @@ mod tests {
         assert_eq!(
             calc.entry_buf, "42",
             "entry_buf must be unchanged when no 'e' present"
+        );
+    }
+
+    // ── Leading-zero decimal entry — D-25.6 parity with CLI (HP-41CV behavior) ─
+
+    #[test]
+    fn test_gui_decimal_on_empty_buf_seeds_leading_zero() {
+        // HP-41CV hardware: pressing '.' on an empty buffer shows "0." not ".".
+        // Mirrors CLI test_decimal_on_empty_buf_seeds_leading_zero (D-25.6 parity).
+        let mut calc = CalcState::new();
+        assert!(calc.entry_buf.is_empty());
+        handle_op(&mut calc, ".").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.",
+            "'.' key on empty entry_buf must seed \"0.\", not \".\""
+        );
+    }
+
+    #[test]
+    fn test_gui_decimal_then_digit_yields_zero_point_one() {
+        // '.' then '1' must produce entry_buf "0.1" (D-25.6: matches CLI behavior).
+        let mut calc = CalcState::new();
+        handle_op(&mut calc, ".").unwrap();
+        assert_eq!(calc.entry_buf, "0.");
+        handle_op(&mut calc, "1").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.1",
+            "'.' then '1' must yield entry_buf \"0.1\""
+        );
+    }
+
+    #[test]
+    fn test_gui_zero_decimal_digit_no_double_zero_regression() {
+        // Regression: '0' '.' '1' must yield "0.1", NOT "00.1".
+        // The buffer is "0" (non-empty) when '.' arrives — falls through to normal push.
+        let mut calc = CalcState::new();
+        handle_op(&mut calc, "0").unwrap();
+        handle_op(&mut calc, ".").unwrap();
+        handle_op(&mut calc, "1").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.1",
+            "'0' '.' '1' must yield \"0.1\", not \"00.1\""
+        );
+    }
+
+    #[test]
+    fn test_gui_second_decimal_after_zero_point_one_is_blocked() {
+        // Single-decimal-point invariant: a second '.' after "0.1" must be ignored.
+        let mut calc = CalcState::new();
+        handle_op(&mut calc, ".").unwrap();
+        handle_op(&mut calc, "1").unwrap();
+        assert_eq!(calc.entry_buf, "0.1");
+        handle_op(&mut calc, ".").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.1",
+            "second '.' must not be appended — single-decimal-point invariant"
         );
     }
 
