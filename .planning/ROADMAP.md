@@ -151,7 +151,13 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
   4. Every key tap triggers haptic feedback; feedback intensity varies by key type (standard vs. function vs. ENTER); a distinct haptic pattern fires when the display shows DATA ERROR or NO ROOM
   5. TONE n / BEEP produce audio on the first use after launch (AudioContext is resumed inside the first user-gesture handler; the silent-switch behavior is documented and accepted)
   6. The SHIFT and ALPHA annunciators and the X/Y/Z/T stack panel are visible and legible without zooming; the print panel and PRGM-mode listing are accessible via pull-up bottom sheets; the stack panel can be collapsed to give the keypad more vertical room; rubber-band overscroll is suppressed on the calculator body
-**Plans**: TBD
+**Plans**: 6 plans
+- [ ] 55-01-PLAN.md — iOS shared infra: is_ios command + haptics plugin (mobile-gated) + isIos flag + viewport-fit=cover + portrait lock
+- [ ] 55-02-PLAN.md — 44pt hit-target overlays + tap feedback (pointerdown, no delay/flash) + safe-area padding
+- [ ] 55-03-PLAN.md — Per-key haptic tiers + error haptic + audio resume (verified impactFeedback string API)
+- [ ] 55-04-PLAN.md — ALPHA + modal-label touch text entry (AlphaTouchInput, D-55.2)
+- [ ] 55-05-PLAN.md — Pull-up bottom sheets (print/PRGM) + collapsible stack + overscroll
+- [ ] 55-06-PLAN.md — On-device iPhone SE verification checkpoints (D-55.4) [checkpoints]
 **UI hint**: yes
 
 ---
@@ -188,10 +194,10 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
-| 55. Touch UI Adaptation | 0/? | Not started | - |
+| 55. Touch UI Adaptation | 0/6 | Planned | - |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
 | 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-06-02 — Phase 54 planned (3 plans, 2 waves). Next: `/gsd-execute-phase 54`.*
+*Last updated: 2026-06-03 — Phase 55 planned (6 plans, 6 waves). Next: `/gsd-execute-phase 55`.*
