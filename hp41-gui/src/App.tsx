@@ -257,6 +257,11 @@ function App() {
   // Phase 41 D-41.2/D-41.8: live-display interval reference.
   // Holds the setInterval ID when clock_active || stopwatch_keyboard_mode is true.
   const liveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Phase 56 D-56.1/D-56.3: live needsTick value for the empty-deps visibilitychange
+  // listener (mirror of busyRef/liveTickRef pattern — read current value inside a
+  // stable listener without adding needsTick to its deps, which would re-register
+  // the listener every 100ms tick).
+  const needsTickRef = useRef(false);
   const [printLog, setPrintLog] = useState<string[]>([]);
   const [printPanelOpen, setPrintPanelOpen] = useState(false);
   const printEndRef = useRef<HTMLDivElement>(null);
@@ -505,6 +510,13 @@ function App() {
       }
     };
   }, [needsTick, showToast]);
+
+  // Phase 56 D-56.1/D-56.3: keep needsTickRef in sync with the derived needsTick boolean.
+  // The empty-deps visibilitychange listener reads needsTickRef.current to get the live
+  // value without adding needsTick to the listener's deps (which would re-register every tick).
+  useEffect(() => {
+    needsTickRef.current = needsTick;
+  }, [needsTick]);
 
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
@@ -994,6 +1006,13 @@ function App() {
   // Fire-and-forget: the 30s auto-save thread (D-54.2a) is the safety net.
   // Empty deps: handler has no dependency on React state — invoke always saves current state.
   // D-54.2c: no page-hide or unload listeners added (redundant, risk double-saves).
+  //
+  // Phase 56 D-56.1/D-56.3 (LIFE-02): extended with a 'visible' branch that fires one
+  // gated tick_time on foreground return so the clock/stopwatch display is correct within
+  // one frame (no stale time visible). Reads needsTickRef.current (live value, set by a
+  // dedicated useEffect([needsTick])) and isIos (closure — set once on mount, stable).
+  // busyRef guard mirrors the live-tick interval guard. NOT get_state (D-11 — only tick_time).
+  // Desktop/macOS: isIos is false → the 'visible' branch never fires spurious IPC.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -1001,11 +1020,18 @@ function App() {
           // Silent failure acceptable: the 30s timer is the safety net (D-54.2a)
           console.warn('background save failed:', extractErrMessage(err));
         });
+      } else if (document.visibilityState === 'visible' && isIos && needsTickRef.current) {
+        // iOS foreground return: force one tick_time so the clock/stopwatch display
+        // shows the correct current time within one render frame (LIFE-02).
+        if (busyRef.current) return;
+        invoke<CalcStateView>('tick_time')
+          .then(view => { setCalcState(view); })
+          .catch((err: unknown) => showToast(extractErrMessage(err)));
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []); // empty deps: listener is stable, registered once on mount
+  }, []); // empty deps: listener reads live values via refs (needsTickRef, busyRef) and stable closure (isIos)
 
   // Accumulate print_lines from each IPC response into local React state.
   // D-09: print_buffer is drained per IPC call; React retains full history.
