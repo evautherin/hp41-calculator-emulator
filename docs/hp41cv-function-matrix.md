@@ -114,7 +114,7 @@
 | XNeY_XEQ | X<>Y? | Programming | ✓ v2.x | 25 | `XEQ "X<>Y?"` | X != Y? conditional test (XEQ-by-Name only) |
 | XNeZero_XEQ | X#0? | Programming | ✓ v2.x | 25 | `XEQ "X#0?"` | X != 0? conditional test (XEQ-by-Name only) |
 | Xeq | XEQ | Programming | ✓ v2.x | 3 | `f-N` | XEQ name - subroutine call (max 4 deep) |
-| Clreg | CLREG | Registers | ✓ v2.x | 2 | — | Clear all storage registers R00..R99 to zero |
+| Clreg | CLRG | Registers | ✓ v2.x | 2 | — | Clear all storage registers R00..R99 to zero |
 | RclReg | RCL | Registers | ✓ v2.x | 2 | `R` | RCL nn - recall register nn into X (0..99) |
 | StoArith | STO+/-/*// | Registers | ✓ v2.x | 9 | `S` | STO arithmetic on register nn using X |
 | StoArithStack | STO+/-/*// Y/Z/T/L | Registers | ✓ v2.x | 9 | `S` | STO arithmetic on stack register using X |

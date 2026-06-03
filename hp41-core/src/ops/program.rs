@@ -1415,7 +1415,7 @@ pub fn builtin_card_op(name: &str) -> Option<Op> {
         "GRAD" => Some(Op::SetGrad),
         "R^" | "R\u{2191}" | "RUP" => Some(Op::Rup),
         "CLST" => Some(Op::Clst),
-        "CLREG" => Some(Op::Clreg),
+        "CLRG" | "CLREG" => Some(Op::Clreg),
         "CLA" => Some(Op::Cla),
         "SIGMA+" | "\u{03A3}+" => Some(Op::SigmaPlus),
         "SIGMA-" | "\u{03A3}-" => Some(Op::SigmaMinus),
