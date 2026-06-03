@@ -9,6 +9,7 @@ import SettingsPanel from './SettingsPanel';
 import OnboardingWizard from './OnboardingWizard';
 import RawPickerOverlay from './RawPickerOverlay';
 import AlphaTouchInput from './AlphaTouchInput';
+import BottomSheet from './BottomSheet';
 import {
   handleModalKey,
   renderModalLcd,
@@ -278,6 +279,11 @@ function App() {
   const [macosLaunchMode, setMacosLaunchMode] = useState<string>('menu-bar');
   const [isMacos, setIsMacos] = useState(false);
   const [isIos, setIsIos] = useState(false); // D-55.1 — gates touch behaviors on iOS
+  // Phase 55 Plan 05 — iOS collapsible stack panel (TOUCH-10).
+  // Default collapsed on iOS to give the keypad more vertical room.
+  // Local state only — not persisted to GuiPrefs (resets to collapsed on each launch).
+  // On desktop (isIos=false) this state is unused; the stack stays fully expanded.
+  const [stackExpanded, setStackExpanded] = useState(false);
   // Phase 49 D-49.4/D-49.8/ONBOARD-01 — onboarding wizard overlay state.
   // onboardingOpen: wizard visible; isFirstRun: true when auto-opened on first launch
   //   (Esc blocked in first-run mode per D-49.9), false when re-opened from settings.
@@ -1148,13 +1154,47 @@ function App() {
       {errorMessage && (
         <div className="error-row" role="alert">{errorMessage}</div>
       )}
+      {/* Phase 55 Plan 05 — Collapsible stack panel on iOS (TOUCH-10).
+          On iOS: X row always visible; Y/Z/T/L wrapped in .stack-panel-collapsible
+          controlled by stackExpanded. Chevron toggle is 44pt (TOUCH-10 contract).
+          On desktop: full stack always expanded, no chevron. */}
       <div className="stack-panel">
-        {stackRows.map(([label, value]) => (
-          <div key={label} className="stack-row">
-            <span className="stack-label">{label}:</span>
-            <span>{value}</span>
-          </div>
-        ))}
+        {isIos ? (
+          <>
+            {/* X row always visible on iOS */}
+            <div className="stack-row">
+              <span className="stack-label">X:</span>
+              <span>{calcState.x_str}</span>
+            </div>
+            {/* Y/Z/T/L collapsible wrapper */}
+            <div className={`stack-panel-collapsible${stackExpanded ? '' : ' collapsed'}`}>
+              {stackRows.slice(1).map(([label, value]) => (
+                <div key={label} className="stack-row">
+                  <span className="stack-label">{label}:</span>
+                  <span>{value}</span>
+                </div>
+              ))}
+            </div>
+            {/* 44pt chevron toggle */}
+            <div className="stack-panel-toggle">
+              <span>{stackExpanded ? 'Stack' : 'Stack (collapsed)'}</span>
+              <button
+                className="stack-panel-toggle-btn"
+                aria-label={stackExpanded ? 'Collapse stack' : 'Expand stack'}
+                onClick={() => setStackExpanded(e => !e)}
+              >
+                {stackExpanded ? '▲' : '▼'}
+              </button>
+            </div>
+          </>
+        ) : (
+          stackRows.map(([label, value]) => (
+            <div key={label} className="stack-row">
+              <span className="stack-label">{label}:</span>
+              <span>{value}</span>
+            </div>
+          ))
+        )}
       </div>
       <Keyboard
         onKey={handleClick}
@@ -1194,38 +1234,77 @@ function App() {
           onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
         />
       )}
-      {calcState.annunciators.prgm && (
-        <div className="prgm-panel">
-          <div className="prgm-panel-header">
-            PRGM &#8212; {calcState.program_steps.length - 1}{' '}
-            {calcState.program_steps.length - 1 === 1 ? 'step' : 'steps'}
+      {/* Phase 55 Plan 05 — PRGM panel: bottom sheet on iOS, inline panel on desktop.
+          iOS: pull-up sheet with active-step highlight + scroll-into-view.
+          Desktop: existing inline .prgm-panel (byte-for-byte unchanged). */}
+      {isIos ? (
+        <BottomSheet
+          id="prgm-sheet"
+          title="PROGRAM"
+          visible={calcState.annunciators.prgm}
+          emptyText="Program memory empty."
+        >
+          {calcState.program_steps.map((step, i) => (
+            <div
+              key={i}
+              ref={calcState.pc === i ? activeStepRef : null}
+              className={`step-row${calcState.pc === i ? ' step-active' : ''}`}
+            >
+              {step}
+            </div>
+          ))}
+        </BottomSheet>
+      ) : (
+        calcState.annunciators.prgm && (
+          <div className="prgm-panel">
+            <div className="prgm-panel-header">
+              PRGM &#8212; {calcState.program_steps.length - 1}{' '}
+              {calcState.program_steps.length - 1 === 1 ? 'step' : 'steps'}
+            </div>
+            <div className="prgm-panel-content">
+              {calcState.program_steps.map((step, i) => (
+                <div
+                  key={i}
+                  ref={calcState.pc === i ? activeStepRef : null}
+                  className={`step-row${calcState.pc === i ? ' step-active' : ''}`}
+                >
+                  {step}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="prgm-panel-content">
-            {calcState.program_steps.map((step, i) => (
-              <div
-                key={i}
-                ref={calcState.pc === i ? activeStepRef : null}
-                className={`step-row${calcState.pc === i ? ' step-active' : ''}`}
-              >
-                {step}
-              </div>
-            ))}
-          </div>
-        </div>
+        )
       )}
-      {printPanelOpen && (
-        <div className="print-panel">
-          <div className="print-panel-header">
-            <span>PRINT</span>
-            <button className="print-panel-close" onClick={() => setPrintPanelOpen(false)}>×</button>
+      {/* Phase 55 Plan 05 — Print panel: bottom sheet on iOS, inline panel on desktop.
+          iOS: pull-up sheet visible when printLog.length > 0.
+          Desktop: existing .print-panel gated by printPanelOpen (byte-for-byte unchanged). */}
+      {isIos ? (
+        <BottomSheet
+          id="print-sheet"
+          title="PRINT LOG"
+          visible={printLog.length > 0}
+          emptyText="No print output yet."
+        >
+          {printLog.map((line, i) => (
+            <div key={i} className="print-line">{line}</div>
+          ))}
+          <div ref={printEndRef} />
+        </BottomSheet>
+      ) : (
+        printPanelOpen && (
+          <div className="print-panel">
+            <div className="print-panel-header">
+              <span>PRINT</span>
+              <button className="print-panel-close" onClick={() => setPrintPanelOpen(false)}>×</button>
+            </div>
+            <div className="print-panel-content">
+              {printLog.map((line, i) => (
+                <div key={i} className="print-line">{line}</div>
+              ))}
+              <div ref={printEndRef} />
+            </div>
           </div>
-          <div className="print-panel-content">
-            {printLog.map((line, i) => (
-              <div key={i} className="print-line">{line}</div>
-            ))}
-            <div ref={printEndRef} />
-          </div>
-        </div>
+        )
       )}
       {/* Phase 26 D-26.8 — `?` help overlay. The component returns null when
           open=false, so unconditional placement in the tree is safe. Anchored
