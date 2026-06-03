@@ -105,13 +105,12 @@ None — plan executed exactly as written.
 
 None. `program_steps` and `pc` remain in `CalcStateView` IPC but are unused by the frontend (intentional follow-up per plan `<followups>` section — field removal deferred to avoid unrelated churn in tests/IPC consumers).
 
-## Pending: Task 4 (On-Device Human Verify)
+## Task 4 (On-Device Human Verify) — PASS
 
-Task 4 is a `checkpoint:human-verify gate="blocking"` that requires on-device iOS + desktop verification:
-- iPhone: enter PRGM mode → main display shows "000 END" (not "0.0000"); SST/BST update the step; no PROGRAM sheet; print sheet still works
-- Desktop: same single-step display; no .prgm-panel; SST/BST navigate steps
-
-This checkpoint cannot be satisfied automatically. Resume signal: type "approved" or describe any divergence.
+Verified on iPhone 15 Pro (2026-06-03): in PRGM mode the main display shows the
+current step (e.g. `000 END` / `001 XEQ CLRG`), SST/BST navigate steps in the main
+display, no PROGRAM bottom sheet appears (overlap gone), and the print sheet still
+works. **Approved.**
 
 ## Self-Check: PASSED
 

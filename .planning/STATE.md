@@ -59,6 +59,8 @@ Phase 56 ██████████ 100%  Phase 57 ░░░░░░░░�
 | 260603-e4e | Allow entering '.1' as '0.1' (leading-zero number entry, real HP-41CV behavior) | 2026-06-03 | d127e97 | Complete ✓ | [260603-e4e-allow-entering-1-as-0-1-leading-zero-num](./quick/260603-e4e-allow-entering-1-as-0-1-leading-zero-num/) |
 | 260603-klp | Fix help-overlay search field rendering off-screen at iPhone top edge (safe-area inset) so input and close X are reachable | 2026-06-03 | 8d0fd00 | Complete ✓ | [260603-klp-fix-help-overlay-search-field-rendering-](./quick/260603-klp-fix-help-overlay-search-field-rendering-/) |
 | 260603-laz | iOS touch polish — re-fit calculator scale on help/settings overlay close + lock pinch-zoom (surfaced verifying 260603-klp) | 2026-06-03 | 1e485ff | Complete ✓ | [260603-laz-ios-touch-polish-re-fit-calculator-on-ov](./quick/260603-laz-ios-touch-polish-re-fit-calculator-on-ov/) |
+| 260603-mxg | iOS PRGM-mode layout — safe-area handled OUTSIDE the CSS-transform (top display no longer clipped under Dynamic Island), via stylesheet class not inline env() (WKWebView drops inline env). Bottom-sheet occlusion later mooted by 260603-o2e | 2026-06-03 | 6fc9d6c | Complete ✓ | [260603-mxg-fix-ios-prgm-mode-layout-program-source-](./quick/260603-mxg-fix-ios-prgm-mode-layout-program-source-/) |
+| 260603-o2e | Authentic single-step PRGM view — main display shows current step (SST/BST navigate); removed inauthentic program listing (iOS sheet + desktop panel); restored CLI↔GUI parity D-25.6 | 2026-06-03 | 1eeba7e | Complete ✓ | [260603-o2e-authentic-hp-41-prgm-view-single-program](./quick/260603-o2e-authentic-hp-41-prgm-view-single-program/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 
