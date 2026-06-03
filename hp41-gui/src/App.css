@@ -347,50 +347,6 @@
   line-height: 1.4;
 }
 
-/* ── Program Listing Panel (Phase 18: D-08, D-09, D-11) ───────────────── */
-
-.prgm-panel {
-  width: 100%;
-  background: var(--panel-bg);
-  border-top: 1px solid var(--panel-border);
-  border-radius: 0 0 8px 8px;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
-  overflow: hidden;
-}
-
-.prgm-panel-header {
-  display: flex;
-  align-items: center;
-  padding: 4px 8px;
-  background: var(--panel-header-bg);
-  border-bottom: 1px solid var(--panel-border);
-  color: var(--text-secondary);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.prgm-panel-content {
-  max-height: 160px;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.step-row {
-  color: var(--text-secondary);
-  padding: 0 4px;
-  border-bottom: 1px solid var(--panel-border);
-  white-space: pre;
-  line-height: 1.4;
-  border-radius: 2px;
-}
-
-.step-active {
-  background: var(--step-active-bg);
-  color: var(--step-active-text);
-}
-
 /* ── Phase 19: SHIFT armed glow, toast overlay, SHIFT annunciator ────── */
 
 /* SHIFT key visual feedback when shift is armed (one-shot prefix).
