@@ -2273,6 +2273,70 @@ mod tests {
         );
     }
 
+    // ── Leading-zero decimal entry (HP-41CV hardware behavior) ────────────────
+
+    #[test]
+    fn test_decimal_on_empty_buf_seeds_leading_zero() {
+        // HP-41CV hardware: pressing '.' on an empty buffer shows "0." not ".".
+        let mut app = make_app();
+        assert!(app.state.entry_buf.is_empty());
+        app.handle_key(make_key(KeyCode::Char('.')));
+        assert_eq!(
+            app.state.entry_buf, "0.",
+            "'.' on empty entry_buf must seed \"0.\", not \".\""
+        );
+    }
+
+    #[test]
+    fn test_decimal_then_digit_yields_zero_point_one() {
+        // '.' + '1' must produce entry_buf "0.1" which flushes to numeric 0.1.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('.')));
+        app.handle_key(make_key(KeyCode::Char('1')));
+        assert_eq!(
+            app.state.entry_buf, "0.1",
+            "'.' then '1' must yield entry_buf \"0.1\""
+        );
+        // Flush via Enter and verify stack X == 0.1.
+        hp41_core::ops::dispatch(&mut app.state, hp41_core::ops::Op::Enter)
+            .expect("Enter must succeed");
+        let formatted =
+            hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        assert_eq!(
+            formatted, "0.1000",
+            "'.' '1' ENTER must push numeric 0.1 (shown as 0.1000 in FIX 4)"
+        );
+        assert!(app.state.entry_buf.is_empty());
+    }
+
+    #[test]
+    fn test_zero_decimal_digit_no_double_zero_regression() {
+        // Regression: '0' '.' '1' must yield "0.1", NOT "00.1".
+        // The buffer is "0" (non-empty) when '.' arrives — falls through to normal push.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('0')));
+        app.handle_key(make_key(KeyCode::Char('.')));
+        app.handle_key(make_key(KeyCode::Char('1')));
+        assert_eq!(
+            app.state.entry_buf, "0.1",
+            "'0' '.' '1' must yield \"0.1\", not \"00.1\""
+        );
+    }
+
+    #[test]
+    fn test_second_decimal_after_zero_point_one_is_blocked() {
+        // Single-decimal-point invariant: a second '.' after "0.1" must be ignored.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('.')));
+        app.handle_key(make_key(KeyCode::Char('1')));
+        assert_eq!(app.state.entry_buf, "0.1");
+        app.handle_key(make_key(KeyCode::Char('.')));
+        assert_eq!(
+            app.state.entry_buf, "0.1",
+            "second '.' must not be appended — single-decimal-point invariant"
+        );
+    }
+
     #[test]
     fn test_eex_appended_when_valid() {
         let mut app = make_app();
