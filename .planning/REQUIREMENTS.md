@@ -31,9 +31,9 @@ Requirements for this milestone. Each maps to a roadmap phase.
 - [x] **TOUCH-03**: Keys give immediate press feedback (`:active`), the 350 ms tap delay is eliminated (`touch-action: manipulation`), and there is no tap-highlight flash
 - [ ] **TOUCH-04**: ALPHA-mode character entry works by touch (iOS software keyboard or on-screen grid), with the input staying visible above the keyboard
 - [x] **TOUCH-05**: Key presses produce haptic feedback
-- [ ] **TOUCH-06**: Audio (TONE/BEEP) resumes correctly after the first user gesture (iOS AudioContext rule)
+- [x] **TOUCH-06**: Audio (TONE/BEEP) resumes correctly after the first user gesture (iOS AudioContext rule)
 - [ ] **TOUCH-07**: SHIFT/ALPHA indicators and the X/Y/Z/T stack panel are visible and legible on iPhone
-- [ ] **TOUCH-08**: Haptic intensity varies by key type, and a distinct haptic fires on DATA ERROR / NO ROOM *(differentiator)*
+- [x] **TOUCH-08**: Haptic intensity varies by key type, and a distinct haptic fires on DATA ERROR / NO ROOM *(differentiator)*
 - [ ] **TOUCH-09**: The print panel and PRGM-mode program listing are presented as pull-up bottom sheets *(differentiator)*
 - [ ] **TOUCH-10**: The stack panel can be collapsed to give the keypad more room *(differentiator)*
 - [ ] **TOUCH-11**: iOS rubber-band overscroll is suppressed on the calculator body *(differentiator)*
@@ -102,9 +102,9 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | TOUCH-03 | Phase 55 | Complete |
 | TOUCH-04 | Phase 55 | Pending |
 | TOUCH-05 | Phase 55 | Complete |
-| TOUCH-06 | Phase 55 | Pending |
+| TOUCH-06 | Phase 55 | Complete |
 | TOUCH-07 | Phase 55 | Pending |
-| TOUCH-08 | Phase 55 | Pending |
+| TOUCH-08 | Phase 55 | Complete |
 | TOUCH-09 | Phase 55 | Pending |
 | TOUCH-10 | Phase 55 | Pending |
 | TOUCH-11 | Phase 55 | Pending |
