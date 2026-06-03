@@ -454,7 +454,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  /* Safe-area insets: Phase 55 TOUCH-02 pattern reused for the absolutely-positioned
+     overlay — the wrapper's .calculator-safe-area padding does not push absolute
+     children inward, so the header must consume the insets itself.
+     env(safe-area-inset-*) resolves to 0 on desktop, keeping window mode unchanged. */
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-bottom: 10px;
   background: var(--panel-header-bg);
   border-bottom: 1px solid var(--panel-border);
 }
