@@ -113,7 +113,12 @@ export async function ensureAudioResumed(
 ): Promise<void> {
   if (audioResumedRef.current) return;
   if (audioCtx.state === 'suspended') {
-    await audioCtx.resume();
+    await audioCtx.resume().catch(() => {
+      // Silently ignore — resume() can reject outside a valid gesture context
+      // or when the iOS audio session is interrupted. Mirrors the internal
+      // .catch() guards in triggerHaptic / maybeFireErrorHaptic so a rejected
+      // resume() cannot surface as an unhandled promise rejection on iOS.
+    });
   }
   audioResumedRef.current = true;
 }
