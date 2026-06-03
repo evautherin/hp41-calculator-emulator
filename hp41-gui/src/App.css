@@ -185,6 +185,115 @@
   white-space: nowrap;
 }
 
+/* Bottom sheet — pull-up panel for print and PRGM on iOS (TOUCH-09) */
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 32px; /* peek height (collapsed) */
+  overflow: hidden;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--panel-border);
+  border-radius: 8px 8px 0 0;
+  z-index: 50; /* below alpha bar (80), below overlays (60+) */
+  transition: max-height 300ms ease;
+}
+
+.bottom-sheet.expanded {
+  max-height: 40vh;
+}
+
+.bottom-sheet-header {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-sheet-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.bottom-sheet-handle {
+  width: 32px;
+  height: 48px; /* 48pt tap zone per UI-SPEC (2xl) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 11px;
+}
+
+.bottom-sheet-content {
+  overflow-y: auto;
+  overscroll-behavior-y: contain; /* inner scroll, no outer bounce (TOUCH-11) */
+  padding: 0 16px 16px;
+  max-height: calc(40vh - 32px);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bottom-sheet-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* Collapsible stack panel (iOS only) — TOUCH-10 */
+.stack-panel-collapsible {
+  overflow: hidden;
+  transition: max-height 200ms ease;
+  max-height: 200px;
+}
+
+.stack-panel-collapsible.collapsed {
+  max-height: 0;
+}
+
+.stack-panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  background: var(--panel-bg);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border-bottom: 1px solid var(--display-border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.stack-panel-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ── Print Panel (Phase 17: D-07, D-08, D-09) ─────────────────────────── */
 
 .print-panel {
