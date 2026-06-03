@@ -18,6 +18,7 @@
     "allow-set-pref",
     "allow-restart-app",
     "allow-is-macos",
+    "allow-is-ios",
     "allow-save-state",
     "allow-import-raw-dialog",
     "allow-export-raw-dialog",

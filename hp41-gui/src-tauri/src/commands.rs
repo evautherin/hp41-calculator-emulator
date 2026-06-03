@@ -545,6 +545,17 @@ pub fn is_macos() -> bool {
     cfg!(target_os = "macos")
 }
 
+/// Tauri command: report whether the backend was compiled for iOS.
+///
+/// The frontend uses this to gate touch-specific behaviors (bottom sheets,
+/// collapsible stack panel, AlphaTouchInput bar, .key-touch-target overlays,
+/// haptic calls). Authoritative via compile-time `cfg(target_os = "ios")` —
+/// consistent with the existing `is_macos()` precedent (D-55.1).
+#[tauri::command]
+pub fn is_ios() -> bool {
+    cfg!(target_os = "ios")
+}
+
 /// Tauri command: persist the current CalcState to disk on demand (Ctrl+S / F5 in GUI).
 ///
 /// Mirrors the CLI's Ctrl+S handler (`hp41-cli/src/app.rs` lines 324-330). Follows

@@ -178,6 +178,7 @@ pub fn run() {
             commands::set_pref,                // Phase 48 INFRA-02 — write/persist a GUI preference
             commands::restart_app,             // macOS launch-mode toggle — offer relaunch after switch
             commands::is_macos,                // macOS launch-mode toggle — gate the Settings control
+            commands::is_ios,                  // D-55.1 — iOS platform detection (mirrors is_macos)
             commands::save_state,              // Phase 49 KBD-02 — on-demand save (Ctrl+S / F5 in GUI)
             // Phase 50 — .raw file I/O via native OS file dialog
             commands::import_raw_dialog,
