@@ -724,8 +724,7 @@ describe('HP-41 back-arrow fidelity — entry_backspace per-digit deletion', () 
 
   // L3: On-screen ← in alpha mode still dispatches 'alpha_clear' (unchanged).
   it('L3: on-screen ← in alpha mode dispatches alpha_clear (unchanged)', async () => {
-    const { container } = await renderAppAndWait();
-    // Simulate alpha mode active
+    // Override mock so get_state returns alpha=true
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
       if (cmd === 'is_macos') return Promise.resolve(false);
@@ -734,10 +733,10 @@ describe('HP-41 back-arrow fidelity — entry_backspace per-digit deletion', () 
         annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
       }));
     });
-    // Trigger get_state re-render by re-mounting
-    const { container: c2 } = await renderAppAndWait();
+    // Mount a fresh App that will see alpha=true in its initial get_state response.
+    const { container } = await renderAppAndWait();
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(c2, 'clx_or_a');
+    await clickKey(container, 'clx_or_a');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_clear' });
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
   });
