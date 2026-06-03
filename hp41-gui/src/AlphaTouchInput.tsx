@@ -106,16 +106,24 @@ function AlphaTouchInputInner({
       // The field MIRRORS the engine's ALPHA register (alphaText prop): its value is
       // driven by display_str, so it shows the text regardless of input method — iOS
       // soft keyboard here OR the on-screen HP-41 keypad keys (which dispatch directly,
-      // bypassing this input). Dispatch only the newly-appended chars vs the mirror.
-      const diff = newValue.slice(alphaText.length);
-      for (const rawCh of diff) {
-        const ch = rawCh.toUpperCase();
-        if (/^[A-Z0-9 ]$/.test(ch)) {
-          onDispatch(`alpha_${ch}`);
+      // bypassing this input).
+      if (newValue.length < alphaText.length) {
+        // Deletion via the iOS soft-keyboard backspace that bypassed keydown (some iOS
+        // versions don't fire a preventable keydown for it) — drop the removed chars.
+        for (let i = 0; i < alphaText.length - newValue.length; i++) {
+          onDispatch('alpha_backspace');
+        }
+      } else {
+        // Dispatch only the newly-appended [A-Z0-9 ] chars vs the mirror.
+        const diff = newValue.slice(alphaText.length);
+        for (const rawCh of diff) {
+          const ch = rawCh.toUpperCase();
+          if (/^[A-Z0-9 ]$/.test(ch)) {
+            onDispatch(`alpha_${ch}`);
+          }
         }
       }
-      // No local state: the engine round-trip updates alphaText, which re-renders the
-      // controlled value. (Backspace is handled in handleKeyDown → clx.)
+      // No local state: the engine round-trip updates alphaText → re-renders the value.
     } else {
       // modal-label mode: accumulate
       setInputValue(newValue);
@@ -126,10 +134,11 @@ function AlphaTouchInputInner({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       if (isAlphaMode) {
-        // ALPHA mode: Backspace → clx (removes last alpha char in HP-41). The field
-        // mirrors the engine (alphaText), so it updates from the round-trip — no local pop.
+        // ALPHA mode: Backspace → alpha_backspace (Op::AlphaBackspace removes the LAST
+        // alpha char — the HP-41 ← key). NOT clx (that clears the X register). The field
+        // mirrors the engine (alphaText), so it updates from the round-trip.
         e.preventDefault();
-        onDispatch('clx');
+        onDispatch('alpha_backspace');
       } else {
         // modal-label mode: remove last char from accumulated local state.
         e.preventDefault();

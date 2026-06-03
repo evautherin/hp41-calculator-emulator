@@ -95,13 +95,14 @@ describe('AlphaTouchInput', () => {
     expect(onDispatch).toHaveBeenCalledWith('alpha_A');
   });
 
-  // Test 4b: Backspace in ALPHA mode calls onDispatch('clx')
-  it('calls onDispatch("clx") on Backspace key in ALPHA mode', () => {
+  // Test 4b: Backspace in ALPHA mode removes the last ALPHA char via alpha_backspace
+  // (Op::AlphaBackspace — the HP-41 ← key). NOT clx, which clears the X register (sef).
+  it('calls onDispatch("alpha_backspace") on Backspace key in ALPHA mode', () => {
     const onDispatch = vi.fn();
-    const { getByRole } = renderAlpha({ isAlphaMode: true, onDispatch });
+    const { getByRole } = renderAlpha({ isAlphaMode: true, alphaText: 'AB', onDispatch });
     const input = getByRole('textbox') as HTMLInputElement;
     fireEvent.keyDown(input, { key: 'Backspace' });
-    expect(onDispatch).toHaveBeenCalledWith('clx');
+    expect(onDispatch).toHaveBeenCalledWith('alpha_backspace');
   });
 
   // Test 5: Done button in modal-label mode calls onSubmitLabel with accumulated input
