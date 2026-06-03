@@ -63,6 +63,7 @@ Phase 56 ██████████ 100%  Phase 57 ░░░░░░░░�
 | 260603-o2e | Authentic single-step PRGM view — main display shows current step (SST/BST navigate); removed inauthentic program listing (iOS sheet + desktop panel); restored CLI↔GUI parity D-25.6 | 2026-06-03 | 1eeba7e | Complete ✓ | [260603-o2e-authentic-hp-41-prgm-view-single-program](./quick/260603-o2e-authentic-hp-41-prgm-view-single-program/) |
 | 260603-lu0 | Help-overlay function index — A: CLREG→CLRG fidelity; B: tabbed overlay ("Keyboard Shortcuts" \| "All Functions") exposing all 74 keyless built-ins, tap-to-run (XEQ-by-name / insert-step in PRGM), HP-41-styled; C: Vitest+Rust coverage guardrails | 2026-06-03 | 652b4b1 | Complete ✓ | [260603-lu0-help-overlay-function-index-clrg-fidelit](./quick/260603-lu0-help-overlay-function-index-clrg-fidelit/) |
 | 260603-s17 | Mnemonic fidelity — CL SIGMA→CLΣ (glyph; data-only, resolver/mirrors already had it); hide CLRALPHA legacy alias from All Functions index via OVERLAY_HIDDEN_ALIASES (Op kept for v1.0 save compat, Pitfall 8) | 2026-06-03 | 8a8e6de | Complete ✓ | [260603-s17-mnemonic-fidelity-cl-sigma-clsigma-glyph](./quick/260603-s17-mnemonic-fidelity-cl-sigma-clsigma-glyph/) |
+| 260603-scc | CLI `?` overlay completeness — keyless built-ins now show `XEQ "NAME"`, deferred-v3 filtered out, C1-analog guardrail added (CLI↔GUI parity for function discovery) | 2026-06-03 | b47f921 | Complete ✓ | [260603-scc-cli-help-overlay-completeness-xeq-hint-f](./quick/260603-scc-cli-help-overlay-completeness-xeq-hint-f/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 
