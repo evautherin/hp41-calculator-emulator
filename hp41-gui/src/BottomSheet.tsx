@@ -8,7 +8,10 @@
 //   id        — HTML id for the sheet root ("print-sheet" | "prgm-sheet")
 //   title     — Sheet header label ("PRINT LOG" | "PROGRAM")
 //   visible   — Controls whether the sheet is mounted
-//   emptyText — Fallback copy when no children (null/undefined children)
+//   emptyText — Reserved empty-state copy. Accepted for call-site clarity but
+//               NOT rendered: both call sites always pass a non-empty children
+//               array (PRGM steps; print lines + a printEndRef sentinel <div>),
+//               so an empty-state branch was unreachable dead code (WR-02).
 //   children  — Scrollable content (print lines, program steps)
 
 import { useState } from 'react';
@@ -21,18 +24,11 @@ interface BottomSheetProps {
   children?: React.ReactNode;
 }
 
-export default function BottomSheet({ id, title, visible, emptyText, children }: BottomSheetProps) {
+export default function BottomSheet({ id, title, visible, children }: BottomSheetProps) {
   const [expanded, setExpanded] = useState(false);
 
   // Early return when not visible — keeps the DOM clean on desktop (isIos=false).
   if (!visible) return null;
-
-  // Determine whether children are non-empty.
-  // React.Children.count handles null/undefined/array safely.
-  const hasChildren =
-    children !== null &&
-    children !== undefined &&
-    (typeof children !== 'boolean');
 
   return (
     <div id={id} className={`bottom-sheet${expanded ? ' expanded' : ''}`} role="dialog" aria-label={title}>
@@ -51,11 +47,7 @@ export default function BottomSheet({ id, title, visible, emptyText, children }:
         className="bottom-sheet-content"
         style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
       >
-        {hasChildren ? (
-          children
-        ) : emptyText ? (
-          <div className="bottom-sheet-empty">{emptyText}</div>
-        ) : null}
+        {children}
       </div>
     </div>
   );

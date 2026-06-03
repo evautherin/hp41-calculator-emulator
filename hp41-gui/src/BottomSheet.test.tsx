@@ -4,7 +4,10 @@
 //  1. With visible=false, BottomSheet renders null (container empty).
 //  2. With visible=true, BottomSheet renders the sheet with its title and children.
 //  3. Clicking the drag handle / header toggles the `expanded` class on the sheet.
-//  4. Empty children shows the empty-state copy (e.g. "No print output yet." for print).
+//
+// Note (WR-02): the former empty-state branch was unreachable dead code — both
+// call sites always pass a non-empty children array — so it was removed. The
+// `emptyText` prop is still accepted (callers pass it) but is not rendered.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
@@ -83,14 +86,5 @@ describe('BottomSheet', () => {
     // Click again — should collapse
     fireEvent.click(handle);
     expect(sheet.classList.contains('expanded')).toBe(false);
-  });
-
-  it('shows empty-state copy when children are empty/null and emptyText is provided', () => {
-    const { container } = renderSheet({
-      visible: true,
-      children: undefined,
-      emptyText: 'No print output yet.',
-    });
-    expect(container.textContent).toContain('No print output yet.');
   });
 });
