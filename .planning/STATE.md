@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
-status: executing
-last_updated: "2026-06-03T17:50:00.000Z"
-last_activity: 2026-06-03 -- Phase 56 VERIFIED passed (LIFE-01, LIFE-02 + touch R/S parity + CR-01 stale-isIos fix; device re-approved on CR-01-fixed build)
+status: completed
+last_updated: "2026-06-03T20:15:13.374Z"
+last_activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
 progress:
   total_phases: 5
   completed_phases: 4
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 Phase: 56 (app-lifecycle-clock) — COMPLETE
 Plan: 1/1 complete
 Status: Phase 56 complete; Phase 57 is next
-Resume file: .planning/phases/56-app-lifecycle-clock/56-01-SUMMARY.md
+Resume file: None
 Last activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
 
 ## Progress Bar
@@ -66,6 +66,7 @@ Phase 56 ██████████ 100%  Phase 57 ░░░░░░░░�
 | 260603-scc | CLI `?` overlay completeness — keyless built-ins now show `XEQ "NAME"`, deferred-v3 filtered out, C1-analog guardrail added (CLI↔GUI parity for function discovery) | 2026-06-03 | b47f921 | Complete ✓ | [260603-scc-cli-help-overlay-completeness-xeq-hint-f](./quick/260603-scc-cli-help-overlay-completeness-xeq-hint-f/) |
 | 260603-sef | Portal iOS print sheet + ALPHA bar out of the scale transform (position:fixed was trapped by the transform → glued to the calculator edge). Print sheet now sits correctly; ALPHA-bar refinements superseded by 260603-u6t | 2026-06-03 | 7e27da4 | Complete ✓ | [260603-sef-portal-ios-print-bottomsheet-alphatouchi](./quick/260603-sef-portal-ios-print-bottomsheet-alphatouchi/) |
 | 260603-u6t | Native keys-only ALPHA entry on iOS — on-screen blue keys only (no iOS keyboard, even FUNCTION NAME?); ← + physical Backspace delete last alpha char; iOS touch targets sized to actual key (fixes wide-ENTER 'N') | 2026-06-03 | 65e7a3a | Complete ✓ | [260603-u6t-ios-alpha-entry-native-hp-41-keys-only-o](./quick/260603-u6t-ios-alpha-entry-native-hp-41-keys-only-o/) |
+| 260603-uzh | Documentation pass — 4 ADRs (v4.1-003 keys-only ALPHA, -004 help-overlay index, -005 iOS scale/safe-area, -006 single-step PRGM) + new docs/hp41cv-divergences.md + CLAUDE.md GUI-specifics + architecture-history v4.1 section | 2026-06-03 | (pending) | Complete ✓ | [260603-uzh-documentation-pass-adrs-claude-md-divergen](./quick/260603-uzh-documentation-pass-adrs-claude-md-divergen/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 
