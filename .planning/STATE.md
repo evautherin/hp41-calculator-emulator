@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: executing
-last_updated: "2026-06-03T15:00:00.000Z"
-last_activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
+last_updated: "2026-06-03T17:50:00.000Z"
+last_activity: 2026-06-03 -- Phase 56 VERIFIED passed (LIFE-01, LIFE-02 + touch R/S parity + CR-01 stale-isIos fix; device re-approved on CR-01-fixed build)
 progress:
   total_phases: 5
   completed_phases: 4

@@ -40,8 +40,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Lifecycle & Clock
 
-- [ ] **LIFE-01**: `backgroundThrottlingPolicy` is configured so the WKWebView is not fully suspended on brief backgrounding (iOS 17+)
-- [ ] **LIFE-02**: The clock/stopwatch display refreshes immediately on return to foreground (forced `tick_time` on become-active); foreground-only live updates are accepted as HP-41CX-faithful
+- [x] **LIFE-01**: `backgroundThrottlingPolicy` is configured so the WKWebView is not fully suspended on brief backgrounding (iOS 17+)
+- [x] **LIFE-02**: The clock/stopwatch display refreshes immediately on return to foreground (forced `tick_time` on become-active); foreground-only live updates are accepted as HP-41CX-faithful
 
 ### Signing & TestFlight
 
@@ -108,8 +108,8 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | TOUCH-09 | Phase 55 | Complete |
 | TOUCH-10 | Phase 55 | Complete |
 | TOUCH-11 | Phase 55 | Complete |
-| LIFE-01 | Phase 56 | Pending |
-| LIFE-02 | Phase 56 | Pending |
+| LIFE-01 | Phase 56 | Complete |
+| LIFE-02 | Phase 56 | Complete |
 | SHIP-01 | Phase 57 | Pending |
 | SHIP-02 | Phase 57 | Pending |
 | SHIP-03 | Phase 57 | Pending |
