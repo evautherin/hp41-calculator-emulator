@@ -268,7 +268,11 @@ pub fn help_entries_all() -> impl Iterator<Item = &'static HelpEntry> {
 pub fn help_overlay_rows() -> Vec<HelpRow> {
     // D-29.2: migrate to merged accessor so Math Pac I categories appear in
     // the `?` overlay alongside the v2.2 built-in categories (CLI-04).
-    let entries: Vec<&HelpEntry> = help_entries_all().collect();
+    // CLI-parity (260603-scc): only implemented entries — drop deferred-v3, which
+    // cannot be run, mirroring the GUI's allFunctionsEntries() filter.
+    let entries: Vec<&HelpEntry> = help_entries_all()
+        .filter(|e| e.status == "implemented")
+        .collect();
     let mut categories: Vec<&str> = Vec::new();
     for entry in &entries {
         if !categories.iter().any(|c| *c == entry.category) {
@@ -284,7 +288,18 @@ pub fn help_overlay_rows() -> Vec<HelpRow> {
             desc: format!("=== {cat} ==="),
         });
         for entry in entries.iter().filter(|e| e.category == cat) {
-            let key = entry.key_path.clone().unwrap_or_default();
+            // CLI-parity (260603-scc): keyless built-ins (key_path:null, no XROM)
+            // are run via XEQ-by-name — show `XEQ "NAME"` in the key column so the
+            // `?` overlay is self-documenting about how to run them (the CLI analog
+            // of the GUI's tap-to-run). XROM module entries already carry
+            // key_path = `XEQ "NAME"` from the JSON, so they are unaffected.
+            let key = entry.key_path.clone().unwrap_or_else(|| {
+                if entry.xrom.is_none() {
+                    format!("XEQ \"{}\"", entry.display_name)
+                } else {
+                    String::new()
+                }
+            });
             rows.push(HelpRow {
                 key,
                 op: entry.display_name.clone(),
