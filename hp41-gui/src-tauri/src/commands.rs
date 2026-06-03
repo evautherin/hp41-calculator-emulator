@@ -266,6 +266,15 @@ pub fn handle_op_prepare(
         return Ok(None);
     }
 
+    // ── "entry_backspace" — HP-41 back-arrow (←) correction (D-25.6 / SC-4) ──
+    // Mirrors hp41-cli/src/app.rs Backspace intercept — both call the SAME shared
+    // core helper backspace_entry() from hp41-core::ops (no GUI duplication).
+    // MUST come before key_map::resolve() — no Op::EntryBackspace variant exists.
+    if key_id == "entry_backspace" {
+        hp41_core::ops::backspace_entry(calc);
+        return Ok(None);
+    }
+
     // ── Named / parameterized op — resolve and dispatch ──────────────────────
     let op = key_map::resolve(key_id)?;
     dispatch(calc, op).map_err(GuiError::from)?;

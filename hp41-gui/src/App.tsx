@@ -173,7 +173,10 @@ function resolveKeyId(e: KeyboardEvent, state: CalcStateView | null): string | n
   if (e.key.length === 1 && 'SRfFX'.includes(e.key)) return null;
   // Named op mapping — authoritative source: hp41-cli/src/keys.rs key_to_op()
   const MAP: Record<string, string> = {
-    'Enter': 'enter', 'Backspace': 'clx',
+    // 'Backspace' → 'entry_backspace' (not 'clx'): the shared backspace_entry()
+    // core helper gives per-digit deletion during entry, CLX when buf is empty.
+    // This is the HP-41 fidelity fix — matches CLI behaviour (D-25.6).
+    'Enter': 'enter', 'Backspace': 'entry_backspace',
     '+': 'plus', '-': 'minus', '*': 'mul', '/': 'div',
     'r': 'rdn', 'x': 'xy_swap', 'l': 'lastx', 's': 'sqrt',
     // Phase 26 D-26.10 — physical-keyboard 'p' remap.
@@ -726,7 +729,11 @@ function App() {
         // CL X/A — branch on alpha mode at click time. (On-screen-specific:
         // physical-keyboard has no equivalent path, so this stays out of
         // invokeForKey and lives here in handleClick.)
-        const targetId = alphaOn ? 'alpha_clear' : 'clx';
+        // Non-alpha: 'entry_backspace' → backspace_entry() core helper gives
+        // per-digit deletion during entry, CLX when no active entry (HP-41
+        // fidelity fix, D-25.6). Matches CLI behaviour and physical-keyboard
+        // resolveKeyId path. Alpha branch ('alpha_clear') is unchanged.
+        const targetId = alphaOn ? 'alpha_clear' : 'entry_backspace';
         view = await invoke<CalcStateView>('dispatch_op', { keyId: targetId });
       } else {
         view = await invokeForKey(effectiveId, calcState);

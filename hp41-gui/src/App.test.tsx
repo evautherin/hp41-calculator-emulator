@@ -693,6 +693,56 @@ describe('quick-task 260522-gud — physical-keyboard honors shiftActive', () =>
   // (no-swap path) already cover the new branch's two arms.
 });
 
+// =====================================================================
+// Group L — HP-41 back-arrow (←) fidelity: per-digit deletion during entry
+//
+// Tests that the ← key (on-screen clx_or_a click + physical Backspace)
+// routes through 'entry_backspace' → backspace_entry() core helper,
+// giving per-digit deletion during number entry rather than full CLX.
+// =====================================================================
+
+describe('HP-41 back-arrow fidelity — entry_backspace per-digit deletion', () => {
+  // L1: On-screen ← click (clx_or_a) in non-alpha mode dispatches
+  //     'entry_backspace', NOT 'clx'.
+  it('L1: on-screen ← click (clx_or_a, non-alpha) dispatches entry_backspace', async () => {
+    const { container } = await renderAppAndWait();
+    // Seed a mock response for the entry_backspace dispatch
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({ display_str: '30.0000' }));
+    await clickKey(container, 'clx_or_a');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'clx' });
+  });
+
+  // L2: Physical Backspace key dispatches 'entry_backspace', NOT 'clx'.
+  it('L2: physical Backspace key dispatches entry_backspace', async () => {
+    const { container: _c } = await renderAppAndWait();
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({ display_str: '30.0000' }));
+    await pressKey('Backspace');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'clx' });
+  });
+
+  // L3: On-screen ← in alpha mode still dispatches 'alpha_clear' (unchanged).
+  it('L3: on-screen ← in alpha mode dispatches alpha_clear (unchanged)', async () => {
+    const { container } = await renderAppAndWait();
+    // Simulate alpha mode active
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView({
+        annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
+      }));
+    });
+    // Trigger get_state re-render by re-mounting
+    const { container: c2 } = await renderAppAndWait();
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(c2, 'clx_or_a');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_clear' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+  });
+});
+
 // Group L removed: Phase 55 Plan 06 gap-fix tests (iOS AlphaTouchInput bar for
 // frontend XEQ/GTO/LBL/CLP/ASN modals) were deleted. The iOS software-keyboard bar
 // approach was rejected on-device (keyboard pushes layout; blind entry). Superseded
