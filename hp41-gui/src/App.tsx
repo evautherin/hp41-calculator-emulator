@@ -671,6 +671,43 @@ function App() {
 
     if (!effectiveId) return;
 
+    // D-39.4/D-39.5 mirror (TOUCH path): stopwatch keyboard mode intercepts all
+    // on-screen taps, the same way handleKey (physical, ~L892) intercepts all
+    // physical keys. The physical path uses Space/Enter→toggle, 's'→SWPT,
+    // 'r'→STPW, Esc→sw_exit — but the on-screen keypad has no Space/s/r/Esc, so
+    // the touch mapping is: R/S→RUNSW/STOPSW toggle (the HP-41-canonical run/stop
+    // key), ENTER→STPW split, and ANY other tap→sw_exit (mirrors clock's
+    // "press any key to exit"; backend handle_op_prepare clears clock_active on
+    // any dispatch but only clears stopwatch_keyboard_mode on the explicit
+    // 'sw_exit' key_id, so touch users would otherwise be stranded in the mode).
+    // Without this block an on-screen R/S fell through to invokeForKey → run_stop
+    // (wrong op) and the stopwatch never started on iOS (touch-parity gap from
+    // Phase 41 — keyboard-mode handling existed only in the physical handleKey
+    // path). Touch-only addition; CLI has no touch so D-25.6 parity is unaffected.
+    if (calcState?.stopwatch_keyboard_mode) {
+      if (busyRef.current) return;
+      let swKeyId: string;
+      if (effectiveId === 'r_s') {
+        swKeyId = calcState.stopwatch_running ? 'xeq_STOPSW' : 'xeq_RUNSW';
+      } else if (effectiveId === 'enter') {
+        swKeyId = 'xeq_STPW';
+      } else {
+        swKeyId = 'sw_exit';
+      }
+      busyRef.current = true;
+      try {
+        const view = await invoke<CalcStateView>('dispatch_op', { keyId: swKeyId });
+        setCalcState(view);
+        setErrorMessage(null);
+      } catch (err) {
+        showToast(extractErrMessage(err));
+      } finally {
+        if (consumesShift) setShiftActive(false);
+        busyRef.current = false;
+      }
+      return;
+    }
+
     // Rule 6: if a modal is open, route through handleModalKey.
     if (pendingInput !== null) {
       // Phase 26 Plan 04 — translate on-screen click ids to the modal's
