@@ -521,6 +521,12 @@ export function Keyboard({
           style={{
             left: `${(pos.x + pos.w / 2) / KEYBOARD_W * 100}%`,
             top:  `${(pos.y + pos.h / 2) / KEYBOARD_H * 100}%`,
+            // Size the hit area to the ACTUAL key, not a fixed 44px (u6t). The wide
+            // ENTER key (colSpan 2) otherwise only had a 44px centred target, so taps
+            // on its sides missed — making its ALPHA letter 'N' nearly un-tappable.
+            // CSS min-width/min-height:44px keeps small keys HIG-compliant.
+            width:  `${pos.w / KEYBOARD_W * 100}%`,
+            height: `${pos.h / KEYBOARD_H * 100}%`,
           }}
           onPointerDown={() => onPointerDown?.(key)}
           onClick={() => handleKeyClick(key)}
