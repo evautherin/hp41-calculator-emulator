@@ -641,8 +641,7 @@ function App() {
     // Rule 6: if a modal is open, route through handleModalKey.
     if (pendingInput !== null) {
       // Phase 26 Plan 04 — translate on-screen click ids to the modal's
-      // key alphabet, then route through handleModalKey. Four cases in
-      // priority order:
+      // key alphabet, then route through handleModalKey. Cases in priority order:
       //   (a) assign_key + key.keyCode defined: encode the canonical HP-41
       //       hardware keyCode via makeKeyCodeMagic. CR-01: use key.keyCode
       //       (hardcoded CLI-canonical literal per Keyboard.tsx W9 doc),
@@ -653,22 +652,26 @@ function App() {
       //       canonical HP-41 mapping (variant 'top'/'shift', CHS, xge_y,
       //       clx_or_a, empty-id). Surface a toast and leave the modal
       //       open. D-07 forbids silent discards.
-      //   (c) effectiveId === 'enter' / 'clx_or_a': translate to the modal
-      //       alphabet 'Enter' / 'Backspace' so pending_input.ts's existing
-      //       `key === 'Enter'` / `key === 'Backspace'` predicates match.
-      //       Without this CR-03 fix, clicking the on-screen ENTER/← keys
-      //       inside an open assign_label / clp / xeq_name / gto / lbl
-      //       modal does nothing (the modal can only be confirmed by the
-      //       physical keyboard).
-      //   (d) v2.2.1 / quick-task 260516-c1p — text-input modal (xeq_name,
-      //       clp, assign_label) with a key that carries alphaChar: route
-      //       the alphaChar (single uppercase letter) instead of the raw
-      //       op-id. Lets on-screen Σ+ (alphaChar 'A'), 1/x ('B'), √x ('C')
-      //       etc. type letters into a LBL/XEQ/GTO/CLP/ASN-label modal
-      //       without requiring the physical keyboard. Also fixes the
-      //       latent pre-fix EEX-types-'E' bug (effectiveId 'e' was being
-      //       accepted by isPrintableChar; now correctly types 'P').
-      //   (e) default: forward effectiveId verbatim.
+      //   (c) TOUCH-04 (Phase 55 Plan 06 supersede) — text-label modal
+      //       (xeq_name, clp, assign_label) + effectiveId === 'alpha_toggle':
+      //       maps to 'Enter' so the on-screen ALPHA key terminates/submits.
+      //       HP-41-faithful: the ALPHA key exits ALPHA-entry mode on hardware.
+      //   (d) TOUCH-04 — text-label modal + key.alphaChar defined: route the
+      //       alphaChar (single uppercase letter) instead of the op-id.
+      //       MUST come before (e) so on-screen ENTER (alphaChar='N') types 'N'
+      //       rather than terminating. Also routes Σ+(A), 1/x(B), √x(C) etc.
+      //       NOTE: physical keyboard is NOT affected — see handleKey below.
+      //       On-screen-vs-physical divergence is accepted (user decision,
+      //       TOUCH-04): physical Enter keeps terminating for D-25.6 parity.
+      //   (e) effectiveId === 'enter' / 'clx_or_a': translate to 'Enter' /
+      //       'Backspace' for non-text-label modals (CR-03 fix; text-label
+      //       ENTER is handled in (d) above so this branch covers fmt, flag,
+      //       register, etc.). Backspace also applies to text-label kinds.
+      //   (f) default: forward effectiveId verbatim.
+      const isTextLabelKind =
+        pendingInput.kind === 'xeq_name' ||
+        pendingInput.kind === 'clp' ||
+        pendingInput.kind === 'assign_label';
       let routedKey: string;
       if (pendingInput.kind === 'assign_key') {
         if (key.keyCode === undefined) {
@@ -680,17 +683,17 @@ function App() {
           return;
         }
         routedKey = makeKeyCodeMagic(key.keyCode);
+      } else if (isTextLabelKind && effectiveId === 'alpha_toggle') {
+        // (c) TOUCH-04: on-screen ALPHA terminates text-label modals.
+        routedKey = 'Enter';
+      } else if (isTextLabelKind && key.alphaChar) {
+        // (d) TOUCH-04: on-screen keys with alphaChar type their letter.
+        // ENTER (alphaChar='N') types 'N'; priority over branch (e) below.
+        routedKey = key.alphaChar;
       } else if (effectiveId === 'enter') {
         routedKey = 'Enter';
       } else if (effectiveId === 'clx_or_a') {
         routedKey = 'Backspace';
-      } else if (
-        (pendingInput.kind === 'xeq_name'
-          || pendingInput.kind === 'clp'
-          || pendingInput.kind === 'assign_label')
-        && key.alphaChar
-      ) {
-        routedKey = key.alphaChar;
       } else {
         routedKey = effectiveId;
       }
@@ -1222,63 +1225,21 @@ function App() {
         }}
       />
       {/* Phase 55 Plan 04 — AlphaTouchInput: iOS-gated touch text entry bar (TOUCH-04 + D-55.2).
-          Renders when isIos AND (ALPHA-register mode OR backend modal-label prompt OR
-          frontend text-label pendingInput is active).
-          Phase 55 Plan 06 gap-fix: frontend text-label kinds (xeq_name, clp, assign_label)
-          set pendingInput but do NOT set calcState.modal_requires_alpha_label — now covered
-          via isFrontendModalMode so iOS users can type function/label names (incl. 'N').
-          Desktop (isIos=false) renders nothing — existing physical-keyboard path unchanged. */}
-      {(() => {
-        // Compute frontend-modal mode: pendingInput is a text-label kind on iOS.
-        const frontendLabelModal = isIos && pendingInput !== null && (
-          pendingInput.kind === 'xeq_name' ||
-          pendingInput.kind === 'clp' ||
-          pendingInput.kind === 'assign_label'
-        );
-        // Derive a human-readable prompt for frontend modal kinds.
-        const frontendModalPrompt: string | null = (() => {
-          if (!frontendLabelModal || pendingInput === null) return null;
-          if (pendingInput.kind === 'xeq_name') {
-            const prefix = pendingInput.dispatchPrefix.toUpperCase();
-            return `${prefix} NAME?`;
-          }
-          if (pendingInput.kind === 'clp') return 'CLP NAME?';
-          if (pendingInput.kind === 'assign_label') return 'ASN NAME?';
-          return 'ENTER LABEL';
-        })();
-        const showBar = isIos && (
-          calcState.annunciators.alpha ||
-          calcState.modal_requires_alpha_label ||
-          frontendLabelModal
-        );
-        if (!showBar) return null;
-        return (
-          <AlphaTouchInput
-            isAlphaMode={calcState.annunciators.alpha}
-            isModalLabelMode={calcState.modal_requires_alpha_label}
-            modalPrompt={calcState.modal_prompt}
-            onDispatch={dispatchKeyId}
-            onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
-            isFrontendModalMode={!!frontendLabelModal}
-            frontendModalPrompt={frontendModalPrompt}
-            onFrontendModalChar={(ch) => {
-              if (pendingInput === null) return;
-              const result = handleModalKey(ch, pendingInput, shiftActive);
-              void applyModalResult(result);
-            }}
-            onFrontendModalBackspace={() => {
-              if (pendingInput === null) return;
-              const result = handleModalKey('Backspace', pendingInput, shiftActive);
-              void applyModalResult(result);
-            }}
-            onFrontendModalDone={() => {
-              if (pendingInput === null) return;
-              const result = handleModalKey('Enter', pendingInput, shiftActive);
-              void applyModalResult(result);
-            }}
-          />
-        );
-      })()}
+          Renders when isIos AND (ALPHA-register mode OR backend modal-label prompt is active).
+          Routes via the EXISTING alpha_<X> dispatch and submit_modal_with_label IPC paths.
+          Desktop (isIos=false) renders nothing — existing physical-keyboard path unchanged.
+          XEQ/GTO/LBL/CLP/ASN-label modals (xeq_name, clp, assign_label) do NOT show this bar
+          — per user decision (TOUCH-04): name entry uses the on-screen HP-41 keypad directly,
+          with ENTER typing 'N' and ALPHA terminating (see handleClick modal-routing above). */}
+      {isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && (
+        <AlphaTouchInput
+          isAlphaMode={calcState.annunciators.alpha}
+          isModalLabelMode={calcState.modal_requires_alpha_label}
+          modalPrompt={calcState.modal_prompt}
+          onDispatch={dispatchKeyId}
+          onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
+        />
+      )}
       {/* Phase 55 Plan 05 — PRGM panel: bottom sheet on iOS, inline panel on desktop.
           iOS: pull-up sheet with active-step highlight + scroll-into-view.
           Desktop: existing inline .prgm-panel (byte-for-byte unchanged). */}

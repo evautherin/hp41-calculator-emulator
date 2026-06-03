@@ -198,7 +198,9 @@ describe('CR-01 — ASN flow uses canonical key.keyCode (not row*10+col)', () =>
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', expect.anything());
   });
 
-  it('A2: ASN + SIN + type "TEST" + ENTER dispatches asn_25_TEST (canonical, not 23)', async () => {
+  it('A2: ASN + SIN + type "TEST" + ALPHA dispatches asn_25_TEST (canonical, not 23)', async () => {
+    // TOUCH-04 update: on-screen ENTER now types 'N' in text-label modals.
+    // Use on-screen ALPHA (alpha_toggle) to terminate/submit the assign_label modal.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'xeq_prompt');
@@ -209,7 +211,7 @@ describe('CR-01 — ASN flow uses canonical key.keyCode (not row*10+col)', () =>
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({ user_keymap: [[25, 'TEST']] }),
     );
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_25_TEST' });
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_23_TEST' });
   });
@@ -285,7 +287,8 @@ describe('CR-02 — `?` overlay opens but window keys do not dispatch', () => {
 // =====================================================================
 
 describe('CR-03 — on-screen ENTER/← translate to Enter/Backspace in modals', () => {
-  it('C1: assign_label modal with acc=TEST → click ENTER dispatches asn_25_TEST', async () => {
+  it('C1: assign_label modal with acc=TEST → click ALPHA dispatches asn_25_TEST', async () => {
+    // TOUCH-04 update: on-screen ENTER types 'N' in text-label modals; ALPHA terminates.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'xeq_prompt');
@@ -295,7 +298,7 @@ describe('CR-03 — on-screen ENTER/← translate to Enter/Backspace in modals',
     }
     expect(getDisplayText(container)).toBe('ASN TEST_');
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_25_TEST' });
   });
 
@@ -426,6 +429,7 @@ describe('CR-05 — CATALOG modal accepts 1..=4, rejects 0 and 5..=9', () => {
 
 describe('USER-mode end-to-end — CR-01 + CR-03 round-trip', () => {
   it('F1: full ASN click flow + USER toggle relabels STO key with "TEST"', async () => {
+    // TOUCH-04 update: on-screen ALPHA (not ENTER) terminates the assign_label modal.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'xeq_prompt');
@@ -436,7 +440,7 @@ describe('USER-mode end-to-end — CR-01 + CR-03 round-trip', () => {
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({ user_keymap: [[22, 'TEST']] }),
     );
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_22_TEST' });
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({
@@ -502,7 +506,8 @@ describe('quick-task 260516-c1p — mode-aware √x shifted', () => {
 });
 
 describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
-  it('G3: LBL modal — click Σ+, 1/x, √x, LOG (alphaChars A/B/C/D) → acc=ABCD; ENTER dispatches lbl_ABCD', async () => {
+  it('G3: LBL modal — click Σ+, 1/x, √x, LOG (alphaChars A/B/C/D) → acc=ABCD; ALPHA dispatches lbl_ABCD', async () => {
+    // TOUCH-04 update: on-screen ALPHA terminates text-label modals; ENTER types 'N'.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'sto_prompt');
@@ -518,11 +523,12 @@ describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
     expect(getDisplayText(container)).toBe('LBL ABCD_');
 
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'lbl_ABCD' });
   });
 
-  it('G4: CLP modal — same flow; ENTER dispatches clp_ABCD', async () => {
+  it('G4: CLP modal — same flow; ALPHA dispatches clp_ABCD', async () => {
+    // TOUCH-04 update: on-screen ALPHA terminates text-label modals.
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({
         annunciators: { user: false, prgm: true, alpha: false, rad: false, grad: false },
@@ -541,7 +547,7 @@ describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
     expect(getDisplayText(container)).toBe('CLP ABCD_');
 
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'clp_ABCD' });
   });
 
@@ -687,52 +693,10 @@ describe('quick-task 260522-gud — physical-keyboard honors shiftActive', () =>
   // (no-swap path) already cover the new branch's two arms.
 });
 
-// =====================================================================
-// Group L — Phase 55 Plan 06 gap-fix: iOS AlphaTouchInput bar for
-//           frontend XEQ/GTO/LBL/CLP/ASN text-label modals (TOUCH-04)
-// =====================================================================
-
-describe('L — Phase 55 Plan 06 gap-fix: iOS AlphaTouchInput renders for frontend modal kinds', () => {
-  // Helper: render App with isIos=true and the given calcState view.
-  // On isIos=true the SVG keyboard onClick is suppressed, so we cannot
-  // drive interactions via clickKey. These tests focus on render presence.
-  async function renderAppAsIos(overrides: Partial<CalcStateView> = {}) {
-    const view = makeEmptyView(overrides);
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
-      if (cmd === 'is_macos') return Promise.resolve(false);
-      if (cmd === 'is_ios') return Promise.resolve(true);
-      return Promise.resolve(view);
-    });
-    const utils = render(<App />);
-    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_state', undefined));
-    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
-    return utils;
-  }
-
-  it('L1: isIos + xeq_name pendingInput (via XEQ touch overlay click) → AlphaTouchInput bar renders with "XEQ NAME?"', async () => {
-    // On iOS, the SVG <g onClick> is disabled; dispatch happens via the
-    // .key-touch-target overlay divs (aria-label matches the key label).
-    const { container } = await renderAppAsIos();
-    // Click the XEQ touch overlay to open the xeq_name modal.
-    const xeqOverlay = container.querySelector('[aria-label="XEQ"]') as HTMLElement | null;
-    if (!xeqOverlay) throw new Error('XEQ touch overlay not found — Keyboard may not have rendered');
-    await act(async () => { fireEvent.click(xeqOverlay); });
-    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
-    // The AlphaTouchInput bar should now be present with the XEQ NAME? header.
-    await waitFor(() => {
-      const bar = container.querySelector('.alpha-touch-input-bar');
-      expect(bar).not.toBeNull();
-      expect(bar?.textContent).toContain('XEQ NAME?');
-    });
-  });
-
-  it('L2: isIos + no pendingInput + no alpha + no modal_requires_alpha_label → AlphaTouchInput bar absent', async () => {
-    const { container } = await renderAppAsIos();
-    const bar = container.querySelector('.alpha-touch-input-bar');
-    expect(bar).toBeNull();
-  });
-});
+// Group L removed: Phase 55 Plan 06 gap-fix tests (iOS AlphaTouchInput bar for
+// frontend XEQ/GTO/LBL/CLP/ASN modals) were deleted. The iOS software-keyboard bar
+// approach was rejected on-device (keyboard pushes layout; blind entry). Superseded
+// by keypad-only name entry (Group M): on-screen ENTER types 'N', ALPHA terminates.
 
 // =====================================================================
 // Group M — TOUCH-04 keypad-only name entry (supersedes Phase 55 Plan 06
