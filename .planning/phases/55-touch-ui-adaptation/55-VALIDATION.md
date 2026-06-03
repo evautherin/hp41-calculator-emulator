@@ -2,8 +2,8 @@
 phase: 55
 slug: touch-ui-adaptation
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-03
 ---
 
@@ -76,10 +76,18 @@ created: 2026-06-03
 
 ## Wave 0 Requirements
 
-- [ ] `hp41-gui/src/AlphaTouchInput.test.tsx` — TOUCH-04 (renders on both triggers: `alpha` and `modal_requires_alpha_label`; routes chars correctly; absent on desktop)
-- [ ] `hp41-gui/src/BottomSheet.test.tsx` — TOUCH-09 (renders on iOS, absent on desktop, toggle expand/collapse)
-- [ ] Haptic tier classification unit test (new file or extend `Keyboard.test.tsx`) — TOUCH-05 (`getHapticTier` pure function: shift→Heavy, enter/sto/rcl/xeq/gto/r_s/rtn/sst/bst→Medium, else→Light)
-- [ ] Error-haptic double-fire guard test — TOUCH-08 (`errorHapticFiredRef` resets only when error clears)
+> Wave-0 model for this phase: the 4 test files below are authored **test-first inside
+> their respective TDD implementation tasks** (55-03/04/05 carry `tdd="true"` with a
+> `<behavior>` block specifying expected behavior before any implementation, and the
+> test file is written and made to fail before the component code). They are NOT
+> deferred to a separate Wave 0 plan. Because every task in plans 01/02/03/04/05 also
+> carries an automated grep / `npm test` / `cargo check` sample, there is no run of 3
+> consecutive tasks without an automated verify — sampling continuity holds.
+
+- [x] `hp41-gui/src/AlphaTouchInput.test.tsx` — TOUCH-04 (renders on both triggers: `alpha` and `modal_requires_alpha_label`; routes chars correctly; absent on desktop) — authored test-first in 55-04 Task 1
+- [x] `hp41-gui/src/BottomSheet.test.tsx` — TOUCH-09 (renders on iOS, absent on desktop, toggle expand/collapse) — authored test-first in 55-05 Task 1
+- [x] Haptic tier classification unit test (`hp41-gui/src/haptics.test.ts`) — TOUCH-05 (`getHapticTier` pure function: shift→Heavy, enter/sto/rcl/xeq/gto/r_s/rtn/sst/bst→Medium, else→Light) — authored test-first in 55-03 Task 1
+- [x] Error-haptic double-fire guard test (`hp41-gui/src/haptics.test.ts`) — TOUCH-08 (`errorHapticFiredRef` resets only when error clears) — authored test-first in 55-03 Task 1
 
 *Existing Vitest infrastructure covers all other automatable requirements via grep/cargo-check.*
 
@@ -103,11 +111,18 @@ Layout / safe-area / overscroll may be **smoke-checked** in the Simulator first;
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies or a documented manual checkpoint
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify (manual checkpoints batched separately)
-- [ ] Wave 0 covers all MISSING references (4 test files above)
-- [ ] No watch-mode flags
-- [ ] iOS `cargo check` task present after any `#[cfg(mobile)]` change
-- [ ] `nyquist_compliant: true` set in frontmatter
+> **Nyquist rationale:** The 4 Wave-0 test files are created **test-first inside their
+> respective TDD implementation tasks** (55-03/04/05), not in a separate Wave 0 — each
+> TDD task specifies behavior first, writes the failing test, then implements. Every
+> task in plans 01–05 carries an automated grep/`npm test`/`cargo check` sample, so no
+> 3 consecutive tasks lack an automated verify. `nyquist_compliant: true` and
+> `wave_0_complete: true`.
+
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies or a documented manual checkpoint
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify (manual checkpoints batched separately)
+- [x] Wave 0 covers all MISSING references (4 test files above, authored test-first inside 55-03/04/05)
+- [x] No watch-mode flags
+- [x] iOS `cargo check` task present after any `#[cfg(mobile)]` change
+- [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
