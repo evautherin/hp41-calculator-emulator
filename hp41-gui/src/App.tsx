@@ -8,6 +8,7 @@ import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
 import OnboardingWizard from './OnboardingWizard';
 import RawPickerOverlay from './RawPickerOverlay';
+import AlphaTouchInput from './AlphaTouchInput';
 import {
   handleModalKey,
   renderModalLcd,
@@ -1180,6 +1181,19 @@ function App() {
           }
         }}
       />
+      {/* Phase 55 Plan 04 — AlphaTouchInput: iOS-gated touch text entry bar (TOUCH-04 + D-55.2).
+          Renders when isIos AND (ALPHA-register mode OR modal-label prompt is active).
+          Routes via the EXISTING alpha_<X> dispatch and submit_modal_with_label IPC paths.
+          Desktop (isIos=false) renders nothing — existing physical-keyboard path unchanged. */}
+      {isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && (
+        <AlphaTouchInput
+          isAlphaMode={calcState.annunciators.alpha}
+          isModalLabelMode={calcState.modal_requires_alpha_label}
+          modalPrompt={calcState.modal_prompt}
+          onDispatch={dispatchKeyId}
+          onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
+        />
+      )}
       {calcState.annunciators.prgm && (
         <div className="prgm-panel">
           <div className="prgm-panel-header">
