@@ -588,6 +588,27 @@ function App() {
       });
   }, []);
 
+  // Phase lu0 D-lu0-02: Overlay tap-to-run handler.
+  // Called by HelpOverlay when a tappable All Functions row is activated.
+  // keyId is the fully-formed `xeq_<token>` id (token === display_name for runnable entries).
+  // Close FIRST so the result is immediately visible on the display (D-lu0-02 "close the
+  // overlay so the user sees the result"). Reuses the existing dispatch_op + setCalcState
+  // plumbing (same as invokeForKey / dispatchKeyId). No new Tauri command — `dispatch_op`
+  // + the `xeq_` key_map prefix handle normal-run AND PRGM-insert (backend PRGM gate splits).
+  const handleOverlayRun = useCallback((keyId: string) => {
+    setHelpOpen(false);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    invoke<CalcStateView>('dispatch_op', { keyId })
+      .then(view => {
+        setCalcState(view);
+        setErrorMessage(null);
+        void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
+      })
+      .catch(err => showToast(extractErrMessage(err)))
+      .finally(() => { busyRef.current = false; });
+  }, [isIos, showToast]);
+
   // Physical-keyboard dispatch (option B): string-id path, no SHIFT/ALPHA frontend
   // mediation. resolveKeyId already maps physical keys to op ids directly. SST/BST
   // route to their dedicated Tauri commands; everything else goes through dispatch_op.
@@ -1388,7 +1409,8 @@ function App() {
           open=false, so unconditional placement in the tree is safe. Anchored
           inside `.calculator` (position: relative) so the overlay's `position:
           absolute` covers the calculator footprint only, not the page. */}
-      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* Phase lu0 D-lu0-02: pass isIos for iOS-aware default tab and onRun for tap-to-run. */}
+      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} isIos={isIos} onRun={handleOverlayRun} />
       {/* Phase 50 D-50.4/D-50.6 — multi-program picker overlay (mutually exclusive
           with help and wizard overlays, same z-index: 60). Renders when pickerData
           is non-null (set by importRawDialog on multi-program .raw archive response). */}
