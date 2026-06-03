@@ -96,7 +96,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 - [x] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-002-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine (completed 2026-06-02)
 - [x] **Phase 54: iOS Persistence Layer** — iOS sandbox path replaces `~/.hp41`; autosave fires on backgrounding; state survives kill/relaunch; desktop path unchanged; serde backward-compat preserved (completed 2026-06-02)
-- [ ] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression
+- [x] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression (completed 2026-06-03)
 - [ ] **Phase 56: App Lifecycle + Clock** — `backgroundThrottlingPolicy` configured; clock display refreshes immediately on foreground return via forced `tick_time`
 - [ ] **Phase 57: Signing + TestFlight Pipeline** — Distribution cert + provisioning profile; `PrivacyInfo.xcprivacy`; app icon + launch screen; `ci-ios.yml` GitHub Actions workflow; build uploaded and available in TestFlight
 
@@ -157,7 +157,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 - [x] 55-03-PLAN.md — Per-key haptic tiers + error haptic + audio resume (verified impactFeedback string API)
 - [x] 55-04-PLAN.md — ALPHA + modal-label touch text entry (AlphaTouchInput, D-55.2)
 - [x] 55-05-PLAN.md — Pull-up bottom sheets (print/PRGM) + collapsible stack + overscroll
-- [ ] 55-06-PLAN.md — On-device iPhone SE verification checkpoints (D-55.4) [checkpoints]
+- [x] 55-06-PLAN.md — On-device iPhone SE verification checkpoints (D-55.4) [checkpoints]
 **UI hint**: yes
 
 ---
@@ -194,7 +194,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
-| 55. Touch UI Adaptation | 5/6 | In Progress|  |
+| 55. Touch UI Adaptation | 6/6 | Complete   | 2026-06-03 |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
 | 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
 

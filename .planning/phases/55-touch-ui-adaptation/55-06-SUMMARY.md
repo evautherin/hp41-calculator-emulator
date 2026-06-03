@@ -188,3 +188,20 @@ None. Changes are confined to the on-screen click routing in `handleClick` — a
 - Commit `26f8b4e` (GREEN) — EXISTS ✓
 - All tests pass (265/265) ✓
 - `just gui-ci` clean ✓
+
+## On-Device Verification (2026-06-03) — PASSED
+
+Authoritative on-device run (D-55.4). Device: **iPhone 15 Pro** (paired `DS`) — the planned iPhone SE was unavailable; all touch behaviors are valid on the 15 Pro, with the caveat that 44pt fat-finger accuracy (TOUCH-01) is slightly more forgiving on the larger screen. Release IPA built via `just ios-build` (signed, team 2P4R8QSWT4), installed + cold-launched via `xcrun devicectl`.
+
+**Task 1 — automated gate:** PASS — `npm test` (260), `cargo check --target aarch64-apple-ios` clean (cfg(mobile) guard), `just gui-ci` clean.
+
+**Tasks 2–5 — human checkpoints:** all **approved** by user on device:
+- TOUCH-01/03/06: 44pt hit accuracy, instant press feedback (no tap-delay/flash), audio on first use — PASS
+- TOUCH-04/05/08: haptic tiers (digit<ENTER<SHIFT), distinct error haptic, ALPHA + label entry — PASS
+- TOUCH-07/09/10/11: legibility, print/PRGM bottom sheets, collapsible stack, no rubber-band overscroll — PASS
+
+**Two defects found on device and fixed during verification:**
+1. **TOUCH-04 keypad name entry (this plan).** XEQ/GTO/LBL `FUNCTION NAME?` prompts are frontend `pendingInput` modals; the iOS keyboard bar (keyed off the backend `modal_requires_alpha_label`) never appeared for them, so the on-screen ENTER key (which terminated entry) could not type its ALPHA letter 'N'. Final design (user-decided): **keypad-only** entry with live display build-up — on-screen ENTER types 'N', ALPHA terminates, in `xeq_name`/`clp`/`assign_label` modals; shared `handleClick` so desktop GUI + iOS are identical. The earlier iOS-keyboard-bar attempt was reverted (user UX rejection). Commits `fd642e0`/`26f8b4e`.
+2. **← digit-backspace (cross-cutting, NOT a TOUCH requirement).** Pre-existing fidelity bug: ← always did CLX in both CLI and GUI instead of deleting the last keyed digit. Added shared core helper `hp41_core::ops::backspace_entry` (entry_buf-aware: pop last char mid-entry, else CLX), wired identically into CLI + GUI (parity D-25.6, no duplication SC-4). Commits `1369e10`…`95cb448`. `just ci` (3024+455) + `just gui-ci` (268) green.
+
+All D-55.4 manual-only verifications recorded as PASS. Phase 55 touch UI confirmed on hardware.
