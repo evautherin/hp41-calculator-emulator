@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: executing
-last_updated: "2026-06-03T14:00:13.008Z"
-last_activity: 2026-06-03 -- Phase 56 planning complete
+last_updated: "2026-06-03T15:00:00.000Z"
+last_activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 13
-  percent: 60
+  completed_plans: 14
+  percent: 80
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,32 +23,32 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 56 — app lifecycle + clock
+**Current focus:** Phase 56 — app-lifecycle-clock
 
 ---
 
 ## Current Position
 
-Phase: 56
-Plan: Not started
-Status: Ready to execute
-Resume file: .planning/phases/56-app-lifecycle-clock/56-CONTEXT.md
-Last activity: 2026-06-03 -- Phase 56 planning complete
+Phase: 56 (app-lifecycle-clock) — COMPLETE
+Plan: 1/1 complete
+Status: Phase 56 complete; Phase 57 is next
+Resume file: .planning/phases/56-app-lifecycle-clock/56-01-SUMMARY.md
+Last activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
 
 ## Progress Bar
 
 ```
 v4.1 iOS Foundation
-Phase 53 ██████████ 100%  Phase 54 ░░░░░░░░░░  0%   Phase 55 ░░░░░░░░░░  0%
-Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░░░  0%   Overall  ██░░░░░░░░ 20%
+Phase 53 ██████████ 100%  Phase 54 ██████████ 100%  Phase 55 ██████████ 100%
+Phase 56 ██████████ 100%  Phase 57 ░░░░░░░░░░  0%   Overall  ████████░░ 80%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
 | 53 | Build-Approach Decision + iOS Scaffold Spike | ✅ Complete (4/4; Approach A confirmed, runs on device) |
-| 54 | iOS Persistence Layer | Not started |
-| 55 | Touch UI Adaptation | Not started |
-| 56 | App Lifecycle + Clock | Not started |
+| 54 | iOS Persistence Layer | ✅ Complete (3/3; iOS sandbox path, autosave on background, kill/relaunch round-trip) |
+| 55 | Touch UI Adaptation | ✅ Complete (6/6; all 44 keys ≥44pt, haptics, audio, ALPHA touch, bottom sheets, stack)
+| 56 | App Lifecycle + Clock | ✅ Complete (1/1; backgroundThrottling config, resume tick_time, touch R/S fix, device-approved) |
 | 57 | Signing + TestFlight Pipeline | Not started |
 
 ## Quick Tasks Completed
@@ -87,6 +87,7 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 | Phase 53 P02 | 5 min  | 1 task  | 0 files (App ID portal) |
 | Phase 53 P03 | 35 min | 3 tasks | 1 files |
 | Phase 53 P04 | 45 min | 2 tasks | 5 files |
+| Phase 56 P01 | ~40 min | 3 tasks + 1 scope addition | 2 files |
 
 ## Accumulated Context
 
@@ -100,8 +101,9 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 - **Touch targets:** Apple HIG minimum 44×44pt. Desktop keys are currently ~40×16px — a ground-up touch layout pass is required. Use transparent hit-area overlays (i41CX+ / Free42 pattern).
 - **Haptics:** `tauri-plugin-haptics` 2.3.2 — per-key feedback is a table stake (competitor analysis: Free42, i41CX+, my41CX all include it).
 - **Audio:** `AudioContext` must be resumed inside the first user-gesture handler; guard all BEEP/TONE paths with `if (audioCtx.state === 'suspended') await audioCtx.resume()`. Silent-switch muted behavior is accepted as HP-41-faithful.
-- **Background throttling:** `tauri.ios.conf.json` with `backgroundThrottlingPolicy: "throttle"` (iOS 17+). On iOS 16 and below, timers pause in background — accepted.
-- **Clock on resume:** `become-active` web event or `window.addEventListener('focus')` triggers an immediate `tick_time` call. Stopwatch freeze-on-save policy unchanged (v3.2 decision).
+- **Background throttling (RESOLVED 56-01):** `tauri.ios.conf.json` with `backgroundThrottling: "throttle"` (camelCase, no Policy suffix — the Rust type name `backgroundThrottlingPolicy` would silently no-op). On iOS 16 and below, timers pause in background — accepted. Array-replace footgun: override must repeat all `app.windows[0]` fields from `tauri.conf.json`.
+- **Clock on resume (RESOLVED 56-01):** `needsTickRef` + extended `visibilitychange` `visible` branch fires one `invoke('tick_time')` gated on `isIos && needsTickRef.current && !busyRef.current`. NOT `get_state` (D-11). Resume tick is iOS-only and needsTick-gated; desktop/macOS fire no spurious IPC. Verified on-device (iPhone 15 Pro, iOS 17+).
+- **Touch R/S stopwatch keyboard mode (RESOLVED 56-01, scope addition):** Phase 41 gap — stopwatch keyboard-mode interception existed only in physical `handleKey` path; `handleClick` had no block. On-screen R/S fell through to `run_stop` (wrong op). Fixed by mirroring the block in `handleClick`: R/S→RUNSW/STOPSW toggle, ENTER→STPW, other→sw_exit. Touch-only; D-25.6 CLI↔GUI parity unaffected.
 - **Bundle ID:** `ch.talent-factory.hp41` — already in `tauri.conf.json`; must be registered as App ID in App Store Connect before any signing (Phase 53 task).
 - **PrivacyInfo.xcprivacy:** Required before first TestFlight upload (ITMS-91053). Create in `gen/apple/` with `NSPrivacyAccessedAPICategoryFileTimestamp` + reason `C617.1` (Phase 57).
 - **ALPHA touch entry:** Design spike at start of Phase 55. Options: `<input type="text">` + `window.visualViewport` listener to stay above the iOS software keyboard; or an on-screen character grid that avoids the system keyboard entirely.
