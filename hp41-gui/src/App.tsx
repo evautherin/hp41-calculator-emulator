@@ -262,6 +262,12 @@ function App() {
   // stable listener without adding needsTick to its deps, which would re-register
   // the listener every 100ms tick).
   const needsTickRef = useRef(false);
+  // Phase 56 CR-01: live isIos value for the empty-deps visibilitychange listener.
+  // isIos is useState(false) set ASYNCHRONOUSLY after mount (invoke('is_ios').then(setIsIos)),
+  // so a value captured in the empty-deps closure is permanently stale `false` on iOS — which
+  // would dead-code the LIFE-02 resume branch on its only target platform. Mirror needsTickRef:
+  // sync this ref from a useEffect([isIos]) and read isIosRef.current inside the listener.
+  const isIosRef = useRef(false);
   const [printLog, setPrintLog] = useState<string[]>([]);
   const [printPanelOpen, setPrintPanelOpen] = useState(false);
   const printEndRef = useRef<HTMLDivElement>(null);
@@ -533,6 +539,12 @@ function App() {
   useEffect(() => {
     invoke<boolean>('is_ios').then(setIsIos).catch(() => setIsIos(false));
   }, []);
+
+  // Phase 56 CR-01: keep isIosRef in sync so the empty-deps visibilitychange listener
+  // reads the live (async-resolved) iOS flag instead of the stale mount-time `false`.
+  useEffect(() => {
+    isIosRef.current = isIos;
+  }, [isIos]);
 
   // Re-fit the calculator scale whenever a full-screen overlay (help `?` /
   // settings) opens or closes, OR when the print-sheet visibility changes.
@@ -922,7 +934,8 @@ function App() {
     if (onboardingOpen) return;
 
     // D-39.4/D-39.5 mirror: stopwatch keyboard mode intercepts all keys.
-    // Space/Enter → RUNSW/STOPSW toggle, 's' → split, 'r' → reset, Esc → exit.
+    // Space/Enter → RUNSW/STOPSW toggle, 's' → SWPT (recall split), 'r' → STPW
+    // (record split point), Esc → exit. (Touch path: R/S toggles, ENTER → STPW.)
     // Key IDs use xeq_ prefix for XROM resolution (key_map.rs xeq_ path).
     if (calcState?.stopwatch_keyboard_mode) {
       e.preventDefault();
@@ -1049,10 +1062,12 @@ function App() {
   //
   // Phase 56 D-56.1/D-56.3 (LIFE-02): extended with a 'visible' branch that fires one
   // gated tick_time on foreground return so the clock/stopwatch display is correct within
-  // one frame (no stale time visible). Reads needsTickRef.current (live value, set by a
-  // dedicated useEffect([needsTick])) and isIos (closure — set once on mount, stable).
+  // one frame (no stale time visible). Reads needsTickRef.current AND isIosRef.current (both
+  // live values set by dedicated sync useEffects) — CR-01: isIos must NOT be read from the
+  // closure here because it resolves asynchronously after mount, so the empty-deps capture
+  // would be permanently stale `false` and dead-code this branch on iOS.
   // busyRef guard mirrors the live-tick interval guard. NOT get_state (D-11 — only tick_time).
-  // Desktop/macOS: isIos is false → the 'visible' branch never fires spurious IPC.
+  // Desktop/macOS: isIosRef.current is false → the 'visible' branch never fires spurious IPC.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -1060,18 +1075,18 @@ function App() {
           // Silent failure acceptable: the 30s timer is the safety net (D-54.2a)
           console.warn('background save failed:', extractErrMessage(err));
         });
-      } else if (document.visibilityState === 'visible' && isIos && needsTickRef.current) {
+      } else if (document.visibilityState === 'visible' && isIosRef.current && needsTickRef.current) {
         // iOS foreground return: force one tick_time so the clock/stopwatch display
         // shows the correct current time within one render frame (LIFE-02).
         if (busyRef.current) return;
         invoke<CalcStateView>('tick_time')
-          .then(view => { setCalcState(view); })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
           .catch((err: unknown) => showToast(extractErrMessage(err)));
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []); // empty deps: listener reads live values via refs (needsTickRef, busyRef) and stable closure (isIos)
+  }, []); // empty deps: listener reads live values via refs (needsTickRef, isIosRef, busyRef)
 
   // Accumulate print_lines from each IPC response into local React state.
   // D-09: print_buffer is drained per IPC call; React retains full history.
