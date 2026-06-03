@@ -153,7 +153,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
   6. The SHIFT and ALPHA annunciators and the X/Y/Z/T stack panel are visible and legible without zooming; the print panel and PRGM-mode listing are accessible via pull-up bottom sheets; the stack panel can be collapsed to give the keypad more vertical room; rubber-band overscroll is suppressed on the calculator body
 **Plans**: 6 plans
 - [x] 55-01-PLAN.md — iOS shared infra: is_ios command + haptics plugin (mobile-gated) + isIos flag + viewport-fit=cover + portrait lock
-- [ ] 55-02-PLAN.md — 44pt hit-target overlays + tap feedback (pointerdown, no delay/flash) + safe-area padding
+- [x] 55-02-PLAN.md — 44pt hit-target overlays + tap feedback (pointerdown, no delay/flash) + safe-area padding
 - [ ] 55-03-PLAN.md — Per-key haptic tiers + error haptic + audio resume (verified impactFeedback string API)
 - [ ] 55-04-PLAN.md — ALPHA + modal-label touch text entry (AlphaTouchInput, D-55.2)
 - [ ] 55-05-PLAN.md — Pull-up bottom sheets (print/PRGM) + collapsible stack + overscroll
@@ -194,7 +194,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
-| 55. Touch UI Adaptation | 1/6 | In Progress|  |
+| 55. Touch UI Adaptation | 2/6 | In Progress|  |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
 | 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
 
