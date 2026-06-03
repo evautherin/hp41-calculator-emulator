@@ -1068,8 +1068,25 @@ function App() {
   }, [calcState, pendingInput]);
 
   // Auto-scroll to bottom whenever the print log grows.
+  //
+  // WR-03: On iOS the print sentinel lives inside a BottomSheet whose
+  // `.bottom-sheet-content` is `overflow: hidden` with a 32px peek while
+  // collapsed. Calling scrollIntoView there silently no-ops (and can nudge
+  // the outer scroll). We do NOT auto-expand the sheet (that would change
+  // behavior the user hasn't asked for); we just skip the scroll while the
+  // enclosing bottom sheet is collapsed. On desktop there is no `.bottom-sheet`
+  // ancestor, so the guard passes through and behavior is unchanged. We also
+  // use `block: 'nearest'` to avoid moving the outer scroll position.
   useEffect(() => {
-    printEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const node = printEndRef.current;
+    if (!node) return;
+    const sheet = node.closest('.bottom-sheet');
+    if (sheet && !sheet.classList.contains('expanded')) {
+      // Collapsed bottom sheet — scrolling is a no-op; skip to avoid the
+      // misleading unconditional call and any outer-scroll nudge.
+      return;
+    }
+    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [printLog]);
 
   // Auto-scroll active program step into view when pc changes (D-09)
