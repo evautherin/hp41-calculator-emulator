@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: executing
-last_updated: "2026-06-03T08:27:04.581Z"
+last_updated: "2026-06-03T08:33:27.577Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 40
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 ## Current Position
 
 Phase: 55 (touch-ui-adaptation) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Resume file: None
 Last activity: 2026-06-03
@@ -75,6 +75,7 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 ---
 | Phase 53 P04 | 45 min | 2 tasks | 5 files |
 | Phase 55 P01 | 5 | 3 tasks | 10 files |
+| Phase 55 P05 | 10 | 2 tasks | 4 files |
 
 ## Execution Metrics (Phase 53)
 
@@ -102,6 +103,8 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 - **Bundle ID:** `ch.talent-factory.hp41` — already in `tauri.conf.json`; must be registered as App ID in App Store Connect before any signing (Phase 53 task).
 - **PrivacyInfo.xcprivacy:** Required before first TestFlight upload (ITMS-91053). Create in `gen/apple/` with `NSPrivacyAccessedAPICategoryFileTimestamp` + reason `C617.1` (Phase 57).
 - **ALPHA touch entry:** Design spike at start of Phase 55. Options: `<input type="text">` + `window.visualViewport` listener to stay above the iOS software keyboard; or an on-screen character grid that avoids the system keyboard entirely.
+- **BottomSheet pattern (D-55.5, Plan 05):** early-return-null when visible=false; App.tsx gates mounting with isIos — desktop never sees the component. Desktop inline panels preserved byte-for-byte via isIos ternary.
+- **Collapsible stack (D-55.5, Plan 05):** X row always visible on iOS; Y/Z/T/L in .stack-panel-collapsible.collapsed; stackExpanded is local state only (not persisted to GuiPrefs; resets to collapsed on each launch).
 - **Phase dependency order:** 53 → (54, 55 can overlap — different files) → 56 → 57.
 - **iOS build env (P-iOS-09, RESOLVED 53-04):** the Xcode "Build Rust Code" phase sources `gen/apple/.xcode.env` (committed, `$HOME/.cargo/bin`) + `.xcode.env.local` (gitignored, nvm node) so GUI-launched Xcode finds cargo/node. Reuse this pattern in Phase 57 CI.
 - **iOS signing (53-04):** `DEVELOPMENT_TEAM 2P4R8QSWT4` (Talent Factory AG) + automatic signing committed in `gen/apple/project.yml`. App ID `ch.talent-factory.hp41` registered (53-02).
