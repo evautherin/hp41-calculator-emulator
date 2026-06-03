@@ -733,3 +733,134 @@ describe('L — Phase 55 Plan 06 gap-fix: iOS AlphaTouchInput renders for fronte
     expect(bar).toBeNull();
   });
 });
+
+// =====================================================================
+// Group M — TOUCH-04 keypad-only name entry (supersedes Phase 55 Plan 06
+//           gap-fix approach rejected on-device).
+//
+// User decisions (authoritative):
+//   1. No iOS software keyboard for XEQ/GTO/LBL/CLP/ASN-label modals.
+//      Name entry via on-screen HP-41 keypad only.
+//   2. On-screen ENTER key (alphaChar 'N') types letter 'N' in text-label
+//      modals. On-screen ALPHA (alpha_toggle) terminates/submits.
+//   3. This is an accepted on-screen-vs-physical divergence (physical Enter
+//      still terminates for desktop/CLI parity D-25.6).
+//   4. Other modal kinds (numeric prompts) and physical-keyboard path unchanged.
+// =====================================================================
+
+describe('M — TOUCH-04 keypad-only name entry: ENTER=N, ALPHA=terminate', () => {
+  // Helper: render App with isIos=true (touch overlay dispatch path).
+  async function renderAppAsIos(overrides: Partial<CalcStateView> = {}) {
+    const view = makeEmptyView(overrides);
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(true);
+      return Promise.resolve(view);
+    });
+    const utils = render(<App />);
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_state', undefined));
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    return utils;
+  }
+
+  // M1: On-screen ENTER in xeq_name modal types 'N', does NOT terminate.
+  // Pre-fix: ENTER → routedKey='Enter' → terminates (wrong, display goes blank).
+  // Post-fix: ENTER carries alphaChar='N'; text-label modal branch routes it as 'N'.
+  it('M1: on-screen ENTER in xeq_name modal appends N; display shows "XEQ N_", no dispatch', async () => {
+    // isIos=false so SVG onClick is active; on-screen ENTER click dispatches via handleClick.
+    const { container } = await renderAppAndWait();
+    await clickKey(container, 'xeq_prompt');
+    expect(getDisplayText(container)).toBe('XEQ _');
+    // Click on-screen ENTER — must append 'N' (alphaChar), NOT terminate.
+    await clickKey(container, 'enter');
+    expect(getDisplayText(container)).toBe('XEQ N_');
+    // No xeq_* dispatch_op should have fired (modal still open).
+    const xeqDispatchCalls = mockInvoke.mock.calls.filter(
+      ([cmd, args]) => cmd === 'dispatch_op' &&
+        typeof args === 'object' && args !== null &&
+        typeof (args as { keyId?: string }).keyId === 'string' &&
+        ((args as { keyId: string }).keyId).startsWith('xeq_'),
+    );
+    expect(xeqDispatchCalls.length).toBe(0);
+  });
+
+  // M2: On-screen ALPHA (alpha_toggle) terminates/submits the xeq_name modal.
+  // Pre-fix: alpha_toggle → isPrintableChar fails → no-op, modal stays open (wrong).
+  // Post-fix: text-label modal branch maps alpha_toggle → 'Enter' → submits.
+  // Also tests live display build-up: T→O→N→E appended via on-screen keys.
+  // Key alphaChar mapping (Keyboard.tsx): 9→T, chs→O, enter→N, ln→E
+  it('M2: clicking TONE on keypad then ALPHA submits "xeq_TONE"', async () => {
+    const { container } = await renderAppAndWait();
+    await clickKey(container, 'xeq_prompt');
+    // T = key '9' (alphaChar: 'T')
+    await clickKey(container, '9');
+    expect(getDisplayText(container)).toBe('XEQ T_');
+    // O = CHS (alphaChar: 'O')
+    await clickKey(container, 'chs');
+    expect(getDisplayText(container)).toBe('XEQ TO_');
+    // N = ENTER (alphaChar: 'N') — must type 'N', not terminate
+    await clickKey(container, 'enter');
+    expect(getDisplayText(container)).toBe('XEQ TON_');
+    // E = LN (alphaChar: 'E')
+    await clickKey(container, 'ln');
+    expect(getDisplayText(container)).toBe('XEQ TONE_');
+    // ALPHA terminates: submit xeq_TONE
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(container, 'alpha_toggle');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TONE' });
+  });
+
+  // M3: isIos=true + xeq_name modal active → AlphaTouchInput bar NOT rendered.
+  // Pre-fix: bar IS shown (isFrontendModalMode gate — rejected on-device).
+  // Post-fix: bar absent; text-label modals use on-screen keypad only.
+  it('M3: isIos=true + xeq_name modal active → AlphaTouchInput bar absent', async () => {
+    const { container } = await renderAppAsIos();
+    const xeqOverlay = container.querySelector('[aria-label="XEQ"]') as HTMLElement | null;
+    if (!xeqOverlay) throw new Error('XEQ touch overlay not found');
+    await act(async () => { fireEvent.click(xeqOverlay); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    // Bar must be absent — name entry is via keypad, not software keyboard bar.
+    const bar = container.querySelector('.alpha-touch-input-bar');
+    expect(bar).toBeNull();
+  });
+
+  // M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar IS shown.
+  // Guards that plain ALPHA-register mode still shows the software keyboard bar.
+  it('M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar shown', async () => {
+    const { container } = await renderAppAsIos({
+      annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
+    });
+    const bar = container.querySelector('.alpha-touch-input-bar');
+    expect(bar).not.toBeNull();
+  });
+
+  // M4: Regression — on-screen ENTER in an assign_label modal still terminates
+  // even when acc is non-empty. assign_label is NOT a text-label modal for the
+  // ENTER=N change (it IS a text-label kind for letter routing, but ENTER must
+  // still terminate it per the user decision scoping).
+  //
+  // Wait — re-reading the spec: assign_label IS in the text-label kinds
+  // {xeq_name, clp, assign_label}. So ENTER in assign_label ALSO types 'N'.
+  // The regression test should instead cover a NON-text-label modal.
+  //
+  // Use the FMT modal (fmt kind). ENTER in a fmt modal should do nothing
+  // (fmt only accepts digits 0-9; ENTER is not a digit → preserved as no-op).
+  // This verifies the ENTER=N branch is gated to text-label kinds only.
+  it('M4: on-screen ENTER in FMT modal does NOT type N (fmt only accepts digits)', async () => {
+    const { container } = await renderAppAndWait();
+    // Open FIX modal: SHIFT + '1' (fix_prompt id; key '7' opens SF modal).
+    await clickKey(container, 'shift');
+    await clickKey(container, '1');
+    expect(getDisplayText(container)).toBe('FIX _');
+    // Click on-screen ENTER — fmt modal ignores ENTER (not a digit).
+    // With the old code: routes 'Enter' → fmt case ignores it → display stays 'FIX _'.
+    // With new code: text-label guard fires only for xeq_name/clp/assign_label, NOT fmt.
+    //   So ENTER still routes as 'Enter' → fmt ignores → display stays 'FIX _'.
+    // Either way display should stay 'FIX _', confirming no N was appended.
+    await clickKey(container, 'enter');
+    expect(getDisplayText(container)).toBe('FIX _');
+    // No dispatch_op fired (modal still open).
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', expect.objectContaining({ keyId: expect.stringContaining('fix_N') }));
+  });
+});
