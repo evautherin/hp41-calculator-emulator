@@ -49,6 +49,7 @@ use registers::{
     op_sto_arith_stack, op_sto_m, op_sto_n, op_sto_o,
 };
 use stack_ops::{op_chs, op_clx, op_enter, op_lastx, op_r_up, op_rdn, op_xy_swap};
+pub use stack_ops::backspace_entry;
 
 /// STO arithmetic operation kind.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
