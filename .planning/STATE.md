@@ -4,7 +4,7 @@ milestone: v4.1
 milestone_name: iOS Foundation
 status: planning
 last_updated: "2026-06-03T13:17:41.313Z"
-last_activity: "2026-06-03 - Quick task 260603-klp: help-overlay safe-area fix (code merged to develop; awaiting on-device iPhone verify)"
+last_activity: "2026-06-03 - Quick tasks 260603-klp (help-overlay safe-area fix) + 260603-laz (overlay-close re-fit + pinch-zoom lock) — both verified PASS on iPhone 15 Pro"
 progress:
   total_phases: 5
   completed_phases: 3
@@ -33,7 +33,7 @@ Phase: 56
 Plan: Not started
 Status: Ready to plan
 Resume file: .planning/phases/56-app-lifecycle-clock/56-CONTEXT.md
-Last activity: 2026-06-03 - Quick task 260603-klp: help-overlay safe-area fix (code merged to develop; awaiting on-device iPhone verify)
+Last activity: 2026-06-03 - Quick tasks 260603-klp (help-overlay safe-area fix) + 260603-laz (overlay-close re-fit + pinch-zoom lock) — both verified PASS on iPhone 15 Pro
 
 ## Progress Bar
 
@@ -57,7 +57,8 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 |---|-------------|------|--------|--------|-----------|
 | 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | dd71fb2 | Complete ✓ | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
 | 260603-e4e | Allow entering '.1' as '0.1' (leading-zero number entry, real HP-41CV behavior) | 2026-06-03 | d127e97 | Complete ✓ | [260603-e4e-allow-entering-1-as-0-1-leading-zero-num](./quick/260603-e4e-allow-entering-1-as-0-1-leading-zero-num/) |
-| 260603-klp | Fix help-overlay search field rendering off-screen at iPhone top edge (safe-area inset) so input and close X are reachable | 2026-06-03 | 8d0fd00 | Pending iPhone verify | [260603-klp-fix-help-overlay-search-field-rendering-](./quick/260603-klp-fix-help-overlay-search-field-rendering-/) |
+| 260603-klp | Fix help-overlay search field rendering off-screen at iPhone top edge (safe-area inset) so input and close X are reachable | 2026-06-03 | 8d0fd00 | Complete ✓ | [260603-klp-fix-help-overlay-search-field-rendering-](./quick/260603-klp-fix-help-overlay-search-field-rendering-/) |
+| 260603-laz | iOS touch polish — re-fit calculator scale on help/settings overlay close + lock pinch-zoom (surfaced verifying 260603-klp) | 2026-06-03 | 1e485ff | Complete ✓ | [260603-laz-ios-touch-polish-re-fit-calculator-on-ov](./quick/260603-laz-ios-touch-polish-re-fit-calculator-on-ov/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 

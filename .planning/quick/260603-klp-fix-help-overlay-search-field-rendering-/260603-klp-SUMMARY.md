@@ -20,9 +20,12 @@ decisions:
 metrics:
   duration: "~5 min"
   completed: "2026-06-03T12:55:49Z"
-  tasks_completed: 2
-  tasks_pending: 1
+  tasks_completed: 3
+  tasks_pending: 0
   files_modified: 1
+verification:
+  on_device: "PASS (iPhone 15 Pro, 2026-06-03) — search input + close X reachable below status bar / Dynamic Island; desktop unchanged"
+  follow_ups: "On-device verification surfaced two pre-existing adjacent bugs (now fixed in quick task 260603-laz): calculator keypad clipped after overlay close, and pinch-zoom enabled"
 ---
 
 # Quick Task 260603-klp: Fix Help Overlay Search Field Rendering (iOS Safe Area)
@@ -67,19 +70,23 @@ No HelpOverlay test regressions. Vite/lightningcss accepted `max()` + `env()` CS
 
 None — plan executed exactly as written.
 
-## Pending: Task 3 (On-Device iPhone Verification)
+## Task 3 (On-Device iPhone Verification) — PASS
 
-Task 3 is a `type="checkpoint:human-verify" gate="blocking"` requiring physical iPhone confirmation. It CANNOT be automated. The automated tasks are complete and committed; human on-device verification is required before this quick task is marked fully done.
+Verified on physical iPhone 15 Pro (devicectl `467027A7-…`) on 2026-06-03 via the
+established iOS device-verify loop (`npm run tauri ios build` → `xcrun devicectl
+install/launch`):
 
-**To verify:**
-1. Build and run the GUI on iPhone (`just gui-ios-dev` or Tauri iOS dev command)
-2. Press `?` to open the help overlay
-3. Confirm the search input ("Search functions...") is FULLY visible below the status bar / Dynamic Island and accepts taps
-4. Confirm the close X button (top-right) is FULLY visible and tappable
-5. (Landscape, optional) Confirm no clipping at Dynamic Island left/right edges
-6. On macOS desktop, confirm the overlay header looks unchanged (10px/16px padding, no extra top gap)
+1. ✅ Help overlay search input is fully below the status bar / Dynamic Island and accepts taps + text entry
+2. ✅ Close X button is fully below the status bar and tappable
+3. ✅ Desktop window mode unchanged (insets resolve to 0)
 
-Resume signal: Type "approved" once both elements are reachable on iPhone and desktop is unchanged.
+**Follow-up:** On-device verification surfaced two *pre-existing* adjacent bugs (this
+safe-area fix made the close X reachable for the first time, exposing them). Both
+were fixed in a separate quick task — see **260603-laz** (`ios-touch-polish-…`):
+- Calculator keypad clipped/oversized after closing the overlay (stale auto-scale
+  because the iOS keyboard dismissed without firing a `resize`) — fixed in `5b4735f`.
+- Pinch-zoom was enabled on the webview, panning the CSS-scaled layout (appeared
+  "shifted right") — locked in `1e485ff`.
 
 ## Self-Check
 
