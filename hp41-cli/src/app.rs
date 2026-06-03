@@ -783,6 +783,18 @@ impl App {
             return;
         }
 
+        // HP-41 back-arrow (←) correction: per-digit deletion during number entry.
+        // Intercept Backspace BEFORE key_to_op so the shared core helper runs
+        // instead of the generic Op::Clx mapping in keys.rs:105.
+        // MUST be after: modal handlers (all already returned above), ALPHA mode
+        // (already returned above — Op::AlphaBackspace is correct there).
+        // Only the bare number-entry / idle Backspace changes behaviour here.
+        if key.code == KeyCode::Backspace {
+            hp41_core::ops::backspace_entry(&mut self.state);
+            self.message = None;
+            return;
+        }
+
         // All other ops: route through keys.rs → dispatch()
         if let Some(op) = keys::key_to_op(key, self) {
             self.call_dispatch(op);
