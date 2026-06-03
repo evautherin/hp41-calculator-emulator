@@ -335,7 +335,26 @@ export function HelpOverlay({ open, onClose, isIos = false, onRun }: HelpOverlay
     return (
         <div className="help-overlay" role="dialog" aria-label="HP-41 function reference">
             <div className="help-overlay-header">
-                {/* Phase lu0 D-lu0-02: Tab bar */}
+                {/* Row 1: search + close (so the search field gets full width on iPhone) */}
+                <div className="help-overlay-header-top">
+                    <input
+                        className="help-overlay-search"
+                        type="text"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder={activeTab === 'all' ? 'Search all functions...' : 'Search functions...'}
+                        autoFocus
+                        aria-label="Search HP-41 functions"
+                    />
+                    <button
+                        className="help-overlay-close"
+                        onClick={onClose}
+                        aria-label="Close help overlay"
+                    >
+                        ×
+                    </button>
+                </div>
+                {/* Row 2: tab bar (Phase lu0 D-lu0-02) — segmented control below the search */}
                 <div className="help-overlay-tabs" role="tablist">
                     <button
                         className={`help-overlay-tab${activeTab === 'shortcuts' ? ' help-overlay-tab--active' : ''}`}
@@ -354,22 +373,6 @@ export function HelpOverlay({ open, onClose, isIos = false, onRun }: HelpOverlay
                         All Functions
                     </button>
                 </div>
-                <input
-                    className="help-overlay-search"
-                    type="text"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    placeholder={activeTab === 'all' ? 'Search all functions...' : 'Search functions...'}
-                    autoFocus
-                    aria-label="Search HP-41 functions"
-                />
-                <button
-                    className="help-overlay-close"
-                    onClick={onClose}
-                    aria-label="Close help overlay"
-                >
-                    ×
-                </button>
             </div>
             <div className="help-overlay-content">
                 {totalFiltered === 0 && query !== '' && (
