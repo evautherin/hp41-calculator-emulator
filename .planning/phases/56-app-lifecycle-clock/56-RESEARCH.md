@@ -469,7 +469,7 @@ Source: Phase 54 code at App.tsx:998â€“1004 extended with new branch [ASSUMED â€
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does `backgroundThrottling: "throttle"` require a companion Info.plist key?**
    - What we know: Tauri docs list no companion key; the commit adds it as a pure `WKPreferences` API call; `WKPreferences.inactiveSchedulingPolicy` is documented as needing no special entitlement.
