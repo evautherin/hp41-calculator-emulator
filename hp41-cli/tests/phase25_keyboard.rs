@@ -388,13 +388,22 @@ fn test_backspace_during_entry_removes_last_digit() {
     app.handle_key(key('3'));
     app.handle_key(key('0'));
     app.handle_key(key('0'));
-    assert_eq!(app.state.entry_buf, "300", "entry_buf must be '300' after three digits");
+    assert_eq!(
+        app.state.entry_buf, "300",
+        "entry_buf must be '300' after three digits"
+    );
 
     // Backspace during entry: removes last char only
     app.handle_key(raw_key(KeyCode::Backspace));
-    assert_eq!(app.state.entry_buf, "30", "Backspace must remove only the last digit");
+    assert_eq!(
+        app.state.entry_buf, "30",
+        "Backspace must remove only the last digit"
+    );
     // Stack X must not change (still 0 — no flush happened)
-    assert!(app.state.stack.x.is_zero(), "stack X must not change during entry deletion");
+    assert!(
+        app.state.stack.x.is_zero(),
+        "stack X must not change during entry deletion"
+    );
 }
 
 /// Multiple Backspaces peel digits one at a time.
@@ -411,8 +420,14 @@ fn test_backspace_multiple_peels_one_at_a_time() {
     assert_eq!(app.state.entry_buf, "3");
     // Full backspace: empties buf and clears X to 0
     app.handle_key(raw_key(KeyCode::Backspace));
-    assert!(app.state.entry_buf.is_empty(), "full backspace must empty entry_buf");
-    assert!(app.state.stack.x.is_zero(), "full backspace must zero X (clx semantics)");
+    assert!(
+        app.state.entry_buf.is_empty(),
+        "full backspace must empty entry_buf"
+    );
+    assert!(
+        app.state.stack.x.is_zero(),
+        "full backspace must zero X (clx semantics)"
+    );
 }
 
 /// Backspace with NO active entry (entry_buf empty, number is complete)
@@ -426,6 +441,12 @@ fn test_backspace_no_entry_acts_as_clx() {
     assert!(app.state.entry_buf.is_empty());
 
     app.handle_key(raw_key(KeyCode::Backspace));
-    assert!(app.state.stack.x.is_zero(), "Backspace with no entry must CLX (X=0)");
-    assert!(!app.state.stack.lift_enabled, "Backspace with no entry must disable lift");
+    assert!(
+        app.state.stack.x.is_zero(),
+        "Backspace with no entry must CLX (X=0)"
+    );
+    assert!(
+        !app.state.stack.lift_enabled,
+        "Backspace with no entry must disable lift"
+    );
 }

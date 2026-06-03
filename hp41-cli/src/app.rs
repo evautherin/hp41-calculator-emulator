@@ -2312,8 +2312,7 @@ mod tests {
         // Flush via Enter and verify stack X == 0.1.
         hp41_core::ops::dispatch(&mut app.state, hp41_core::ops::Op::Enter)
             .expect("Enter must succeed");
-        let formatted =
-            hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        let formatted = hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
         assert_eq!(
             formatted, "0.1000",
             "'.' '1' ENTER must push numeric 0.1 (shown as 0.1000 in FIX 4)"

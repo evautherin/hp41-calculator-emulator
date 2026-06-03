@@ -166,7 +166,10 @@ fn test_backspace_entry_multi_digit_removes_last() {
     backspace_entry(&mut s);
     assert_eq!(s.entry_buf, "30", "backspace on '300' must leave '30'");
     // Stack is not touched — entry_buf still active
-    assert!(s.stack.x.is_zero(), "stack X must not change during entry_buf edit");
+    assert!(
+        s.stack.x.is_zero(),
+        "stack X must not change during entry_buf edit"
+    );
 }
 
 /// Backspace on a decimal entry removes the last character (the digit after dot).
@@ -189,8 +192,14 @@ fn test_backspace_entry_single_digit_clears_to_zero() {
     s.stack.lift_enabled = true;
     s.entry_buf = "3".to_string();
     backspace_entry(&mut s);
-    assert!(s.entry_buf.is_empty(), "entry_buf must be empty after full backspace");
-    assert!(s.stack.x.is_zero(), "X must be 0 (clx) after full backspace");
+    assert!(
+        s.entry_buf.is_empty(),
+        "entry_buf must be empty after full backspace"
+    );
+    assert!(
+        s.stack.x.is_zero(),
+        "X must be 0 (clx) after full backspace"
+    );
     assert!(
         !s.stack.lift_enabled,
         "lift must be disabled after full backspace (clx semantics)"
@@ -207,11 +216,11 @@ fn test_backspace_entry_empty_buf_acts_as_clx() {
     s.entry_buf = String::new();
     backspace_entry(&mut s);
     assert!(s.entry_buf.is_empty(), "entry_buf stays empty");
-    assert!(s.stack.x.is_zero(), "X must be 0 (clx) when buf was already empty");
     assert!(
-        !s.stack.lift_enabled,
-        "lift must be disabled after clx"
+        s.stack.x.is_zero(),
+        "X must be 0 (clx) when buf was already empty"
     );
+    assert!(!s.stack.lift_enabled, "lift must be disabled after clx");
 }
 
 /// Backspace removes the decimal point itself when it is the last character.
