@@ -34,7 +34,7 @@ Phase: 56
 Plan: Not started
 Status: Ready to plan
 Resume file: None
-Last activity: 2026-06-03
+Last activity: 2026-06-03 - Quick task 260603-klp: help-overlay safe-area fix (code merged to develop; awaiting on-device iPhone verify)
 
 ## Progress Bar
 
@@ -58,6 +58,7 @@ Phase 56 ░░░░░░░░░░  0%   Phase 57 ░░░░░░░░�
 |---|-------------|------|--------|--------|-----------|
 | 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | dd71fb2 | Complete ✓ | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
 | 260603-e4e | Allow entering '.1' as '0.1' (leading-zero number entry, real HP-41CV behavior) | 2026-06-03 | d127e97 | Complete ✓ | [260603-e4e-allow-entering-1-as-0-1-leading-zero-num](./quick/260603-e4e-allow-entering-1-as-0-1-leading-zero-num/) |
+| 260603-klp | Fix help-overlay search field rendering off-screen at iPhone top edge (safe-area inset) so input and close X are reachable | 2026-06-03 | 8d0fd00 | Pending iPhone verify | [260603-klp-fix-help-overlay-search-field-rendering-](./quick/260603-klp-fix-help-overlay-search-field-rendering-/) |
 
 ## Performance Metrics (v4.0 ship baseline)
 
