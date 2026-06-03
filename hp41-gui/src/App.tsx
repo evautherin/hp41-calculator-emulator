@@ -1373,7 +1373,7 @@ function App() {
           collect-for-modal pendingInput path routes blue-key letters into the name
           accumulator and ALPHA submits via the same submit_modal_with_label IPC the bar
           used (handleModalKey → __submit_modal_with_label__<acc> → invokeForKey). The
-          ALPHA text shows on the main 14-seg display. (AlphaTouchInput.tsx is now unused.) */}
+          ALPHA text shows on the main 14-seg display. (ADR-v4.1-003.) */}
       {/* Phase 55 Plan 05 — Print panel: bottom sheet on iOS, inline panel on desktop.
           iOS: pull-up sheet visible when printLog.length > 0.
           Desktop: existing .print-panel gated by printPanelOpen (byte-for-byte unchanged). */}

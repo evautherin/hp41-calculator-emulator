@@ -147,68 +147,7 @@
   /* safe-area now handled by ScaledApp outer wrapper (mxg) */
 }
 
-/* ALPHA touch input bar — fixed above iOS keyboard (TOUCH-04 + D-55.2) */
-.alpha-touch-input-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: 80; /* above help/wizard/settings (60-70) */
-  background: var(--panel-bg);
-  border-top: 1px solid var(--panel-border);
-  /* Horizontal safe-area insets: the bar is portaled to document.body (sef), OUTSIDE
-     the .scaled-app-frame that carries the insets — so it must consume them itself
-     (landscape / Dynamic Island). 0 on desktop + portrait, so no visual change there. */
-  padding-top: 12px;
-  padding-bottom: 12px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.alpha-touch-input-bar input {
-  font-size: 16px; /* MUST NOT go below 16px — iOS auto-zoom prevention (Pitfall 5) */
-  flex: 1;
-  min-width: 0; /* allow the input to shrink below its intrinsic width so the Done
-                   button is never pushed off the right edge (flexbox min-width:auto trap) */
-  background: var(--display-bg);
-  color: var(--display-text);
-  border: 1px solid var(--panel-border);
-  padding: 4px 12px;
-  font-family: 'Courier New', Courier, monospace;
-  caret-color: var(--accent, #4fc3f7);
-}
-
-/* Done button — themed to match the calculator (was an unstyled browser default). */
-.alpha-touch-input-bar button {
-  flex: 0 0 auto;
-  appearance: none;
-  -webkit-appearance: none;
-  background: var(--display-bg);
-  color: var(--display-text);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 6px 14px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.alpha-touch-input-bar input:focus {
-  outline: none;
-  border-color: var(--accent, #4fc3f7);
-}
-
-.alpha-touch-input-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
+/* (ALPHA touch input bar CSS removed — iOS ALPHA entry is keys-only, ADR-v4.1-003.) */
 
 /* Bottom sheet — pull-up panel for print and PRGM on iOS (TOUCH-09) */
 .bottom-sheet {
