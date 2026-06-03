@@ -97,7 +97,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 - [x] **Phase 53: Build-Approach Decision + iOS Scaffold Spike** — Hands-on `cargo tauri ios build` spike resolves nested-workspace bug (#5865); ADR `v4.1-002-build-approach.md` locked; bundle ID registered; app runs in Simulator with one key dispatching through the engine (completed 2026-06-02)
 - [x] **Phase 54: iOS Persistence Layer** — iOS sandbox path replaces `~/.hp41`; autosave fires on backgrounding; state survives kill/relaunch; desktop path unchanged; serde backward-compat preserved (completed 2026-06-02)
 - [x] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression (completed 2026-06-03)
-- [ ] **Phase 56: App Lifecycle + Clock** — `backgroundThrottlingPolicy` configured; clock display refreshes immediately on foreground return via forced `tick_time`
+- [ ] **Phase 56: App Lifecycle + Clock** — `backgroundThrottling` configured; clock display refreshes immediately on foreground return via forced `tick_time`
 - [ ] **Phase 57: Signing + TestFlight Pipeline** — Distribution cert + provisioning profile; `PrivacyInfo.xcprivacy`; app icon + launch screen; `ci-ios.yml` GitHub Actions workflow; build uploaded and available in TestFlight
 
 ---
@@ -168,8 +168,9 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 **Requirements**: LIFE-01, LIFE-02
 **Success Criteria** (what must be TRUE):
   1. After briefly backgrounding and returning to the app (not a kill/relaunch), the clock display updates to the current time within one rendering frame — no stale time is visible even momentarily
-  2. The `backgroundThrottlingPolicy` configuration prevents the WKWebView from fully suspending during brief backgrounding on iOS 17+; the setting is present in `tauri.ios.conf.json` and the behavior is verified on a real device
-**Plans**: TBD
+  2. The `backgroundThrottling` configuration prevents the WKWebView from fully suspending during brief backgrounding on iOS 17+; the setting is present in `tauri.ios.conf.json` and the behavior is verified on a real device
+**Plans**: 1 plan
+- [ ] 56-01-PLAN.md — `tauri.ios.conf.json` (backgroundThrottling: throttle, complete window object) + needsTickRef + gated `visible` branch firing one `tick_time` on foreground return + on-device checkpoint (LIFE-01, LIFE-02)
 **UI hint**: yes
 
 ---
@@ -195,9 +196,9 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 | 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
 | 55. Touch UI Adaptation | 6/6 | Complete    | 2026-06-03 |
-| 56. App Lifecycle + Clock | 0/? | Not started | - |
+| 56. App Lifecycle + Clock | 0/1 | Not started | - |
 | 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-06-03 — Phase 55 planned (6 plans, 6 waves). Next: `/gsd-execute-phase 55`.*
+*Last updated: 2026-06-03 — Phase 56 planned (1 plan, 1 wave). Next: `/gsd-execute-phase 56`.*
