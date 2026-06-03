@@ -686,3 +686,50 @@ describe('quick-task 260522-gud — physical-keyboard honors shiftActive', () =>
   // dispatch from the live App). K1 (positive shifted swap) + K2
   // (no-swap path) already cover the new branch's two arms.
 });
+
+// =====================================================================
+// Group L — Phase 55 Plan 06 gap-fix: iOS AlphaTouchInput bar for
+//           frontend XEQ/GTO/LBL/CLP/ASN text-label modals (TOUCH-04)
+// =====================================================================
+
+describe('L — Phase 55 Plan 06 gap-fix: iOS AlphaTouchInput renders for frontend modal kinds', () => {
+  // Helper: render App with isIos=true and the given calcState view.
+  // On isIos=true the SVG keyboard onClick is suppressed, so we cannot
+  // drive interactions via clickKey. These tests focus on render presence.
+  async function renderAppAsIos(overrides: Partial<CalcStateView> = {}) {
+    const view = makeEmptyView(overrides);
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(true);
+      return Promise.resolve(view);
+    });
+    const utils = render(<App />);
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_state', undefined));
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    return utils;
+  }
+
+  it('L1: isIos + xeq_name pendingInput (via XEQ touch overlay click) → AlphaTouchInput bar renders with "XEQ NAME?"', async () => {
+    // On iOS, the SVG <g onClick> is disabled; dispatch happens via the
+    // .key-touch-target overlay divs (aria-label matches the key label).
+    const { container } = await renderAppAsIos();
+    // Click the XEQ touch overlay to open the xeq_name modal.
+    const xeqOverlay = container.querySelector('[aria-label="XEQ"]') as HTMLElement | null;
+    if (!xeqOverlay) throw new Error('XEQ touch overlay not found — Keyboard may not have rendered');
+    await act(async () => { fireEvent.click(xeqOverlay); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    // The AlphaTouchInput bar should now be present with the XEQ NAME? header.
+    await waitFor(() => {
+      const bar = container.querySelector('.alpha-touch-input-bar');
+      expect(bar).not.toBeNull();
+      expect(bar?.textContent).toContain('XEQ NAME?');
+    });
+  });
+
+  it('L2: isIos + no pendingInput + no alpha + no modal_requires_alpha_label → AlphaTouchInput bar absent', async () => {
+    const { container } = await renderAppAsIos();
+    const bar = container.querySelector('.alpha-touch-input-bar');
+    expect(bar).toBeNull();
+  });
+});
