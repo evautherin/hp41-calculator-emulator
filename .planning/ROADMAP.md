@@ -194,7 +194,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 53. Build-Approach Decision + iOS Scaffold Spike | 4/4 | Complete   | 2026-06-02 |
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
-| 55. Touch UI Adaptation | 6/6 | Complete   | 2026-06-03 |
+| 55. Touch UI Adaptation | 6/6 | Complete    | 2026-06-03 |
 | 56. App Lifecycle + Clock | 0/? | Not started | - |
 | 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
 
