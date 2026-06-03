@@ -2,8 +2,11 @@
 //!
 //! entry_buf holds pending digit characters. On any dispatch() call,
 //! flush_entry_buf() parses and pushes the buffered number before the op executes.
+//!
+//! Also tests backspace_entry() — the shared HP-41 fidelity helper that
+//! implements per-digit deletion during number entry.
 
-use hp41_core::ops::{dispatch, Op};
+use hp41_core::ops::{backspace_entry, dispatch, Op};
 use hp41_core::{CalcState, HpNum};
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -150,4 +153,73 @@ fn test_entry_buf_invalid_content_returns_error() {
         s.entry_buf, "not_a_number",
         "entry_buf must be preserved on parse error (WR-02: no silent data loss)"
     );
+}
+
+// ── backspace_entry — HP-41 fidelity: per-digit deletion during number entry ─
+
+/// Backspace on a multi-digit entry removes only the last digit.
+/// "300" ← → "30" (entry_buf still non-empty; stack unchanged).
+#[test]
+fn test_backspace_entry_multi_digit_removes_last() {
+    let mut s = CalcState::new();
+    s.entry_buf = "300".to_string();
+    backspace_entry(&mut s);
+    assert_eq!(s.entry_buf, "30", "backspace on '300' must leave '30'");
+    // Stack is not touched — entry_buf still active
+    assert!(s.stack.x.is_zero(), "stack X must not change during entry_buf edit");
+}
+
+/// Backspace on a decimal entry removes the last character (the digit after dot).
+/// "3.5" ← → "3." (entry_buf still non-empty).
+#[test]
+fn test_backspace_entry_decimal_removes_last_char() {
+    let mut s = CalcState::new();
+    s.entry_buf = "3.5".to_string();
+    backspace_entry(&mut s);
+    assert_eq!(s.entry_buf, "3.", "backspace on '3.5' must leave '3.'");
+}
+
+/// Backspace on a single-digit entry fully empties the buf and calls clx,
+/// leaving X=0 with lift disabled.
+/// "3" ← → entry_buf="", X=0.
+#[test]
+fn test_backspace_entry_single_digit_clears_to_zero() {
+    let mut s = CalcState::new();
+    s.stack.x = HpNum::from(99); // pre-existing X (should be overwritten by implicit clx)
+    s.stack.lift_enabled = true;
+    s.entry_buf = "3".to_string();
+    backspace_entry(&mut s);
+    assert!(s.entry_buf.is_empty(), "entry_buf must be empty after full backspace");
+    assert!(s.stack.x.is_zero(), "X must be 0 (clx) after full backspace");
+    assert!(
+        !s.stack.lift_enabled,
+        "lift must be disabled after full backspace (clx semantics)"
+    );
+}
+
+/// Backspace when entry_buf is already empty (number complete / no active entry)
+/// behaves exactly like CLX: clears X to 0 and disables lift.
+#[test]
+fn test_backspace_entry_empty_buf_acts_as_clx() {
+    let mut s = CalcState::new();
+    s.stack.x = HpNum::from(42);
+    s.stack.lift_enabled = true;
+    s.entry_buf = String::new();
+    backspace_entry(&mut s);
+    assert!(s.entry_buf.is_empty(), "entry_buf stays empty");
+    assert!(s.stack.x.is_zero(), "X must be 0 (clx) when buf was already empty");
+    assert!(
+        !s.stack.lift_enabled,
+        "lift must be disabled after clx"
+    );
+}
+
+/// Backspace removes the decimal point itself when it is the last character.
+/// "3." ← → "3" (entry_buf still non-empty).
+#[test]
+fn test_backspace_entry_removes_trailing_dot() {
+    let mut s = CalcState::new();
+    s.entry_buf = "3.".to_string();
+    backspace_entry(&mut s);
+    assert_eq!(s.entry_buf, "3", "backspace on '3.' must leave '3'");
 }
