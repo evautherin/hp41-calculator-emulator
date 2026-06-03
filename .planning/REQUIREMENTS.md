@@ -29,7 +29,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 - [x] **TOUCH-01**: All 44 calculator keys are tappable with hit targets ≥ 44×44 pt
 - [x] **TOUCH-02**: Portrait-locked layout respects safe-area insets (notch / Dynamic Island / home indicator)
 - [x] **TOUCH-03**: Keys give immediate press feedback (`:active`), the 350 ms tap delay is eliminated (`touch-action: manipulation`), and there is no tap-highlight flash
-- [ ] **TOUCH-04**: ALPHA-mode character entry works by touch (iOS software keyboard or on-screen grid), with the input staying visible above the keyboard
+- [x] **TOUCH-04**: ALPHA-mode character entry works by touch (iOS software keyboard or on-screen grid), with the input staying visible above the keyboard
 - [x] **TOUCH-05**: Key presses produce haptic feedback
 - [x] **TOUCH-06**: Audio (TONE/BEEP) resumes correctly after the first user gesture (iOS AudioContext rule)
 - [ ] **TOUCH-07**: SHIFT/ALPHA indicators and the X/Y/Z/T stack panel are visible and legible on iPhone
@@ -100,7 +100,7 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | TOUCH-01 | Phase 55 | Complete |
 | TOUCH-02 | Phase 55 | Complete |
 | TOUCH-03 | Phase 55 | Complete |
-| TOUCH-04 | Phase 55 | Pending |
+| TOUCH-04 | Phase 55 | Complete |
 | TOUCH-05 | Phase 55 | Complete |
 | TOUCH-06 | Phase 55 | Complete |
 | TOUCH-07 | Phase 55 | Pending |
