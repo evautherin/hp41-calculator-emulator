@@ -171,8 +171,12 @@ beforeEach(() => {
   mockInvoke.mockReset();
   // Route get_prefs to return DEFAULT_PREFS so the onboarding wizard stays
   // closed in tests (Phase 49 Plan 04: wizard blocks keyboard dispatch when open).
+  // Phase 55 Plan 02: is_macos and is_ios must return false so the desktop
+  // SVG onClick path remains active (isIos truthy would suppress SVG clicks).
   mockInvoke.mockImplementation((cmd: string) => {
     if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+    if (cmd === 'is_macos') return Promise.resolve(false);
+    if (cmd === 'is_ios') return Promise.resolve(false);
     return Promise.resolve(makeEmptyView());
   });
 });
@@ -560,9 +564,15 @@ describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
 describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade (D-31.2) + auto-open (D-29.9)', () => {
   it('H1: R/S with modal_program_active calls submit_modal', async () => {
     // Seed initial state: modal is active (e.g. waiting for matrix order entry).
-    mockInvoke.mockResolvedValue(
-      makeEmptyView({ modal_program_active: true, modal_prompt: 'ORDER=?' }),
-    );
+    // Phase 55-02: use mockImplementation so is_ios/is_macos return false (not a
+    // CalcStateView object), preventing isIos becoming truthy and disabling SVG clicks.
+    const modalView = makeEmptyView({ modal_program_active: true, modal_prompt: 'ORDER=?' });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(modalView);
+    });
     const { container } = await renderAppAndWait();
 
     // R/S should route to submit_modal when modal_program_active is true.
@@ -577,9 +587,14 @@ describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade 
 
   it('H2: R/S with is_running calls request_cancel then get_state', async () => {
     // Seed initial state: long-running op (INTG) in progress.
-    mockInvoke.mockResolvedValue(
-      makeEmptyView({ is_running: true }),
-    );
+    // Phase 55-02: use mockImplementation so is_ios/is_macos return false.
+    const runningView = makeEmptyView({ is_running: true });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(runningView);
+    });
     const { container } = await renderAppAndWait();
 
     // R/S should call request_cancel (void) then get_state.

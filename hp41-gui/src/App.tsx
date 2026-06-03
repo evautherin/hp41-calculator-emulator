@@ -1077,7 +1077,10 @@ function App() {
     : (calcState.display_override ?? calcState.display_str);
 
   return (
-    <div className="calculator" data-isios={isIos || undefined}>
+    <div
+      className={`calculator${isIos ? ' calculator-safe-area' : ''}`}
+      data-isios={isIos || undefined}
+    >
       {/* Phase 48 D-48.1 — title bar with gear icon and ? help button.
           The gear icon uses onMouseDown + e.stopPropagation() to prevent the
           SettingsPanel's click-outside mousedown listener from immediately
@@ -1143,6 +1146,12 @@ function App() {
         userActive={calcState.annunciators.user}
         userKeymap={calcState.user_keymap}
         gradientColors={THEME_GRADIENTS[theme] || THEME_GRADIENTS['dark']}
+        isIos={isIos}
+        onPointerDown={(_key) => {
+          // Phase 55 Plan 02: stub — haptic + audio wired in Plan 03.
+          // onPointerDown fires immediately on touch (before any tap delay),
+          // giving Plan 03 a synchronous hook inside the user-gesture handler.
+        }}
       />
       {calcState.annunciators.prgm && (
         <div className="prgm-panel">
