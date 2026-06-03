@@ -189,7 +189,7 @@
 /* Bottom sheet — pull-up panel for print and PRGM on iOS (TOUCH-09) */
 .bottom-sheet {
   position: fixed;
-  bottom: 0;
+  bottom: env(safe-area-inset-bottom, 0px); /* sit above home indicator on iPhone (mxg) */
   left: 0;
   right: 0;
   max-height: 32px; /* peek height (collapsed) */
