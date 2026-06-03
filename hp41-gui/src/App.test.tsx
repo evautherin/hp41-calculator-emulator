@@ -14,8 +14,8 @@
 //   E — CR-05 CATALOG max=4 + lower-bound rejection (2 tests)
 //   F — USER-mode end-to-end (CR-01 + CR-03 closure) (1 test)
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { act } from 'react';
 import App from './App';
 
@@ -179,6 +179,14 @@ beforeEach(() => {
     if (cmd === 'is_ios') return Promise.resolve(false);
     return Promise.resolve(makeEmptyView());
   });
+});
+
+// Unmount each render between tests. Required because vitest runs with
+// globals:false (no testing-library auto-cleanup) — without this, portaled
+// elements (AlphaTouchInput / print sheet → document.body, sef) from one test
+// leak into the next and break document-level queries.
+afterEach(() => {
+  cleanup();
 });
 
 // =====================================================================
@@ -834,17 +842,19 @@ describe('M — TOUCH-04 keypad-only name entry: ENTER=N, ALPHA=terminate', () =
     await act(async () => { fireEvent.click(xeqOverlay); });
     await act(async () => { await new Promise(r => setTimeout(r, 0)); });
     // Bar must be absent — name entry is via keypad, not software keyboard bar.
-    const bar = container.querySelector('.alpha-touch-input-bar');
+    // Queried on document (not container): the bar is portaled to document.body (sef).
+    const bar = document.querySelector('.alpha-touch-input-bar');
     expect(bar).toBeNull();
   });
 
   // M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar IS shown.
   // Guards that plain ALPHA-register mode still shows the software keyboard bar.
   it('M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar shown', async () => {
-    const { container } = await renderAppAsIos({
+    await renderAppAsIos({
       annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
     });
-    const bar = container.querySelector('.alpha-touch-input-bar');
+    // Queried on document (not container): the bar is portaled to document.body (sef).
+    const bar = document.querySelector('.alpha-touch-input-bar');
     expect(bar).not.toBeNull();
   });
 

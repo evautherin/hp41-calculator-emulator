@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import './App.css';
 import { Keyboard, KEY_DEFS, THEME_GRADIENTS, type KeyDef } from './Keyboard';
@@ -1365,30 +1366,43 @@ function App() {
           XEQ/GTO/LBL/CLP/ASN-label modals (xeq_name, clp, assign_label) do NOT show this bar
           — per user decision (TOUCH-04): name entry uses the on-screen HP-41 keypad directly,
           with ENTER typing 'N' and ALPHA terminating (see handleClick modal-routing above). */}
-      {isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && (
+      {/* Portaled to document.body so its position:fixed is relative to the VIEWPORT,
+          not the scaled .scaled-app-frame (a transform ancestor becomes the containing
+          block for position:fixed descendants — sef). Keeps the bar pinned above the iOS
+          keyboard instead of glued to the scaled calculator's edge. */}
+      {isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && createPortal(
         <AlphaTouchInput
           isAlphaMode={calcState.annunciators.alpha}
           isModalLabelMode={calcState.modal_requires_alpha_label}
           modalPrompt={calcState.modal_prompt}
           onDispatch={dispatchKeyId}
           onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
-        />
+        />,
+        document.body,
       )}
       {/* Phase 55 Plan 05 — Print panel: bottom sheet on iOS, inline panel on desktop.
           iOS: pull-up sheet visible when printLog.length > 0.
           Desktop: existing .print-panel gated by printPanelOpen (byte-for-byte unchanged). */}
       {isIos ? (
-        <BottomSheet
-          id="print-sheet"
-          title="PRINT LOG"
-          visible={printLog.length > 0}
-          emptyText="No print output yet."
-        >
-          {printLog.map((line, i) => (
-            <div key={i} className="print-line">{line}</div>
-          ))}
-          <div ref={printEndRef} />
-        </BottomSheet>
+        /* Portaled to document.body (sef): position:fixed must resolve against the
+           viewport, not the scaled .scaled-app-frame transform — otherwise the sheet
+           is glued to the scaled calculator's bottom edge and overlaps the keypad
+           (the same trap that affected the now-removed PRGM sheet). The mxg peek
+           reservation (querySelector('.bottom-sheet')) still finds it in body. */
+        createPortal(
+          <BottomSheet
+            id="print-sheet"
+            title="PRINT LOG"
+            visible={printLog.length > 0}
+            emptyText="No print output yet."
+          >
+            {printLog.map((line, i) => (
+              <div key={i} className="print-line">{line}</div>
+            ))}
+            <div ref={printEndRef} />
+          </BottomSheet>,
+          document.body,
+        )
       ) : (
         printPanelOpen && (
           <div className="print-panel">
