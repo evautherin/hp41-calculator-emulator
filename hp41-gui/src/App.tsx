@@ -265,7 +265,6 @@ function App() {
   const [printLog, setPrintLog] = useState<string[]>([]);
   const [printPanelOpen, setPrintPanelOpen] = useState(false);
   const printEndRef = useRef<HTMLDivElement>(null);
-  const activeStepRef = useRef<HTMLDivElement>(null);
   // Frontend-owned SHIFT one-shot prefix (no IPC round-trip).
   const [shiftActive, setShiftActive] = useState(false);
   // Phase 26 D-26.1 — frontend-owned modal state (no IPC round-trip).
@@ -536,22 +535,21 @@ function App() {
   }, []);
 
   // Re-fit the calculator scale whenever a full-screen overlay (help `?` /
-  // settings) opens or closes, OR when the PRGM annunciator / print-sheet
-  // visibility changes. On iOS the help search input's autoFocus raises the
-  // virtual keyboard, which shrinks the viewport and shrinks the auto-scale;
-  // closing the overlay dismisses the keyboard but does NOT reliably fire a
-  // window 'resize' on WKWebView, so the scaler would otherwise stay stuck at the
-  // keyboard-visible (too-small) scale and the keypad's right column clips off
-  // screen. ScaledApp (main.tsx) listens for this event and re-measures across a
-  // few frames to outlast the keyboard-dismiss animation. Covers every close
-  // path (✕ button, Esc keyboard, Esc-in-overlay) via the helpOpen dep.
-  // PRGM/print-sheet: the iOS BottomSheet is position:fixed so the ResizeObserver
-  // in main.tsx does NOT fire when the sheet mounts/unmounts; adding prgm + print
-  // visibility here ensures the stale-scale bug (too-small scale stuck in PRGM
-  // mode) is cleared on every toggle, and Task 2's peek reserve is recomputed. (mxg)
+  // settings) opens or closes, OR when the print-sheet visibility changes.
+  // On iOS the help search input's autoFocus raises the virtual keyboard,
+  // which shrinks the viewport and shrinks the auto-scale; closing the overlay
+  // dismisses the keyboard but does NOT reliably fire a window 'resize' on
+  // WKWebView, so the scaler would otherwise stay stuck at the keyboard-visible
+  // (too-small) scale and the keypad's right column clips off screen.
+  // ScaledApp (main.tsx) listens for this event and re-measures across a few
+  // frames to outlast the keyboard-dismiss animation. Covers every close path
+  // (✕ button, Esc keyboard, Esc-in-overlay) via the helpOpen dep.
+  // print-sheet: the iOS BottomSheet is position:fixed so the ResizeObserver in
+  // main.tsx does NOT fire when the sheet mounts/unmounts; printLog.length > 0
+  // ensures the mxg stale-scale fix fires when the print sheet appears. (mxg)
   useEffect(() => {
     window.dispatchEvent(new Event('hp41:recompute-scale'));
-  }, [helpOpen, settingsOpen, calcState?.annunciators.prgm, printLog.length > 0]);
+  }, [helpOpen, settingsOpen, printLog.length > 0]);
 
   // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
   // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
@@ -1133,11 +1131,6 @@ function App() {
     node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [printLog]);
 
-  // Auto-scroll active program step into view when pc changes (D-09)
-  useEffect(() => {
-    activeStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [calcState?.pc]);
-
   if (!calcState) {
     return <div className="calculator"><div className="display">Loading...</div></div>;
   }
@@ -1307,47 +1300,6 @@ function App() {
           onDispatch={dispatchKeyId}
           onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
         />
-      )}
-      {/* Phase 55 Plan 05 — PRGM panel: bottom sheet on iOS, inline panel on desktop.
-          iOS: pull-up sheet with active-step highlight + scroll-into-view.
-          Desktop: existing inline .prgm-panel (byte-for-byte unchanged). */}
-      {isIos ? (
-        <BottomSheet
-          id="prgm-sheet"
-          title="PROGRAM"
-          visible={calcState.annunciators.prgm}
-          emptyText="Program memory empty."
-        >
-          {calcState.program_steps.map((step, i) => (
-            <div
-              key={i}
-              ref={calcState.pc === i ? activeStepRef : null}
-              className={`step-row${calcState.pc === i ? ' step-active' : ''}`}
-            >
-              {step}
-            </div>
-          ))}
-        </BottomSheet>
-      ) : (
-        calcState.annunciators.prgm && (
-          <div className="prgm-panel">
-            <div className="prgm-panel-header">
-              PRGM &#8212; {calcState.program_steps.length - 1}{' '}
-              {calcState.program_steps.length - 1 === 1 ? 'step' : 'steps'}
-            </div>
-            <div className="prgm-panel-content">
-              {calcState.program_steps.map((step, i) => (
-                <div
-                  key={i}
-                  ref={calcState.pc === i ? activeStepRef : null}
-                  className={`step-row${calcState.pc === i ? ' step-active' : ''}`}
-                >
-                  {step}
-                </div>
-              ))}
-            </div>
-          </div>
-        )
       )}
       {/* Phase 55 Plan 05 — Print panel: bottom sheet on iOS, inline panel on desktop.
           iOS: pull-up sheet visible when printLog.length > 0.

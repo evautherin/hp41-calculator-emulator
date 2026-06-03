@@ -53,8 +53,6 @@
   --text-muted:         #666666;
   --annunciator-active: #e8e8c0;
   --annunciator-shift-active: #d68a1c;
-  --step-active-bg:     #1e3a1e;
-  --step-active-text:   #c8e6c9;
 }
 
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
@@ -97,8 +95,6 @@
   --text-muted:         #888888;
   --annunciator-active: #3a5a3a;
   --annunciator-shift-active: #c07010;
-  --step-active-bg:     #b8d8b8;
-  --step-active-text:   #1a3a1a;
 }
 
 /* ── Classic Beige Theme (D-48.5 — real HP-41C body color) ──────────────── */
@@ -141,8 +137,6 @@
   --text-muted:         #988870;
   --annunciator-active: #d8c870;
   --annunciator-shift-active: #c8780a;
-  --step-active-bg:     #3a4820;
-  --step-active-text:   #d8d890;
 }
 
 /* ── High-Contrast Theme (D-48.6 — WCAG AAA white-on-black) ─────────────── */
@@ -192,6 +186,4 @@
   --text-muted:         #aaaaaa;
   --annunciator-active: #ffffff;
   --annunciator-shift-active: #ffaa00;
-  --step-active-bg:     #003300;
-  --step-active-text:   #ffffff;
 }
