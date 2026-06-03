@@ -29,3 +29,19 @@ body {
   inset: 0;
   width: 100%;
 }
+
+/* Safe-area insets for the ScaledApp outer frame (mxg). MUST live in a stylesheet,
+   NOT a React inline style: env() assigned via the CSSOM (element.style.x = 'env(...)')
+   is unreliable in WKWebView and resolves to 0 on iOS — which left the top display
+   under the Dynamic Island and let the bottom sheet overlap the keypad. As a stylesheet
+   rule env() resolves correctly (same as the former .calculator-safe-area). The padding
+   sits OUTSIDE the CSS transform in main.tsx, so the gaps render at full device pixels
+   regardless of scale. On desktop env() = 0 → no padding → unchanged. recompute() reads
+   the resolved padding via getComputedStyle to subtract it from the available area. */
+.scaled-app-frame {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}

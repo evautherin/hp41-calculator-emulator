@@ -156,6 +156,14 @@ function ScaledApp(): React.ReactElement {
   return (
     <div
       ref={outerRef}
+      // Safe-area insets applied ONCE at this outer frame (OUTSIDE the CSS transform) via
+      // the .scaled-app-frame stylesheet class — NOT an inline style, because env() set
+      // through the CSSOM (React inline styles) is unreliable in WKWebView and resolves to
+      // 0 on iOS. As a stylesheet rule env() resolves correctly, so the Dynamic Island /
+      // home-indicator gaps render at full device pixels regardless of the scale factor.
+      // Per-component insets (.calculator-safe-area, .help-overlay-header) were removed —
+      // they lived INSIDE the transform and rendered as scale × inset (too large). (mxg)
+      className="scaled-app-frame"
       style={{
         // Use 100% (not 100vw/100vh) so the outer wrapper tracks the fixed,
         // locked body rather than the iOS toolbar-inclusive viewport unit.
@@ -170,17 +178,6 @@ function ScaledApp(): React.ReactElement {
         // Belt-and-suspenders: prevents a white flash on the wrapper itself
         // before the CSS cascade applies the html/body background.
         background: 'var(--calc-bg, #0d0d0d)',
-        // Safe-area insets applied ONCE at the outer frame (OUTSIDE the CSS transform).
-        // Because this node is not scaled, the Dynamic Island / home-indicator gaps render
-        // at full device pixels regardless of the scale factor. On desktop env() = 0 →
-        // zero padding → unchanged layout. Per-component insets in .calculator-safe-area
-        // and .help-overlay-header are removed (they lived INSIDE the transform and
-        // rendered as scale × inset, causing a double-sized top gap on iOS). (mxg)
-        boxSizing: 'border-box',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingRight: 'env(safe-area-inset-right, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        paddingLeft: 'env(safe-area-inset-left, 0px)',
       }}
     >
       <div
