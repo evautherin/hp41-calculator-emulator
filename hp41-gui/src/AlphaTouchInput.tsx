@@ -21,6 +21,7 @@ export interface AlphaTouchInputProps {
   isAlphaMode: boolean;           // calcState.annunciators.alpha
   isModalLabelMode: boolean;      // calcState.modal_requires_alpha_label
   modalPrompt: string | null;     // calcState.modal_prompt
+  alphaText: string;              // live ALPHA register mirror (display_str in alpha mode)
   onDispatch: (keyId: string) => void;     // App.tsx dispatchKeyId
   onSubmitLabel: (label: string) => void;  // invoke('submit_modal_with_label')
 }
@@ -30,6 +31,7 @@ export default function AlphaTouchInput({
   isAlphaMode,
   isModalLabelMode,
   modalPrompt,
+  alphaText,
   onDispatch,
   onSubmitLabel,
 }: AlphaTouchInputProps) {
@@ -41,6 +43,7 @@ export default function AlphaTouchInput({
       isAlphaMode={isAlphaMode}
       isModalLabelMode={isModalLabelMode}
       modalPrompt={modalPrompt}
+      alphaText={alphaText}
       onDispatch={onDispatch}
       onSubmitLabel={onSubmitLabel}
     />
@@ -53,6 +56,7 @@ function AlphaTouchInputInner({
   isAlphaMode,
   isModalLabelMode,
   modalPrompt,
+  alphaText,
   onDispatch,
   onSubmitLabel,
 }: AlphaTouchInputProps) {
@@ -99,20 +103,19 @@ function AlphaTouchInputInner({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     if (isAlphaMode) {
-      // Dispatch each new character in [A-Z0-9 ] (uppercased, T-55-07 filter) AND
-      // accumulate the accepted chars locally so the bar's field shows what was typed
-      // (sef: previously the field was cleared after each char, so it always looked
-      // empty even though the chars reached the ALPHA register / main display).
-      const diff = newValue.slice(inputValue.length);
-      let added = '';
+      // The field MIRRORS the engine's ALPHA register (alphaText prop): its value is
+      // driven by display_str, so it shows the text regardless of input method — iOS
+      // soft keyboard here OR the on-screen HP-41 keypad keys (which dispatch directly,
+      // bypassing this input). Dispatch only the newly-appended chars vs the mirror.
+      const diff = newValue.slice(alphaText.length);
       for (const rawCh of diff) {
         const ch = rawCh.toUpperCase();
         if (/^[A-Z0-9 ]$/.test(ch)) {
           onDispatch(`alpha_${ch}`);
-          added += ch;
         }
       }
-      setInputValue(inputValue + added);
+      // No local state: the engine round-trip updates alphaText, which re-renders the
+      // controlled value. (Backspace is handled in handleKeyDown → clx.)
     } else {
       // modal-label mode: accumulate
       setInputValue(newValue);
@@ -123,11 +126,10 @@ function AlphaTouchInputInner({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       if (isAlphaMode) {
-        // ALPHA mode: Backspace → clx (removes last alpha char in HP-41), and pop the
-        // locally-accumulated value so the bar's field stays in sync (sef).
+        // ALPHA mode: Backspace → clx (removes last alpha char in HP-41). The field
+        // mirrors the engine (alphaText), so it updates from the round-trip — no local pop.
         e.preventDefault();
         onDispatch('clx');
-        setInputValue(prev => prev.slice(0, -1));
       } else {
         // modal-label mode: remove last char from accumulated local state.
         e.preventDefault();
@@ -159,7 +161,7 @@ function AlphaTouchInputInner({
       <input
         ref={inputRef}
         type="text"
-        value={inputValue}
+        value={isAlphaMode ? alphaText : inputValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         inputMode="text"

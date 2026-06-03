@@ -1375,6 +1375,7 @@ function App() {
           isAlphaMode={calcState.annunciators.alpha}
           isModalLabelMode={calcState.modal_requires_alpha_label}
           modalPrompt={calcState.modal_prompt}
+          alphaText={calcState.annunciators.alpha ? calcState.display_str : ''}
           onDispatch={dispatchKeyId}
           onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
         />,

@@ -40,6 +40,7 @@ function renderAlpha(
     isAlphaMode?: boolean;
     isModalLabelMode?: boolean;
     modalPrompt?: string | null;
+    alphaText?: string;
     onDispatch?: (keyId: string) => void;
     onSubmitLabel?: (label: string) => void;
   } = {},
@@ -51,6 +52,7 @@ function renderAlpha(
       isAlphaMode={overrides.isAlphaMode ?? false}
       isModalLabelMode={overrides.isModalLabelMode ?? false}
       modalPrompt={overrides.modalPrompt ?? null}
+      alphaText={overrides.alphaText ?? ''}
       onDispatch={onDispatch}
       onSubmitLabel={onSubmitLabel}
     />,
