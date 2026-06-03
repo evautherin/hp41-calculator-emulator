@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
-status: ready_to_plan
-last_updated: 2026-06-03T10:41:45.697Z
-last_activity: 2026-06-03
+status: planning
+last_updated: "2026-06-03T13:17:41.313Z"
+last_activity: "2026-06-03 - Quick task 260603-klp: help-overlay safe-area fix (code merged to develop; awaiting on-device iPhone verify)"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
   completed_plans: 13
-  percent: 40
-stopped_at: Phase 55 complete (6/6) — ready to discuss Phase 56
+  percent: 60
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -33,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 Phase: 56
 Plan: Not started
 Status: Ready to plan
-Resume file: None
+Resume file: .planning/phases/56-app-lifecycle-clock/56-CONTEXT.md
 Last activity: 2026-06-03 - Quick task 260603-klp: help-overlay safe-area fix (code merged to develop; awaiting on-device iPhone verify)
 
 ## Progress Bar
