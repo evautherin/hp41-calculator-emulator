@@ -292,6 +292,11 @@ export interface KeyboardProps {
   // Phase 48 D-48.10 / P55 — SVG gradient stops cannot use CSS var(); pass
   // theme config as prop. Defaults to DARK_GRADIENT_COLORS if not provided.
   gradientColors?: GradientColors;
+  // Phase 55 Plan 02 — iOS touch overlay props (TOUCH-01 + TOUCH-03).
+  // isIos: gates .key-touch-target overlay rendering (false on desktop — no regression).
+  // onPointerDown: immediate feedback hook for haptics + audio (Plan 03 fills body).
+  isIos?: boolean;
+  onPointerDown?: (key: KeyDef) => void;
 }
 
 export function Keyboard({
@@ -302,6 +307,8 @@ export function Keyboard({
   userActive = false,
   userKeymap = [],
   gradientColors = DARK_GRADIENT_COLORS,
+  isIos = false,
+  onPointerDown,
 }: KeyboardProps) {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
 
@@ -329,6 +336,7 @@ export function Keyboard({
   };
 
   return (
+    <div style={{ position: 'relative', width: '100%' }}>
     <svg
       width="100%"
       viewBox={`0 0 ${KEYBOARD_W} ${KEYBOARD_H}`}
@@ -406,7 +414,9 @@ export function Keyboard({
           return (
             <g
               key={labelKey}
-              onClick={() => handleKeyClick(key)}
+              // Phase 55 D-55.2: when isIos and key has an id, the .key-touch-target
+              // overlay owns dispatch (onClick skipped to prevent double-fire, Pitfall 3).
+              onClick={isIos && key.id ? undefined : () => handleKeyClick(key)}
               className={
                 shiftActive ? 'key key-shift-active' : isPressed ? 'key key-pressed' : 'key'
               }
@@ -430,7 +440,9 @@ export function Keyboard({
         return (
           <g
             key={labelKey}
-            onClick={() => handleKeyClick(key)}
+            // Phase 55 D-55.2: when isIos and key has an id, the .key-touch-target
+            // overlay owns dispatch (onClick skipped to prevent double-fire, Pitfall 3).
+            onClick={isIos && key.id ? undefined : () => handleKeyClick(key)}
             className={isPressed ? 'key key-pressed' : 'key'}
             // Phase 26 Plan 04 Task 3 — test-only locator (see SHIFT branch above).
             data-key-id={key.id || undefined}
@@ -493,5 +505,29 @@ export function Keyboard({
         );
       })}
     </svg>
+
+    {/* Phase 55 Plan 02 — iOS touch overlay divs (TOUCH-01 + TOUCH-03).
+        Rendered as siblings of the <svg> inside the position:relative wrapper.
+        Each overlay is centered on the key's visual center using % of SVG container,
+        so no scale factor is needed (Pattern 6 Option A from RESEARCH.md).
+        isIos gate ensures desktop behavior is byte-for-byte unchanged.
+        SVG <g> onClick is skipped when isIos && key.id — overlay owns dispatch. */}
+    {isIos && KEY_DEFS.filter(key => key.id).map(key => {
+      const pos = keyPosition(key);
+      return (
+        <div
+          key={`touch-${key.id}`}
+          className="key-touch-target"
+          style={{
+            left: `${(pos.x + pos.w / 2) / KEYBOARD_W * 100}%`,
+            top:  `${(pos.y + pos.h / 2) / KEYBOARD_H * 100}%`,
+          }}
+          onPointerDown={() => onPointerDown?.(key)}
+          onClick={() => handleKeyClick(key)}
+          aria-label={key.label}
+        />
+      );
+    })}
+    </div>
   );
 }
