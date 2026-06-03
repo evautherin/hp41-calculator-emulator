@@ -28,8 +28,15 @@ import './themes.css'
  * the first paint; after the first ResizeObserver callback the real measured
  * dimensions drive scaling.
  */
+// Height (px) of the BottomSheet collapsed peek. Must match .bottom-sheet max-height
+// in App.css. Used by recompute() to reserve the peek so the keypad scales above the sheet.
+const BOTTOM_SHEET_PEEK = 32;
+
 function ScaledApp(): React.ReactElement {
   const contentRef = useRef<HTMLDivElement>(null)
+  // outerRef: ref on the outer wrapper div (OUTSIDE the transform) so recompute can
+  // measure the content-box area after safe-area padding is applied by the browser.
+  const outerRef = useRef<HTMLDivElement>(null)
 
   // Pre-measurement first paint: fall back to design constants so there is no
   // blank flash before the ResizeObserver callback fires.
@@ -38,12 +45,37 @@ function ScaledApp(): React.ReactElement {
   )
 
   useEffect(() => {
-    // Recompute scale from the current window size and the measured content size.
+    // Recompute scale from the available content-box area (outer wrapper minus safe-area
+    // padding) and the measured content size. Uses the outer wrapper's content box rather
+    // than window.innerWidth/innerHeight so that env(safe-area-inset-*) padding applied
+    // to the outer wrapper (at device pixels, outside the CSS transform) is already
+    // subtracted — no separate :root env() probe element needed.
     const recompute = () => {
       const node = contentRef.current
       const measuredW = node ? node.offsetWidth : DESIGN_WIDTH
       const measuredH = node ? node.offsetHeight : DESIGN_HEIGHT
-      setScale(computeScale(window.innerWidth, window.innerHeight, measuredW, measuredH))
+
+      // Measure the outer wrapper's content box (area inside safe-area padding).
+      // clientWidth/clientHeight exclude scrollbars; subtracting computed padding yields
+      // the inset-reduced area available for the scaled calculator.
+      // WHY content-box: it reflects the padding actually applied by env() and needs no
+      // separate hidden probe element. Falls back to window.inner* when outerRef is null
+      // (first paint / jsdom test environment where ref is not attached).
+      let availW = window.innerWidth
+      let availH = window.innerHeight
+      const outerEl = outerRef.current
+      if (outerEl) {
+        const cs = getComputedStyle(outerEl)
+        availW = outerEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+        availH = outerEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+      }
+
+      // Reserve the BottomSheet peek height when any sheet is mounted in the DOM
+      // (the sheet mounts/unmounts with visibility; recompute is re-triggered on
+      // PRGM toggle by App.tsx, so this DOM query always sees the current state).
+      const peek = document.querySelector('.bottom-sheet') ? BOTTOM_SHEET_PEEK : 0;
+
+      setScale(computeScale(availW, availH, measuredW, measuredH, peek))
     }
 
     // Re-measure across a few frames to outlast async viewport settling — in
@@ -123,6 +155,7 @@ function ScaledApp(): React.ReactElement {
 
   return (
     <div
+      ref={outerRef}
       style={{
         // Use 100% (not 100vw/100vh) so the outer wrapper tracks the fixed,
         // locked body rather than the iOS toolbar-inclusive viewport unit.
@@ -137,6 +170,17 @@ function ScaledApp(): React.ReactElement {
         // Belt-and-suspenders: prevents a white flash on the wrapper itself
         // before the CSS cascade applies the html/body background.
         background: 'var(--calc-bg, #0d0d0d)',
+        // Safe-area insets applied ONCE at the outer frame (OUTSIDE the CSS transform).
+        // Because this node is not scaled, the Dynamic Island / home-indicator gaps render
+        // at full device pixels regardless of the scale factor. On desktop env() = 0 →
+        // zero padding → unchanged layout. Per-component insets in .calculator-safe-area
+        // and .help-overlay-header are removed (they lived INSIDE the transform and
+        // rendered as scale × inset, causing a double-sized top gap on iOS). (mxg)
+        boxSizing: 'border-box',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
       }}
     >
       <div
