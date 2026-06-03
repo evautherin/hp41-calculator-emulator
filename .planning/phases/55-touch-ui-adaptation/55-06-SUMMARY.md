@@ -2,19 +2,19 @@
 phase: 55-touch-ui-adaptation
 plan: "06"
 subsystem: hp41-gui
-tags: [ios, touch, alpha-input, xeq-modal, tdd, gap-fix, TOUCH-04]
+tags: [ios, touch, alpha-input, xeq-modal, tdd, TOUCH-04, keypad-only-entry]
 dependency_graph:
   requires:
     - phase: 55-04
       provides: AlphaTouchInput component + render gate
   provides:
-    - frontend-modal-ios-keyboard-bar
-    - AlphaTouchInput-frontend-modal-mode
+    - keypad-only-name-entry-for-text-label-modals
+    - enter-types-N-alpha-terminates-in-text-label-modals
   affects:
-    - hp41-gui/src/AlphaTouchInput.tsx
-    - hp41-gui/src/AlphaTouchInput.test.tsx
     - hp41-gui/src/App.tsx
     - hp41-gui/src/App.test.tsx
+    - hp41-gui/src/AlphaTouchInput.tsx
+    - hp41-gui/src/AlphaTouchInput.test.tsx
 tech-stack:
   added: []
   patterns:
@@ -25,105 +25,166 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - hp41-gui/src/AlphaTouchInput.tsx
-    - hp41-gui/src/AlphaTouchInput.test.tsx
     - hp41-gui/src/App.tsx
     - hp41-gui/src/App.test.tsx
+    - hp41-gui/src/AlphaTouchInput.tsx
+    - hp41-gui/src/AlphaTouchInput.test.tsx
 
 key-decisions:
-  - "Frontend modal mode (isFrontendModalMode) is a third mode alongside isAlphaMode and isModalLabelMode; per-char callbacks route through App.tsx handleModalKey/applyModalResult so pending.acc is the single source of truth"
-  - "ENTER=terminator design in pending_input.ts and CLI parity unchanged; only the render gate and char-routing are added"
-  - "Desktop (isIos=false): all new props ignored; byte-for-byte unchanged"
-  - "Prompt strings derived from pendingInput.kind: xeq_name+xeq→XEQ NAME?, gto→GTO NAME?, lbl→LBL NAME?; clp→CLP NAME?; assign_label→ASN NAME?"
+  - "On-screen ENTER key types letter N (its ALPHA character) in text-label modals (xeq_name/clp/assign_label); on-screen ALPHA key terminates/submits — HP-41-faithful keypad behavior"
+  - "Physical keyboard Enter still terminates for D-25.6 CLI/desktop parity — accepted on-screen-vs-physical divergence (user decision)"
+  - "No iOS software keyboard bar for text-label modals — rejected on-device (keyboard pushes layout; blind entry); keypad-only approach supersedes"
+  - "AlphaTouchInput.tsx restored to original two-mode form (isAlphaMode + isModalLabelMode only); plain ALPHA register and backend modal-label prompt modes unchanged"
+  - "Rejected approach commits 498848e/a3b7dcd/4f0ea4d superseded in develop"
 
-duration: ~15min
+duration: ~30min
 completed: 2026-06-03
 ---
 
-# Phase 55 Plan 06: Gap Fix — iOS AlphaTouchInput Bar for Frontend XEQ/GTO/LBL/CLP/ASN Modals
+# Phase 55 Plan 06: TOUCH-04 — Keypad-Only Name Entry (Supersedes iOS Keyboard Bar Approach)
 
-**Gap fix discovered during on-device verification (TOUCH-04): iOS showed no software-keyboard bar for XEQ/GTO/LBL/CLP/ASN text-label modals. Fixed with TDD.**
+**On-device rejection of the iOS software-keyboard bar for XEQ/GTO/LBL/CLP/ASN modals led to a redesign: keypad-only entry with ENTER typing 'N' and ALPHA terminating.**
 
-## Bug Description
+## Root Cause (Unchanged from Original)
 
-**Root cause:** The `AlphaTouchInput` render gate in App.tsx checked only:
+The `AlphaTouchInput` render gate in App.tsx checked:
 ```
 isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label)
 ```
-`calcState.modal_requires_alpha_label` is set only by BACKEND `ModalProgram` module name-prompts (Advantage/Time/Stat/Math). The XEQ/GTO/LBL/CLP/ASN "FUNCTION NAME?" prompts are FRONTEND `pendingInput` modals (kinds: `xeq_name`, `clp`, `assign_label`) that do NOT set that backend flag.
+`calcState.modal_requires_alpha_label` is only set by BACKEND `ModalProgram` module name-prompts (Advantage/Time/Stat/Math). The XEQ/GTO/LBL/CLP/ASN prompts are FRONTEND `pendingInput` modals (`xeq_name`, `clp`, `assign_label`) that do NOT set that backend flag.
 
-**Consequence on iOS:** Pressing XEQ/GTO/LBL showed no software-keyboard bar. The on-screen calculator keypad was left, where the ENTER key terminates label entry (established design). Because ENTER terminates, the user could not type the ALPHA letter 'N' (which lives on the ENTER key), and tapping ENTER submitted an empty/partial label → hp41-core returned `HpError::InvalidOp` → "invalid operation" toast.
+**Core problem:** On iOS, pressing XEQ/GTO/LBL showed no input mechanism. The on-screen ENTER key (which terminates label entry) contains the ALPHA letter 'N' — without a way to type 'N', function names like TONE, SIN, RUN were unreachable.
 
-## Fix Applied (TDD RED → GREEN)
+## First Attempt — Rejected On-Device
 
-### RED Phase: Failing Tests
+Commits `498848e` (RED), `a3b7dcd` (GREEN), `4f0ea4d` (integration tests) implemented an iOS software-keyboard bar (`isFrontendModalMode` prop in AlphaTouchInput) that appeared when a text-label `pendingInput` was active.
 
-Added 5 new tests to `AlphaTouchInput.test.tsx` (tests 6-10) for the `isFrontendModalMode` path:
-- Renders bar when `isFrontendModalMode=true` with `frontendModalPrompt` header
-- Renders nothing when `isFrontendModalMode=false` (and others false)
-- Typing calls `onFrontendModalChar` with uppercased char
-- Backspace calls `onFrontendModalBackspace`
-- Done button calls `onFrontendModalDone`
+**On-device rejection reasons:**
+1. iOS software keyboard pushes the whole calculator layout up — bad UX (occludes the HP-41 display and stack).
+2. Entry is "blind": typed characters appear in the iOS text field, not in the calculator display (the user sees a separate line, not the accumulating "XEQ TONE_" display they expect).
 
-Added 2 integration tests to `App.test.tsx` (Group L):
-- L1: isIos + XEQ touch overlay click → AlphaTouchInput bar renders with "XEQ NAME?"
-- L2: isIos + no pendingInput → bar is absent
+## Final Design — Keypad-Only Name Entry
 
-### GREEN Phase: Implementation
+**User decisions (authoritative):**
+1. No iOS software keyboard for text-label modals. Name entry via on-screen HP-41 keypad only.
+2. On-screen **ENTER** key (alphaChar `'N'`) → types letter **N** in text-label modals. Live display updates: `XEQ T_` → `XEQ TO_` → `XEQ TON_` → `XEQ TONE_`.
+3. On-screen **ALPHA** key (`alpha_toggle`) → terminates/submits the name entry. HP-41-faithful (ALPHA exits alpha-entry mode on the hardware).
+4. Plain ALPHA-register mode and backend module prompts: **unchanged** — AlphaTouchInput bar still appears for those.
+5. **Physical keyboard**: Enter still terminates for D-25.6 CLI/desktop parity — accepted on-screen-vs-physical divergence.
 
-**`AlphaTouchInput.tsx`:** Added third mode `isFrontendModalMode` with props:
-- `isFrontendModalMode: boolean` — gates the third render path
-- `frontendModalPrompt: string | null` — derived from pendingInput.kind + dispatchPrefix
-- `onFrontendModalChar(ch: string)` — per-char callback (input cleared after each; state lives in App.tsx `pendingInput.acc`)
-- `onFrontendModalBackspace()` — routes Backspace through handleModalKey/applyModalResult
-- `onFrontendModalDone()` — routes Enter through handleModalKey/applyModalResult (ENTER=terminator path unchanged)
+## Implementation (TDD RED → GREEN)
 
-Guard updated: `if (!isAlphaMode && !isModalLabelMode && !isFrontendModalMode) return null`
+### RED Phase
+Commits `fd642e0` — added failing Group M tests to `App.test.tsx`:
+- **M1**: On-screen ENTER in xeq_name modal must append 'N', display "XEQ N_" — FAILS (ENTER terminates)
+- **M2**: Type TONE via keypad (9=T, CHS=O, ENTER=N, LN=E), ALPHA submits xeq_TONE — FAILS (ALPHA was no-op)
+- **M3**: isIos + xeq_name modal → NO AlphaTouchInput bar — FAILS (bar was shown)
+- **M3b**: isIos + alpha annunciator → bar IS shown — PASSES (regression guard)
+- **M4**: ENTER in FMT modal (numeric) → display stays "FIX _" — PASSES (ENTER=N gated to text-label kinds only)
 
-**`App.tsx`:** Replaced static render gate with IIFE that:
-1. Computes `frontendLabelModal = isIos && pendingInput !== null && (kind ∈ {xeq_name, clp, assign_label})`
-2. Derives `frontendModalPrompt` string per kind (XEQ/GTO/LBL NAME?, CLP NAME?, ASN NAME?)
-3. Shows bar when any of the three conditions is true
-4. Passes callbacks that call `handleModalKey(ch/Backspace/Enter, pendingInput, shiftActive)` → `applyModalResult(result)` — the existing frontend modal state machine handles all routing including the collect-for-modal path
+### GREEN Phase
+Commit `26f8b4e` — implementation in four files:
+
+**`AlphaTouchInput.tsx`** — restored byte-for-byte to original two-mode form (isAlphaMode + isModalLabelMode). Removed `isFrontendModalMode` and related props. Verified identical to commit `8af8dd6`.
+
+**`App.tsx` render gate** — restored to original simple form:
+```tsx
+{isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && (
+  <AlphaTouchInput ... />
+)}
+```
+Text-label modals (xeq_name/clp/assign_label) do NOT trigger the bar per user decision.
+
+**`App.tsx` handleClick modal-routing block** — added two branches in priority order BEFORE the generic `enter → 'Enter'` branch:
+```typescript
+const isTextLabelKind =
+  pendingInput.kind === 'xeq_name' ||
+  pendingInput.kind === 'clp' ||
+  pendingInput.kind === 'assign_label';
+
+// (c) TOUCH-04: on-screen ALPHA terminates text-label modals
+} else if (isTextLabelKind && effectiveId === 'alpha_toggle') {
+  routedKey = 'Enter';
+
+// (d) TOUCH-04: on-screen keys with alphaChar type their letter
+//     ENTER (alphaChar='N') types 'N'; priority over enter→'Enter' below
+} else if (isTextLabelKind && key.alphaChar) {
+  routedKey = key.alphaChar;
+
+// (e) unchanged: non-text-label modal ENTER terminates
+} else if (effectiveId === 'enter') {
+  routedKey = 'Enter';
+```
+
+A code comment documents the accepted on-screen-vs-physical divergence referencing the user decision.
+
+**`AlphaTouchInput.test.tsx`** — removed tests 6-10 (isFrontendModalMode path).
+
+**`App.test.tsx`** — removed Group L (rejected iOS bar approach). Updated tests A2, C1, F1, G3, G4 to use `alpha_toggle` instead of `enter` to submit text-label modals (now HP-41-faithful).
 
 ## Behavioral Invariants Preserved
 
-- ENTER=terminator design in `pending_input.ts` unchanged — `handleModalKey('Enter', ...)` is the established path
-- CLI parity (D-25.6) unchanged — no changes to pending_input.ts or CLI
-- Desktop (isIos=false): render gate still returns null; `frontendLabelModal` is always false
-- Plain ALPHA register path (isAlphaMode) and backend module prompt path (isModalLabelMode) unchanged
-- macOS/desktop builds byte-for-byte unchanged
+| Invariant | Status |
+|-----------|--------|
+| `pending_input.ts` unchanged — Enter terminates, Backspace pops, printable chars append | Unchanged |
+| Physical keyboard Enter terminates text-label modals (D-25.6 CLI parity) | Unchanged |
+| Plain ALPHA register mode bar | Unchanged |
+| Backend `modal_requires_alpha_label` mode bar | Unchanged |
+| Desktop (isIos=false) — no bar rendered | Unchanged |
+| Backspace (← key) deletes a char in text-label modals | Unchanged |
+| Non-text-label modals (register, flag, fmt, single_digit) | Unchanged |
+
+## Live Display Build-Up
+
+The display updating live as characters are appended is existing behavior via `handleModalKey → applyModalResult → setPendingInput`. `renderModalLcd` for `xeq_name` returns `padCursor('XEQ ' + acc, 1)` which produces `XEQ TONE_` etc. Test M2 verifies each intermediate state.
+
+## Deviations from Plan
+
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Existing tests G3, G4, C1, A2, F1 used on-screen ENTER to submit text-label modals**
+- **Found during:** GREEN phase implementation
+- **Issue:** These tests expected `clickKey(container, 'enter')` to terminate/submit label modals. The new TOUCH-04 behavior makes on-screen ENTER type 'N' instead.
+- **Fix:** Updated those tests to use `clickKey(container, 'alpha_toggle')` for submission — correctly reflects the new HP-41-faithful behavior (ALPHA terminates, ENTER types N).
+- **Files modified:** `hp41-gui/src/App.test.tsx`
 
 ## Commits
 
-1. **RED:** `498848e` — `test(55-06): add failing tests for frontend-modal mode in AlphaTouchInput`
-2. **GREEN:** `a3b7dcd` — `feat(55-06): fix TOUCH-04 — iOS AlphaTouchInput bar for frontend XEQ/GTO/LBL modals`
-3. **Integration tests:** `4f0ea4d` — `test(55-06): add iOS integration tests for frontend modal AlphaTouchInput bar`
+| Phase | Hash | Message |
+|-------|------|---------|
+| RED | `fd642e0` | `test(55-06): add RED tests for TOUCH-04 keypad-only name entry` |
+| GREEN | `26f8b4e` | `feat(55-06): TOUCH-04 keypad-only name entry — ENTER types N, ALPHA terminates` |
+
+Previous approach commits (`498848e`, `a3b7dcd`, `4f0ea4d`) remain in git history for reference but are fully superseded.
 
 ## Verification
 
 | Check | Result |
 |-------|--------|
-| `npm test -- AlphaTouchInput` (11 tests) | 11/11 pass |
-| `npm test` (full suite) | 267/267 pass |
-| `just gui-ci` | clean (release build + all tests) |
-| Desktop (isIos=false) unchanged | verified by reading App.tsx IIFE gate |
-| ENTER=terminator in pending_input.ts | unchanged (verified by reading) |
+| `npm test` (full suite) | 265/265 pass |
+| `just gui-ci` | clean (Rust build + all tests + SC-4 invariant) |
+| `AlphaTouchInput.tsx` identical to original `8af8dd6` | verified (diff empty) |
+| M1: ENTER types N in xeq_name modal | PASS |
+| M2: TONE spelled T(9)+O(CHS)+N(ENTER)+E(LN), ALPHA submits xeq_TONE | PASS |
+| M3: No AlphaTouchInput bar when xeq_name modal active on iOS | PASS |
+| M3b: AlphaTouchInput bar shown for plain alpha mode on iOS | PASS |
+| M4: ENTER in FMT modal stays no-op (not text-label kind) | PASS |
 
 ## Known Stubs
 
-None. Fix is complete; device-level verification (bar appears above iOS keyboard for XEQ/GTO/LBL/CLP/ASN; typing accumulates including 'N'; Done submits) is part of the Plan 06 on-device checkpoint.
+None. The fix is complete for on-screen keypad entry. Device-level verification (live display updates, ENTER=N, ALPHA=terminate) is the verification checkpoint.
 
 ## Threat Flags
 
-None. The new routing path (`onFrontendModalChar` → `handleModalKey` → `applyModalResult` → `dispatch_op`) reuses the existing validated dispatch chain. No new IPC surface introduced.
+None. Changes are confined to the on-screen click routing in `handleClick` — a frontend-only code path that translates on-screen key IDs to the existing `handleModalKey`/`applyModalResult` dispatch chain. No new IPC surface. No Rust changes.
 
 ## Self-Check: PASSED
 
-- `hp41-gui/src/AlphaTouchInput.tsx` — modified with isFrontendModalMode props ✓
-- `hp41-gui/src/AlphaTouchInput.test.tsx` — 5 new tests for frontend modal mode ✓
-- `hp41-gui/src/App.tsx` — IIFE render gate + frontend modal callbacks ✓
-- `hp41-gui/src/App.test.tsx` — Group L integration tests ✓
-- Commit 498848e (RED) — EXISTS ✓
-- Commit a3b7dcd (GREEN) — EXISTS ✓
-- Commit 4f0ea4d (integration tests) — EXISTS ✓
+- `hp41-gui/src/App.tsx` modified — new isTextLabelKind + alpha_toggle/alphaChar branches ✓
+- `hp41-gui/src/App.test.tsx` modified — Group M added, Group L removed, A2/C1/F1/G3/G4 updated ✓
+- `hp41-gui/src/AlphaTouchInput.tsx` restored to original ✓
+- `hp41-gui/src/AlphaTouchInput.test.tsx` tests 6-10 removed ✓
+- Commit `fd642e0` (RED) — EXISTS ✓
+- Commit `26f8b4e` (GREEN) — EXISTS ✓
+- All tests pass (265/265) ✓
+- `just gui-ci` clean ✓
