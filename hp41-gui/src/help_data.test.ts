@@ -17,7 +17,7 @@
 //   that hole at the overlay-dataset boundary.
 
 import { describe, it, expect } from 'vitest';
-import { allFunctionsEntries, xeqToken, helpEntriesAll } from './help_data';
+import { allFunctionsEntries, xeqToken, helpEntriesAll, OVERLAY_HIDDEN_ALIASES } from './help_data';
 
 describe('allFunctionsEntries', () => {
     it('includes implemented key_path:null entries — e.g. SIN and CLRG', () => {
@@ -26,6 +26,16 @@ describe('allFunctionsEntries', () => {
         expect(names).toContain('SIN');
         expect(names).toContain('CLRG');
         expect(names).toContain('AVIEW');
+        expect(names).toContain('CLA');
+    });
+
+    it('hides non-authentic legacy aliases (CLRALPHA) but keeps the real mnemonic (CLA)', () => {
+        // s17: AlphaClear ("CLRALPHA") is an implemented legacy alias of Cla ("CLA").
+        // It stays resolvable for old saves but must NOT show in the index (CLA is shown).
+        const variants = allFunctionsEntries().map(e => e.op_variant);
+        const names = allFunctionsEntries().map(e => e.display_name);
+        expect(variants).not.toContain('AlphaClear');
+        expect(names).not.toContain('CLRALPHA');
         expect(names).toContain('CLA');
     });
 
@@ -101,7 +111,9 @@ describe('xeqToken', () => {
 
 describe('C1: allFunctionsEntries completeness guardrail', () => {
     it('every implemented entry from helpEntriesAll() is in allFunctionsEntries()', () => {
-        const allImplemented = helpEntriesAll().filter(e => e.status === 'implemented');
+        const allImplemented = helpEntriesAll().filter(
+            e => e.status === 'implemented' && !OVERLAY_HIDDEN_ALIASES.has(e.op_variant),
+        );
         const allFnVariants = new Set(allFunctionsEntries().map(e => e.op_variant));
 
         const missing = allImplemented

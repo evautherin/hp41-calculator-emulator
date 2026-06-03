@@ -250,9 +250,21 @@ export function helpEntriesXmem(): readonly HelpEntry[] {
 /// Memoized (stable reference for React equality, like helpEntriesAll()).
 let cachedAllFunctions: readonly HelpEntry[] | null = null;
 
+/// Phase s17: implemented op_variants deliberately HIDDEN from the All Functions
+/// index because they are non-authentic legacy aliases of another function that IS
+/// shown. They stay `status: "implemented"` (truthful — they execute) and keep their
+/// resolver arm + Op enum variant for v1.0 save-file compatibility (Pitfall 8), but
+/// listing them would duplicate a real HP-41 function under a fake mnemonic.
+///   - AlphaClear ("CLRALPHA") is the v1.0 legacy alias of Cla ("CLA"); the real
+///     HP-41 mnemonic is CLA, which is shown. CLRALPHA still resolves for old saves.
+/// Subtracted from the C1 completeness guardrail (see help_data.test.ts).
+export const OVERLAY_HIDDEN_ALIASES: ReadonlySet<string> = new Set(['AlphaClear']);
+
 export function allFunctionsEntries(): readonly HelpEntry[] {
     if (cachedAllFunctions === null) {
-        cachedAllFunctions = helpEntriesAll().filter(e => e.status === 'implemented');
+        cachedAllFunctions = helpEntriesAll().filter(
+            e => e.status === 'implemented' && !OVERLAY_HIDDEN_ALIASES.has(e.op_variant),
+        );
     }
     return cachedAllFunctions;
 }

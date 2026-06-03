@@ -63,7 +63,7 @@
 | ViewInd | VIEW IND | Indirect | ✓ v2.x | 24 | `f-v` | VIEW IND nn - display value of indirect register |
 | XeqInd | XEQ IND | Indirect | ✓ v2.x | 22 | — | XEQ IND nn - indirect subroutine call |
 | Abs | ABS | Math | ✓ v2.x | 20 | — | Absolute value of X |
-| ClSigmaStat | CL SIGMA | Math | ✓ v2.x | 6 | — | Clear stat registers R01..R06 to zero |
+| ClSigmaStat | CLΣ | Math | ✓ v2.x | 6 | — | Clear stat registers R01..R06 to zero |
 | Corr | CORR | Math | ✓ v2.x | 6 | — | Correlation coefficient r in X |
 | Exp | E^X | Math | ✓ v2.x | 2 | — | Natural exponential of X |
 | Fact | N! | Math | ✓ v2.x | 20 | — | Factorial of integer X; OutOfRange for X>69 |
