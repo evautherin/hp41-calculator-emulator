@@ -75,6 +75,21 @@ function ScaledApp(): React.ReactElement {
       vv.addEventListener('scroll', recompute)
     }
 
+    // (c2) Pinch-zoom lock — WKWebView honours the viewport meta's
+    // maximum-scale/user-scalable, but the WebKit gesture* events are the
+    // reliable belt-and-suspenders: preventing them blocks two-finger pinch from
+    // panning/offsetting the CSS-scaled calculator. Single-finger taps and
+    // one-finger scroll (help overlay, stack panel) are unaffected — gesture*
+    // only fires for multi-touch, and the touchmove guard checks touches.length.
+    const preventGesture = (e: Event) => e.preventDefault()
+    const preventMultiTouch = (e: TouchEvent) => {
+      if (e.touches.length > 1) e.preventDefault()
+    }
+    document.addEventListener('gesturestart', preventGesture, { passive: false })
+    document.addEventListener('gesturechange', preventGesture, { passive: false })
+    document.addEventListener('gestureend', preventGesture, { passive: false })
+    document.addEventListener('touchmove', preventMultiTouch, { passive: false })
+
     // (d) Content resize observer — fires whenever the calculator's layout height
     // changes (different viewport, font-metric variance, etc.).
     // Guard: ResizeObserver is not available in jsdom test environments.
@@ -99,6 +114,10 @@ function ScaledApp(): React.ReactElement {
       }
       if (ro) ro.disconnect()
       timers.forEach(t => window.clearTimeout(t))
+      document.removeEventListener('gesturestart', preventGesture)
+      document.removeEventListener('gesturechange', preventGesture)
+      document.removeEventListener('gestureend', preventGesture)
+      document.removeEventListener('touchmove', preventMultiTouch)
     }
   }, [])
 

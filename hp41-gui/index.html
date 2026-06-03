@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Lock the webview scale: the calculator manages its own fit via a CSS
+         transform (ScaledApp in main.tsx), so user pinch-zoom is unwanted — it
+         pans/offsets the locked layout. maximum-scale=1 + user-scalable=no keep
+         the viewport fixed (respected by WKWebView; see main.tsx for the
+         gesture-event belt-and-suspenders). viewport-fit=cover keeps
+         env(safe-area-inset-*) live for the notch/Dynamic Island insets. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>HP-41 Calculator</title>
   </head>
   <body data-theme="dark">
