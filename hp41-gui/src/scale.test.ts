@@ -44,3 +44,32 @@ describe("computeScale — MAX_SCALE upscale-to-fill contract", () => {
         expect(computeScale(-100, -100)).toBe(1);
     });
 });
+
+describe("computeScale — reservedHeight (BottomSheet peek + safe-area)", () => {
+    it("reservedHeight=0 is identical to the no-arg case (backward-compatible)", () => {
+        // Exactly the design size → scale 1 with or without reservedHeight=0.
+        expect(computeScale(DESIGN_WIDTH, DESIGN_HEIGHT, DESIGN_WIDTH, DESIGN_HEIGHT, 0)).toBe(1);
+        // Arbitrary viewport — must equal the 4-arg call.
+        expect(
+            computeScale(DESIGN_WIDTH * 2, DESIGN_HEIGHT * 2, DESIGN_WIDTH, DESIGN_HEIGHT, 0),
+        ).toBe(computeScale(DESIGN_WIDTH * 2, DESIGN_HEIGHT * 2));
+    });
+
+    it("reservedHeight consumes extra space — 100px reserve on a viewport 100px taller than design → scale 1", () => {
+        // viewport is design + 100px tall, but we reserve 100px → effective height = design height → scale 1
+        expect(
+            computeScale(DESIGN_WIDTH, DESIGN_HEIGHT + 100, DESIGN_WIDTH, DESIGN_HEIGHT, 100),
+        ).toBe(1);
+    });
+
+    it("when reservedHeight >= viewportHeight, effective height is 0 → guard returns 1 (no negative/NaN scale)", () => {
+        expect(computeScale(DESIGN_WIDTH, 32, DESIGN_WIDTH, DESIGN_HEIGHT, 32)).toBe(1);
+        expect(computeScale(DESIGN_WIDTH, 10, DESIGN_WIDTH, DESIGN_HEIGHT, 100)).toBe(1);
+    });
+
+    it("reservedHeight makes height the limiting ratio (width-generous viewport, tall reserve → height-limited result)", () => {
+        // Wide viewport (10× design width, never width-limited), but effective height = design/2 → scale 0.5
+        const result = computeScale(DESIGN_WIDTH * 10, DESIGN_HEIGHT, DESIGN_WIDTH, DESIGN_HEIGHT, DESIGN_HEIGHT / 2);
+        expect(result).toBeCloseTo(0.5, 5);
+    });
+});

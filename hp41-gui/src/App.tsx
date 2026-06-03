@@ -536,17 +536,22 @@ function App() {
   }, []);
 
   // Re-fit the calculator scale whenever a full-screen overlay (help `?` /
-  // settings) opens or closes. On iOS the help search input's autoFocus raises
-  // the virtual keyboard, which shrinks the viewport and shrinks the auto-scale;
+  // settings) opens or closes, OR when the PRGM annunciator / print-sheet
+  // visibility changes. On iOS the help search input's autoFocus raises the
+  // virtual keyboard, which shrinks the viewport and shrinks the auto-scale;
   // closing the overlay dismisses the keyboard but does NOT reliably fire a
   // window 'resize' on WKWebView, so the scaler would otherwise stay stuck at the
   // keyboard-visible (too-small) scale and the keypad's right column clips off
   // screen. ScaledApp (main.tsx) listens for this event and re-measures across a
   // few frames to outlast the keyboard-dismiss animation. Covers every close
   // path (✕ button, Esc keyboard, Esc-in-overlay) via the helpOpen dep.
+  // PRGM/print-sheet: the iOS BottomSheet is position:fixed so the ResizeObserver
+  // in main.tsx does NOT fire when the sheet mounts/unmounts; adding prgm + print
+  // visibility here ensures the stale-scale bug (too-small scale stuck in PRGM
+  // mode) is cleared on every toggle, and Task 2's peek reserve is recomputed. (mxg)
   useEffect(() => {
     window.dispatchEvent(new Event('hp41:recompute-scale'));
-  }, [helpOpen, settingsOpen]);
+  }, [helpOpen, settingsOpen, calcState?.annunciators.prgm, printLog.length > 0]);
 
   // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
   // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
