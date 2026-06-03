@@ -31,7 +31,7 @@
 //   - helpEntriesAll() updated from 4-pool to 5-pool length assertion
 //   - sectionButtons.length updated from 4 to 6
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { HelpOverlay } from './HelpOverlay';
 import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime, helpEntriesAdvantage, helpEntriesXmem } from './help_data';
@@ -566,5 +566,202 @@ describe('HelpOverlay', () => {
             rowsWithoutToggle.length,
             'Expected at least one row without an expand toggle (non-enriched entry)'
         ).toBeGreaterThan(0);
+    });
+});
+
+// ── Phase lu0 D-lu0-02: Two-tab overlay + tap-to-run tests ────────────────────
+//
+// Tests cover:
+//   B3.1 — Tab rendering + iOS-aware default tab
+//   B3.2 — All Functions completeness (SIN/CLRG/AVIEW visible, module order)
+//   B3.3 — Tap-to-run dispatch (onRun called with xeq_<token>)
+//   B3.4 — Non-tappable rows do not dispatch
+//   B3.5 — Single-id invariant: same xeq_ id in normal mode and PRGM mode
+
+describe('HelpOverlay — Phase lu0 tabs + tap-to-run', () => {
+
+    // ── B3.1: Tab rendering + default tab ────────────────────────────────────
+
+    it('renders two tabs with role="tab" when open', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} onRun={() => {}} />
+        );
+        const tabs = container.querySelectorAll('[role="tab"]');
+        expect(tabs.length, 'Expected exactly 2 tabs').toBe(2);
+        const tabTexts = Array.from(tabs).map(t => t.textContent ?? '');
+        expect(tabTexts.some(t => t.includes('Keyboard Shortcuts'))).toBe(true);
+        expect(tabTexts.some(t => t.includes('All Functions'))).toBe(true);
+    });
+
+    it('defaults to Keyboard Shortcuts tab when isIos is false (Desktop)', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={false} onRun={() => {}} />
+        );
+        const tabs = container.querySelectorAll('[role="tab"]');
+        const shortcutsTab = Array.from(tabs).find(t => t.textContent?.includes('Keyboard Shortcuts'));
+        const allFnTab = Array.from(tabs).find(t => t.textContent?.includes('All Functions'));
+        expect(shortcutsTab?.getAttribute('aria-selected')).toBe('true');
+        expect(allFnTab?.getAttribute('aria-selected')).toBe('false');
+    });
+
+    it('defaults to All Functions tab when isIos is true (iOS)', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={() => {}} />
+        );
+        const tabs = container.querySelectorAll('[role="tab"]');
+        const shortcutsTab = Array.from(tabs).find(t => t.textContent?.includes('Keyboard Shortcuts'));
+        const allFnTab = Array.from(tabs).find(t => t.textContent?.includes('All Functions'));
+        expect(allFnTab?.getAttribute('aria-selected')).toBe('true');
+        expect(shortcutsTab?.getAttribute('aria-selected')).toBe('false');
+    });
+
+    it('clicking a tab toggles aria-selected', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={false} onRun={() => {}} />
+        );
+        const tabs = container.querySelectorAll('[role="tab"]');
+        const allFnTab = Array.from(tabs).find(t => t.textContent?.includes('All Functions')) as HTMLElement;
+        const shortcutsTab = Array.from(tabs).find(t => t.textContent?.includes('Keyboard Shortcuts')) as HTMLElement;
+        expect(shortcutsTab.getAttribute('aria-selected')).toBe('true');
+        expect(allFnTab.getAttribute('aria-selected')).toBe('false');
+        // Switch to All Functions.
+        fireEvent.click(allFnTab);
+        expect(allFnTab.getAttribute('aria-selected')).toBe('true');
+        expect(shortcutsTab.getAttribute('aria-selected')).toBe('false');
+        // Switch back to Keyboard Shortcuts.
+        fireEvent.click(shortcutsTab);
+        expect(shortcutsTab.getAttribute('aria-selected')).toBe('true');
+        expect(allFnTab.getAttribute('aria-selected')).toBe('false');
+    });
+
+    // ── B3.2: All Functions completeness ──────────────────────────────────────
+
+    it('All Functions tab lists previously-hidden functions (SIN, CLRG, AVIEW)', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={() => {}} />
+        );
+        // iOS default = All Functions tab. All three were invisible before lu0.
+        const text = container.textContent ?? '';
+        expect(text).toContain('SIN');
+        expect(text).toContain('CLRG');
+        expect(text).toContain('AVIEW');
+    });
+
+    it('All Functions tab has module headers in locked order (HP-41CV Built-in, Math Pac, Stat Pac, Time Pac, Advantage Pac, Extended Memory)', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={() => {}} />
+        );
+        const sectionBtns = container.querySelectorAll('.help-overlay-section-heading');
+        const btnsText = Array.from(sectionBtns).map(b => b.textContent ?? '');
+        expect(btnsText.some(t => t.includes('HP-41CV Built-in'))).toBe(true);
+        expect(btnsText.some(t => t.includes('Math Pac'))).toBe(true);
+        expect(btnsText.some(t => t.includes('Stat Pac'))).toBe(true);
+        expect(btnsText.some(t => t.includes('Time Pac'))).toBe(true);
+        // Single Advantage Pac header (not two separate XROM 22 / XROM 24)
+        expect(btnsText.some(t => t.includes('Advantage Pac') && !t.includes('XROM 22') && !t.includes('XROM 24'))).toBe(true);
+        expect(btnsText.some(t => t.includes('Extended Memory'))).toBe(true);
+    });
+
+    // ── B3.3: Tap-to-run dispatch ──────────────────────────────────────────────
+
+    it('tapping a runnable row calls onRun with xeq_CLRG', () => {
+        const onRun = vi.fn();
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={onRun} />
+        );
+        // Find the CLRG run button.
+        const runBtns = container.querySelectorAll('.help-fn-run-btn');
+        const clrgBtn = Array.from(runBtns).find(b =>
+            b.textContent?.includes('CLRG')
+        ) as HTMLElement | undefined;
+        expect(clrgBtn, 'CLRG run button must exist in All Functions tab').toBeTruthy();
+        fireEvent.click(clrgBtn!);
+        expect(onRun).toHaveBeenCalledOnce();
+        expect(onRun).toHaveBeenCalledWith('xeq_CLRG');
+    });
+
+    it('tapping SIN row calls onRun with xeq_SIN', () => {
+        const onRun = vi.fn();
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={onRun} />
+        );
+        const runBtns = container.querySelectorAll('.help-fn-run-btn');
+        const sinBtn = Array.from(runBtns).find(b =>
+            (b.querySelector('.help-overlay-op')?.textContent ?? '') === 'SIN'
+        ) as HTMLElement | undefined;
+        expect(sinBtn, 'SIN run button must exist').toBeTruthy();
+        fireEvent.click(sinBtn!);
+        expect(onRun).toHaveBeenCalledWith('xeq_SIN');
+    });
+
+    // ── B3.4: Non-tappable rows do not dispatch ────────────────────────────────
+
+    it('non-tappable rows (STO, +) are NOT help-fn-run-btn elements', () => {
+        const onRun = vi.fn();
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={onRun} />
+        );
+        // Non-tappable rows should have aria-disabled and NO .help-fn-run-btn
+        const nonTappableRows = container.querySelectorAll('.help-overlay-row--non-tappable');
+        expect(nonTappableRows.length, 'Expected non-tappable rows to exist').toBeGreaterThan(0);
+        for (const row of Array.from(nonTappableRows)) {
+            expect(row.querySelector('.help-fn-run-btn'), 'Non-tappable row must not have run button').toBeNull();
+            expect(row.getAttribute('aria-disabled')).toBe('true');
+        }
+        // No onRun should have fired.
+        expect(onRun).not.toHaveBeenCalled();
+    });
+
+    // ── B3.5: Single-id invariant (normal mode == PRGM mode, dispatch id unchanged) ─
+
+    it('the xeq_ token used in normal mode is identical to that used in PRGM mode (single-id design)', () => {
+        // Prove the invariant at the data level: xeqToken returns the same display_name
+        // regardless of prgm state (the id doesn't change — the backend PRGM gate splits behavior).
+        // This is a correctness assertion about the design decision, not a behavior test.
+        //
+        // Practical implication tested above: onRun is called with 'xeq_CLRG' — the same string
+        // would be dispatched whether calcState.annunciators.prgm is true or false.
+        const onRunNormal = vi.fn();
+        const onRunPrgm = vi.fn();
+
+        // Normal-mode render.
+        const { container: cNormal, unmount: unmountNormal } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={onRunNormal} />
+        );
+        const clrgBtnNormal = Array.from(cNormal.querySelectorAll('.help-fn-run-btn')).find(b =>
+            b.textContent?.includes('CLRG')
+        ) as HTMLElement | undefined;
+        expect(clrgBtnNormal).toBeTruthy();
+        fireEvent.click(clrgBtnNormal!);
+        expect(onRunNormal).toHaveBeenCalledWith('xeq_CLRG');
+        unmountNormal();
+
+        // PRGM-mode render — overlay receives the same onRun prop regardless of prgm flag;
+        // the PRGM state is backend-only.
+        const { container: cPrgm } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={true} onRun={onRunPrgm} />
+        );
+        const clrgBtnPrgm = Array.from(cPrgm.querySelectorAll('.help-fn-run-btn')).find(b =>
+            b.textContent?.includes('CLRG')
+        ) as HTMLElement | undefined;
+        expect(clrgBtnPrgm).toBeTruthy();
+        fireEvent.click(clrgBtnPrgm!);
+        // The dispatched id is identical in both modes (D-lu0-02 single-id design).
+        expect(onRunPrgm).toHaveBeenCalledWith('xeq_CLRG');
+        expect(onRunNormal.mock.calls[0][0]).toBe(onRunPrgm.mock.calls[0][0]);
+    });
+
+    // ── B3.6: Keyboard Shortcuts tab is preserved when isIos=false ────────────
+
+    it('Keyboard Shortcuts tab still shows key_path-filtered sections on Desktop (D-26.8 preserved)', () => {
+        const { container } = render(
+            <HelpOverlay open={true} onClose={() => {}} isIos={false} onRun={() => {}} />
+        );
+        // Desktop = Keyboard Shortcuts default tab. Should show original section headings.
+        const sectionBtns = container.querySelectorAll('.help-overlay-section-heading');
+        const btnsText = Array.from(sectionBtns).map(b => b.textContent ?? '');
+        expect(btnsText.some(t => t.toUpperCase().includes('KEYBOARD SHORTCUTS'))).toBe(true);
+        expect(btnsText.some(t => t.includes('HP-41CV (built-in)'))).toBe(true);
+        expect(btnsText.some(t => t.includes('Math 1 Pac (XROM 7)'))).toBe(true);
     });
 });

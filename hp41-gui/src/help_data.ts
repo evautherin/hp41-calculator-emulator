@@ -235,6 +235,90 @@ export function helpEntriesXmem(): readonly HelpEntry[] {
     return xmemFunctions as readonly HelpEntry[];
 }
 
+/// Phase lu0 D-lu0-02: All-functions overlay dataset.
+///
+/// Returns every helpEntriesAll() entry with status === 'implemented', WITHOUT
+/// the `key_path !== null` exclusion used by the Keyboard Shortcuts tab (D-26.8).
+/// This revises D-26.8's "exclude key_path:null" rule for the new All Functions
+/// tab only — the Keyboard Shortcuts tab (filterHelpEntries, helpOverlayRows)
+/// keeps the D-26.8 exclusion unchanged.
+///
+/// Includes the 74 cv-pool key_path:null built-ins (SIN, LN, SQRT, AVIEW, CLST,
+/// CLRG, CLA, …) that were previously invisible in the `?` overlay, plus all
+/// implemented entries from the 5 module pools.
+///
+/// Memoized (stable reference for React equality, like helpEntriesAll()).
+let cachedAllFunctions: readonly HelpEntry[] | null = null;
+
+export function allFunctionsEntries(): readonly HelpEntry[] {
+    if (cachedAllFunctions === null) {
+        cachedAllFunctions = helpEntriesAll().filter(e => e.status === 'implemented');
+    }
+    return cachedAllFunctions;
+}
+
+/// Phase lu0 D-lu0-02: The 61 op_variants that are NOT runnable by XEQ-by-name.
+///
+/// ALL 61 fall into three classes — none of which is XEQ-runnable on a real HP-41 either:
+///   1. Parameterized ops needing an argument (STO, RCL, FIX, SCI, ENG, SF, CF, ISG, DSE,
+///      VIEW, TONE, ARCL, ASTO, GTO, XEQ, LBL, CLP, DEL, ASN, STO+/-/*//,
+///      and all IND variants).
+///   2. Immediate stack/entry keys (+ - * / ENTER CLX CHS Rv X<>Y LASTX %CH).
+///   3. Mode / composite-placeholder rows (ALPHA, ALPHA char, ALPHA <-, PRGM, USER,
+///      CATALOG, GETKEY, NULL, X?Y / X?0, FS?/FC?/FS?C/FC?C + IND).
+///
+/// Pinned here AND in hp41-cli/tests/tappability_parity.rs (NON_TAPPABLE Rust set).
+/// The Rust test asserts the size is exactly 61 — so neither set can drift silently.
+///
+/// D-07: NEVER dispatch an id for a NON_TAPPABLE entry — the resolver would reject it.
+const NON_TAPPABLE: ReadonlySet<string> = new Set([
+    // ── Parameterized ops (require an argument — not XEQ-by-name runnable) ──
+    'StoReg', 'RclReg', 'StoArith', 'StoArithStack',
+    'StoM', 'StoN', 'StoO', 'RclM', 'RclN', 'RclO',
+    'StoInd', 'RclInd', 'StoArithInd',
+    'FmtFix', 'FmtSci', 'FmtEng',
+    'SfFlag', 'CfFlag', 'SfFlagInd', 'CfFlagInd',
+    'FlagTest', 'FlagTestInd',
+    'View', 'ViewInd',
+    'Tone',
+    'Isg', 'Dse', 'IsgInd', 'DseInd',
+    'Arcl', 'ArclInd', 'Asto', 'AstoInd',
+    'Gto', 'GtoInd',
+    'Xeq', 'XeqInd',
+    'Lbl',
+    'Clp', 'Del',
+    'Asn',
+    'Test',
+    // ── Immediate stack / entry keys (raw arithmetic / stack ops) ──
+    'Add', 'Sub', 'Mul', 'Div',
+    'Enter', 'Clx', 'Chs', 'Rdn', 'XySwap', 'Lastx',
+    'PctChange',
+    // ── Mode / composite-placeholder rows ──
+    'AlphaToggle', 'AlphaAppend', 'AlphaBackspace',
+    'PrgmMode',
+    'UserMode',
+    'Catalog',
+    'GetKey',
+    'Null',
+]);
+
+/// Phase lu0 D-lu0-02: Tappability resolver for All Functions overlay rows.
+///
+/// Returns entry.display_name when the entry is runnable by XEQ-by-name,
+/// else null. For every runnable entry the resolver accepts display_name
+/// verbatim (builtin_card_op / xrom_resolve register the exact display_name
+/// spelling, including Unicode glyphs like "ΣBSTAT" U+03A3, "C×", "Z↑N");
+/// non-runnable entries (parameterized / key-only / composite) return null
+/// and MUST render non-tappable (D-07: never dispatch an unresolvable id).
+///
+/// The dispatch token for a tappable row is `xeq_${xeqToken(entry)}`, which
+/// maps through key_map.rs `xeq_` prefix → Op::Xeq(label) → op_xeq().
+/// PRGM mode: the SAME id dispatched in PRGM mode inserts Op::Xeq(label) as a
+/// program step (mod.rs PRGM gate) — no frontend branching required.
+export function xeqToken(entry: Pick<HelpEntry, 'op_variant' | 'display_name'>): string | null {
+    return NON_TAPPABLE.has(entry.op_variant) ? null : entry.display_name;
+}
+
 /// Phase 52 Plan 52-01: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac + X-MEM entries.
 ///
 /// UPDATED from Phase 46 Plan 46-02 (5-pool) to 6-pool concatenation.
