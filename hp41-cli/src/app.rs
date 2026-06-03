@@ -652,7 +652,13 @@ impl App {
                 if self.state.entry_buf.contains('.') || self.state.entry_buf.contains('e') {
                     return; // silently ignore malformed input
                 }
-                self.state.entry_buf.push('.');
+                // Real HP-41CV leading-zero entry: '.' on an empty buffer shows "0." not ".".
+                // Seeding "0." matches hardware behavior and makes the display read "0.1" for ".1".
+                if self.state.entry_buf.is_empty() {
+                    self.state.entry_buf.push_str("0.");
+                } else {
+                    self.state.entry_buf.push('.');
+                }
                 self.message = None;
                 return;
             }

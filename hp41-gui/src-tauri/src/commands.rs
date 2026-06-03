@@ -225,7 +225,13 @@ pub fn handle_op_prepare(
     // ── '.' — block duplicate '.' and '.' after 'e' ──────────────────────────
     if key_id == "." {
         if !calc.entry_buf.contains('.') && !calc.entry_buf.contains('e') {
-            calc.entry_buf.push('.');
+            // Real HP-41CV leading-zero entry: '.' on an empty buffer shows "0." not ".".
+            // Seeding "0." matches hardware behavior and makes the display read "0.1" for ".1".
+            if calc.entry_buf.is_empty() {
+                calc.entry_buf.push_str("0.");
+            } else {
+                calc.entry_buf.push('.');
+            }
         }
         return Ok(None);
     }
