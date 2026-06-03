@@ -9,7 +9,6 @@ import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
 import OnboardingWizard from './OnboardingWizard';
 import RawPickerOverlay from './RawPickerOverlay';
-import AlphaTouchInput from './AlphaTouchInput';
 import BottomSheet from './BottomSheet';
 import {
   handleModalKey,
@@ -1367,33 +1366,14 @@ function App() {
           }
         }}
       />
-      {/* Phase 55 Plan 04 — AlphaTouchInput: iOS-gated touch text entry bar (TOUCH-04 + D-55.2).
-          Renders when isIos AND (ALPHA-register mode OR backend modal-label prompt is active).
-          Routes via the EXISTING alpha_<X> dispatch and submit_modal_with_label IPC paths.
-          Desktop (isIos=false) renders nothing — existing physical-keyboard path unchanged.
-          XEQ/GTO/LBL/CLP/ASN-label modals (xeq_name, clp, assign_label) do NOT show this bar
-          — per user decision (TOUCH-04): name entry uses the on-screen HP-41 keypad directly,
-          with ENTER typing 'N' and ALPHA terminating (see handleClick modal-routing above). */}
-      {/* Portaled to document.body so its position:fixed is relative to the VIEWPORT,
-          not the scaled .scaled-app-frame (a transform ancestor becomes the containing
-          block for position:fixed descendants — sef). Keeps the bar pinned above the iOS
-          keyboard instead of glued to the scaled calculator's edge. */}
-      {/* u6t — native keys-only ALPHA entry: do NOT show this bar (and pop the iOS
-          keyboard) for plain ALPHA-register mode; the on-screen HP-41 keys handle ALPHA
-          input and ← deletes the last char, with the text shown on the main display. The
-          bar is kept ONLY for the INTG/SOLVE/DIFEQ "FUNCTION NAME?" modal-label prompt,
-          which still needs free-text label entry. */}
-      {isIos && calcState.modal_requires_alpha_label && createPortal(
-        <AlphaTouchInput
-          isAlphaMode={calcState.annunciators.alpha}
-          isModalLabelMode={calcState.modal_requires_alpha_label}
-          modalPrompt={calcState.modal_prompt}
-          alphaText={calcState.annunciators.alpha ? calcState.display_str : ''}
-          onDispatch={dispatchKeyId}
-          onSubmitLabel={(label) => invoke('submit_modal_with_label', { label })}
-        />,
-        document.body,
-      )}
+      {/* u6t — iOS ALPHA entry is now keys-only: the AlphaTouchInput iOS-keyboard bar
+          (Phase 55 TOUCH-04) is removed entirely. Plain ALPHA-register entry uses the
+          on-screen HP-41 keys (← deletes the last char); the INTG/SOLVE/DIFEQ
+          "FUNCTION NAME?" prompt is spelled via the on-screen keys too — the
+          collect-for-modal pendingInput path routes blue-key letters into the name
+          accumulator and ALPHA submits via the same submit_modal_with_label IPC the bar
+          used (handleModalKey → __submit_modal_with_label__<acc> → invokeForKey). The
+          ALPHA text shows on the main 14-seg display. (AlphaTouchInput.tsx is now unused.) */}
       {/* Phase 55 Plan 05 — Print panel: bottom sheet on iOS, inline panel on desktop.
           iOS: pull-up sheet visible when printLog.length > 0.
           Desktop: existing .print-panel gated by printPanelOpen (byte-for-byte unchanged). */}

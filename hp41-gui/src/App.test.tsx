@@ -861,11 +861,14 @@ describe('M — TOUCH-04 keypad-only name entry: ENTER=N, ALPHA=terminate', () =
     expect(bar).toBeNull();
   });
 
-  // M3c: the bar STILL shows for the INTG/SOLVE/DIFEQ "FUNCTION NAME?" modal-label prompt.
-  it('M3c: isIos=true + modal_requires_alpha_label → AlphaTouchInput bar shown', async () => {
+  // M3c: the AlphaTouchInput bar is removed everywhere on iOS (u6t) — even the
+  // INTG/SOLVE/DIFEQ "FUNCTION NAME?" modal-label prompt is now keys-only (the
+  // collect-for-modal pendingInput routes blue-key letters into the name accumulator and
+  // ALPHA submits via the same submit_modal_with_label IPC).
+  it('M3c: isIos=true + modal_requires_alpha_label → AlphaTouchInput bar NOT shown', async () => {
     await renderAppAsIos({ modal_requires_alpha_label: true });
     const bar = document.querySelector('.alpha-touch-input-bar');
-    expect(bar).not.toBeNull();
+    expect(bar).toBeNull();
   });
 
   // M4: Regression — on-screen ENTER in an assign_label modal still terminates
