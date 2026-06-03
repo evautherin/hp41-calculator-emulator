@@ -99,16 +99,20 @@ function AlphaTouchInputInner({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     if (isAlphaMode) {
-      // Dispatch each new character in [A-Z0-9 ] (uppercased, T-55-07 filter).
+      // Dispatch each new character in [A-Z0-9 ] (uppercased, T-55-07 filter) AND
+      // accumulate the accepted chars locally so the bar's field shows what was typed
+      // (sef: previously the field was cleared after each char, so it always looked
+      // empty even though the chars reached the ALPHA register / main display).
       const diff = newValue.slice(inputValue.length);
+      let added = '';
       for (const rawCh of diff) {
         const ch = rawCh.toUpperCase();
         if (/^[A-Z0-9 ]$/.test(ch)) {
           onDispatch(`alpha_${ch}`);
+          added += ch;
         }
       }
-      // Clear the input after dispatching so successive chars are always "diff".
-      setInputValue('');
+      setInputValue(inputValue + added);
     } else {
       // modal-label mode: accumulate
       setInputValue(newValue);
@@ -119,9 +123,11 @@ function AlphaTouchInputInner({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       if (isAlphaMode) {
-        // ALPHA mode: Backspace → clx (clear X register, removes last alpha char in HP-41).
+        // ALPHA mode: Backspace → clx (removes last alpha char in HP-41), and pop the
+        // locally-accumulated value so the bar's field stays in sync (sef).
         e.preventDefault();
         onDispatch('clx');
+        setInputValue(prev => prev.slice(0, -1));
       } else {
         // modal-label mode: remove last char from accumulated local state.
         e.preventDefault();
