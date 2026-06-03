@@ -730,8 +730,9 @@ describe('HP-41 back-arrow fidelity — entry_backspace per-digit deletion', () 
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'clx' });
   });
 
-  // L3: On-screen ← in alpha mode still dispatches 'alpha_clear' (unchanged).
-  it('L3: on-screen ← in alpha mode dispatches alpha_clear (unchanged)', async () => {
+  // L3: On-screen ← in alpha mode deletes the LAST alpha char (alpha_backspace, u6t) —
+  // was alpha_clear (full wipe). Native keys-only ALPHA entry needs a per-char backspace.
+  it('L3: on-screen ← in alpha mode dispatches alpha_backspace', async () => {
     // Override mock so get_state returns alpha=true
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
@@ -745,8 +746,9 @@ describe('HP-41 back-arrow fidelity — entry_backspace per-digit deletion', () 
     const { container } = await renderAppAndWait();
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
     await clickKey(container, 'clx_or_a');
-    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_clear' });
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_backspace' });
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_clear' });
   });
 });
 
@@ -847,13 +849,21 @@ describe('M — TOUCH-04 keypad-only name entry: ENTER=N, ALPHA=terminate', () =
     expect(bar).toBeNull();
   });
 
-  // M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar IS shown.
-  // Guards that plain ALPHA-register mode still shows the software keyboard bar.
-  it('M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar shown', async () => {
+  // M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar is NOT shown (u6t).
+  // Native keys-only ALPHA entry: plain ALPHA mode uses the on-screen HP-41 keys + the
+  // main display, no iOS software keyboard. The bar is reserved for the modal-label prompt.
+  it('M3b: isIos=true + plain ALPHA mode → AlphaTouchInput bar NOT shown (keys-only)', async () => {
     await renderAppAsIos({
       annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
     });
     // Queried on document (not container): the bar is portaled to document.body (sef).
+    const bar = document.querySelector('.alpha-touch-input-bar');
+    expect(bar).toBeNull();
+  });
+
+  // M3c: the bar STILL shows for the INTG/SOLVE/DIFEQ "FUNCTION NAME?" modal-label prompt.
+  it('M3c: isIos=true + modal_requires_alpha_label → AlphaTouchInput bar shown', async () => {
+    await renderAppAsIos({ modal_requires_alpha_label: true });
     const bar = document.querySelector('.alpha-touch-input-bar');
     expect(bar).not.toBeNull();
   });

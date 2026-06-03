@@ -160,6 +160,12 @@ function resolveKeyId(e: KeyboardEvent, state: CalcStateView | null): string | n
       return `alpha_${ch}`;
     }
   }
+  // Backspace in ALPHA mode → alpha_backspace (remove last alpha char; HP-41 ← key,
+  // CLI D-13 parity). MUST precede the MAP below where 'Backspace' → 'entry_backspace'
+  // (which operates on the number-entry buffer, not the ALPHA register). (u6t)
+  if (state?.annunciators?.alpha && e.key === 'Backspace') {
+    return 'alpha_backspace';
+  }
 
   // EEX-CHS: 'n' routes based on current in_eex_mode (D-06)
   if (e.key === 'n') return state?.in_eex_mode ? 'eex_chs' : 'chs';
@@ -831,8 +837,10 @@ function App() {
         // Non-alpha: 'entry_backspace' → backspace_entry() core helper gives
         // per-digit deletion during entry, CLX when no active entry (HP-41
         // fidelity fix, D-25.6). Matches CLI behaviour and physical-keyboard
-        // resolveKeyId path. Alpha branch ('alpha_clear') is unchanged.
-        const targetId = alphaOn ? 'alpha_clear' : 'entry_backspace';
+        // resolveKeyId path. ALPHA mode: ← deletes the LAST alpha char
+        // (alpha_backspace, HP-41 ← key) — was alpha_clear (full wipe), corrected
+        // for native keys-only ALPHA entry (u6t). Full clear remains via XEQ "CLA".
+        const targetId = alphaOn ? 'alpha_backspace' : 'entry_backspace';
         view = await invoke<CalcStateView>('dispatch_op', { keyId: targetId });
       } else {
         view = await invokeForKey(effectiveId, calcState);
@@ -1370,7 +1378,12 @@ function App() {
           not the scaled .scaled-app-frame (a transform ancestor becomes the containing
           block for position:fixed descendants — sef). Keeps the bar pinned above the iOS
           keyboard instead of glued to the scaled calculator's edge. */}
-      {isIos && (calcState.annunciators.alpha || calcState.modal_requires_alpha_label) && createPortal(
+      {/* u6t — native keys-only ALPHA entry: do NOT show this bar (and pop the iOS
+          keyboard) for plain ALPHA-register mode; the on-screen HP-41 keys handle ALPHA
+          input and ← deletes the last char, with the text shown on the main display. The
+          bar is kept ONLY for the INTG/SOLVE/DIFEQ "FUNCTION NAME?" modal-label prompt,
+          which still needs free-text label entry. */}
+      {isIos && calcState.modal_requires_alpha_label && createPortal(
         <AlphaTouchInput
           isAlphaMode={calcState.annunciators.alpha}
           isModalLabelMode={calcState.modal_requires_alpha_label}
