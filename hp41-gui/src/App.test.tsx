@@ -877,3 +877,31 @@ describe('M — TOUCH-04 keypad-only name entry: ENTER=N, ALPHA=terminate', () =
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', expect.objectContaining({ keyId: expect.stringContaining('fix_N') }));
   });
 });
+
+// =====================================================================
+// quick-task 260603-o2e — authentic PRGM step in main display
+// Regression: prgm=true => main display shows the step, not the X value.
+// Backend prgm_mode branch in CalcStateView::from_state now puts the step
+// into display_str; frontend renders display_str verbatim (no listing queried).
+// =====================================================================
+
+describe('quick-task 260603-o2e — authentic PRGM step in main display', () => {
+  it('O2E-1: prgm=true + display_str="000 END" => main display shows "000 END", not X register', async () => {
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({
+      display_str: '000 END',
+      annunciators: { user: false, prgm: true, alpha: false, rad: false, grad: false },
+    }));
+    const { container } = await renderAppAndWait();
+    expect(getDisplayText(container)).toBe('000 END');
+    expect(getDisplayText(container)).not.toBe('0.0000');
+  });
+
+  it('O2E-2: prgm=true + display_str="001 XEQ CLRG" => main display shows that step (not hardcoded END)', async () => {
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({
+      display_str: '001 XEQ CLRG',
+      annunciators: { user: false, prgm: true, alpha: false, rad: false, grad: false },
+    }));
+    const { container } = await renderAppAndWait();
+    expect(getDisplayText(container)).toBe('001 XEQ CLRG');
+  });
+});
