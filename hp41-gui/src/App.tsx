@@ -523,6 +523,19 @@ function App() {
     invoke<boolean>('is_ios').then(setIsIos).catch(() => setIsIos(false));
   }, []);
 
+  // Re-fit the calculator scale whenever a full-screen overlay (help `?` /
+  // settings) opens or closes. On iOS the help search input's autoFocus raises
+  // the virtual keyboard, which shrinks the viewport and shrinks the auto-scale;
+  // closing the overlay dismisses the keyboard but does NOT reliably fire a
+  // window 'resize' on WKWebView, so the scaler would otherwise stay stuck at the
+  // keyboard-visible (too-small) scale and the keypad's right column clips off
+  // screen. ScaledApp (main.tsx) listens for this event and re-measures across a
+  // few frames to outlast the keyboard-dismiss animation. Covers every close
+  // path (✕ button, Esc keyboard, Esc-in-overlay) via the helpOpen dep.
+  useEffect(() => {
+    window.dispatchEvent(new Event('hp41:recompute-scale'));
+  }, [helpOpen, settingsOpen]);
+
   // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
   // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
   // Checks onboarding_done to auto-open wizard on first run (P59: lives in prefs.json,

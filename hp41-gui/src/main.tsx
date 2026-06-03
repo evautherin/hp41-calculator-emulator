@@ -46,10 +46,36 @@ function ScaledApp(): React.ReactElement {
       setScale(computeScale(window.innerWidth, window.innerHeight, measuredW, measuredH))
     }
 
+    // Re-measure across a few frames to outlast async viewport settling — in
+    // particular the iOS virtual-keyboard dismiss animation, which restores the
+    // viewport AFTER the overlay-close event fires and without a reliable
+    // window 'resize' on WKWebView. A single synchronous recompute would read
+    // the still-shrunk viewport and leave the keypad clipped.
+    const timers: number[] = []
+    const recomputeSoon = () => {
+      recompute()
+      requestAnimationFrame(recompute)
+      timers.push(window.setTimeout(recompute, 350))
+    }
+
     // (a) Window resize listener
     window.addEventListener('resize', recompute)
 
-    // (b) Content resize observer — fires whenever the calculator's layout height
+    // (b) Overlay-close re-fit — App dispatches this when the help/settings
+    // overlay opens or closes (see App.tsx). The "soon" variant re-measures over
+    // ~350ms so the iOS keyboard-dismiss restore is captured.
+    window.addEventListener('hp41:recompute-scale', recomputeSoon)
+
+    // (c) visualViewport — the reliable iOS signal for virtual-keyboard show/hide
+    // and pinch-zoom; the plain window 'resize' event is flaky on WKWebView for
+    // keyboard dismissal. Guarded for environments without the API.
+    const vv = window.visualViewport
+    if (vv) {
+      vv.addEventListener('resize', recompute)
+      vv.addEventListener('scroll', recompute)
+    }
+
+    // (d) Content resize observer — fires whenever the calculator's layout height
     // changes (different viewport, font-metric variance, etc.).
     // Guard: ResizeObserver is not available in jsdom test environments.
     let ro: ResizeObserver | null = null
@@ -66,7 +92,13 @@ function ScaledApp(): React.ReactElement {
 
     return () => {
       window.removeEventListener('resize', recompute)
+      window.removeEventListener('hp41:recompute-scale', recomputeSoon)
+      if (vv) {
+        vv.removeEventListener('resize', recompute)
+        vv.removeEventListener('scroll', recompute)
+      }
       if (ro) ro.disconnect()
+      timers.forEach(t => window.clearTimeout(t))
     }
   }, [])
 
