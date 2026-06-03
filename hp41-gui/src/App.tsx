@@ -275,6 +275,7 @@ function App() {
   // macOS launch mode — overridden by get_prefs on mount; only meaningful on macOS.
   const [macosLaunchMode, setMacosLaunchMode] = useState<string>('menu-bar');
   const [isMacos, setIsMacos] = useState(false);
+  const [isIos, setIsIos] = useState(false); // D-55.1 — gates touch behaviors on iOS
   // Phase 49 D-49.4/D-49.8/ONBOARD-01 — onboarding wizard overlay state.
   // onboardingOpen: wizard visible; isFirstRun: true when auto-opened on first launch
   //   (Esc blocked in first-run mode per D-49.9), false when re-opened from settings.
@@ -493,6 +494,12 @@ function App() {
 
   useEffect(() => {
     invoke<boolean>('is_macos').then(setIsMacos).catch(() => setIsMacos(false));
+  }, []);
+
+  // D-55.1 — detect iOS to gate touch behaviors (bottom sheets, collapsible stack,
+  // AlphaTouchInput bar, .key-touch-target overlays, haptic calls).
+  useEffect(() => {
+    invoke<boolean>('is_ios').then(setIsIos).catch(() => setIsIos(false));
   }, []);
 
   // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
@@ -1070,7 +1077,7 @@ function App() {
     : (calcState.display_override ?? calcState.display_str);
 
   return (
-    <div className="calculator">
+    <div className="calculator" data-isios={isIos || undefined}>
       {/* Phase 48 D-48.1 — title bar with gear icon and ? help button.
           The gear icon uses onMouseDown + e.stopPropagation() to prevent the
           SettingsPanel's click-outside mousedown listener from immediately
