@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import './App.css';
 import { Keyboard, KEY_DEFS, THEME_GRADIENTS, type KeyDef } from './Keyboard';
+import { triggerHaptic, maybeFireErrorHaptic, ensureAudioResumed } from './haptics';
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
@@ -292,6 +293,16 @@ function App() {
   // state value distinct on each call.
   const [toast, setToast] = useState<{ msg: string; seq: number } | null>(null);
   const toastSeqRef = useRef(0);
+  // Phase 55 Plan 03: iOS haptic + audio refs.
+  // audioResumedRef: one-shot guard — AudioContext resumed once on first pointerdown (TOUCH-06).
+  // errorHapticFiredRef: prevents notificationFeedback('error') from re-firing on every render
+  //   while a DATA ERROR / NO ROOM display is active (T-55-06 / Pitfall 7).
+  // audioCtxRef: holds the AudioContext instance created lazily on first iOS gesture;
+  //   TONE/BEEP audio is currently routed through Rust but Web Audio is pre-unocked here
+  //   so future audio additions are immediately audible without a gesture barrier.
+  const audioResumedRef = useRef(false);
+  const errorHapticFiredRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const showToast = useCallback((msg: string) => {
     toastSeqRef.current += 1;
     setToast({ msg, seq: toastSeqRef.current });
@@ -535,10 +546,14 @@ function App() {
     if (busyRef.current) return;
     busyRef.current = true;
     invokeForKey(keyId, calcState)
-      .then(view => { setCalcState(view); setErrorMessage(null); })
+      .then(view => {
+        setCalcState(view);
+        setErrorMessage(null);
+        void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
+      })
       .catch(err => showToast(extractErrMessage(err)))
       .finally(() => { busyRef.current = false; });
-  }, [calcState, showToast]);
+  }, [calcState, isIos, showToast]);
 
   // Apply a ModalKeyResult — updates state and optionally dispatches.
   // Returns true if a dispatch was issued (caller can short-circuit).
@@ -552,6 +567,7 @@ function App() {
         const view = await invokeForKey(result.dispatchId, calcState);
         setCalcState(view);
         setErrorMessage(null);
+        void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
       } catch (err) {
         showToast(extractErrMessage(err));
       } finally {
@@ -559,7 +575,7 @@ function App() {
       }
       return true;
     },
-    [calcState, showToast],
+    [calcState, isIos, showToast],
   );
 
   // On-screen keyboard click router. Resolution order:
@@ -707,13 +723,14 @@ function App() {
       }
       setCalcState(view);
       setErrorMessage(null);
+      void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
     } catch (err) {
       showToast(extractErrMessage(err));
     } finally {
       if (consumesShift) setShiftActive(false);
       busyRef.current = false;
     }
-  }, [calcState, shiftActive, pendingInput, applyModalResult, showToast]);
+  }, [calcState, isIos, shiftActive, pendingInput, applyModalResult, showToast]);
 
   // Physical-keyboard handler — useCallback with calcState dep so 'n' reads latest in_eex_mode.
   // Tab toggles SHIFT, Esc cancels in precedence order: help → modal → shift
@@ -1147,10 +1164,20 @@ function App() {
         userKeymap={calcState.user_keymap}
         gradientColors={THEME_GRADIENTS[theme] || THEME_GRADIENTS['dark']}
         isIos={isIos}
-        onPointerDown={(_key) => {
-          // Phase 55 Plan 02: stub — haptic + audio wired in Plan 03.
-          // onPointerDown fires immediately on touch (before any tap delay),
-          // giving Plan 03 a synchronous hook inside the user-gesture handler.
+        onPointerDown={(key) => {
+          // Phase 55 Plan 03: per-key haptics + audio resume (TOUCH-05, TOUCH-06, TOUCH-08).
+          // Both calls are iOS-gated and silently catch on desktop.
+          // Audio resume MUST be called first — must be inside a user-gesture handler.
+          if (isIos) {
+            // Lazily create the AudioContext on the first touch gesture so that the
+            // constructor itself is also inside a user-gesture context (some browsers
+            // require this). The context is held in audioCtxRef for subsequent calls.
+            if (!audioCtxRef.current) {
+              audioCtxRef.current = new AudioContext();
+            }
+            void ensureAudioResumed(audioCtxRef.current, audioResumedRef);
+            void triggerHaptic(key, true);
+          }
         }}
       />
       {calcState.annunciators.prgm && (
