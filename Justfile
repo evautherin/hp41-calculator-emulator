@@ -265,6 +265,15 @@ ios-init:
 ios-build:
 	cd hp41-gui && npm run tauri ios build
 
+# iOS: signed release IPA for App Store Connect (distribution) export.
+# Passes --export-method app-store-connect and --ci (no interactive prompts).
+# Requires APPLE_API_KEY, APPLE_API_ISSUER, APPLE_API_KEY_PATH env vars for signing
+# (consumed by Tauri CLI, forwarded to xcodebuild -allowProvisioningUpdates).
+[group('ios')]
+ios-build-release:
+	cd hp41-gui && npm ci
+	cd hp41-gui && npm run tauri ios build -- --export-method app-store-connect --ci
+
 # iOS: boot in the Simulator on the simulator triple aarch64-apple-ios-sim.
 # P-iOS-01: list the CURRENT available devices instead of hardcoding a name (a
 # hardcoded "iPhone 13" breaks after an Xcode upgrade). Pass an explicit device
