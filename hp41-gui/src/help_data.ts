@@ -339,6 +339,132 @@ export function xeqToken(entry: Pick<HelpEntry, 'op_variant' | 'display_name'>):
     return NON_TAPPABLE.has(entry.op_variant) ? null : entry.display_name;
 }
 
+// ── Phase 59 Plan 59-03 — Tiered scorer + bounded Levenshtein ────────────────
+//
+// Mirror of hp41-cli/src/help_data.rs scorer (plan 59-02).
+// Keep byte-equivalent in BEHAVIOR with the Rust implementation per Phase 59
+// (CLI<->GUI parity). Parity fixture lands in Phase 61.
+//
+// Tier constants (from 59-RESEARCH.md §Tiered Scoring):
+//   name:  exact 40 > prefix 32 > substr 24 > fuzzy 8
+//   alias: exact 35 > prefix 28 > substr 21 > fuzzy 7
+//   desc:  exact 30 > prefix 24 > substr 18 > fuzzy 6
+//   cat:   exact 20 > prefix 16 > substr 12 > fuzzy 4
+
+const SCORE_EXACT_NAME = 40;
+const SCORE_PREFIX_NAME = 32;
+const SCORE_SUBSTR_NAME = 24;
+const SCORE_FUZZY_NAME = 8;
+const SCORE_EXACT_ALIAS = 35;
+const SCORE_PREFIX_ALIAS = 28;
+const SCORE_SUBSTR_ALIAS = 21;
+const SCORE_FUZZY_ALIAS = 7;
+const SCORE_EXACT_DESC = 30;
+const SCORE_PREFIX_DESC = 24;
+const SCORE_SUBSTR_DESC = 18;
+const SCORE_FUZZY_DESC = 6;
+const SCORE_EXACT_CAT = 20;
+const SCORE_PREFIX_CAT = 16;
+const SCORE_SUBSTR_CAT = 12;
+const SCORE_FUZZY_CAT = 4;
+
+/// Bounded Levenshtein edit distance. Returns the edit distance between `a`
+/// and `b`, capped at `maxDist + 1` if the true distance exceeds `maxDist`.
+/// Uses Unicode code-point iteration via spread `[...str]` for correct
+/// handling of umlauts (ä, ö, ü are single code points, not byte pairs).
+///
+/// Mirrors `levenshtein_bounded` in hp41-cli/src/help_data.rs exactly.
+export function levenshteinBounded(a: string, b: string, maxDist: number): number {
+    const aChars = [...a];
+    const bChars = [...b];
+    const n = aChars.length;
+    const m = bChars.length;
+    if (Math.abs(n - m) > maxDist) return maxDist + 1;
+
+    let prev: number[] = Array.from({ length: m + 1 }, (_, i) => i);
+    let curr: number[] = new Array(m + 1).fill(0);
+
+    for (let i = 1; i <= n; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= m; j++) {
+            const cost = aChars[i - 1] === bChars[j - 1] ? 0 : 1;
+            curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+        }
+        // Early-exit: if all values in curr exceed maxDist, no need to continue.
+        if (Math.min(...curr) > maxDist) return maxDist + 1;
+        [prev, curr] = [curr, prev];
+    }
+    return prev[m];
+}
+
+/// Private tier scoring helper. Lowercases `field` and returns the best
+/// tier score for query `q`:
+///   exact == > prefix (starts_with or any word-start) > substring > fuzzy.
+/// Fuzzy only attempted when `q.length >= 2` (P-HS-02 guard).
+///
+/// Mirrors `tier_score` in hp41-cli/src/help_data.rs exactly.
+function tierScore(
+    field: string,
+    q: string,
+    exact: number,
+    prefix: number,
+    substr: number,
+    fuzzy: number,
+): number {
+    const f = field.toLowerCase();
+    if (f === q) return exact;
+    if (f.startsWith(q) || f.split(/\s+/).some(w => w.startsWith(q))) return prefix;
+    if (f.includes(q)) return substr;
+    if (q.length >= 2) {
+        const maxDist = Math.max(1, Math.floor(q.length / 4));
+        const minDist = f.length <= 20
+            ? levenshteinBounded(f, q, maxDist)
+            : Math.min(...f.split(/\s+/).map(w => levenshteinBounded(w, q, maxDist)));
+        if (minDist <= maxDist) return fuzzy;
+    }
+    return 0;
+}
+
+/// Score a single HelpEntry against a pre-lowercased, pre-trimmed query `q`.
+/// Returns the best tier score across all four searched fields:
+/// `display_name`, `description`, `category`, and `search_aliases`.
+/// A score of 0 means no field matched.
+///
+/// Mirrors `score_entry` in hp41-cli/src/help_data.rs exactly.
+export function scoreEntry(entry: HelpEntry, q: string): number {
+    const nameScore = tierScore(entry.display_name, q,
+        SCORE_EXACT_NAME, SCORE_PREFIX_NAME, SCORE_SUBSTR_NAME, SCORE_FUZZY_NAME);
+    const descScore = tierScore(entry.description, q,
+        SCORE_EXACT_DESC, SCORE_PREFIX_DESC, SCORE_SUBSTR_DESC, SCORE_FUZZY_DESC);
+    const catScore = tierScore(entry.category, q,
+        SCORE_EXACT_CAT, SCORE_PREFIX_CAT, SCORE_SUBSTR_CAT, SCORE_FUZZY_CAT);
+    const aliasScore = (entry.search_aliases ?? [])
+        .map(a => tierScore(a, q, SCORE_EXACT_ALIAS, SCORE_PREFIX_ALIAS, SCORE_SUBSTR_ALIAS, SCORE_FUZZY_ALIAS))
+        .reduce((a, b) => Math.max(a, b), 0);
+    return Math.max(nameScore, descScore, catScore, aliasScore);
+}
+
+/// Return entries from `pool` ranked by relevance for query `q`.
+/// The query is expected to be pre-lowercased and pre-trimmed by the caller.
+/// For an empty query, the pool is returned unchanged (empty-query invariance
+/// guard — mirrors `ranked_help_entries` Rust behavior).
+/// Non-empty query: filters to score > 0, sorts by (score DESC, display_name ASC).
+///
+/// Mirrors `ranked_help_entries` in hp41-cli/src/help_data.rs exactly.
+export function rankedEntries(pool: readonly HelpEntry[], q: string): readonly HelpEntry[] {
+    if (q === '') return pool;
+    const scored: Array<[number, HelpEntry]> = [];
+    for (const entry of pool) {
+        const s = scoreEntry(entry, q);
+        if (s > 0) scored.push([s, entry]);
+    }
+    scored.sort(([sa, ea], [sb, eb]) => {
+        if (sb !== sa) return sb - sa;
+        return ea.display_name.localeCompare(eb.display_name);
+    });
+    return scored.map(([, e]) => e);
+}
+
 /// Phase 52 Plan 52-01: Merged accessor returning built-in + Math Pac I + Stat 1 Pac + Time Pac + Advantage Pac + X-MEM entries.
 ///
 /// UPDATED from Phase 46 Plan 46-02 (5-pool) to 6-pool concatenation.
