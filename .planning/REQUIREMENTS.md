@@ -70,30 +70,29 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HSDATA-01 | TBD | Pending |
-| HSDATA-02 | TBD | Pending |
-| HSDATA-03 | TBD | Pending |
-| HSDATA-04 | TBD | Pending |
-| HSGEN-01 | TBD | Pending |
-| HSGEN-02 | TBD | Pending |
-| HSGEN-03 | TBD | Pending |
-| HSMATCH-01 | TBD | Pending |
-| HSMATCH-02 | TBD | Pending |
-| HSMATCH-03 | TBD | Pending |
-| HSMATCH-04 | TBD | Pending |
-| HSMATCH-05 | TBD | Pending |
-| HSUX-01 | TBD | Pending |
-| HSUX-02 | TBD | Pending |
-| HSQUAL-01 | TBD | Pending |
-| HSQUAL-02 | TBD | Pending |
-| HSQUAL-03 | TBD | Pending |
-| HSQUAL-04 | TBD | Pending |
+| HSDATA-01 | Phase 58 | Pending |
+| HSDATA-02 | Phase 58 | Pending |
+| HSDATA-03 | Phase 60 | Pending |
+| HSDATA-04 | Phase 58 | Pending |
+| HSGEN-01 | Phase 60 | Pending |
+| HSGEN-02 | Phase 60 | Pending |
+| HSGEN-03 | Phase 60 | Pending |
+| HSMATCH-01 | Phase 59 | Pending |
+| HSMATCH-02 | Phase 59 | Pending |
+| HSMATCH-03 | Phase 59 | Pending |
+| HSMATCH-04 | Phase 59 | Pending |
+| HSMATCH-05 | Phase 59 | Pending |
+| HSUX-01 | Phase 59 | Pending |
+| HSUX-02 | Phase 59 | Pending |
+| HSQUAL-01 | Phase 61 | Pending |
+| HSQUAL-02 | Phase 61 | Pending |
+| HSQUAL-03 | Phase 61 | Pending |
+| HSQUAL-04 | Phase 61 | Pending |
 
 **Coverage:**
 - v1 requirements: 18 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 18 ⚠️ (resolved by roadmapper)
+- Mapped to phases: 18 / Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-04*
-*Last updated: 2026-06-04 after initial definition*
+*Last updated: 2026-06-04 — traceability table filled after roadmap creation*
