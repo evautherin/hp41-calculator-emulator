@@ -293,6 +293,34 @@ right (empty path still uses `filter_help_rows("")`). Minor doc drift.
 
 ---
 
+## Resolution (orchestrator, post-review — commit `5db690c`)
+
+Parity-critical findings fixed in the same pass and re-verified GREEN
+(`cargo test --workspace`, `tsc --noEmit`, vitest 302/302):
+
+| Finding | Status | Fix |
+|---------|--------|-----|
+| CR-01 (tie-break comparator) | ✅ fixed | GUI `localeCompare` → scalar `<`/`>` to match Rust `String::cmp` |
+| CR-02 (fuzzy short-field gate byte vs UTF-16) | ✅ fixed | Both sides gate on code-point count (`chars().count()` / `[...f].length`) |
+| WR-01 (query length byte vs UTF-16) | ✅ fixed | Query length via code-point count on both sides |
+| WR-03 (CLI query not trimmed) | ✅ fixed | `ranked_help_entries` now `query.trim().to_lowercase()` + empty-after-trim guard |
+| IN-02 (release-mode empty-query guard) | ✅ fixed | Empty-after-trim guard returns `Vec::new()`, mirroring GUI passthrough intent |
+
+All fixes are behavior-preserving for the current ASCII test fixtures; they
+correct the active CR-01 divergence and the Phase-60-latent CR-02/WR-01 ones.
+
+**Deferred (need a design decision, not a mechanical fix):**
+
+- **WR-02** — CLI ranked pool (full implemented 6-pool) vs GUI **Keyboard
+  Shortcuts** tab pool (`key_path !== null`). Requires deciding whether the CLI
+  single overlay mirrors the GUI **All Functions** tab (full pool — likely
+  intended) or the Shortcuts tab. Left for phase verification / user.
+- **WR-04** — `[N matches]` count consistency; resolves once WR-02 is decided.
+- **IN-01, IN-03** — cosmetic (leading-empty-word split; stale `ui.rs` doc
+  comment). Non-functional.
+
+---
+
 _Reviewed: 2026-06-04T20:06:37Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
