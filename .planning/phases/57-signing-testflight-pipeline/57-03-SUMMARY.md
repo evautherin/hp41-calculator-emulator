@@ -141,6 +141,8 @@ grep 'D-57.4', 'ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_API_KEY_P8' in comment → PA
 - `.planning/phases/57-signing-testflight-pipeline/57-03-SUMMARY.md` ✓
 
 ### Commits verified:
-- `99f7442`: feat(57-03): add ci-ios.yml signed IPA build + TestFlight upload workflow (SHIP-04)
+- `5e822dc`: feat(57-03): add ci-ios.yml signed IPA build + TestFlight upload workflow (SHIP-04) (ci-ios.yml)
+- `128dd5c`: docs(57-03): complete ci-ios.yml plan — SUMMARY, STATE, ROADMAP, REQUIREMENTS
+- Note: `99f7442` (same message) inadvertently captured stray CLI working-tree changes via an unexpected git-workflow hook interaction; ci-ios.yml itself is in `5e822dc`
 
 ## Self-Check: PASSED
