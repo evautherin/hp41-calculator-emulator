@@ -77,6 +77,14 @@ pub struct HelpEntry {
     /// Math Pac I entries. `#[serde(default)]` keeps v2.2 JSON parsing clean.
     #[serde(default)]
     pub xrom: Option<XromEntry>,
+    /// Invisible match surface for Phase 59 search (D-58.3 / HSDATA-01).
+    ///
+    /// Alternative spellings, abbreviations, and synonyms that broaden
+    /// free-text search recall without appearing in the `?` overlay layout.
+    /// Populated in Phase 60 (alias content); empty Vec until then.
+    /// Mirrors `search_aliases?: string[]` in hp41-gui/src/help_data.ts.
+    #[serde(default)]
+    pub search_aliases: Vec<String>,
 }
 
 /// Compile-time-embedded canonical data file. The relative path is from this
@@ -454,5 +462,26 @@ mod tests {
         let rows = fixture();
         let filtered = filter_help_rows(&rows, "this-string-matches-nothing-xyzzy");
         assert!(filtered.is_empty());
+    }
+
+    /// D-58.2 backward-compat guarantee: a JSON object that omits `search_aliases`
+    /// (i.e. all existing JSON pool entries) deserializes cleanly into a `HelpEntry`
+    /// whose `search_aliases` is an empty Vec — no missing-field error.
+    #[test]
+    fn search_aliases_defaults_to_empty_vec_when_field_absent() {
+        let json = r#"{
+            "op_variant": "Pi",
+            "display_name": "PI",
+            "category": "Math",
+            "status": "implemented",
+            "phase": "21",
+            "key_path": "f-7",
+            "description": "Push pi (3.14159265358979) onto X"
+        }"#;
+        let entry: HelpEntry = serde_json::from_str(json).unwrap();
+        assert!(
+            entry.search_aliases.is_empty(),
+            "search_aliases must default to an empty Vec when the JSON key is absent"
+        );
     }
 }
