@@ -120,6 +120,19 @@ pub fn key_to_op(key: KeyEvent, _app: &App) -> Option<Op> {
         KeyCode::Char('l') => Some(Op::Lastx),
         KeyCode::Char('p') => Some(Op::PrgmMode),
         KeyCode::Char('u') => Some(Op::UserMode),
+        // ALPHA — top-row mode key (like PRGM/USER above). Pressing `a`/`A`
+        // OUTSIDE alpha mode toggles it ON (`Op::AlphaToggle` flips
+        // `alpha_mode` false→true). This arm is reached ONLY when not already
+        // in alpha mode: `App::handle_key` routes to `handle_alpha_mode_key()`
+        // and returns BEFORE `key_to_op` whenever `alpha_mode` is true, so the
+        // EXIT half (`a`/Enter/Esc) is handled there. Closes the CLI gap where
+        // ALPHA mode had no keyboard ENTRY (only the exit half existed);
+        // mirrors the GUI on-screen ALPHA button. `f a` (ARCL) still wins —
+        // the `shift_armed` block returns first — and `Ctrl+A` (AssignKey)
+        // also returns earlier. Deliberately NOT given a JSON `key_path`: the
+        // GUI's physical-keyboard map binds `a`→ASIN (legacy), so advertising
+        // `a`=ALPHA in the shared help would mislead GUI users.
+        KeyCode::Char('a') | KeyCode::Char('A') => Some(Op::AlphaToggle),
 
         // ── Modal openers handled BEFORE key_to_op in app.handle_key() ──
         // S → StoRegister, R → RclRegister, F → FmtDigits, P → PrintModal,
@@ -136,8 +149,9 @@ pub fn key_to_op(key: KeyEvent, _app: &App) -> Option<Op> {
         KeyCode::F(_) => None,
 
         // All other keys — including every v1.x letter binding stripped
-        // per D-25.3 (C, T, L, G, E, H, I, W, Y, q, a, c, k, s, g, z, Z,
-        // m, D, y, b, O, V, h, j, J) — are silently unmapped.
+        // per D-25.3 (C, T, L, G, E, H, I, W, Y, q, c, k, s, g, z, Z,
+        // m, D, y, b, O, V, h, j, J) — are silently unmapped. (`a` is the
+        // exception: re-bound above as the ALPHA mode key, not its v1.x ASIN.)
         _ => None,
     }
 }

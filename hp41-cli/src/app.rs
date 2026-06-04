@@ -3101,6 +3101,59 @@ mod synthetic_modal_tests {
         );
     }
 
+    /// CLI ALPHA-mode ENTRY gap closure: pressing `a` outside alpha mode enters
+    /// ALPHA mode; letters then append to the alpha register; `a` again exits.
+    /// Previously the CLI had only the EXIT half — no keyboard route IN at all.
+    #[test]
+    fn test_a_key_enters_and_exits_alpha_mode() {
+        let mut app = make_app();
+        assert!(!app.state.alpha_mode, "starts outside ALPHA mode");
+
+        // 'a' ENTERS ALPHA mode (the previously-missing half).
+        app.handle_key(press(KeyCode::Char('a')));
+        assert!(app.state.alpha_mode, "pressing 'a' must ENTER ALPHA mode");
+
+        // Letters now append to the ALPHA register.
+        for ch in ['Q', 'U', 'A', 'D'] {
+            app.handle_key(press(KeyCode::Char(ch)));
+        }
+        assert_eq!(
+            app.state.alpha_reg, "QUAD",
+            "letters typed in ALPHA mode must append to alpha_reg"
+        );
+
+        // 'a' EXITS ALPHA mode (pre-existing exit half) without altering text.
+        app.handle_key(press(KeyCode::Char('a')));
+        assert!(
+            !app.state.alpha_mode,
+            "pressing 'a' again must EXIT ALPHA mode"
+        );
+        assert_eq!(
+            app.state.alpha_reg, "QUAD",
+            "exit must not alter the register"
+        );
+    }
+
+    /// Regression: `f a` (ARCL) must still win over the new plain-`a` ALPHA
+    /// entry — the `shift_armed` block runs before `key_to_op`.
+    #[test]
+    fn test_f_a_opens_arcl_not_alpha() {
+        let mut app = make_app();
+        app.handle_key(press(KeyCode::Char('f')));
+        app.handle_key(press(KeyCode::Char('a')));
+        assert!(!app.state.alpha_mode, "f a must NOT enter ALPHA mode");
+        assert!(
+            matches!(
+                app.pending_input,
+                Some(PendingInput::RegisterPrompt {
+                    op: crate::keys::RegisterOpKind::Arcl,
+                    ..
+                })
+            ),
+            "f a must open the ARCL register prompt, not toggle ALPHA"
+        );
+    }
+
     // Helper — create a Ctrl-modified Press key event.
     fn make_ctrl_key(c: char) -> KeyEvent {
         KeyEvent {

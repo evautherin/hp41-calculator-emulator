@@ -321,9 +321,13 @@ fn key_to_op_v1x_letters_removed() {
 
     // Also assert the rarer stats/HMS bindings are gone — the full list per
     // D-25.3 / <interfaces> in 25-01-PLAN.md.
+    //
+    // `'a'` is intentionally NOT in this list: its v1.x binding (ASIN) is gone,
+    // but `a` was later re-bound as the ALPHA mode key (top-row mode key, like
+    // p→PRGM / u→USER). The "must be ASIN-free" guarantee is asserted below.
     let removed_secondary = [
-        'E', 'H', 'I', 'W', 'Y', 'a', 'c', 'k', 's', 'g', 'z', 'Z', 'm', 'D', 'y', 'b', 'O', 'V',
-        'j', 'J',
+        'E', 'H', 'I', 'W', 'Y', 'c', 'k', 's', 'g', 'z', 'Z', 'm', 'D', 'y', 'b', 'O', 'V', 'j',
+        'J',
     ];
     for c in removed_secondary {
         let ev = key(c);
@@ -333,6 +337,18 @@ fn key_to_op_v1x_letters_removed() {
             "v1.x letter binding for {c:?} must be removed (got {op:?})"
         );
     }
+
+    // `a` is the ALPHA mode key now, NOT its removed v1.x ASIN binding.
+    assert_eq!(
+        hp41_cli::keys::key_to_op(key('a'), &app),
+        Some(hp41_core::ops::Op::AlphaToggle),
+        "'a' must be the re-bound ALPHA mode key"
+    );
+    assert_ne!(
+        hp41_cli::keys::key_to_op(key('a'), &app),
+        Some(hp41_core::ops::Op::Asin),
+        "the v1.x a→ASIN binding must stay removed"
+    );
 }
 
 /// Sanity: the universal/primary positions kept in `key_to_op()` MUST still
