@@ -180,6 +180,7 @@ pub fn key_to_op(key: KeyEvent, _app: &App) -> Option<Op> {
 /// | `f-i` | `RegisterPrompt { Isg, … }`                    |
 /// | `f-d` | `RegisterPrompt { Dse, … }`                    |
 /// | `f-C` | `ClpLabel("")`                                  |
+/// | `f-L` | `LblLabel("")`                                  |
 /// | `f-D` | `DelCount("")`                                  |
 /// | `f-T` | `TonePrompt`                                    |
 /// | `f-N` | `XeqByName("")`                                 |
@@ -305,6 +306,17 @@ pub fn shifted_key_to_op(key: KeyEvent, app: &mut App) -> Option<Op> {
         // with primary HP-41CV positions or with the IsClear `c` letter).
         KeyCode::Char('C') => {
             app.pending_input = Some(PendingInput::ClpLabel(String::new()));
+            None
+        }
+        // `L` opens the LBL "name" modal — the CLI keyboard route to a global
+        // alpha program label (e.g. `LBL "QUAD"`). Mirrors the GUI `SHIFT+STO`
+        // → `lbl_<name>` flow per CLI ↔ GUI parity (D-25.6); the CLI previously
+        // had NO keyboard path to a global alpha label (only `Ctrl+A` USER-key
+        // assignment, which is a different feature). Both cases accepted because
+        // `Op::Lbl` has `key_path: null` — there is no canonical HP-41CV key,
+        // so a mnemonic letter is used (consistent with `C`/`D`/`T`/`N` above).
+        KeyCode::Char('L') | KeyCode::Char('l') => {
+            app.pending_input = Some(PendingInput::LblLabel(String::new()));
             None
         }
         KeyCode::Char('D') => {

@@ -375,6 +375,7 @@ pub fn pending_prompt(
                 format!("{mnemonic}{ind_str} [{acc:_<2}]")
             }
             PendingInput::ClpLabel(acc) => format!("CLP [{acc}]_"),
+            PendingInput::LblLabel(acc) => format!("LBL [{acc}]_"),
             PendingInput::DelCount(acc) => format!("DEL [{acc:_<3}]"),
             PendingInput::TonePrompt => "TONE [_]".to_string(),
             // Phase 29 (D-29.8): XeqByName is now a struct variant with XeqByNameMode.
