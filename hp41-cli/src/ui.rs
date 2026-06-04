@@ -444,16 +444,29 @@ fn render_help_overlay(app: &App, frame: &mut Frame) {
     // helper as "=== <category> ===" with empty key/op fields. The filter
     // (post-v3.0 search) preserves category headers only when at least one
     // child row matches the query.
-    let overlay_rows = help_data::help_overlay_rows();
-    let filtered = help_data::filter_help_rows(&overlay_rows, &app.help_search_query);
+    //
+    // Phase 59: non-empty query → flat relevance-ranked list via
+    // help_data::ranked_help_entries (no category headers, score DESC).
+    // Empty query → unchanged category-grouped path (SC-4 / HSMATCH-04).
+    let display_rows: Vec<help_data::HelpRow>;
+    let match_count: usize;
+    if app.help_search_query.is_empty() {
+        // UNCHANGED PATH: category-grouped, header-interleaved.
+        let overlay_rows = help_data::help_overlay_rows();
+        let filtered = help_data::filter_help_rows(&overlay_rows, "");
+        match_count = filtered
+            .iter()
+            .filter(|r| !r.desc.starts_with("==="))
+            .count();
+        display_rows = filtered.into_iter().cloned().collect();
+    } else {
+        // NEW PATH (Phase 59): flat ranked list from the scorer.
+        // ranked_help_entries returns owned HelpRow values with no headers.
+        display_rows = help_data::ranked_help_entries(&app.help_search_query);
+        match_count = display_rows.len();
+    }
 
-    // Match count for the title — non-header rows only.
-    let match_count = filtered
-        .iter()
-        .filter(|r| !r.desc.starts_with("==="))
-        .count();
-
-    let rows: Vec<Row> = filtered
+    let rows: Vec<Row> = display_rows
         .iter()
         .map(|row| {
             if row.desc.starts_with("===") {
