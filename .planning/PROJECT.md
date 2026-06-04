@@ -6,7 +6,7 @@
 
 **Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
 
-**No active milestone** — run `/gsd:new-milestone` to start the next.
+**Active milestone: v4.2 Help Search Enrichment** (started 2026-06-04) — make the `?` help overlay intent-aware "free search" (DE+EN aliases, typo tolerance) with zero runtime ML and zero new deps. See the Current Milestone section below.
 
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
@@ -79,6 +79,22 @@
 **Delivered:** 5 phases (28–32), 33 plans (26 original + 7 gap-closure), ~40 new Op variants, XROM resolver chain, modal-workflow state machine, user-callback re-entrancy, complex stack overlay, hyperbolics, triangle solvers, coordinate transforms, Fourier series, full CLI + GUI integration, 95.39% line / 94.26% region coverage, 763-case numerical accuracy at 99.3%.
 
 </details>
+
+---
+
+## Current Milestone: v4.2 Help Search Enrichment
+
+**Goal:** Make the `?` help overlay feel like intent-aware "free search" — users type *what they want* (e.g. *"Zinseszins"*, *"how to clear everything"*, in DE or EN, typos tolerated) and find the right function — **without shipping any runtime ML** and **without a new runtime dependency**. AI is used only at authoring time; runtime stays pure lexical.
+
+**Target features:**
+- **Data model** — additive `search_aliases` field on the help entry, mirrored in CLI Rust (`help_data.rs`, `#[serde(default)]`) and GUI TS (`help_data.ts`), populated with DE+EN aliases across all six `docs/hp41-*-functions.json` pools. Invisible match surface; no layout change.
+- **Authoring pipeline** — an offline, dev-only LLM script (`scripts/help-aliases/`) that generates the DE+EN aliases as **committed static data**; never shipped, no runtime inference. Schema-only CI gate (no regenerate-and-diff).
+- **Runtime matcher** — upgrade both mirrored matchers from plain substring to alias-aware + hand-rolled fuzzy (zero-dep Levenshtein/trigram) + relevance-ranked tiers (exact > word-prefix > substring > fuzzy). Empty query keeps the category view; active query switches to a ranked flat list.
+- **Quality** — scoring/fuzzy/DE-EN unit tests in both frontends, a CLI↔GUI parity fixture guarding the duplicated matcher, and a six-pool schema gate.
+
+**Key constraints (from approved design):** zero new runtime deps · `hp41-core` untouched (UI/help concern only) · no save-file impact · iOS-safe (text-only growth) · mirrors the established `op_display_name` CLI↔GUI duplication pattern. Documented exception: `search_aliases` may contain German because it is *search input*, not documentation.
+
+**Design spec:** `docs/superpowers/specs/2026-06-03-help-search-enrichment-design.md` (approved, design phase).
 
 ---
 
@@ -288,7 +304,9 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 
 ### Active
 
-_v4.1 iOS Foundation in progress (started 2026-05-29) — requirements being defined. Goal: touch-first iPhone build distributed via TestFlight; build approach (Tauri v2 Mobile vs. native SwiftUI + Rust FFI) to be chosen in research._
+_v4.2 Help Search Enrichment in progress (started 2026-06-04) — requirements defined in `.planning/REQUIREMENTS.md`. Goal: intent-aware `?` help overlay (DE+EN `search_aliases`, hand-rolled fuzzy matching, relevance ranking), AI used only at authoring time; zero runtime ML, zero new deps, `hp41-core` untouched. Categories: Data Model (HSDATA), Authoring Pipeline (HSGEN), Runtime Matcher (HSMATCH), UX (HSUX), Quality/CI (HSQUAL)._
+
+_v4.1 iOS Foundation shipped 2026-06-04 (Phases 53–57) — touch-first iPhone build distributed via TestFlight (Tauri v2 Mobile, Approach A; signed IPA installed + verified on device). Deferred before public App Store release: `PrivacyInfo.xcprivacy` bundle wiring (pending todo)._
 
 ### Out of Scope
 
@@ -391,4 +409,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-05-29 — v4.1 iOS Foundation milestone started. Goal: touch-first iPhone build to TestFlight; build approach chosen in research. v4.0 Platform Maturity shipped + archived 2026-05-28.*
+*Last updated: 2026-06-04 — v4.2 Help Search Enrichment milestone started. Goal: intent-aware `?` help overlay (DE+EN aliases, fuzzy, relevance ranking); AI at authoring time only, zero runtime ML/deps, `hp41-core` untouched. v4.1 iOS Foundation shipped + archived 2026-06-04.*

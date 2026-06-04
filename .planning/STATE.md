@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.1
-milestone_name: iOS Foundation
-status: milestone_complete
-last_updated: 2026-06-04T12:07:00.729Z
+milestone: v4.2
+milestone_name: Help Search Enrichment
+status: planning
+last_updated: "2026-06-04T16:06:23.336Z"
 last_activity: 2026-06-04
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 18
-  completed_plans: 18
-  percent: 80
-stopped_at: Milestone complete (Phase 57 was final phase)
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,11 +29,10 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 ## Current Position
 
-Phase: 57
-Plan: Not started
-Status: Milestone complete
-Resume file: None
-Last activity: 2026-06-04
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-04 — Milestone v4.2 started
 
 ## Progress Bar
 
