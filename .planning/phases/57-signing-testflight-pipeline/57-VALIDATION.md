@@ -1,8 +1,8 @@
 ---
 phase: 57
 slug: signing-testflight-pipeline
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-04
 ---
@@ -40,7 +40,13 @@ created: 2026-06-04
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 57-XX-XX | XX | X | SHIP-02 | — | `PrivacyInfo.xcprivacy` valid + in bundle | unit | `plutil -lint hp41-gui/src-tauri/gen/apple/PrivacyInfo.xcprivacy` | ✅ | ⬜ pending |
+| 57-01-T1 | 01 | 1 | SHIP-02 | T-57-01 | privacy manifest valid + sourced in project | unit | `plutil -lint hp41-gui/src-tauri/gen/apple/PrivacyInfo.xcprivacy` | ✅ | ⬜ pending |
+| 57-01-T2 | 01 | 1 | SHIP-01 | T-57-02 | export=app-store-connect; version 4.1; build-num baseline kept | unit | `plutil -lint .../ExportOptions.plist && plutil -lint .../Info.plist` | ✅ | ⬜ pending |
+| 57-01-T3 | 01 | 1 | SHIP-01 | — | signed-export recipe, no raw cargo/xcodebuild | smoke | `just --list \| grep -q ios-build-release` | ✅ | ⬜ pending |
+| 57-02-T2 | 02 | 1 | SHIP-03 | T-57-03 | all icon slots opaque + present | smoke | `ls .../AppIcon.appiconset/*.png \| wc -l` (>=18) | ✅ | ⬜ pending |
+| 57-02-T3 | 02 | 1 | SHIP-03 | T-57-03 | launch screen branded, well-formed | unit | `xmllint --noout .../LaunchScreen.storyboard` | ✅ | ⬜ pending |
+| 57-03-T1 | 03 | 2 | SHIP-04 | T-57-04..09 | workflow_dispatch-only, secret hygiene, just-driven | smoke | `actionlint .github/workflows/ci-ios.yml` (or yaml parse) | ✅ | ⬜ pending |
+| 57-04 (checkpoints) | 04 | 3 | SHIP-01/02/04/05 | T-57-10/11 | live run + TestFlight internal + device install | manual | see Manual-Only Verifications | — | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -76,4 +82,4 @@ created: 2026-06-04
 - [ ] Feedback latency target documented (host check < 120s)
 - [ ] `nyquist_compliant: true` set in frontmatter once map is filled
 
-**Approval:** pending
+**Approval:** approved (planner, 2026-06-04)

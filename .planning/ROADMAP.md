@@ -183,9 +183,13 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
   1. A signed IPA is produced by `cargo tauri ios build --export-method app-store-connect` using a distribution certificate and provisioning profile for `ch.talent-factory.hp41`; the IPA installs and runs on a real iPhone
   2. `gen/apple/PrivacyInfo.xcprivacy` declares `NSPrivacyAccessedAPICategoryFileTimestamp` with reason `C617.1`; an upload to TestFlight does not trigger ITMS-91053
   3. The app has a custom app icon (all required sizes) and a launch screen (not a blank white screen)
-  4. `ci-ios.yml` runs on a macOS GitHub Actions runner, builds the signed IPA, and uploads it via `xcrun altool` on every push to `main`
+  4. `ci-ios.yml` runs on a macOS GitHub Actions runner, builds the signed IPA, and uploads it via `xcrun altool` — **trigger is `workflow_dispatch` (manual) only, per CONTEXT D-57.4, which supersedes the original "on every push to `main`" wording** (each upload burns a TestFlight build number + exposes signing secrets; on-demand keeps both intentional). A successful manual `workflow_dispatch` run satisfies SHIP-04.
   5. At least one internal TestFlight build is distributed to testers and the app can be installed from TestFlight on a real iPhone
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 57-01-PLAN.md — PrivacyInfo.xcprivacy + project.yml wiring, ExportOptions app-store-connect, marketing version 4.1, `just ios-build-release` recipe (SHIP-01/02) [wave 1]
+- [ ] 57-02-PLAN.md — HP-41 app icon (1024 master → all slots) + branded LaunchScreen, founder art-direction approval (SHIP-03) [wave 1, checkpoint]
+- [ ] 57-03-PLAN.md — `ci-ios.yml` workflow_dispatch-only signed-IPA build + altool upload, secret hygiene threat model (SHIP-04) [wave 2]
+- [ ] 57-04-PLAN.md — ASC API key + repo secrets, live workflow run, TestFlight internal distribution + device install (SHIP-01/02/04/05) [wave 3, checkpoints]
 
 ---
 
@@ -197,8 +201,8 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
 | 55. Touch UI Adaptation | 6/6 | Complete    | 2026-06-03 |
 | 56. App Lifecycle + Clock | 1/1 | Complete    | 2026-06-03 |
-| 57. Signing + TestFlight Pipeline | 0/? | Not started | - |
+| 57. Signing + TestFlight Pipeline | 0/4 | Planned | - |
 
 ---
 
-*Last updated: 2026-06-03 — Phase 56 complete (1/1 plans; LIFE-01 + LIFE-02 + touch fix; device-approved). Next: `/gsd-plan-phase 57` (Signing + TestFlight Pipeline).*
+*Last updated: 2026-06-04 — Phase 57 planned (4 plans, 3 waves; SHIP-01..05). SC#4 reconciled to D-57.4 (workflow_dispatch only). Next: `/gsd-execute-phase 57`.*
