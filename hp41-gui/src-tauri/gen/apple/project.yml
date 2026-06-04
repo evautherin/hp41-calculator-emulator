@@ -41,6 +41,7 @@ targets:
         buildPhase: resources
         type: folder
       - path: LaunchScreen.storyboard
+      - path: PrivacyInfo.xcprivacy   # SHIP-02: privacy manifest (NSPrivacyAccessedAPICategoryFileTimestamp / C617.1)
     info:
       path: hp41-gui_iOS/Info.plist
       properties:
