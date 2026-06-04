@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
 status: executing
-last_updated: "2026-06-04T19:27:14.855Z"
-last_activity: 2026-06-04 -- Phase 59 planning complete
+last_updated: "2026-06-04T19:36:55.190Z"
+last_activity: 2026-06-04 -- Phase 59 execution started
 progress:
   total_phases: 4
   completed_phases: 1
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** v4.2 Help Search Enrichment — intent-aware `?` overlay (DE+EN aliases, hand-rolled fuzzy matching, relevance ranking). UI/help milestone only: `hp41-core` untouched, no new runtime deps, no save-file impact.
+**Current focus:** Phase 59 — runtime-matcher
 
 ---
 
 ## Current Position
 
-Phase: 58 Data Model — Complete ✓ (verified PASS 6/6)
-Plan: 58-01 — Complete ✓
-Status: Ready to execute
-Last activity: 2026-06-04 -- Phase 59 planning complete
+Phase: 59 (runtime-matcher) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 59
+Last activity: 2026-06-04 -- Phase 59 execution started
 
 ## Progress Bar
 
