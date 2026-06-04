@@ -318,6 +318,203 @@ pub fn help_overlay_rows() -> Vec<HelpRow> {
     rows
 }
 
+// ── Phase 59 scorer ──────────────────────────────────────────────────────────
+//
+// Mirrored scorer — keep byte-equivalent in behavior with
+// hp41-gui/src/help_data.ts per Phase 59 (CLI<->GUI parity).
+// Parity fixture lands in Phase 61.
+//
+// Tier constants are tunable — see 59-RESEARCH.md §Open Questions Q1.
+
+const SCORE_EXACT_NAME: u8 = 40;
+const SCORE_PREFIX_NAME: u8 = 32;
+const SCORE_SUBSTR_NAME: u8 = 24;
+const SCORE_FUZZY_NAME: u8 = 8;
+const SCORE_EXACT_ALIAS: u8 = 35;
+const SCORE_PREFIX_ALIAS: u8 = 28;
+const SCORE_SUBSTR_ALIAS: u8 = 21;
+const SCORE_FUZZY_ALIAS: u8 = 7;
+const SCORE_EXACT_DESC: u8 = 30;
+const SCORE_PREFIX_DESC: u8 = 24;
+const SCORE_SUBSTR_DESC: u8 = 18;
+const SCORE_FUZZY_DESC: u8 = 6;
+const SCORE_EXACT_CAT: u8 = 20;
+const SCORE_PREFIX_CAT: u8 = 16;
+const SCORE_SUBSTR_CAT: u8 = 12;
+const SCORE_FUZZY_CAT: u8 = 4;
+
+/// Bounded Levenshtein edit distance between `a` and `b`.
+///
+/// Returns the true edit distance, capped at `max_dist + 1`. If the true
+/// distance would exceed `max_dist`, returns `max_dist + 1` immediately
+/// (early-exit to avoid O(n·m) work for clearly non-fuzzy pairs).
+///
+/// Uses `chars().collect::<Vec<char>>()` for Unicode-correct handling of
+/// multi-byte characters such as German umlauts (ä, ö, ü).
+fn levenshtein_bounded(a: &str, b: &str, max_dist: usize) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let n = a.len();
+    let m = b.len();
+    if n.abs_diff(m) > max_dist {
+        return max_dist + 1;
+    }
+    let mut prev: Vec<usize> = (0..=m).collect();
+    let mut curr = vec![0usize; m + 1];
+    for i in 1..=n {
+        curr[0] = i;
+        for j in 1..=m {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            curr[j] = (curr[j - 1] + 1).min(prev[j] + 1).min(prev[j - 1] + cost);
+        }
+        // Early-exit: if no value in `curr` can improve on max_dist, stop.
+        if curr.iter().min().copied().unwrap_or(usize::MAX) > max_dist {
+            return max_dist + 1;
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[m]
+}
+
+/// Compute the tier score for a single field against the query `q`.
+///
+/// `q` must already be lowercased by the caller (`score_entry` does this once).
+/// Tier order (highest wins): exact > word-prefix > substring > fuzzy.
+/// Fuzzy is only attempted when `q.len() >= 2` to prevent false-positives on
+/// single-character queries (P-HS-02).
+fn tier_score(field: &str, q: &str, exact: u8, prefix: u8, substr: u8, fuzzy: u8) -> u8 {
+    let f = field.to_lowercase();
+    if f == q {
+        return exact;
+    }
+    if f.starts_with(q) || f.split_whitespace().any(|w| w.starts_with(q)) {
+        return prefix;
+    }
+    if f.contains(q) {
+        return substr;
+    }
+    if q.len() >= 2 {
+        let max_dist = (q.len() / 4).max(1);
+        // Short fields: compare whole field; long fields: compare each word.
+        let min_dist = if f.len() <= 20 {
+            levenshtein_bounded(&f, q, max_dist)
+        } else {
+            f.split_whitespace()
+                .map(|w| levenshtein_bounded(w, q, max_dist))
+                .min()
+                .unwrap_or(usize::MAX)
+        };
+        if min_dist <= max_dist {
+            return fuzzy;
+        }
+    }
+    0
+}
+
+/// Score a `HelpEntry` against a pre-lowercased query `q`.
+///
+/// Returns the best tier score across all four searched fields:
+/// `display_name`, `description`, `category`, and `search_aliases`.
+/// A score of `0` means no field matched.
+///
+/// The caller must lowercase the query once before passing it here:
+/// ```text
+/// let q = query.to_lowercase();
+/// let s = score_entry(entry, &q);
+/// ```
+pub fn score_entry(entry: &HelpEntry, q: &str) -> u8 {
+    let name_score = tier_score(
+        &entry.display_name,
+        q,
+        SCORE_EXACT_NAME,
+        SCORE_PREFIX_NAME,
+        SCORE_SUBSTR_NAME,
+        SCORE_FUZZY_NAME,
+    );
+    let desc_score = tier_score(
+        &entry.description,
+        q,
+        SCORE_EXACT_DESC,
+        SCORE_PREFIX_DESC,
+        SCORE_SUBSTR_DESC,
+        SCORE_FUZZY_DESC,
+    );
+    let cat_score = tier_score(
+        &entry.category,
+        q,
+        SCORE_EXACT_CAT,
+        SCORE_PREFIX_CAT,
+        SCORE_SUBSTR_CAT,
+        SCORE_FUZZY_CAT,
+    );
+    let alias_score = entry
+        .search_aliases
+        .iter()
+        .map(|a| {
+            tier_score(
+                a,
+                q,
+                SCORE_EXACT_ALIAS,
+                SCORE_PREFIX_ALIAS,
+                SCORE_SUBSTR_ALIAS,
+                SCORE_FUZZY_ALIAS,
+            )
+        })
+        .max()
+        .unwrap_or(0);
+    name_score.max(desc_score).max(cat_score).max(alias_score)
+}
+
+/// Return a flat, relevance-ranked list of help rows for a non-empty query.
+///
+/// Scores every `status == "implemented"` entry from all six JSON pools via
+/// [`score_entry`], discards zero-score entries, then stable-sorts by
+/// `(score DESC, display_name ASC)`. Returns owned [`HelpRow`] values with no
+/// category-header rows — the caller can render the result directly with the
+/// same table loop used by the empty-query grouped path.
+///
+/// # Panics
+///
+/// Never in production. A `debug_assert!` fires in debug builds if `query` is
+/// empty — callers should use the [`filter_help_rows`] / [`help_overlay_rows`]
+/// path for the empty-query case.
+pub fn ranked_help_entries(query: &str) -> Vec<HelpRow> {
+    debug_assert!(!query.is_empty(), "ranked_help_entries called with empty query");
+    let q = query.to_lowercase();
+    let mut scored: Vec<(u8, &'static HelpEntry)> = help_entries_all()
+        .filter(|e| e.status == "implemented")
+        .filter_map(|e| {
+            let s = score_entry(e, &q);
+            if s > 0 { Some((s, e)) } else { None }
+        })
+        .collect();
+    // Stable sort: score DESC, then display_name ASC for ties.
+    scored.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then_with(|| a.1.display_name.cmp(&b.1.display_name))
+    });
+    scored
+        .into_iter()
+        .map(|(_, e)| {
+            // Reuse the same key-display logic as help_overlay_rows.
+            let key = e.key_path.clone().unwrap_or_else(|| {
+                if e.xrom.is_none() {
+                    format!("XEQ \"{}\"", e.display_name)
+                } else {
+                    String::new()
+                }
+            });
+            HelpRow {
+                key,
+                op: e.display_name.clone(),
+                desc: e.description.clone(),
+            }
+        })
+        .collect()
+}
+
+// ── End Phase 59 scorer ───────────────────────────────────────────────────────
+
 /// Filter the help-overlay rows by a case-insensitive substring match against
 /// the row's key, op, or description. Category headers (`=== <name> ===`) are
 /// preserved only when at least one child row in that category matches the
