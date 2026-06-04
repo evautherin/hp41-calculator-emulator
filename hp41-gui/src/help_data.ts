@@ -415,9 +415,11 @@ function tierScore(
     if (f === q) return exact;
     if (f.startsWith(q) || f.split(/\s+/).some(w => w.startsWith(q))) return prefix;
     if (f.includes(q)) return substr;
-    if (q.length >= 2) {
-        const maxDist = Math.max(1, Math.floor(q.length / 4));
-        const minDist = f.length <= 20
+    // Gate on code-point count (NOT UTF-16 .length) so CLI<->GUI agree on umlaut fields.
+    const qCp = [...q].length;
+    if (qCp >= 2) {
+        const maxDist = Math.max(1, Math.floor(qCp / 4));
+        const minDist = [...f].length <= 20
             ? levenshteinBounded(f, q, maxDist)
             : Math.min(...f.split(/\s+/).map(w => levenshteinBounded(w, q, maxDist)));
         if (minDist <= maxDist) return fuzzy;
@@ -460,7 +462,10 @@ export function rankedEntries(pool: readonly HelpEntry[], q: string): readonly H
     }
     scored.sort(([sa, ea], [sb, eb]) => {
         if (sb !== sa) return sb - sa;
-        return ea.display_name.localeCompare(eb.display_name);
+        // Match Rust `String::cmp` (Unicode-scalar / code-unit order), NOT locale
+        // order, so CLI and GUI break score ties identically.
+        return ea.display_name < eb.display_name ? -1
+            : ea.display_name > eb.display_name ? 1 : 0;
     });
     return scored.map(([, e]) => e);
 }

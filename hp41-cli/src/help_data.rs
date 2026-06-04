@@ -393,10 +393,12 @@ fn tier_score(field: &str, q: &str, exact: u8, prefix: u8, substr: u8, fuzzy: u8
     if f.contains(q) {
         return substr;
     }
-    if q.len() >= 2 {
-        let max_dist = (q.len() / 4).max(1);
+    let q_cp = q.chars().count();
+    if q_cp >= 2 {
+        let max_dist = (q_cp / 4).max(1);
         // Short fields: compare whole field; long fields: compare each word.
-        let min_dist = if f.len() <= 20 {
+        // Gate on code-point count (NOT byte len) so CLI<->GUI agree on umlaut fields.
+        let min_dist = if f.chars().count() <= 20 {
             levenshtein_bounded(&f, q, max_dist)
         } else {
             f.split_whitespace()
@@ -480,7 +482,14 @@ pub fn score_entry(entry: &HelpEntry, q: &str) -> u8 {
 /// path for the empty-query case.
 pub fn ranked_help_entries(query: &str) -> Vec<HelpRow> {
     debug_assert!(!query.is_empty(), "ranked_help_entries called with empty query");
-    let q = query.to_lowercase();
+    // Trim before scoring to mirror the GUI caller (`query.toLowerCase().trim()`),
+    // so a leading/trailing space cannot make the CLI miss a match the GUI finds.
+    let q = query.trim().to_lowercase();
+    // Whitespace-only query: no ranked rows (the empty-after-trim guard prevents an
+    // empty `q` from substring-matching every entry).
+    if q.is_empty() {
+        return Vec::new();
+    }
     let mut scored: Vec<(u8, &'static HelpEntry)> = help_entries_all()
         .filter(|e| e.status == "implemented")
         .filter_map(|e| {
