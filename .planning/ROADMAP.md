@@ -103,7 +103,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 ### v4.2 Help Search Enrichment (Phases 58–61)
 
 - [x] **Phase 58: Data Model** — Add `search_aliases` field to both help-entry mirrors (Rust + TypeScript), backward-compat serde, no visual change ✅ verified PASS 6/6 (2026-06-04)
-- [ ] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results
+- [x] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results (completed 2026-06-04)
 - [ ] **Phase 60: Alias Authoring Pipeline** — `scripts/help-aliases/` scaffold + LLM runner + populated DE+EN aliases committed to all six JSON pools
 - [ ] **Phase 61: Quality Gates** — Unit tests, CLI-TS parity fixture, JSON schema CI gate, docs/CLAUDE.md update
 
@@ -137,7 +137,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 **Plans**: 3 plans
 - [x] 59-01-PLAN.md — Wave 0 RED test stubs: Rust phase59_help_search.rs + TS help_data.test.ts/HelpOverlay.test.tsx encoding tier order, fuzzy typo, DE+EN alias, empty-query invariance
 - [x] 59-02-PLAN.md — CLI Rust scorer: hand-rolled bounded Levenshtein + tiered score_entry + ranked_help_entries in help_data.rs; flat-ranked render branch in ui.rs
-- [ ] 59-03-PLAN.md — GUI TS mirror scorer in help_data.ts; both HelpOverlay filter memos + flat-ranked render branch (sectionGroups bypass)
+- [x] 59-03-PLAN.md — GUI TS mirror scorer in help_data.ts; both HelpOverlay filter memos + flat-ranked render branch (sectionGroups bypass)
 **UI hint**: yes
 
 ### Phase 60: Alias Authoring Pipeline
@@ -170,7 +170,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
-| 59. Runtime Matcher | 2/3 | In Progress|  |
+| 59. Runtime Matcher | 3/3 | Complete   | 2026-06-04 |
 | 60. Alias Authoring Pipeline | 0/? | Not started | - |
 | 61. Quality Gates | 0/? | Not started | - |
 
