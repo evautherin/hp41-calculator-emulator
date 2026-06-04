@@ -98,7 +98,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 - [x] **Phase 54: iOS Persistence Layer** — iOS sandbox path replaces `~/.hp41`; autosave fires on backgrounding; state survives kill/relaunch; desktop path unchanged; serde backward-compat preserved (completed 2026-06-02)
 - [x] **Phase 55: Touch UI Adaptation** — All 44 keys at ≥44pt; portrait layout with safe-area insets; press feedback + tap-delay elimination; ALPHA touch entry; haptics; audio resume; SHIFT/stack visibility; bottom sheets; collapsible stack; overscroll suppression (completed 2026-06-03)
 - [x] **Phase 56: App Lifecycle + Clock** — `backgroundThrottling` configured; clock display refreshes immediately on foreground return via forced `tick_time`; touch R/S stopwatch parity fixed; device-verified on iPhone 15 Pro (iOS 17+) (completed 2026-06-03)
-- [ ] **Phase 57: Signing + TestFlight Pipeline** — Distribution cert + provisioning profile; `PrivacyInfo.xcprivacy`; app icon + launch screen; `ci-ios.yml` GitHub Actions workflow; build uploaded and available in TestFlight
+- [x] **Phase 57: Signing + TestFlight Pipeline** — Distribution cert + provisioning profile; `PrivacyInfo.xcprivacy`; app icon + launch screen; `ci-ios.yml` GitHub Actions workflow; build uploaded and available in TestFlight (completed 2026-06-04)
 
 ---
 
@@ -189,7 +189,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 - [x] 57-01-PLAN.md — PrivacyInfo.xcprivacy + project.yml wiring, ExportOptions app-store-connect, marketing version 4.1, `just ios-build-release` recipe (SHIP-01/02) [wave 1]
 - [x] 57-02-PLAN.md — HP-41 app icon (1024 master → all slots) + branded LaunchScreen, founder art-direction approval (SHIP-03) [wave 1, checkpoint]
 - [x] 57-03-PLAN.md — `ci-ios.yml` workflow_dispatch-only signed-IPA build + altool upload, secret hygiene threat model (SHIP-04) [wave 2]
-- [ ] 57-04-PLAN.md — ASC API key + repo secrets, live workflow run, TestFlight internal distribution + device install (SHIP-01/02/04/05) [wave 3, checkpoints]
+- [x] 57-04-PLAN.md — ASC API key + repo secrets, live workflow run, TestFlight internal distribution + device install (SHIP-01/02/04/05) [wave 3, checkpoints]
 
 ---
 
@@ -201,7 +201,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
 | 55. Touch UI Adaptation | 6/6 | Complete    | 2026-06-03 |
 | 56. App Lifecycle + Clock | 1/1 | Complete    | 2026-06-03 |
-| 57. Signing + TestFlight Pipeline | 3/4 | In Progress|  |
+| 57. Signing + TestFlight Pipeline | 4/4 | Complete    | 2026-06-04 |
 
 ---
 
