@@ -40,7 +40,7 @@
 //   onRun prop: dispatches `xeq_<token>` and closes the overlay (App.tsx responsibility).
 
 import { useState, useEffect, useMemo } from 'react';
-import { helpEntriesAll, allFunctionsEntries, xeqToken, getKeyboardShortcuts, type HelpEntry } from './help_data';
+import { helpEntriesAll, allFunctionsEntries, xeqToken, getKeyboardShortcuts, rankedEntries, type HelpEntry } from './help_data';
 
 export type HelpOverlayProps = {
     open: boolean;
@@ -219,25 +219,21 @@ export function HelpOverlay({ open, onClose, isIos = false, onRun }: HelpOverlay
     const allFnEntries = useMemo(() => allFunctionsEntries(), []);
 
     // Filter entries by search query — applied within the active tab.
+    // Phase 59: non-empty query uses rankedEntries (score DESC, display_name ASC);
+    // empty query preserves the existing unfiltered path (D-26.8 unchanged).
     const filtered = useMemo(() => {
         const q = query.toLowerCase().trim();
         if (q === '') return allEntries;
-        return allEntries.filter(e =>
-            e.display_name.toLowerCase().includes(q) ||
-            e.description.toLowerCase().includes(q) ||
-            e.category.toLowerCase().includes(q)
-        );
+        return rankedEntries(allEntries, q);
     }, [query, allEntries]);
 
     // All Functions tab: filter by query.
+    // Phase 59: non-empty query uses rankedEntries (score DESC, display_name ASC);
+    // empty query preserves the existing unfiltered path (empty-query invariance guard).
     const filteredAllFn = useMemo(() => {
         const q = query.toLowerCase().trim();
         if (q === '') return allFnEntries;
-        return allFnEntries.filter(e =>
-            e.display_name.toLowerCase().includes(q) ||
-            e.description.toLowerCase().includes(q) ||
-            e.category.toLowerCase().includes(q)
-        );
+        return rankedEntries(allFnEntries, q);
     }, [query, allFnEntries]);
 
     // Group Keyboard Shortcuts entries by section → category. Sort alphabetically within each category.
@@ -415,164 +411,283 @@ export function HelpOverlay({ open, onClose, isIos = false, onRun }: HelpOverlay
                                 </div>
                             )}
                         </div>
-                        {sectionGroups.map(({ section, groups, count }) => (
-                            <div key={section.id} className="help-overlay-section">
-                                {/* Top-level collapsible section heading (D-31.8 / UI-SPEC §Accessibility) */}
-                                <button
-                                    className="help-overlay-section-heading"
-                                    onClick={() => toggleSection(section.id)}
-                                    aria-expanded={expanded[section.id] ? "true" : "false"}
-                                >
-                                    {section.heading}
-                                    {query !== '' && ` (${count})`}
-                                </button>
-                                {/* Section body — only rendered when expanded */}
-                                {expanded[section.id] && (
-                                    <div className="help-overlay-section-body">
-                                        {groups.map(([category, entries]) => (
-                                            <div key={category} className="help-overlay-category">
-                                                <h3 className="help-overlay-category-heading">{category}</h3>
-                                                {entries.map(entry => {
-                                                    const hasDetail = !!(entry.example || entry.notes);
-                                                    const isEntryExpanded = expandedEntries.has(entry.op_variant);
-                                                    return (
-                                                        <div key={entry.op_variant}>
-                                                            <div className="help-overlay-row">
-                                                                {hasDetail ? (
-                                                                    <button
-                                                                        className="help-entry-expand-btn"
-                                                                        onClick={() => toggleEntry(entry.op_variant)}
-                                                                        aria-expanded={isEntryExpanded ? "true" : "false"}
-                                                                        aria-label={`Show example for ${entry.display_name}`}
-                                                                    >
-                                                                        {isEntryExpanded ? '▼' : '▶'}
-                                                                    </button>
-                                                                ) : null}
-                                                                <span className="help-overlay-key">{entry.key_path}</span>
-                                                                <span className="help-overlay-op">{entry.display_name}</span>
-                                                                <span className="help-overlay-desc">{entry.description}</span>
-                                                            </div>
-                                                            {hasDetail && isEntryExpanded && (
-                                                                <div className="help-entry-detail">
-                                                                    {entry.example && (
-                                                                        <span className="help-entry-example">{entry.example}</span>
-                                                                    )}
-                                                                    {entry.notes && (
-                                                                        <span className="help-entry-notes">{entry.notes}</span>
+                        {/* Phase 59 Plan 59-03: flat-ranked render branch (HSMATCH-04).
+                            Non-empty query → flat ranked list (no category headings).
+                            Empty query → existing category-grouped sectionGroups path. */}
+                        {query.trim() !== '' ? (
+                            /* Flat-ranked path: renders all ranked entries directly,
+                               no section headings, no category headings. */
+                            <div className="help-overlay-ranked-list">
+                                {filtered.map(entry => {
+                                    const hasDetail = !!(entry.example || entry.notes);
+                                    const isEntryExpanded = expandedEntries.has(entry.op_variant);
+                                    return (
+                                        <div key={entry.op_variant}>
+                                            <div className="help-overlay-row">
+                                                {hasDetail ? (
+                                                    <button
+                                                        className="help-entry-expand-btn"
+                                                        onClick={() => toggleEntry(entry.op_variant)}
+                                                        aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                        aria-label={`Show example for ${entry.display_name}`}
+                                                    >
+                                                        {isEntryExpanded ? '▼' : '▶'}
+                                                    </button>
+                                                ) : null}
+                                                <span className="help-overlay-key">{entry.key_path}</span>
+                                                <span className="help-overlay-op">{entry.display_name}</span>
+                                                <span className="help-overlay-desc">{entry.description}</span>
+                                            </div>
+                                            {hasDetail && isEntryExpanded && (
+                                                <div className="help-entry-detail">
+                                                    {entry.example && (
+                                                        <span className="help-entry-example">{entry.example}</span>
+                                                    )}
+                                                    {entry.notes && (
+                                                        <span className="help-entry-notes">{entry.notes}</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            /* Grouped path (empty query): existing sectionGroups render — unchanged. */
+                            <>
+                                {sectionGroups.map(({ section, groups, count }) => (
+                                    <div key={section.id} className="help-overlay-section">
+                                        {/* Top-level collapsible section heading (D-31.8 / UI-SPEC §Accessibility) */}
+                                        <button
+                                            className="help-overlay-section-heading"
+                                            onClick={() => toggleSection(section.id)}
+                                            aria-expanded={expanded[section.id] ? "true" : "false"}
+                                        >
+                                            {section.heading}
+                                            {query !== '' && ` (${count})`}
+                                        </button>
+                                        {/* Section body — only rendered when expanded */}
+                                        {expanded[section.id] && (
+                                            <div className="help-overlay-section-body">
+                                                {groups.map(([category, entries]) => (
+                                                    <div key={category} className="help-overlay-category">
+                                                        <h3 className="help-overlay-category-heading">{category}</h3>
+                                                        {entries.map(entry => {
+                                                            const hasDetail = !!(entry.example || entry.notes);
+                                                            const isEntryExpanded = expandedEntries.has(entry.op_variant);
+                                                            return (
+                                                                <div key={entry.op_variant}>
+                                                                    <div className="help-overlay-row">
+                                                                        {hasDetail ? (
+                                                                            <button
+                                                                                className="help-entry-expand-btn"
+                                                                                onClick={() => toggleEntry(entry.op_variant)}
+                                                                                aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                                                aria-label={`Show example for ${entry.display_name}`}
+                                                                            >
+                                                                                {isEntryExpanded ? '▼' : '▶'}
+                                                                            </button>
+                                                                        ) : null}
+                                                                        <span className="help-overlay-key">{entry.key_path}</span>
+                                                                        <span className="help-overlay-op">{entry.display_name}</span>
+                                                                        <span className="help-overlay-desc">{entry.description}</span>
+                                                                    </div>
+                                                                    {hasDetail && isEntryExpanded && (
+                                                                        <div className="help-entry-detail">
+                                                                            {entry.example && (
+                                                                                <span className="help-entry-example">{entry.example}</span>
+                                                                            )}
+                                                                            {entry.notes && (
+                                                                                <span className="help-entry-notes">{entry.notes}</span>
+                                                                            )}
+                                                                        </div>
                                                                     )}
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ))}
+                                                {groups.length === 0 && query !== '' && (
+                                                    <div className="help-overlay-empty">No matches in this section.</div>
+                                                )}
                                             </div>
-                                        ))}
-                                        {groups.length === 0 && query !== '' && (
-                                            <div className="help-overlay-empty">No matches in this section.</div>
                                         )}
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                ))}
+                            </>
+                        )}
                     </>
                 )}
 
                 {/* ── Tab: All Functions ── */}
                 {activeTab === 'all' && (
                     <>
-                        {allFnSectionGroups.map(({ section, groups, count }) => (
-                            <div key={section.id} className="help-overlay-section">
-                                <button
-                                    className="help-overlay-section-heading"
-                                    onClick={() => toggleAllFnSection(section.id)}
-                                    aria-expanded={allFnExpanded[section.id] ? "true" : "false"}
-                                    data-section-id={section.id}
-                                >
-                                    {section.heading}
-                                    {query !== '' && ` (${count})`}
-                                </button>
-                                {allFnExpanded[section.id] && (
-                                    <div className="help-overlay-section-body">
-                                        {groups.map(([category, entries]) => (
-                                            <div key={category} className="help-overlay-category">
-                                                <h3 className="help-overlay-category-heading">{category}</h3>
-                                                {entries.map(entry => {
-                                                    const token = xeqToken(entry);
-                                                    const hasDetail = !!(entry.example || entry.notes);
-                                                    const isEntryExpanded = expandedEntries.has(entry.op_variant);
-                                                    return (
-                                                        <div key={entry.op_variant}>
-                                                            {token !== null ? (
-                                                                /* Tappable row: runnable by XEQ-by-name.
-                                                                   Dispatches `xeq_<token>` via onRun prop.
-                                                                   SAME id works in normal mode (executes) and
-                                                                   PRGM mode (inserts as program step) — backend
-                                                                   PRGM gate splits behavior, no frontend branch. */
-                                                                <div className="help-overlay-row help-overlay-row--tappable">
-                                                                    {hasDetail ? (
-                                                                        <button
-                                                                            className="help-entry-expand-btn"
-                                                                            onClick={() => toggleEntry(entry.op_variant)}
-                                                                            aria-expanded={isEntryExpanded ? "true" : "false"}
-                                                                            aria-label={`Show example for ${entry.display_name}`}
+                        {/* Phase 59 Plan 59-03: flat-ranked render branch (HSMATCH-04).
+                            Non-empty query → flat ranked list (no category headings).
+                            Empty query → existing allFnSectionGroups grouped path. */}
+                        {query.trim() !== '' ? (
+                            /* Flat-ranked path: renders all ranked entries directly,
+                               no section headings, no category headings. */
+                            <div className="help-overlay-ranked-list">
+                                {filteredAllFn.map(entry => {
+                                    const token = xeqToken(entry);
+                                    const hasDetail = !!(entry.example || entry.notes);
+                                    const isEntryExpanded = expandedEntries.has(entry.op_variant);
+                                    return (
+                                        <div key={entry.op_variant}>
+                                            {token !== null ? (
+                                                <div className="help-overlay-row help-overlay-row--tappable">
+                                                    {hasDetail ? (
+                                                        <button
+                                                            className="help-entry-expand-btn"
+                                                            onClick={() => toggleEntry(entry.op_variant)}
+                                                            aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                            aria-label={`Show example for ${entry.display_name}`}
+                                                        >
+                                                            {isEntryExpanded ? '▼' : '▶'}
+                                                        </button>
+                                                    ) : null}
+                                                    <button
+                                                        className="help-fn-run-btn"
+                                                        onClick={() => onRun?.(`xeq_${token}`)}
+                                                        aria-label={`Run ${entry.display_name}`}
+                                                    >
+                                                        <span className="help-overlay-op">{entry.display_name}</span>
+                                                        <span className="help-overlay-desc">{entry.description}</span>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    className="help-overlay-row help-overlay-row--non-tappable"
+                                                    aria-disabled="true"
+                                                >
+                                                    {hasDetail ? (
+                                                        <button
+                                                            className="help-entry-expand-btn"
+                                                            onClick={() => toggleEntry(entry.op_variant)}
+                                                            aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                            aria-label={`Show example for ${entry.display_name}`}
+                                                        >
+                                                            {isEntryExpanded ? '▼' : '▶'}
+                                                        </button>
+                                                    ) : null}
+                                                    <span className="help-overlay-op help-overlay-op--keyboard-only">{entry.display_name}</span>
+                                                    <span className="help-overlay-desc">{entry.description}</span>
+                                                    <span className="help-overlay-kbd-hint" aria-label="keyboard only">⌨</span>
+                                                </div>
+                                            )}
+                                            {hasDetail && isEntryExpanded && (
+                                                <div className="help-entry-detail">
+                                                    {entry.example && (
+                                                        <span className="help-entry-example">{entry.example}</span>
+                                                    )}
+                                                    {entry.notes && (
+                                                        <span className="help-entry-notes">{entry.notes}</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            /* Grouped path (empty query): existing allFnSectionGroups render — unchanged. */
+                            <>
+                                {allFnSectionGroups.map(({ section, groups, count }) => (
+                                    <div key={section.id} className="help-overlay-section">
+                                        <button
+                                            className="help-overlay-section-heading"
+                                            onClick={() => toggleAllFnSection(section.id)}
+                                            aria-expanded={allFnExpanded[section.id] ? "true" : "false"}
+                                            data-section-id={section.id}
+                                        >
+                                            {section.heading}
+                                            {query !== '' && ` (${count})`}
+                                        </button>
+                                        {allFnExpanded[section.id] && (
+                                            <div className="help-overlay-section-body">
+                                                {groups.map(([category, entries]) => (
+                                                    <div key={category} className="help-overlay-category">
+                                                        <h3 className="help-overlay-category-heading">{category}</h3>
+                                                        {entries.map(entry => {
+                                                            const token = xeqToken(entry);
+                                                            const hasDetail = !!(entry.example || entry.notes);
+                                                            const isEntryExpanded = expandedEntries.has(entry.op_variant);
+                                                            return (
+                                                                <div key={entry.op_variant}>
+                                                                    {token !== null ? (
+                                                                        /* Tappable row: runnable by XEQ-by-name.
+                                                                           Dispatches `xeq_<token>` via onRun prop.
+                                                                           SAME id works in normal mode (executes) and
+                                                                           PRGM mode (inserts as program step) — backend
+                                                                           PRGM gate splits behavior, no frontend branch. */
+                                                                        <div className="help-overlay-row help-overlay-row--tappable">
+                                                                            {hasDetail ? (
+                                                                                <button
+                                                                                    className="help-entry-expand-btn"
+                                                                                    onClick={() => toggleEntry(entry.op_variant)}
+                                                                                    aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                                                    aria-label={`Show example for ${entry.display_name}`}
+                                                                                >
+                                                                                    {isEntryExpanded ? '▼' : '▶'}
+                                                                                </button>
+                                                                            ) : null}
+                                                                            <button
+                                                                                className="help-fn-run-btn"
+                                                                                onClick={() => onRun?.(`xeq_${token}`)}
+                                                                                aria-label={`Run ${entry.display_name}`}
+                                                                            >
+                                                                                <span className="help-overlay-op">{entry.display_name}</span>
+                                                                                <span className="help-overlay-desc">{entry.description}</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        /* Non-tappable row: parameterized / key-only / composite.
+                                                                           Listed for discovery but NOT a button — D-07: never
+                                                                           dispatch an unresolvable id. */
+                                                                        <div
+                                                                            className="help-overlay-row help-overlay-row--non-tappable"
+                                                                            aria-disabled="true"
                                                                         >
-                                                                            {isEntryExpanded ? '▼' : '▶'}
-                                                                        </button>
-                                                                    ) : null}
-                                                                    <button
-                                                                        className="help-fn-run-btn"
-                                                                        onClick={() => onRun?.(`xeq_${token}`)}
-                                                                        aria-label={`Run ${entry.display_name}`}
-                                                                    >
-                                                                        <span className="help-overlay-op">{entry.display_name}</span>
-                                                                        <span className="help-overlay-desc">{entry.description}</span>
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                /* Non-tappable row: parameterized / key-only / composite.
-                                                                   Listed for discovery but NOT a button — D-07: never
-                                                                   dispatch an unresolvable id. */
-                                                                <div
-                                                                    className="help-overlay-row help-overlay-row--non-tappable"
-                                                                    aria-disabled="true"
-                                                                >
-                                                                    {hasDetail ? (
-                                                                        <button
-                                                                            className="help-entry-expand-btn"
-                                                                            onClick={() => toggleEntry(entry.op_variant)}
-                                                                            aria-expanded={isEntryExpanded ? "true" : "false"}
-                                                                            aria-label={`Show example for ${entry.display_name}`}
-                                                                        >
-                                                                            {isEntryExpanded ? '▼' : '▶'}
-                                                                        </button>
-                                                                    ) : null}
-                                                                    <span className="help-overlay-op help-overlay-op--keyboard-only">{entry.display_name}</span>
-                                                                    <span className="help-overlay-desc">{entry.description}</span>
-                                                                    <span className="help-overlay-kbd-hint" aria-label="keyboard only">⌨</span>
-                                                                </div>
-                                                            )}
-                                                            {hasDetail && isEntryExpanded && (
-                                                                <div className="help-entry-detail">
-                                                                    {entry.example && (
-                                                                        <span className="help-entry-example">{entry.example}</span>
+                                                                            {hasDetail ? (
+                                                                                <button
+                                                                                    className="help-entry-expand-btn"
+                                                                                    onClick={() => toggleEntry(entry.op_variant)}
+                                                                                    aria-expanded={isEntryExpanded ? "true" : "false"}
+                                                                                    aria-label={`Show example for ${entry.display_name}`}
+                                                                                >
+                                                                                    {isEntryExpanded ? '▼' : '▶'}
+                                                                                </button>
+                                                                            ) : null}
+                                                                            <span className="help-overlay-op help-overlay-op--keyboard-only">{entry.display_name}</span>
+                                                                            <span className="help-overlay-desc">{entry.description}</span>
+                                                                            <span className="help-overlay-kbd-hint" aria-label="keyboard only">⌨</span>
+                                                                        </div>
                                                                     )}
-                                                                    {entry.notes && (
-                                                                        <span className="help-entry-notes">{entry.notes}</span>
+                                                                    {hasDetail && isEntryExpanded && (
+                                                                        <div className="help-entry-detail">
+                                                                            {entry.example && (
+                                                                                <span className="help-entry-example">{entry.example}</span>
+                                                                            )}
+                                                                            {entry.notes && (
+                                                                                <span className="help-entry-notes">{entry.notes}</span>
+                                                                            )}
+                                                                        </div>
                                                                     )}
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ))}
+                                                {groups.length === 0 && query !== '' && (
+                                                    <div className="help-overlay-empty">No matches in this section.</div>
+                                                )}
                                             </div>
-                                        ))}
-                                        {groups.length === 0 && query !== '' && (
-                                            <div className="help-overlay-empty">No matches in this section.</div>
                                         )}
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                ))}
+                            </>
+                        )}
                     </>
                 )}
             </div>
