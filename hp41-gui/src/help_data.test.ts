@@ -17,7 +17,7 @@
 //   that hole at the overlay-dataset boundary.
 
 import { describe, it, expect } from 'vitest';
-import { allFunctionsEntries, xeqToken, helpEntriesAll, OVERLAY_HIDDEN_ALIASES, type HelpEntry } from './help_data';
+import { allFunctionsEntries, xeqToken, helpEntriesAll, OVERLAY_HIDDEN_ALIASES, type HelpEntry, scoreEntry, rankedEntries } from './help_data';
 
 describe('allFunctionsEntries', () => {
     it('includes implemented key_path:null entries — e.g. SIN and CLRG', () => {
@@ -141,5 +141,174 @@ describe('C1: allFunctionsEntries completeness guardrail', () => {
             missing,
             `These implemented functions are missing from allFunctionsEntries() — they would be invisible in the All Functions tab: ${missing.join(', ')}`
         ).toHaveLength(0);
+    });
+});
+
+// ── Phase 59 Wave 0 — RED scorer contract ─────────────────────────────────────
+//
+// These tests describe the full scoreEntry/rankedEntries API before the scorer
+// is implemented. They FAIL (RED) until plan 59-03 adds the exports to
+// help_data.ts. That is the intended Wave-0 state — not a defect.
+//
+// Tier constants (from 59-RESEARCH.md §Tiered Scoring):
+//   name:  exact 40 > prefix 32 > substr 24 > fuzzy 8
+//   alias: exact 35 > prefix 28 > substr 21 > fuzzy 7
+//   desc:  exact 30 > prefix 24 > substr 18 > fuzzy 6
+//   cat:   exact 20 > prefix 16 > substr 12 > fuzzy 4
+//
+// Mirror of hp41-cli/tests/phase59_help_search.rs (CLI↔GUI parity contract).
+// q is pre-lowercased+trimmed before passing to scoreEntry.
+
+// Synthetic HelpEntry fixture (mirrors the Rust make_entry helper)
+function makeEntry(
+    display_name: string,
+    description: string,
+    category: string,
+    aliases: string[],
+): HelpEntry {
+    return {
+        op_variant: display_name,
+        display_name,
+        category,
+        status: 'implemented',
+        phase: null,
+        key_path: null,
+        description,
+        divergences: [],
+        xrom: undefined,
+        search_aliases: aliases,
+    };
+}
+
+describe('Phase 59 scorer — scoreEntry', () => {
+
+    // ── Tier order (HSMATCH-02) ───────────────────────────────────────────────
+    it('tier order: exact(40) > prefix(32) > substring(24) > fuzzy(8) on display_name', () => {
+        // Exact name match
+        const exactEntry = makeEntry('tvm', 'Time Value of Money', 'Finance', []);
+        const exactScore = scoreEntry(exactEntry, 'tvm');
+        expect(exactScore).toBe(40);
+
+        // Word-prefix match: "tv" is a prefix of "tvm"
+        const prefixEntry = makeEntry('tvm', 'Time Value of Money', 'Finance', []);
+        const prefixScore = scoreEntry(prefixEntry, 'tv');
+        expect(prefixScore).toBe(32);
+
+        // Substring (non-prefix): "vm" is in "tvm" but not a prefix
+        const substrEntry = makeEntry('tvm', 'Time Value of Money', 'Finance', []);
+        const substrScore = scoreEntry(substrEntry, 'vm');
+        expect(substrScore).toBe(24);
+
+        // Fuzzy (1 typo): query "tvm" vs display_name "tvn" — 1 edit, threshold max(1,3/4)=1
+        const fuzzyEntry = makeEntry('tvn', 'Time Value of Money', 'Finance', []);
+        const fuzzyScore = scoreEntry(fuzzyEntry, 'tvm');
+        expect(fuzzyScore).toBe(8);
+
+        // Strict ordering
+        expect(exactScore).toBeGreaterThan(prefixScore);
+        expect(prefixScore).toBeGreaterThan(substrScore);
+        expect(substrScore).toBeGreaterThan(fuzzyScore);
+        expect(fuzzyScore).toBeGreaterThan(0);
+    });
+
+    // ── Fuzzy typo: Zineszins → TVM (HSMATCH-03, HSUX-02) ───────────────────
+    it('fuzzy typo: scoreEntry(tvm, "zineszins") > 0 with alias "Zinseszins"', () => {
+        // "zineszins" is 1 edit from "zinseszins"; threshold = max(1, 9/4) = 2
+        const tvm = makeEntry('TVM', 'Time Value of Money solver', 'Finance', ['Zinseszins', 'compound interest']);
+        const score = scoreEntry(tvm, 'zineszins');
+        expect(score).toBeGreaterThan(0);
+
+        // Control entry without the alias must score 0
+        const sin = makeEntry('SIN', 'Sine of X', 'Trigonometry', []);
+        expect(scoreEntry(sin, 'zineszins')).toBe(0);
+    });
+
+    // ── Alias exact: Wurzel → SQRT (HSUX-02) ─────────────────────────────────
+    it('alias exact: scoreEntry(sqrt, "wurzel") == 35 with alias "Wurzel"', () => {
+        const sqrt = makeEntry('SQRT', 'Square root of X', 'Math', ['Wurzel']);
+        const score = scoreEntry(sqrt, 'wurzel');
+        expect(score).toBe(35);
+    });
+
+    // ── DE + EN alias resolution (HSMATCH-05) ────────────────────────────────
+    it('alias DE+EN: both "zinseszins" and "compound interest" score > 0 on TVM', () => {
+        const tvm = makeEntry('TVM', 'Time Value of Money solver', 'Finance', ['Zinseszins', 'compound interest']);
+        expect(scoreEntry(tvm, 'zinseszins')).toBeGreaterThan(0);
+        expect(scoreEntry(tvm, 'compound interest')).toBeGreaterThan(0);
+
+        // Alias-less entry scores 0 for both queries
+        const aliasless = makeEntry('SIN', 'Sine of X', 'Trigonometry', []);
+        expect(scoreEntry(aliasless, 'zinseszins')).toBe(0);
+        expect(scoreEntry(aliasless, 'compound interest')).toBe(0);
+    });
+
+    // ── All four fields scored (HSMATCH-01) ───────────────────────────────────
+    it('all-four-fields: entries matching via display_name / description / category / alias each score > 0', () => {
+        // Match only via display_name
+        const nameEntry = makeEntry('SIN', 'No-match description', 'No-match-cat', []);
+        expect(scoreEntry(nameEntry, 'sin')).toBeGreaterThan(0);
+
+        // Match only via description
+        const descEntry = makeEntry('NOOP', 'trigonometry function', 'No-match-cat', []);
+        expect(scoreEntry(descEntry, 'trigonometry')).toBeGreaterThan(0);
+
+        // Match only via category
+        const catEntry = makeEntry('NOOP2', 'no match description here', 'Finance', []);
+        expect(scoreEntry(catEntry, 'finance')).toBeGreaterThan(0);
+
+        // Match only via alias
+        const aliasEntry = makeEntry('NOOP3', 'no match description here', 'No-match-cat', ['Zinseszins']);
+        expect(scoreEntry(aliasEntry, 'zinseszins')).toBeGreaterThan(0);
+
+        // No field matches → score 0
+        const noMatch = makeEntry('NOOP4', 'no match here', 'Other', []);
+        expect(scoreEntry(noMatch, 'zinseszins')).toBe(0);
+    });
+});
+
+describe('Phase 59 ranking — rankedEntries', () => {
+
+    // ── Sorted score DESC then display_name ASC ───────────────────────────────
+    it('ranked output: top entry for "wurzel" is SQRT; zero-score entries absent', () => {
+        const pool: readonly HelpEntry[] = [
+            makeEntry('SIN', 'Sine of X', 'Trigonometry', []),
+            makeEntry('COS', 'Cosine of X', 'Trigonometry', []),
+            makeEntry('SQRT', 'Square root of X', 'Math', ['Wurzel']),
+            makeEntry('TAN', 'Tangent of X', 'Trigonometry', []),
+        ];
+
+        const results = rankedEntries(pool, 'wurzel');
+        expect(results.length).toBeGreaterThan(0);
+        // SQRT must be the top result (alias exact = 35, others score 0)
+        expect(results[0].display_name).toBe('SQRT');
+        // Zero-score entries (SIN, COS, TAN) must be absent
+        expect(results.find(e => e.display_name === 'SIN')).toBeUndefined();
+        expect(results.find(e => e.display_name === 'COS')).toBeUndefined();
+        expect(results.find(e => e.display_name === 'TAN')).toBeUndefined();
+    });
+
+    it('rankedEntries: ties broken by display_name ASC', () => {
+        // Two entries with identical score — should sort by display_name
+        const pool: readonly HelpEntry[] = [
+            makeEntry('ZEBRA', 'No-match desc', 'Finance', ['compound interest']),
+            makeEntry('ALPHA', 'No-match desc', 'Finance', ['compound interest']),
+        ];
+
+        const results = rankedEntries(pool, 'compound interest');
+        expect(results.length).toBe(2);
+        // Same score — alphabetical order: ALPHA < ZEBRA
+        expect(results[0].display_name).toBe('ALPHA');
+        expect(results[1].display_name).toBe('ZEBRA');
+    });
+
+    it('rankedEntries: empty string query returns unranked passthrough (same as filterHelpEntries empty-guard)', () => {
+        const pool: readonly HelpEntry[] = [
+            makeEntry('SIN', 'Sine of X', 'Trigonometry', []),
+            makeEntry('COS', 'Cosine of X', 'Trigonometry', []),
+        ];
+        // For empty query, rankedEntries should return the pool unchanged
+        // (mirrors the Rust empty-query invariance guard)
+        const results = rankedEntries(pool, '');
+        expect(results.length).toBe(pool.length);
     });
 });
