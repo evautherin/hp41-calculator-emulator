@@ -31,8 +31,8 @@
 //   - helpEntriesAll() updated from 4-pool to 5-pool length assertion
 //   - sectionButtons.length updated from 4 to 6
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 import { HelpOverlay } from './HelpOverlay';
 import { helpEntries, helpOverlayRows, filterHelpEntries, helpEntriesMath1, helpEntriesAll, helpEntriesStat1, helpEntriesTime, helpEntriesAdvantage, helpEntriesXmem } from './help_data';
 import sourceJson from '../../docs/hp41cv-functions.json';
@@ -763,5 +763,118 @@ describe('HelpOverlay — Phase lu0 tabs + tap-to-run', () => {
         expect(btnsText.some(t => t.toUpperCase().includes('KEYBOARD SHORTCUTS'))).toBe(true);
         expect(btnsText.some(t => t.includes('HP-41CV (built-in)'))).toBe(true);
         expect(btnsText.some(t => t.includes('Math 1 Pac (XROM 7)'))).toBe(true);
+    });
+});
+
+// ── Phase 59 Wave 0 — RED flat-ranked render-branch contract ──────────────────
+//
+// These tests pin the render-branch contract BEFORE 59-03 adds the flat-ranked
+// branch to HelpOverlay.tsx. They will FAIL until 59-03 wires the branch.
+// That is the intended Wave-0 RED state — not a defect.
+//
+// Contract:
+//   empty query  → section-grouped view (.help-overlay-category-heading > 0)
+//   non-empty matching query → flat-ranked view (.help-overlay-category-heading == 0,
+//                                               .help-overlay-row > 0)
+//   no-match query → empty state (.help-overlay-empty present or zero rows)
+//
+// See: 59-RESEARCH.md §Pattern 4 GUI Rendering, §Pitfall 4
+//      59-VALIDATION.md §Wave 0 Requirements — HSMATCH-04, HSUX-01
+
+describe('Phase 59 — flat-ranked render branch', () => {
+    afterEach(() => {
+        // globals:false (no testing-library auto-cleanup) — without this,
+        // portaled nodes accumulate in document.body across tests (#CLAUDE-portal)
+        cleanup();
+    });
+
+    // ── Empty-query regression guard (HSMATCH-04) ─────────────────────────────
+    it('empty query: section-grouped view — .help-overlay-category-heading count > 0', () => {
+        // IMPORTANT: this test must pass both before AND after 59-03.
+        // It guards that the empty-query grouped path is left untouched.
+        // Currently PASSES. Must remain green after 59-03.
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        // Leave search input empty (default state)
+        const headings = container.querySelectorAll('.help-overlay-category-heading');
+        expect(headings.length).toBeGreaterThan(
+            0,
+            'Empty query must show section-grouped view with category headings'
+        );
+    });
+
+    // ── Non-empty matching query: flat-ranked branch (HSMATCH-04, HSUX-01) ──
+    it('non-empty query: flat-ranked view — zero category headings, non-zero rows', () => {
+        // RED until 59-03 wires the flat-ranked branch.
+        // Use "sin" — matches at least SIN (exact display_name) in real loaded data.
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const searchInput = container.querySelector('.help-overlay-search') as HTMLInputElement;
+        expect(searchInput).not.toBeNull();
+        fireEvent.change(searchInput, { target: { value: 'sin' } });
+
+        // Flat-ranked mode must show NO category headings
+        const headings = container.querySelectorAll('.help-overlay-category-heading');
+        expect(headings.length).toBe(
+            0,
+            `Non-empty query must suppress category headings in flat-ranked mode; found ${headings.length}`
+        );
+
+        // Flat-ranked mode must show at least one result row
+        const rows = container.querySelectorAll('.help-overlay-row');
+        expect(rows.length).toBeGreaterThan(
+            0,
+            'Non-empty matching query must show at least one .help-overlay-row in flat-ranked mode'
+        );
+    });
+
+    // ── All-Functions tab: same flat-ranked contract (HSMATCH-01, Pitfall 5) ─
+    it('All Functions tab with non-empty query: flat-ranked — zero headings, non-zero rows', () => {
+        // RED until 59-03 wires both filter memo branches.
+        // "sqrt" matches at least the SQRT entry across all 6 pools.
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+
+        // Switch to All Functions tab
+        const tabButtons = container.querySelectorAll('.help-overlay-tab');
+        const allFnTab = Array.from(tabButtons).find(
+            b => b.textContent?.toLowerCase().includes('all functions')
+        ) as HTMLButtonElement | undefined;
+        if (allFnTab) {
+            fireEvent.click(allFnTab);
+        }
+
+        // Type a query
+        const searchInput = container.querySelector('.help-overlay-search') as HTMLInputElement;
+        expect(searchInput).not.toBeNull();
+        fireEvent.change(searchInput, { target: { value: 'sqrt' } });
+
+        // In flat-ranked mode: no category headings
+        const headings = container.querySelectorAll('.help-overlay-category-heading');
+        expect(headings.length).toBe(
+            0,
+            `All Functions tab with non-empty query must suppress category headings; found ${headings.length}`
+        );
+
+        // At least one row
+        const rows = container.querySelectorAll('.help-overlay-row');
+        expect(rows.length).toBeGreaterThan(
+            0,
+            'All Functions tab with matching query must show at least one .help-overlay-row'
+        );
+    });
+
+    // ── No-match empty state ──────────────────────────────────────────────────
+    it('no-match query: empty state (.help-overlay-empty present)', () => {
+        // Mirrors the existing "empty-result search" test but asserts the flat-
+        // ranked branch path. "xyzzy_no_match" will not match any real entry.
+        const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
+        const searchInput = container.querySelector('.help-overlay-search') as HTMLInputElement;
+        fireEvent.change(searchInput, { target: { value: 'xyzzy_no_match_59' } });
+
+        const emptyState = container.querySelector('.help-overlay-empty');
+        const rows = container.querySelectorAll('.help-overlay-row');
+        const hasEmptyIndicator = emptyState !== null || rows.length === 0;
+        expect(hasEmptyIndicator).toBe(
+            true,
+            'No-match query must show .help-overlay-empty or zero .help-overlay-row elements'
+        );
     });
 });
