@@ -54,3 +54,7 @@ graphify-out/
 
 # Playwright MCP session artifacts (console/page dumps)
 .playwright-mcp/
+
+# Headroom + Serena local tool scratch
+.headroom/
+.serena/
