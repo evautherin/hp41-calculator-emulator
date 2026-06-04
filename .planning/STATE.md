@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: executing
-last_updated: "2026-06-04T06:57:15.478Z"
+last_updated: "2026-06-04T07:03:35.788Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 80
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 ## Current Position
 
 Phase: 57 (signing-testflight-pipeline) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Resume file: None
 Last activity: 2026-06-04
@@ -87,6 +87,7 @@ Phase 56 ██████████ 100%  Phase 57 ░░░░░░░░�
 | Phase 55 P01 | 5 | 3 tasks | 10 files |
 | Phase 55 P05 | 10 | 2 tasks | 4 files |
 | Phase 57 P01 | 10 | 3 tasks | 5 files |
+| Phase 57-signing-testflight-pipeline P02 | 20 | 2 tasks | 72 files |
 
 ## Execution Metrics (Phase 53)
 

@@ -47,7 +47,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 - [x] **SHIP-01**: A distribution certificate + provisioning profile produce a signed IPA
 - [x] **SHIP-02**: `PrivacyInfo.xcprivacy` is present in `gen/apple/` with the file-timestamp accessed-API reason (`NSPrivacyAccessedAPICategoryFileTimestamp` / `C617.1`)
-- [ ] **SHIP-03**: The app has an app icon and a launch screen
+- [x] **SHIP-03**: The app has an app icon and a launch screen
 - [ ] **SHIP-04**: A `ci-ios.yml` GitHub Actions workflow (macOS runner) builds the signed IPA and uploads it via `xcrun altool`
 - [ ] **SHIP-05**: A build is distributed to testers via TestFlight (internal distribution)
 
@@ -112,7 +112,7 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | LIFE-02 | Phase 56 | Complete |
 | SHIP-01 | Phase 57 | Complete |
 | SHIP-02 | Phase 57 | Complete |
-| SHIP-03 | Phase 57 | Pending |
+| SHIP-03 | Phase 57 | Complete |
 | SHIP-04 | Phase 57 | Pending |
 | SHIP-05 | Phase 57 | Pending |
 
