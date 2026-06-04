@@ -1,6 +1,15 @@
 # HP-41 Calculator Emulator
 
-## Current Milestone: v4.1 iOS Foundation
+## Current State
+
+**v4.1 iOS Foundation — SHIPPED 2026-06-04.** The HP-41 runs on iPhone (Tauri v2 + React, shared `hp41-core`): iOS sandbox persistence, touch-first UI, app lifecycle/clock, and a **manual-signing `ci-ios` pipeline** that delivers a signed IPA to TestFlight (installed + verified on a physical device). All 25 requirements satisfied; milestone audit PASSED. Desktop/macOS behavior unchanged (iOS paths `isIos`/`#[cfg(mobile)]`-gated).
+
+**Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
+
+**No active milestone** — run `/gsd:new-milestone` to start the next.
+
+<details>
+<summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
 
 **Goal:** Bring the HP-41 emulator to iPhone with a touch-first UI and a working signed build distributed via TestFlight — laying the foundation for a later App Store release.
 
@@ -12,6 +21,8 @@
 - Signing + TestFlight — provisioning/code-signing with the Apple Developer cert; build distributed via TestFlight
 
 **Explicitly out of scope (deferred to a follow-up milestone):** App Store submission, store assets, Apple review, and "HP-41" trademark navigation. `hp41-core` stays UI-agnostic — mobile is another adapter; the workspace Frozen Invariant is preserved.
+
+</details>
 
 <details>
 <summary>v4.0 Platform Maturity (shipped 2026-05-28 — see <code>milestones/v4.0-ROADMAP.md</code>)</summary>
