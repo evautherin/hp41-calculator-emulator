@@ -141,8 +141,8 @@ grep 'D-57.4', 'ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_API_KEY_P8' in comment → PA
 - `.planning/phases/57-signing-testflight-pipeline/57-03-SUMMARY.md` ✓
 
 ### Commits verified:
-- `5e822dc`: feat(57-03): add ci-ios.yml signed IPA build + TestFlight upload workflow (SHIP-04) (ci-ios.yml)
-- `128dd5c`: docs(57-03): complete ci-ios.yml plan — SUMMARY, STATE, ROADMAP, REQUIREMENTS
-- Note: `99f7442` (same message) inadvertently captured stray CLI working-tree changes via an unexpected git-workflow hook interaction; ci-ios.yml itself is in `5e822dc`
+- `2438d8a`: feat(57-03): add ci-ios.yml signed IPA build + TestFlight upload workflow (SHIP-04) (ci-ios.yml)
+- `73fbbbc`: docs(57-03): complete ci-ios.yml plan — SUMMARY, STATE, ROADMAP, REQUIREMENTS
+- Note: a mislabeled commit (`99f7442`) had inadvertently captured stray, out-of-phase CLI working-tree changes (`hp41-cli/src/{app,keys,ui}.rs`) via an unexpected git-workflow staging interaction. The orchestrator excised that commit from history (non-interactive `rebase --onto`, all commits still unpushed) and restored those changes as uncommitted working-tree WIP per the founder's "leave untouched" decision. ci-ios.yml is unaffected and lives in `2438d8a`.
 
 ## Self-Check: PASSED
