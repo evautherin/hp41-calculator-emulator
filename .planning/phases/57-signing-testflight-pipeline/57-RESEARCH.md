@@ -607,24 +607,24 @@ Pre-flight checklist before first upload:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED in planning, 2026-06-04)
 
-1. **ROADMAP vs CONTEXT trigger conflict (D-57.4)**
-   - What we know: CONTEXT.md says `workflow_dispatch` only; ROADMAP SC #4 says "on every push to main"
+1. **ROADMAP vs CONTEXT trigger conflict (D-57.4)** — RESOLVED: plan implements `workflow_dispatch` only (D-57.4). ROADMAP SC #4 amended in place with a supersession note; Plan 57-03 carries a `must_haves` truth + acceptance check so verify-phase treats a successful manual run as satisfying SHIP-04 (no false gap).
+   - What we know: CONTEXT.md says `workflow_dispatch` only; ROADMAP SC #4 said "on every push to main"
    - What's unclear: Which should be the verification criterion for `/gsd:verify-phase`
    - Recommendation: Write plan for `workflow_dispatch`, document that ROADMAP SC #4 needs updating, let user confirm
 
-2. **PrivacyInfo.xcprivacy XcodeGen inclusion method**
+2. **PrivacyInfo.xcprivacy XcodeGen inclusion method** — RESOLVED: Plan 57-01 T1 includes the `project.yml` source entry as source-of-truth plus a documented fallback to a direct `project.pbxproj` reference if XcodeGen omits it.
    - What we know: XcodeGen has a known bug with `.xcprivacy` in some versions (fixed in PR #1464)
    - What's unclear: Which XcodeGen version is bundled with Tauri 2.11.1
    - Recommendation: Plan should include a fallback: if XcodeGen project.yml approach fails, add the file reference directly to `project.pbxproj`
 
-3. **App Store Connect API key permissions level**
+3. **App Store Connect API key permissions level** — RESOLVED: Plan 57-04 checkpoint 1 specifies creating the ASC API key with App Manager (or Admin) access so `-allowProvisioningUpdates` can create/update profiles.
    - What we know: Tauri docs say "Admin access"; Apple docs say "Developer" is sufficient for uploads
    - What's unclear: Whether Developer-level key can also create/update provisioning profiles for `-allowProvisioningUpdates`
    - Recommendation: Create the key with App Manager or Admin access to be safe; least-privilege can be revisited
 
-4. **HP-41 icon art direction**
+4. **HP-41 icon art direction** — RESOLVED: Plan 57-02 T1 is a blocking `checkpoint:decision` gate (`autonomous: false`) for founder approval of the visual direction before icon slots are committed.
    - What we know: D-57.7 says "real HP-41-styled icon, 1024×1024 master, gold-on-dark aesthetic"
    - What's unclear: Specific visual elements (is it the calculator face? the logo? a stylized "41"?)
    - Recommendation: Planner should add a checkpoint task for the user to approve icon design before it's committed
