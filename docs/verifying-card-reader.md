@@ -130,6 +130,12 @@ section 3.
 
 > **Platform note:** macOS users substitute `shasum -a 256` for every `sha256sum` invocation below — the GNU tool is not part of the macOS base install.
 
+> **ALPHA key.** `ALPHA … ALPHA` means: toggle ALPHA mode on, type the name,
+> toggle it off. CLI: the `a` key toggles ALPHA mode (top-row mode key, like
+> `p`=PRGM / `u`=USER) — so `a Q U A D a` (or end with `ENTER`). GUI: click the
+> on-screen `ALPHA` button. Letters typed here go to the ALPHA *register* (the
+> card filename), which is distinct from in-modal label entry (see §2 note).
+
 ```
 1.  ALPHA   Q U A D   ALPHA            ; ALPHA register = "QUAD"
 2.  XEQ "WPRGM" + ENTER                ; → ~/.hp41/cards/QUAD.raw exists (~40–50 B)
