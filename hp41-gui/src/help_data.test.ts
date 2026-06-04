@@ -17,7 +17,7 @@
 //   that hole at the overlay-dataset boundary.
 
 import { describe, it, expect } from 'vitest';
-import { allFunctionsEntries, xeqToken, helpEntriesAll, OVERLAY_HIDDEN_ALIASES } from './help_data';
+import { allFunctionsEntries, xeqToken, helpEntriesAll, OVERLAY_HIDDEN_ALIASES, type HelpEntry } from './help_data';
 
 describe('allFunctionsEntries', () => {
     it('includes implemented key_path:null entries — e.g. SIN and CLRG', () => {
@@ -95,6 +95,23 @@ describe('xeqToken', () => {
     it('returns null for mode/composite placeholders (AlphaToggle, PrgmMode)', () => {
         expect(xeqToken({ op_variant: 'AlphaToggle', display_name: 'ALPHA' })).toBeNull();
         expect(xeqToken({ op_variant: 'PrgmMode', display_name: 'PRGM' })).toBeNull();
+    });
+});
+
+// ── Phase 58: search_aliases backward-compat assertion (D-58.2 / HSDATA-02) ─────
+//
+// The field is optional in the TS interface so existing JSON imports (which lack
+// the key) still typecheck. This test confirms that an object typed as HelpEntry
+// without search_aliases yields `undefined` for that field — no runtime error.
+
+describe('HelpEntry.search_aliases backward-compat', () => {
+    it('object without search_aliases field yields undefined (D-58.2)', () => {
+        // Simulate what happens when a JSON pool entry (no search_aliases key)
+        // is accessed — the field must be undefined, not an error.
+        const entry = JSON.parse(
+            '{"op_variant":"Pi","display_name":"PI","category":"Math","status":"implemented","phase":"21","key_path":"f-7","description":"Push pi onto X"}'
+        ) as HelpEntry;
+        expect(entry.search_aliases).toBeUndefined();
     });
 });
 

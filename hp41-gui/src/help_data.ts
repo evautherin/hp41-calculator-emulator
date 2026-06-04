@@ -83,6 +83,14 @@ export interface HelpEntry {
     example?: string;
     /// Phase 49 D-49.5 — factual behavioral notes: stack lift, LASTX, domain errors.
     notes?: string;
+    /** Invisible match surface for Phase 59 search (D-58.4 / HSDATA-02).
+     *
+     * Alternative spellings, abbreviations, and synonyms that broaden
+     * free-text search recall without appearing in the `?` overlay layout.
+     * Populated in Phase 60 (alias content); absent until then.
+     * Mirrors `search_aliases: Vec<String>` in hp41-cli/src/help_data.rs (~line 87).
+     */
+    search_aliases?: string[];
 }
 
 /// Lazy-init cache. Vite's static `import` is itself the cache (module
