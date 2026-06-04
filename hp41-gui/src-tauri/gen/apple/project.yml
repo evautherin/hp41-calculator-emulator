@@ -55,7 +55,7 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 4.1
+        CFBundleShortVersionString: "4.1"
         CFBundleVersion: "1.0.0"
     entitlements:
       path: hp41-gui_iOS/hp41-gui_iOS.entitlements
