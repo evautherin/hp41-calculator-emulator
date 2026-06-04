@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: iOS Foundation
 status: completed
-last_updated: "2026-06-03T20:15:13.374Z"
+last_updated: "2026-06-04T06:04:20.430Z"
 last_activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
 progress:
   total_phases: 5
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 Phase: 56 (app-lifecycle-clock) — COMPLETE
 Plan: 1/1 complete
 Status: Phase 56 complete; Phase 57 is next
-Resume file: None
+Resume file: .planning/phases/57-signing-testflight-pipeline/57-CONTEXT.md
 Last activity: 2026-06-03 -- Phase 56 plan 01 complete (LIFE-01, LIFE-02 + touch R/S fix, device approved)
 
 ## Progress Bar
