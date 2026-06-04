@@ -188,7 +188,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 **Plans**: 4 plans
 - [x] 57-01-PLAN.md — PrivacyInfo.xcprivacy + project.yml wiring, ExportOptions app-store-connect, marketing version 4.1, `just ios-build-release` recipe (SHIP-01/02) [wave 1]
 - [x] 57-02-PLAN.md — HP-41 app icon (1024 master → all slots) + branded LaunchScreen, founder art-direction approval (SHIP-03) [wave 1, checkpoint]
-- [ ] 57-03-PLAN.md — `ci-ios.yml` workflow_dispatch-only signed-IPA build + altool upload, secret hygiene threat model (SHIP-04) [wave 2]
+- [x] 57-03-PLAN.md — `ci-ios.yml` workflow_dispatch-only signed-IPA build + altool upload, secret hygiene threat model (SHIP-04) [wave 2]
 - [ ] 57-04-PLAN.md — ASC API key + repo secrets, live workflow run, TestFlight internal distribution + device install (SHIP-01/02/04/05) [wave 3, checkpoints]
 
 ---
@@ -201,7 +201,7 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 | 54. iOS Persistence Layer | 3/3 | Complete   | 2026-06-02 |
 | 55. Touch UI Adaptation | 6/6 | Complete    | 2026-06-03 |
 | 56. App Lifecycle + Clock | 1/1 | Complete    | 2026-06-03 |
-| 57. Signing + TestFlight Pipeline | 2/4 | In Progress|  |
+| 57. Signing + TestFlight Pipeline | 3/4 | In Progress|  |
 
 ---
 
