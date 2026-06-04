@@ -12,8 +12,6 @@
 		418CF37C461A97BFF632CE9E /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 814321B5C0351DF93006D869 /* QuartzCore.framework */; };
 		429E59CAA709D9A5AD96B99D /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 81CFA43A0865A4F489C55694 /* libapp.a */; };
 		5382ABA20143A0F3C59CD2DA /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B8C4793F6D6A9BABFFC5656D /* UIKit.framework */; };
-		7C5BEAEAF50BF6F86416298A /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 9830C001414E3026F08A9470 /* libapp.a */; };
-		940AD67220BC287D64F59D9F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B11BB4C56AAC2C8E4FFA32C4 /* PrivacyInfo.xcprivacy */; };
 		959A09B49B8290A2C76DAF16 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 191655FD04DA96D71648AA0E /* CoreGraphics.framework */; };
 		AA8A23732E36B42EA2E34969 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B33C58E70A40EEB21FB40930 /* libapp.a */; };
 		AFAF383DED89AD5FC7BC5D88 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 43714BC961D02563441CE33B /* LaunchScreen.storyboard */; };
@@ -45,8 +43,6 @@
 		874328C6A340FBC82EA3711F /* persistence.rs */ = {isa = PBXFileReference; path = persistence.rs; sourceTree = "<group>"; };
 		8AB5A6B231EEA2D76FA73292 /* prgm_display.rs */ = {isa = PBXFileReference; path = prgm_display.rs; sourceTree = "<group>"; };
 		8CF1E7DEA384EA368618E9E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		9830C001414E3026F08A9470 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
-		B11BB4C56AAC2C8E4FFA32C4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B33C58E70A40EEB21FB40930 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		B49011AF11D3D6FDC1FAF1BE /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		B8C4793F6D6A9BABFFC5656D /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
@@ -76,14 +72,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		00F637174AF80D0B394A8A16 /* release */ = {
-			isa = PBXGroup;
-			children = (
-				9830C001414E3026F08A9470 /* libapp.a */,
-			);
-			path = release;
-			sourceTree = "<group>";
-		};
 		2CB6C6BC5505CCCA76760DFD /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -96,7 +84,6 @@
 			isa = PBXGroup;
 			children = (
 				ECBC546B865CEBBC4AE0A7AB /* debug */,
-				00F637174AF80D0B394A8A16 /* release */,
 			);
 			path = arm64;
 			sourceTree = "<group>";
@@ -159,7 +146,6 @@
 				79CC14F1A7CD7366748B4C7F /* assets */,
 				E9FBC9B2713E5CC84135A2D1 /* Assets.xcassets */,
 				43714BC961D02563441CE33B /* LaunchScreen.storyboard */,
-				B11BB4C56AAC2C8E4FFA32C4 /* PrivacyInfo.xcprivacy */,
 				5F2B819AF9326AA125E6E110 /* Externals */,
 				6313C0691A4232829264314B /* hp41-gui_iOS */,
 				87D9D90CFEEFA1E3AD50F879 /* Sources */,
@@ -201,7 +187,7 @@
 			path = debug;
 			sourceTree = "<group>";
 		};
-		"TEMP_2FB9123F-D720-41C1-A552-7330BE3C663A" /* x86_64 */ = {
+		"TEMP_B1A0916D-EFF8-4129-A3C2-5E6C8D5D82A8" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -272,9 +258,7 @@
 			files = (
 				B704460E217F3DEC1FE5D8CF /* Assets.xcassets in Resources */,
 				AFAF383DED89AD5FC7BC5D88 /* LaunchScreen.storyboard in Resources */,
-				940AD67220BC287D64F59D9F /* PrivacyInfo.xcprivacy in Resources */,
 				D2A2B64B31436B6FB60FFC60 /* assets in Resources */,
-				7C5BEAEAF50BF6F86416298A /* libapp.a in Resources */,
 				429E59CAA709D9A5AD96B99D /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -342,7 +326,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = "ch.talent-factory.hp41";
+				PRODUCT_BUNDLE_IDENTIFIER = ch.talent-factory.hp41;
 				PRODUCT_NAME = "HP-41 Calculator";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -494,7 +478,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = "ch.talent-factory.hp41";
+				PRODUCT_BUNDLE_IDENTIFIER = ch.talent-factory.hp41;
 				PRODUCT_NAME = "HP-41 Calculator";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
