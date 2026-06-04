@@ -20,9 +20,9 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Persistence
 
-- [ ] **PERSIST-01**: Autosave/load uses the iOS app-sandbox container path instead of `~/.hp41/` (desktop path behavior unchanged)
-- [ ] **PERSIST-02**: State is autosaved when the app is backgrounded (resign-active / `visibilitychange`)
-- [ ] **PERSIST-03**: State survives a background → kill → relaunch cycle on device, and existing desktop save files still load (serde backward-compat preserved)
+- [x] **PERSIST-01**: Autosave/load uses the iOS app-sandbox container path instead of `~/.hp41/` (desktop path behavior unchanged)
+- [x] **PERSIST-02**: State is autosaved when the app is backgrounded (resign-active / `visibilitychange`)
+- [x] **PERSIST-03**: State survives a background → kill → relaunch cycle on device, and existing desktop save files still load (serde backward-compat preserved)
 
 ### Touch UI
 
@@ -94,9 +94,9 @@ Which phases cover which requirements. Filled in during roadmap creation.
 | BUILD-02 | Phase 53 | Complete |
 | BUILD-03 | Phase 53 | Complete |
 | BUILD-04 | Phase 53 | Complete |
-| PERSIST-01 | Phase 54 | Pending |
-| PERSIST-02 | Phase 54 | Pending |
-| PERSIST-03 | Phase 54 | Pending |
+| PERSIST-01 | Phase 54 | Complete |
+| PERSIST-02 | Phase 54 | Complete |
+| PERSIST-03 | Phase 54 | Complete |
 | TOUCH-01 | Phase 55 | Complete |
 | TOUCH-02 | Phase 55 | Complete |
 | TOUCH-03 | Phase 55 | Complete |
