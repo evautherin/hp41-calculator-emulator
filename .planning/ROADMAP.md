@@ -134,7 +134,10 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   3. A deliberately misspelled query (e.g. "Zineszins") resolves to the intended entry via the hand-rolled fuzzy distance (~30-40 LOC Rust + TS mirror, no new dependency)
   4. An empty query leaves the overlay in the existing category-grouped view — behaviour is bit-for-bit unchanged from before this phase
   5. Both CLI and GUI implementations are in sync — the fuzzy logic is a mirrored implementation pair (same discipline as `op_display_name` duplication)
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 59-01-PLAN.md — Wave 0 RED test stubs: Rust phase59_help_search.rs + TS help_data.test.ts/HelpOverlay.test.tsx encoding tier order, fuzzy typo, DE+EN alias, empty-query invariance
+- [ ] 59-02-PLAN.md — CLI Rust scorer: hand-rolled bounded Levenshtein + tiered score_entry + ranked_help_entries in help_data.rs; flat-ranked render branch in ui.rs
+- [ ] 59-03-PLAN.md — GUI TS mirror scorer in help_data.ts; both HelpOverlay filter memos + flat-ranked render branch (sectionGroups bypass)
 **UI hint**: yes
 
 ### Phase 60: Alias Authoring Pipeline
@@ -167,10 +170,10 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
-| 59. Runtime Matcher | 0/? | Not started | - |
+| 59. Runtime Matcher | 0/3 | Not started | - |
 | 60. Alias Authoring Pipeline | 0/? | Not started | - |
 | 61. Quality Gates | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-06-04 — Phase 58 (Data Model) complete + verified PASS 6/6 (HSDATA-01/02/04). Next: `/gsd-plan-phase 59`.*
+*Last updated: 2026-06-04 — Phase 59 (Runtime Matcher) planned: 3 plans in 2 waves (Wave 1 RED tests, Wave 2 parallel CLI+GUI scorers). Next: `/gsd-execute-phase 59`.*
