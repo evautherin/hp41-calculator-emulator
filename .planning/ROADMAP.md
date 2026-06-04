@@ -120,7 +120,8 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   2. All six existing JSON pools (including entries without a `search_aliases` key) still deserialize without error — the `#[serde(default)]` annotation is verified by a round-trip test or the existing test suite passing unchanged
   3. The TS `HelpEntry` type compiles with the optional `search_aliases?: string[]` field; the GUI builds clean
   4. Opening the `?` overlay in both CLI and GUI shows no layout change — the field is structurally invisible until a non-empty alias list is queried
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 58-01-PLAN.md — Add `search_aliases` to both `HelpEntry` mirrors (Rust + TS) with backward-compat tests; render paths + six JSON pools untouched
 **UI hint**: yes
 
 ### Phase 59: Runtime Matcher
@@ -165,7 +166,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. Data Model | 0/? | Not started | - |
+| 58. Data Model | 0/1 | Not started | - |
 | 59. Runtime Matcher | 0/? | Not started | - |
 | 60. Alias Authoring Pipeline | 0/? | Not started | - |
 | 61. Quality Gates | 0/? | Not started | - |
