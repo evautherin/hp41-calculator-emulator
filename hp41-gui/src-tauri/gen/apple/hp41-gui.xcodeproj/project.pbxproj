@@ -10,7 +10,6 @@
 		1F2D0C3695990D80F9961A5D /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 30938F0CED32A1EE6B72A4BE /* Security.framework */; };
 		24CBCB99F6C6F7F5E5CCC9FB /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 710F04BF87A9B2C1836CACB8 /* main.mm */; };
 		418CF37C461A97BFF632CE9E /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 814321B5C0351DF93006D869 /* QuartzCore.framework */; };
-		429E59CAA709D9A5AD96B99D /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 81CFA43A0865A4F489C55694 /* libapp.a */; };
 		5382ABA20143A0F3C59CD2DA /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B8C4793F6D6A9BABFFC5656D /* UIKit.framework */; };
 		959A09B49B8290A2C76DAF16 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 191655FD04DA96D71648AA0E /* CoreGraphics.framework */; };
 		AA8A23732E36B42EA2E34969 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B33C58E70A40EEB21FB40930 /* libapp.a */; };
@@ -39,7 +38,6 @@
 		75F6560448483C7283B4E9D0 /* types.rs */ = {isa = PBXFileReference; path = types.rs; sourceTree = "<group>"; };
 		79CC14F1A7CD7366748B4C7F /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		814321B5C0351DF93006D869 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
-		81CFA43A0865A4F489C55694 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		874328C6A340FBC82EA3711F /* persistence.rs */ = {isa = PBXFileReference; path = persistence.rs; sourceTree = "<group>"; };
 		8AB5A6B231EEA2D76FA73292 /* prgm_display.rs */ = {isa = PBXFileReference; path = prgm_display.rs; sourceTree = "<group>"; };
 		8CF1E7DEA384EA368618E9E7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -182,7 +180,6 @@
 		ECBC546B865CEBBC4AE0A7AB /* debug */ = {
 			isa = PBXGroup;
 			children = (
-				81CFA43A0865A4F489C55694 /* libapp.a */,
 			);
 			path = debug;
 			sourceTree = "<group>";
@@ -259,7 +256,6 @@
 				B704460E217F3DEC1FE5D8CF /* Assets.xcassets in Resources */,
 				AFAF383DED89AD5FC7BC5D88 /* LaunchScreen.storyboard in Resources */,
 				D2A2B64B31436B6FB60FFC60 /* assets in Resources */,
-				429E59CAA709D9A5AD96B99D /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
