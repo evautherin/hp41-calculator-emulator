@@ -796,10 +796,10 @@ describe('Phase 59 — flat-ranked render branch', () => {
         const { container } = render(<HelpOverlay open={true} onClose={() => {}} />);
         // Leave search input empty (default state)
         const headings = container.querySelectorAll('.help-overlay-category-heading');
-        expect(headings.length).toBeGreaterThan(
-            0,
+        expect(
+            headings.length,
             'Empty query must show section-grouped view with category headings'
-        );
+        ).toBeGreaterThan(0);
     });
 
     // ── Non-empty matching query: flat-ranked branch (HSMATCH-04, HSUX-01) ──
@@ -813,17 +813,17 @@ describe('Phase 59 — flat-ranked render branch', () => {
 
         // Flat-ranked mode must show NO category headings
         const headings = container.querySelectorAll('.help-overlay-category-heading');
-        expect(headings.length).toBe(
-            0,
+        expect(
+            headings.length,
             `Non-empty query must suppress category headings in flat-ranked mode; found ${headings.length}`
-        );
+        ).toBe(0);
 
         // Flat-ranked mode must show at least one result row
         const rows = container.querySelectorAll('.help-overlay-row');
-        expect(rows.length).toBeGreaterThan(
-            0,
+        expect(
+            rows.length,
             'Non-empty matching query must show at least one .help-overlay-row in flat-ranked mode'
-        );
+        ).toBeGreaterThan(0);
     });
 
     // ── All-Functions tab: same flat-ranked contract (HSMATCH-01, Pitfall 5) ─
@@ -848,17 +848,17 @@ describe('Phase 59 — flat-ranked render branch', () => {
 
         // In flat-ranked mode: no category headings
         const headings = container.querySelectorAll('.help-overlay-category-heading');
-        expect(headings.length).toBe(
-            0,
+        expect(
+            headings.length,
             `All Functions tab with non-empty query must suppress category headings; found ${headings.length}`
-        );
+        ).toBe(0);
 
         // At least one row
         const rows = container.querySelectorAll('.help-overlay-row');
-        expect(rows.length).toBeGreaterThan(
-            0,
+        expect(
+            rows.length,
             'All Functions tab with matching query must show at least one .help-overlay-row'
-        );
+        ).toBeGreaterThan(0);
     });
 
     // ── No-match empty state ──────────────────────────────────────────────────
@@ -872,9 +872,9 @@ describe('Phase 59 — flat-ranked render branch', () => {
         const emptyState = container.querySelector('.help-overlay-empty');
         const rows = container.querySelectorAll('.help-overlay-row');
         const hasEmptyIndicator = emptyState !== null || rows.length === 0;
-        expect(hasEmptyIndicator).toBe(
-            true,
+        expect(
+            hasEmptyIndicator,
             'No-match query must show .help-overlay-empty or zero .help-overlay-row elements'
-        );
+        ).toBe(true);
     });
 });
