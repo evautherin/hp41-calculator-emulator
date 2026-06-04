@@ -1,0 +1,94 @@
+# ci-ios.yml — HP-41 Calculator signed IPA build + TestFlight upload
+#
+# TRIGGER NOTE (D-57.4 supersedes ROADMAP Success Criterion #4):
+#   ROADMAP.md Phase 57 SC #4 originally said "runs on every push to main".
+#   D-57.4 (CONTEXT.md, the more recent authority) locks this workflow to
+#   workflow_dispatch ONLY. Rationale: each upload burns a TestFlight build
+#   number and exposes ASC signing secrets; manual dispatch is the correct gate
+#   for a first proven pipeline. A successful manual run satisfies SHIP-04.
+#
+# REQUIRED REPO SECRETS (Settings → Secrets and variables → Actions → New repository secret):
+#   ASC_KEY_ID      — Key ID string  (e.g. ABC123DEF456)
+#   ASC_ISSUER_ID   — Issuer ID UUID (e.g. 57246542-96fe-1a63-e053-0824d011072a)
+#   ASC_API_KEY_P8  — Base64-encoded AuthKey_<ID>.p8 contents
+#                     Generate: base64 -i AuthKey_XXX.p8 | pbcopy
+#
+# CREATING THE ASC API KEY (operational TODO — executed in Plan 04):
+#   App Store Connect → Users and Access → Integrations → App Store Connect API
+#   Create a key with App Manager (or Admin) access.
+#   Download AuthKey_<ID>.p8 (one-time download — store securely).
+#   Base64-encode it and add as ASC_API_KEY_P8 secret above.
+#
+# SECURITY MODEL:
+#   - .p8 is written to ~/.appstoreconnect/private_keys/ (canonical altool search path)
+#   - chmod 600 applied immediately after write
+#   - Signing env vars (APPLE_API_KEY/ISSUER/KEY_PATH) are scoped to the build step ONLY
+#   - if: always() cleanup removes the .p8 regardless of build/upload outcome
+#   - No cat/echo of the decoded key; no set -x in the write step
+
+name: ci-ios
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-and-upload:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: hp41-gui/src-tauri -> hp41-gui/src-tauri/target
+
+      # See ci-gui.yml: macOS runner occasionally leaves cargo proxying to rustup-init
+      # AFTER Swatinem/rust-cache restores ~/.cargo/bin/. Running rustup default
+      # stable POST cache-restore rebinds the cargo proxy.
+      - run: rustup default stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Inject build number
+        run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" hp41-gui/src-tauri/gen/apple/hp41-gui_iOS/Info.plist
+
+      - name: Write ASC API key
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "${{ secrets.ASC_API_KEY_P8 }}" | base64 --decode \
+            > "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8"
+          chmod 600 \
+            "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8"
+
+      - name: Build signed IPA
+        env:
+          APPLE_API_KEY: ${{ secrets.ASC_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_API_KEY_PATH: ${{ format('{0}/.appstoreconnect/private_keys/AuthKey_{1}.p8', runner.home, secrets.ASC_KEY_ID) }}
+        run: just ios-build-release
+
+      - name: Upload to TestFlight
+        run: |
+          IPA="hp41-gui/src-tauri/gen/apple/build/arm64/HP-41 Calculator.ipa"
+          xcrun altool \
+            --upload-package "$IPA" \
+            --api-key "${{ secrets.ASC_KEY_ID }}" \
+            --api-issuer "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Cleanup API key
+        if: always()
+        run: rm -rf "$HOME/.appstoreconnect/private_keys/"
