@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.0
-milestone_name: Platform Maturity
-status: Awaiting next milestone
-last_updated: "2026-05-28T14:34:33.369Z"
-last_activity: 2026-05-28 — Milestone v4.0 completed and archived
+milestone: v4.1
+milestone_name: iOS Foundation
+status: milestone_complete
+last_updated: 2026-06-04T12:07:00.729Z
+last_activity: 2026-06-04
 progress:
   total_phases: 5
-  completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  completed_phases: 4
+  total_plans: 18
+  completed_plans: 18
+  percent: 80
+stopped_at: Milestone complete (Phase 57 was final phase)
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -19,7 +20,7 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
+See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
@@ -29,70 +30,122 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v3.3 shipped)
 
 ## Current Position
 
-Phase: Milestone v4.0 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-28 — Milestone v4.0 completed and archived
+Phase: 57
+Plan: Not started
+Status: Milestone complete
+Resume file: None
+Last activity: 2026-06-04
 
 ## Progress Bar
 
 ```
-v4.0 Platform Maturity
-Phase 48 ██████████ 100%  Phase 49 ██████████ 100%  Phase 50 ██████████ 100%  Phase 51 ██████████ 100%  Overall ████████░░ 80%
+v4.1 iOS Foundation
+Phase 53 ██████████ 100%  Phase 54 ██████████ 100%  Phase 55 ██████████ 100%
+Phase 56 ██████████ 100%  Phase 57 ░░░░░░░░░░  0%   Overall  ████████░░ 80%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 48 | GUI Infrastructure + Theming | Complete |
-| 49 | Onboarding + GUI Keyboard Parity | Complete |
-| 50 | .raw File I/O | Complete |
-| 51 | X-MEM Core | Complete |
-| 52 | Test Hardening + Documentation | Executing (4/4 plans done) |
+| 53 | Build-Approach Decision + iOS Scaffold Spike | ✅ Complete (4/4; Approach A confirmed, runs on device) |
+| 54 | iOS Persistence Layer | ✅ Complete (3/3; iOS sandbox path, autosave on background, kill/relaunch round-trip) |
+| 55 | Touch UI Adaptation | ✅ Complete (6/6; all 44 keys ≥44pt, haptics, audio, ALPHA touch, bottom sheets, stack)
+| 56 | App Lifecycle + Clock | ✅ Complete (1/1; backgroundThrottling config, resume tick_time, touch R/S fix, device-approved) |
+| 57 | Signing + TestFlight Pipeline | Not started |
 
-## Performance Metrics (v3.3 ship baseline)
+## Quick Tasks Completed
 
-| Metric | Target | Last measured (v3.3) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | dd71fb2 | Complete ✓ | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
+| 260603-e4e | Allow entering '.1' as '0.1' (leading-zero number entry, real HP-41CV behavior) | 2026-06-03 | d127e97 | Complete ✓ | [260603-e4e-allow-entering-1-as-0-1-leading-zero-num](./quick/260603-e4e-allow-entering-1-as-0-1-leading-zero-num/) |
+| 260603-klp | Fix help-overlay search field rendering off-screen at iPhone top edge (safe-area inset) so input and close X are reachable | 2026-06-03 | 8d0fd00 | Complete ✓ | [260603-klp-fix-help-overlay-search-field-rendering-](./quick/260603-klp-fix-help-overlay-search-field-rendering-/) |
+| 260603-laz | iOS touch polish — re-fit calculator scale on help/settings overlay close + lock pinch-zoom (surfaced verifying 260603-klp) | 2026-06-03 | 1e485ff | Complete ✓ | [260603-laz-ios-touch-polish-re-fit-calculator-on-ov](./quick/260603-laz-ios-touch-polish-re-fit-calculator-on-ov/) |
+| 260603-mxg | iOS PRGM-mode layout — safe-area handled OUTSIDE the CSS-transform (top display no longer clipped under Dynamic Island), via stylesheet class not inline env() (WKWebView drops inline env). Bottom-sheet occlusion later mooted by 260603-o2e | 2026-06-03 | 6fc9d6c | Complete ✓ | [260603-mxg-fix-ios-prgm-mode-layout-program-source-](./quick/260603-mxg-fix-ios-prgm-mode-layout-program-source-/) |
+| 260603-o2e | Authentic single-step PRGM view — main display shows current step (SST/BST navigate); removed inauthentic program listing (iOS sheet + desktop panel); restored CLI↔GUI parity D-25.6 | 2026-06-03 | 1eeba7e | Complete ✓ | [260603-o2e-authentic-hp-41-prgm-view-single-program](./quick/260603-o2e-authentic-hp-41-prgm-view-single-program/) |
+| 260603-lu0 | Help-overlay function index — A: CLREG→CLRG fidelity; B: tabbed overlay ("Keyboard Shortcuts" \| "All Functions") exposing all 74 keyless built-ins, tap-to-run (XEQ-by-name / insert-step in PRGM), HP-41-styled; C: Vitest+Rust coverage guardrails | 2026-06-03 | 652b4b1 | Complete ✓ | [260603-lu0-help-overlay-function-index-clrg-fidelit](./quick/260603-lu0-help-overlay-function-index-clrg-fidelit/) |
+| 260603-s17 | Mnemonic fidelity — CL SIGMA→CLΣ (glyph; data-only, resolver/mirrors already had it); hide CLRALPHA legacy alias from All Functions index via OVERLAY_HIDDEN_ALIASES (Op kept for v1.0 save compat, Pitfall 8) | 2026-06-03 | 8a8e6de | Complete ✓ | [260603-s17-mnemonic-fidelity-cl-sigma-clsigma-glyph](./quick/260603-s17-mnemonic-fidelity-cl-sigma-clsigma-glyph/) |
+| 260603-scc | CLI `?` overlay completeness — keyless built-ins now show `XEQ "NAME"`, deferred-v3 filtered out, C1-analog guardrail added (CLI↔GUI parity for function discovery) | 2026-06-03 | b47f921 | Complete ✓ | [260603-scc-cli-help-overlay-completeness-xeq-hint-f](./quick/260603-scc-cli-help-overlay-completeness-xeq-hint-f/) |
+| 260603-sef | Portal iOS print sheet + ALPHA bar out of the scale transform (position:fixed was trapped by the transform → glued to the calculator edge). Print sheet now sits correctly; ALPHA-bar refinements superseded by 260603-u6t | 2026-06-03 | 7e27da4 | Complete ✓ | [260603-sef-portal-ios-print-bottomsheet-alphatouchi](./quick/260603-sef-portal-ios-print-bottomsheet-alphatouchi/) |
+| 260603-u6t | Native keys-only ALPHA entry on iOS — on-screen blue keys only (no iOS keyboard, even FUNCTION NAME?); ← + physical Backspace delete last alpha char; iOS touch targets sized to actual key (fixes wide-ENTER 'N') | 2026-06-03 | 65e7a3a | Complete ✓ | [260603-u6t-ios-alpha-entry-native-hp-41-keys-only-o](./quick/260603-u6t-ios-alpha-entry-native-hp-41-keys-only-o/) |
+| 260603-uzh | Documentation pass — 4 ADRs (v4.1-003 keys-only ALPHA, -004 help-overlay index, -005 iOS scale/safe-area, -006 single-step PRGM) + new docs/hp41cv-divergences.md + CLAUDE.md GUI-specifics + architecture-history v4.1 section | 2026-06-03 | (pending) | Complete ✓ | [260603-uzh-documentation-pass-adrs-claude-md-divergen](./quick/260603-uzh-documentation-pass-adrs-claude-md-divergen/) |
+
+## Performance Metrics (v4.0 ship baseline)
+
+| Metric | Target | Last measured (v4.0) |
 |--------|--------|----------------------|
 | Cold-start latency | <= 0.5 s | 2.2 ms (M1) |
 | Key-press latency | <= 50 ms | ~65 ns/op |
-| `hp41-core` line coverage | >= 95 % | ~93 % (denominator dilution from ~32K new LOC) |
+| `hp41-core` line coverage | >= 95 % | ~93 % (denominator dilution) |
 | `hp41-core` region coverage | >= 93 % | ~95 % |
-| Numerical accuracy | >= 98 % | 98.86 % (791+30+22 = 843 cases) |
+| Numerical accuracy | >= 98 % | 98.86 % (843 cases) |
 | Panics in `hp41-core` | 0 | 0 |
 | Free42 contamination | 0 | 0 (18-token guard) |
 | CI platforms | Win/macOS/Ubuntu | All green |
-| Tests passing | — | 3371 (up from 3262 at v3.3) |
+| Tests passing | — | 3371 (v4.0 baseline) |
 
 ---
-| Phase 52 P01 | 373 | 3 tasks | 8 files |
-| Phase 52 P02 | 15m | 3 tasks | 5 files |
-| Phase 52 P03 | 15m | 2 tasks | 3 files |
+| Phase 53 P04 | 45 min | 2 tasks | 5 files |
+| Phase 55 P01 | 5 | 3 tasks | 10 files |
+| Phase 55 P05 | 10 | 2 tasks | 4 files |
+| Phase 57 P01 | 10 | 3 tasks | 5 files |
+| Phase 57-signing-testflight-pipeline P02 | 20 | 2 tasks | 72 files |
+
+## Execution Metrics (Phase 53)
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 53 P01 | 25 min | 3 tasks | 4 files |
+| Phase 53 P02 | 5 min  | 1 task  | 0 files (App ID portal) |
+| Phase 53 P03 | 35 min | 3 tasks | 1 files |
+| Phase 53 P04 | 45 min | 2 tasks | 5 files |
+| Phase 56 P01 | ~40 min | 3 tasks + 1 scope addition | 2 files |
 
 ## Accumulated Context
 
 ### Decisions (pre-resolved from research)
 
-- **Preferences backend:** `prefs.rs` in `hp41-gui/src-tauri/src/` — hand-coded `GuiPrefs { theme, onboarding_done }` via `serde_json`, stored in `~/.hp41/prefs.json` (separate from `autosave.json`). `tauri-plugin-store` rejected (overkill for 2 fields).
-- **Theme implementation:** CSS custom properties + `data-theme` attribute on `<body>` — zero libraries. 4 presets: dark, light, classic-beige, high-contrast.
-- **SVG animation safety (P51):** Every `[data-theme]` CSS block must preserve `transform-box: fill-box` + `transform-origin: center` on `.key`. Verified per pitfall.
-- **SVG gradient stops (P55):** `<defs>` gradient stops do not inherit CSS variables — pass theme config as React props to `<Keyboard>`.
-- **.raw codec:** Already fully implemented in `hp41-core/src/cardreader/raw.rs`. Phase 50 is a frontend integration task — wire `encode_program`/`decode_program` to Tauri commands + CLI flags. New dep: `tauri-plugin-dialog` 2.4.2 (Rust) / 2.7.1 (npm).
-- **X-MEM storage isolation (P56):** `xmem_files: Vec<XmemFile>` on `CalcState` with `#[serde(default)]` — NEVER touches `state.regs` or `adv_matrices` (D-43.5 pattern repeated).
-- **X-MEM + .raw dependency:** SAVEP/GETP delegate to the `.raw` codec; Phase 51 depends on Phase 50.
-- **Zero new runtime deps:** Policy from v3.0 continues. `tauri-plugin-dialog` is a Tauri plugin (frontend dep), not a new `hp41-core` runtime dep — policy unbroken.
-- **X-MEM no xrom field (D-52.4):** X-MEM entries have NO `xrom` field — they are HP-41CX OS built-ins, not XROM ops. Adding an `xrom` key would break `test_pool_partition_is_exhaustive`.
-- **help_entries_all six-pool order (D-52.1):** fixed chain order built-ins → Math1 → Stat1 → Time → Adv → X-MEM; X-MEM appears sixth.
+- **Build approach (RESOLVED 2026-05-31):** Approach A (Tauri v2 Mobile) **confirmed** by the Phase-53 spike — `just ios-build` passed Rust compile + Xcode assembly with no #5865 nested-workspace path error (stopped only at the expected signing gate); the simulator build ran the RPN smoke through `hp41-core`. Approach B (SwiftUI + UniFFI 0.31.1) not pursued. Outcome captured in ADR `docs/adr/v4.1-002-build-approach.md` (note: **-002**; v4.1-001 is the macOS menu-bar ADR).
+- **Frozen Invariant:** Both approaches preserve it — root `Cargo.toml` members stay `["hp41-core", "hp41-cli"]`; `tauri`/`tauri-build` confined to `hp41-gui/src-tauri/Cargo.toml` only; `hp41-core` unchanged.
+- **No new calculator functions:** Engine is feature-complete at v4.0; this milestone is form-factor only.
+- **Persistence path:** iOS uses `app_local_data_dir()` (Tauri) resolving to `Library/Application Support/ch.talent-factory.hp41/autosave.json`; desktop keeps `~/.hp41/autosave.json` unchanged. Workaround for Tauri bug #12552: fall back to `dirs::home_dir()` if `app_local_data_dir()` returns Permission Denied.
+- **Autosave on resign-active (iOS):** `document.addEventListener("visibilitychange", ...)` in React `App.tsx` → `invoke("save_state")` on `hidden`. This fires reliably in WKWebView when the user backgrounds the app; the 30s periodic save is supplementary.
+- **Touch targets:** Apple HIG minimum 44×44pt. Desktop keys are currently ~40×16px — a ground-up touch layout pass is required. Use transparent hit-area overlays (i41CX+ / Free42 pattern).
+- **Haptics:** `tauri-plugin-haptics` 2.3.2 — per-key feedback is a table stake (competitor analysis: Free42, i41CX+, my41CX all include it).
+- **Audio:** `AudioContext` must be resumed inside the first user-gesture handler; guard all BEEP/TONE paths with `if (audioCtx.state === 'suspended') await audioCtx.resume()`. Silent-switch muted behavior is accepted as HP-41-faithful.
+- **Background throttling (RESOLVED 56-01):** `tauri.ios.conf.json` with `backgroundThrottling: "throttle"` (camelCase, no Policy suffix — the Rust type name `backgroundThrottlingPolicy` would silently no-op). On iOS 16 and below, timers pause in background — accepted. Array-replace footgun: override must repeat all `app.windows[0]` fields from `tauri.conf.json`.
+- **Clock on resume (RESOLVED 56-01):** `needsTickRef` + extended `visibilitychange` `visible` branch fires one `invoke('tick_time')` gated on `isIos && needsTickRef.current && !busyRef.current`. NOT `get_state` (D-11). Resume tick is iOS-only and needsTick-gated; desktop/macOS fire no spurious IPC. Verified on-device (iPhone 15 Pro, iOS 17+).
+- **Touch R/S stopwatch keyboard mode (RESOLVED 56-01, scope addition):** Phase 41 gap — stopwatch keyboard-mode interception existed only in physical `handleKey` path; `handleClick` had no block. On-screen R/S fell through to `run_stop` (wrong op). Fixed by mirroring the block in `handleClick`: R/S→RUNSW/STOPSW toggle, ENTER→STPW, other→sw_exit. Touch-only; D-25.6 CLI↔GUI parity unaffected.
+- **Bundle ID:** `ch.talent-factory.hp41` — already in `tauri.conf.json`; must be registered as App ID in App Store Connect before any signing (Phase 53 task).
+- **PrivacyInfo.xcprivacy:** Required before first TestFlight upload (ITMS-91053). Create in `gen/apple/` with `NSPrivacyAccessedAPICategoryFileTimestamp` + reason `C617.1` (Phase 57).
+- **ALPHA touch entry:** Design spike at start of Phase 55. Options: `<input type="text">` + `window.visualViewport` listener to stay above the iOS software keyboard; or an on-screen character grid that avoids the system keyboard entirely.
+- **BottomSheet pattern (D-55.5, Plan 05):** early-return-null when visible=false; App.tsx gates mounting with isIos — desktop never sees the component. Desktop inline panels preserved byte-for-byte via isIos ternary.
+- **Collapsible stack (D-55.5, Plan 05):** X row always visible on iOS; Y/Z/T/L in .stack-panel-collapsible.collapsed; stackExpanded is local state only (not persisted to GuiPrefs; resets to collapsed on each launch).
+- **Phase dependency order:** 53 → (54, 55 can overlap — different files) → 56 → 57.
+- **iOS build env (P-iOS-09, RESOLVED 53-04):** the Xcode "Build Rust Code" phase sources `gen/apple/.xcode.env` (committed, `$HOME/.cargo/bin`) + `.xcode.env.local` (gitignored, nvm node) so GUI-launched Xcode finds cargo/node. Reuse this pattern in Phase 57 CI.
+- **iOS signing (53-04):** `DEVELOPMENT_TEAM 2P4R8QSWT4` (Talent Factory AG) + automatic signing committed in `gen/apple/project.yml`. App ID `ch.talent-factory.hp41` registered (53-02).
+- **Device-install caveat (53-04):** Xcode debug ⌘R panics on the missing Tauri dev-server addr file (expects `tauri ios dev`). For standalone installs use release `just ios-build` IPA + `xcrun devicectl install/launch`.
 
-### Pitfalls to watch
+### Pitfalls to watch (iOS-specific)
 
-| ID | Description |
-|----|-------------|
-| P51 | SVG animation broken by theme CSS — preserve `transform-box: fill-box` in every theme block |
-| P52 | `.raw` multi-program files silently rejected — implement `decode_all_programs()` or clear error |
-| P53 | X-MEM missing `#[serde(default)]` breaks saves — CI fixture test with pinned v3.3 save file |
-| P55 | SVG `<defs>` gradient stops ignore CSS vars — pass theme config as React props to `<Keyboard>` |
-| P56 | X-MEM shares address space with `state.regs` — use dedicated `xmem_files: Vec<XmemFile>` |
-| P59 | Theme/onboarding flag in CalcState — must live in `~/.hp41/prefs.json`, not `autosave.json` |
+| ID | Description | Phase |
+|----|-------------|-------|
+| P-iOS-01 | Simulator device name hardcoded in cargo-mobile2 — breaks after Xcode upgrade | 53 |
+| P-iOS-02 | Physical device debug via Tauri CLI requires LAN + Xcode Devices pre-setup | 53 |
+| P-iOS-03 | Nested workspace breaks Tauri iOS bundler (#5865) — the spike gating task | 53 |
+| P-iOS-05 | Web Audio suspended until first user gesture; BEEP/TONE silent | 55 |
+| P-iOS-06 | WKWebView: safe area not applied; keyboard overlaps viewport; fixed-position flicker | 55 |
+| P-iOS-07 | Wrong Rust target triple: `aarch64-apple-ios` vs `aarch64-apple-ios-sim` | 53 |
+| P-iOS-09 | Xcode build phase cannot find `cargo` (PATH not inherited from shell) | 53 |
+| P-iOS-14 | Bundle ID not registered in App Store Connect before first CI run | 53 |
+| P-iOS-16 | Keychain access fails on macOS CI runners (GitHub Actions) | 57 |
+| P-iOS-18 | Works in Simulator, fails on device or TestFlight — checklist of 5 root causes | 57 |
+| P-iOS-19 | `PrivacyInfo.xcprivacy` required; ITMS-91053 on first upload without it | 57 |
+| P-iOS-20 | Desktop key targets ~40×16px — far below Apple HIG 44×44pt minimum | 55 |
+| P-iOS-23 | ALPHA entry has no physical keyboard on iPhone — design spike required | 55 |
+| P-iOS-27 | Background suspension freezes clock UI; need become-active → tick_time | 56 |
+| P-iOS-28 | `~/.hp41/autosave.json` does not exist on iOS — silent data loss on first launch | 54 |
+| P-iOS-29 | Absolute paths must never be persisted in CalcState | 54 |
+| P-iOS-31 | Schema migration on TestFlight update — `#[serde(default)]` invariant must hold | 54 |
 
 ### Blockers
 
@@ -100,26 +153,24 @@ None.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 52` to plan Phase 52: Test Hardening + Documentation (CONTEXT.md ready)
-- Add **Phase 53: Full Function Catalog (CATALOG 3)** to ROADMAP via `/gsd-phase` — split out of Phase 52 during discussion (full ~130-function mainframe built-in catalog + Time/XROM-catalog architectural resolution; may extend v4.0 or open v4.1)
+- Run `/gsd-plan-phase 53` to plan Phase 53: Build-Approach Decision + iOS Scaffold Spike
+- After Phase 53 spike outcome: review whether Phase 55 approach changes (Approach B → SwiftUI keyboard instead of CSS adaptation)
 
 ---
 
 ## Deferred Items
 
-From v3.3 milestone close — all confirmed complete:
-
 | Category | Item | Status |
 |----------|------|--------|
 | Deferred | Interrupting control alarm execution | Still deferred; data model ready (D-38.4); requires call-stack re-entrancy |
-| Deferred | Signed binary releases (cargo-dist + tauri-action) | Deferred post-v4.0 |
-| New phase | Full Function Catalog (CATALOG 3) | → new Phase 53 (split from Phase 52 discussion 2026-05-28); needs `/gsd-phase` to add |
+| Deferred | Signed binary releases (cargo-dist + tauri-action) | Deferred post-v4.1 |
+| Deferred | App Store submission (STORE-01, STORE-02) | v4.2+ milestone |
+| Deferred | iPad universal layout (IPAD-01) | v4.2+ milestone |
+| Deferred | Landscape orientation (LAND-01) | v4.2+ milestone |
+| Deferred | Android (ANDROID-01) | v4.2+ milestone |
+| Deferred | .raw file picker on iOS (RAW-IOS-01) | v4.2+ (no native iOS picker in tauri-plugin-dialog) |
 
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-28 — Phase 51 (X-MEM Core) complete; Phase 52 (Test Hardening + Documentation) context gathered, ready to plan; CATALOG 3 split to new Phase 53*
-
-## Operator Next Steps
-
-- Start the next milestone with /gsd-new-milestone
+*Last updated: 2026-05-29 — v4.1 iOS Foundation roadmap created (Phases 53–57, 25 requirements, 5 phases). Next: `/gsd-plan-phase 53`.*

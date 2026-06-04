@@ -13,12 +13,23 @@
 //   8. Clicking "Show Guide" calls onClose then onShowOnboarding
 //   (All existing tests updated with required onShowOnboarding prop)
 //
+// Phase 50 — Launch Mode section (macOS-only, isMacos prop):
+//   9.  Hides launch-mode section when isMacos=false
+//  10.  Shows launch-mode radios when isMacos=true
+//  11.  Calls onLaunchModeChange when Window is selected
+//  12.  Shows restart hint after a launch-mode change
+//
 // Tauri invoke is mocked via vi.mock('@tauri-apps/api/core') following the
 // HelpOverlay.test.tsx pattern.
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 import { SettingsPanel } from './SettingsPanel';
+
+// Ensure DOM is cleaned up between tests so getByLabelText doesn't find
+// stale elements from previous renders (auto-cleanup requires Vitest globals,
+// which are disabled in this project's vitest config).
+afterEach(cleanup);
 
 // Mock Tauri API so tests run in the browser-less Vitest environment.
 vi.mock('@tauri-apps/api/core', () => ({
@@ -34,6 +45,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         expect(container.firstChild).toBeNull();
@@ -47,6 +61,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const radios = container.querySelectorAll('input[type="radio"]');
@@ -61,6 +78,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const darkRadio = container.querySelector('input[type="radio"][value="dark"]') as HTMLInputElement;
@@ -77,6 +97,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={mockFn}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const lightRadio = container.querySelector('input[type="radio"][value="light"]') as HTMLInputElement;
@@ -93,6 +116,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const text = container.textContent ?? '';
@@ -110,6 +136,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const panel = container.querySelector('[role="dialog"]') as HTMLElement;
@@ -127,6 +156,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const text = container.textContent ?? '';
@@ -146,6 +178,9 @@ describe('SettingsPanel', () => {
                 currentTheme="dark"
                 onThemeChange={() => {}}
                 onShowOnboarding={onShowOnboarding}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
             />
         );
         const btn = container.querySelector('button.settings-action-btn') as HTMLButtonElement;
@@ -153,5 +188,76 @@ describe('SettingsPanel', () => {
         fireEvent.click(btn);
         expect(onClose).toHaveBeenCalledOnce();
         expect(onShowOnboarding).toHaveBeenCalledOnce();
+    });
+
+    // Phase 50 — Launch Mode section tests (macOS-only)
+
+    it('hides launch-mode section when isMacos=false', () => {
+        const { queryByText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
+            />
+        );
+        expect(queryByText('Launch Mode (macOS)')).toBeNull();
+    });
+
+    it('shows launch-mode radios when isMacos=true', () => {
+        const { getByText, getByLabelText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={true}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
+            />
+        );
+        expect(getByText('Launch Mode (macOS)')).toBeTruthy();
+        expect(getByLabelText('Menu Bar')).toBeTruthy();
+        expect(getByLabelText('Window')).toBeTruthy();
+    });
+
+    it('calls onLaunchModeChange when Window is selected', () => {
+        const onLaunchModeChange = vi.fn();
+        const { getByLabelText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={true}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={onLaunchModeChange}
+            />
+        );
+        fireEvent.click(getByLabelText('Window'));
+        expect(onLaunchModeChange).toHaveBeenCalledWith('window');
+    });
+
+    it('shows restart hint after a launch-mode change', () => {
+        const { getByLabelText, getByText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={true}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
+            />
+        );
+        fireEvent.click(getByLabelText('Window'));
+        expect(getByText('Restart now')).toBeTruthy();
     });
 });

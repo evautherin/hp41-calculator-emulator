@@ -48,13 +48,11 @@
   --toast-bg:           rgba(20, 20, 20, 0.92);
   --toast-text:         #f5a423;
   --accent:             #f5a423;
-  --overlay-bg:         rgba(20, 20, 20, 0.94);
+  --overlay-bg:         rgb(20, 20, 20);
   --text-secondary:     #888888;
   --text-muted:         #666666;
   --annunciator-active: #e8e8c0;
   --annunciator-shift-active: #d68a1c;
-  --step-active-bg:     #1e3a1e;
-  --step-active-text:   #c8e6c9;
 }
 
 /* ── Light Theme ─────────────────────────────────────────────────────────── */
@@ -92,13 +90,11 @@
   --toast-bg:           rgba(240, 240, 240, 0.92);
   --toast-text:         #c07010;
   --accent:             #c07010;
-  --overlay-bg:         rgba(240, 240, 240, 0.96);
+  --overlay-bg:         rgb(240, 240, 240);
   --text-secondary:     #444444;
   --text-muted:         #888888;
   --annunciator-active: #3a5a3a;
   --annunciator-shift-active: #c07010;
-  --step-active-bg:     #b8d8b8;
-  --step-active-text:   #1a3a1a;
 }
 
 /* ── Classic Beige Theme (D-48.5 — real HP-41C body color) ──────────────── */
@@ -136,13 +132,11 @@
   --toast-bg:           rgba(40, 28, 10, 0.92);
   --toast-text:         #f5a030;
   --accent:             #c8780a;
-  --overlay-bg:         rgba(40, 32, 18, 0.94);
+  --overlay-bg:         rgb(40, 32, 18);
   --text-secondary:     #786858;
   --text-muted:         #988870;
   --annunciator-active: #d8c870;
   --annunciator-shift-active: #c8780a;
-  --step-active-bg:     #3a4820;
-  --step-active-text:   #d8d890;
 }
 
 /* ── High-Contrast Theme (D-48.6 — WCAG AAA white-on-black) ─────────────── */
@@ -187,11 +181,9 @@
   --toast-bg:           rgba(0, 0, 0, 0.95);
   --toast-text:         #ffaa00;
   --accent:             #ffaa00;
-  --overlay-bg:         rgba(0, 0, 0, 0.98);
+  --overlay-bg:         rgb(0, 0, 0);
   --text-secondary:     #cccccc;
   --text-muted:         #aaaaaa;
   --annunciator-active: #ffffff;
   --annunciator-shift-active: #ffaa00;
-  --step-active-bg:     #003300;
-  --step-active-text:   #ffffff;
 }

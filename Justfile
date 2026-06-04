@@ -24,6 +24,16 @@ build-release:
 run:
 	cargo run -p hp41-cli
 
+# hp41-gui is a standalone nested workspace with its OWN target/, so a single
+# `cargo clean` misses hp41-gui/src-tauri/target/ — including the bundled .app.
+# A stale GUI bundle there shares the `ch.talent-factory.hp41` bundle id and can
+# shadow an installed release in LaunchServices (showing the old version).
+# Remove Rust build artifacts from BOTH workspaces (root + nested GUI)
+[group('build')]
+clean:
+	cargo clean
+	cargo clean --manifest-path hp41-gui/src-tauri/Cargo.toml
+
 # ─── Test ───────────────────────────────────────────────────────────────────
 
 # Run all tests
@@ -224,3 +234,67 @@ docs-matrix-check:
 	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
 		docs/hp41-xmem-functions.json /tmp/hp41-xmem-function-matrix-check.md
 	diff -u docs/hp41-xmem-function-matrix.md /tmp/hp41-xmem-function-matrix-check.md
+
+# ─── iOS (Tauri v2 Mobile) ──────────────────────────────────────────────────
+#
+# iOS target triples (P-iOS-07 — keep device and simulator distinct; using the
+# device triple for the simulator yields the silent "building for iOS Simulator,
+# but linking in object file built for iOS" linker error):
+#   aarch64-apple-ios       physical iPhone (Tauri CLI short name: aarch64, the
+#                           `tauri ios build` default — baked in via that default)
+#   aarch64-apple-ios-sim   Apple-Silicon Simulator (Tauri short name: aarch64-sim)
+#
+# Every iOS recipe `cd hp41-gui` first (P-iOS-03 — NEVER invoke the Tauri CLI from
+# the repo root; the nested-standalone-workspace bundler #5865 breaks otherwise)
+# and drives the CLI through the @tauri-apps/cli devDependency via `npm run tauri`
+# (so the pinned CLI from package-lock.json is on PATH — same idiom as gui-dev).
+#
+# P-iOS-09: the generated Xcode build phase shells out to `cargo`, but Xcode does
+# NOT inherit the interactive shell PATH. If a build phase reports
+# "cargo: command not found", add `~/.cargo/bin` to PATH via
+# hp41-gui/src-tauri/gen/apple/.xcode.env.local.
+
+# iOS: generate the Xcode project at src-tauri/gen/apple/ (idempotent; cargo-mobile2)
+[group('ios')]
+ios-init:
+	cd hp41-gui && npm run tauri ios init
+
+# iOS: release build + IPA for the physical-device triple aarch64-apple-ios
+# (the `tauri ios build` default target `aarch64` — D-53.9/P-iOS-07)
+[group('ios')]
+ios-build:
+	cd hp41-gui && npm run tauri ios build
+
+# iOS: signed App Store IPA via MANUAL signing.
+# Xcode 26's -allowProvisioningUpdates (Tauri's built-in export path) 401s against ASC, so we let
+# Tauri ARCHIVE the app and then export the archive ourselves with an explicit cert + profile
+# (.github/ios-export-options.plist). See the reference_ios_signing_testflight memory.
+# Prereqs (CI installs them; see ci-ios.yml): the "Apple Distribution: Talent Factory AG" cert in the
+# keychain and the "HP-41 App Store (ci-ios)" profile installed. Env IOS_BUILD_NUMBER -> CFBundleVersion.
+[group('ios')]
+ios-build-release:
+	cd hp41-gui && npm ci
+	# Tauri archives; its own export step fails under manual signing — ignore it, we export below.
+	cd hp41-gui && npm run tauri ios build -- --export-method app-store-connect || true
+	test -d "hp41-gui/src-tauri/gen/apple/build/hp41-gui_iOS.xcarchive"
+	# Tauri overwrites the bundle version from the crate version; stamp a unique, increasing build number.
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{ env_var_or_default('IOS_BUILD_NUMBER', '1') }}" "hp41-gui/src-tauri/gen/apple/build/hp41-gui_iOS.xcarchive/Products/Applications/HP-41 Calculator.app/Info.plist"
+	rm -rf "hp41-gui/src-tauri/gen/apple/build/export"
+	xcodebuild -exportArchive -archivePath "hp41-gui/src-tauri/gen/apple/build/hp41-gui_iOS.xcarchive" -exportOptionsPlist ".github/ios-export-options.plist" -exportPath "hp41-gui/src-tauri/gen/apple/build/export"
+
+# iOS: boot in the Simulator on the simulator triple aarch64-apple-ios-sim.
+# P-iOS-01: list the CURRENT available devices instead of hardcoding a name (a
+# hardcoded "iPhone 13" breaks after an Xcode upgrade). Pass an explicit device
+# with `just ios-sim device="iPhone 17 Pro"`, or leave it empty to let Tauri pick.
+[group('ios')]
+ios-sim device="":
+	xcrun simctl list devices available | grep -iE 'iPhone|iPad'
+	cd hp41-gui && npm run tauri ios dev {{device}}
+
+# iOS: hot-reload dev loop on a connected physical iPhone. P-iOS-02 — connect +
+# trust the device in Xcode → Devices and Simulators (network) FIRST; add
+# `-- --force-ip-prompt` if the LAN handshake fails. Usage:
+# `just ios-dev device="Daniel's iPhone"`.
+[group('ios')]
+ios-dev device="":
+	cd hp41-gui && npm run tauri ios dev {{device}}

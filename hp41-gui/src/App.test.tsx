@@ -14,8 +14,8 @@
 //   E — CR-05 CATALOG max=4 + lower-bound rejection (2 tests)
 //   F — USER-mode end-to-end (CR-01 + CR-03 closure) (1 test)
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { act } from 'react';
 import App from './App';
 
@@ -171,10 +171,22 @@ beforeEach(() => {
   mockInvoke.mockReset();
   // Route get_prefs to return DEFAULT_PREFS so the onboarding wizard stays
   // closed in tests (Phase 49 Plan 04: wizard blocks keyboard dispatch when open).
+  // Phase 55 Plan 02: is_macos and is_ios must return false so the desktop
+  // SVG onClick path remains active (isIos truthy would suppress SVG clicks).
   mockInvoke.mockImplementation((cmd: string) => {
     if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+    if (cmd === 'is_macos') return Promise.resolve(false);
+    if (cmd === 'is_ios') return Promise.resolve(false);
     return Promise.resolve(makeEmptyView());
   });
+});
+
+// Unmount each render between tests. Required because vitest runs with
+// globals:false (no testing-library auto-cleanup) — without this, portaled
+// elements (AlphaTouchInput / print sheet → document.body, sef) from one test
+// leak into the next and break document-level queries.
+afterEach(() => {
+  cleanup();
 });
 
 // =====================================================================
@@ -194,7 +206,9 @@ describe('CR-01 — ASN flow uses canonical key.keyCode (not row*10+col)', () =>
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', expect.anything());
   });
 
-  it('A2: ASN + SIN + type "TEST" + ENTER dispatches asn_25_TEST (canonical, not 23)', async () => {
+  it('A2: ASN + SIN + type "TEST" + ALPHA dispatches asn_25_TEST (canonical, not 23)', async () => {
+    // TOUCH-04 update: on-screen ENTER now types 'N' in text-label modals.
+    // Use on-screen ALPHA (alpha_toggle) to terminate/submit the assign_label modal.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'xeq_prompt');
@@ -205,7 +219,7 @@ describe('CR-01 — ASN flow uses canonical key.keyCode (not row*10+col)', () =>
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({ user_keymap: [[25, 'TEST']] }),
     );
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_25_TEST' });
     expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_23_TEST' });
   });
@@ -281,7 +295,8 @@ describe('CR-02 — `?` overlay opens but window keys do not dispatch', () => {
 // =====================================================================
 
 describe('CR-03 — on-screen ENTER/← translate to Enter/Backspace in modals', () => {
-  it('C1: assign_label modal with acc=TEST → click ENTER dispatches asn_25_TEST', async () => {
+  it('C1: assign_label modal with acc=TEST → click ALPHA dispatches asn_25_TEST', async () => {
+    // TOUCH-04 update: on-screen ENTER types 'N' in text-label modals; ALPHA terminates.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'xeq_prompt');
@@ -291,7 +306,7 @@ describe('CR-03 — on-screen ENTER/← translate to Enter/Backspace in modals',
     }
     expect(getDisplayText(container)).toBe('ASN TEST_');
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_25_TEST' });
   });
 
@@ -422,6 +437,7 @@ describe('CR-05 — CATALOG modal accepts 1..=4, rejects 0 and 5..=9', () => {
 
 describe('USER-mode end-to-end — CR-01 + CR-03 round-trip', () => {
   it('F1: full ASN click flow + USER toggle relabels STO key with "TEST"', async () => {
+    // TOUCH-04 update: on-screen ALPHA (not ENTER) terminates the assign_label modal.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'xeq_prompt');
@@ -432,7 +448,7 @@ describe('USER-mode end-to-end — CR-01 + CR-03 round-trip', () => {
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({ user_keymap: [[22, 'TEST']] }),
     );
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'asn_22_TEST' });
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({
@@ -498,7 +514,8 @@ describe('quick-task 260516-c1p — mode-aware √x shifted', () => {
 });
 
 describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
-  it('G3: LBL modal — click Σ+, 1/x, √x, LOG (alphaChars A/B/C/D) → acc=ABCD; ENTER dispatches lbl_ABCD', async () => {
+  it('G3: LBL modal — click Σ+, 1/x, √x, LOG (alphaChars A/B/C/D) → acc=ABCD; ALPHA dispatches lbl_ABCD', async () => {
+    // TOUCH-04 update: on-screen ALPHA terminates text-label modals; ENTER types 'N'.
     const { container } = await renderAppAndWait();
     await clickKey(container, 'shift');
     await clickKey(container, 'sto_prompt');
@@ -514,11 +531,12 @@ describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
     expect(getDisplayText(container)).toBe('LBL ABCD_');
 
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'lbl_ABCD' });
   });
 
-  it('G4: CLP modal — same flow; ENTER dispatches clp_ABCD', async () => {
+  it('G4: CLP modal — same flow; ALPHA dispatches clp_ABCD', async () => {
+    // TOUCH-04 update: on-screen ALPHA terminates text-label modals.
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({
         annunciators: { user: false, prgm: true, alpha: false, rad: false, grad: false },
@@ -537,7 +555,7 @@ describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
     expect(getDisplayText(container)).toBe('CLP ABCD_');
 
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
-    await clickKey(container, 'enter');
+    await clickKey(container, 'alpha_toggle');
     expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'clp_ABCD' });
   });
 
@@ -560,9 +578,15 @@ describe('quick-task 260516-c1p — alphaChar fallback in label modals', () => {
 describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade (D-31.2) + auto-open (D-29.9)', () => {
   it('H1: R/S with modal_program_active calls submit_modal', async () => {
     // Seed initial state: modal is active (e.g. waiting for matrix order entry).
-    mockInvoke.mockResolvedValue(
-      makeEmptyView({ modal_program_active: true, modal_prompt: 'ORDER=?' }),
-    );
+    // Phase 55-02: use mockImplementation so is_ios/is_macos return false (not a
+    // CalcStateView object), preventing isIos becoming truthy and disabling SVG clicks.
+    const modalView = makeEmptyView({ modal_program_active: true, modal_prompt: 'ORDER=?' });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(modalView);
+    });
     const { container } = await renderAppAndWait();
 
     // R/S should route to submit_modal when modal_program_active is true.
@@ -577,9 +601,14 @@ describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade 
 
   it('H2: R/S with is_running calls request_cancel then get_state', async () => {
     // Seed initial state: long-running op (INTG) in progress.
-    mockInvoke.mockResolvedValue(
-      makeEmptyView({ is_running: true }),
-    );
+    // Phase 55-02: use mockImplementation so is_ios/is_macos return false.
+    const runningView = makeEmptyView({ is_running: true });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(runningView);
+    });
     const { container } = await renderAppAndWait();
 
     // R/S should call request_cancel (void) then get_state.
@@ -670,4 +699,232 @@ describe('quick-task 260522-gud — physical-keyboard honors shiftActive', () =>
   // `not.toHaveBeenCalledWith('sqrt')` failing despite a correct 'sq'
   // dispatch from the live App). K1 (positive shifted swap) + K2
   // (no-swap path) already cover the new branch's two arms.
+});
+
+// =====================================================================
+// Group L — HP-41 back-arrow (←) fidelity: per-digit deletion during entry
+//
+// Tests that the ← key (on-screen clx_or_a click + physical Backspace)
+// routes through 'entry_backspace' → backspace_entry() core helper,
+// giving per-digit deletion during number entry rather than full CLX.
+// =====================================================================
+
+describe('HP-41 back-arrow fidelity — entry_backspace per-digit deletion', () => {
+  // L1: On-screen ← click (clx_or_a) in non-alpha mode dispatches
+  //     'entry_backspace', NOT 'clx'.
+  it('L1: on-screen ← click (clx_or_a, non-alpha) dispatches entry_backspace', async () => {
+    const { container } = await renderAppAndWait();
+    // Seed a mock response for the entry_backspace dispatch
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({ display_str: '30.0000' }));
+    await clickKey(container, 'clx_or_a');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'clx' });
+  });
+
+  // L2: Physical Backspace key dispatches 'entry_backspace', NOT 'clx'.
+  it('L2: physical Backspace key dispatches entry_backspace', async () => {
+    const { container: _c } = await renderAppAndWait();
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({ display_str: '30.0000' }));
+    await pressKey('Backspace');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'clx' });
+  });
+
+  // L3: On-screen ← in alpha mode deletes the LAST alpha char (alpha_backspace, u6t) —
+  // was alpha_clear (full wipe). Native keys-only ALPHA entry needs a per-char backspace.
+  it('L3: on-screen ← in alpha mode dispatches alpha_backspace', async () => {
+    // Override mock so get_state returns alpha=true
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView({
+        annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
+      }));
+    });
+    // Mount a fresh App that will see alpha=true in its initial get_state response.
+    const { container } = await renderAppAndWait();
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(container, 'clx_or_a');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'entry_backspace' });
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'alpha_clear' });
+  });
+});
+
+// Group L removed: Phase 55 Plan 06 gap-fix tests (iOS AlphaTouchInput bar for
+// frontend XEQ/GTO/LBL/CLP/ASN modals) were deleted. The iOS software-keyboard bar
+// approach was rejected on-device (keyboard pushes layout; blind entry). Superseded
+// by keypad-only name entry (Group M): on-screen ENTER types 'N', ALPHA terminates.
+
+// =====================================================================
+// Group M — TOUCH-04 keypad-only name entry (supersedes Phase 55 Plan 06
+//           gap-fix approach rejected on-device).
+//
+// User decisions (authoritative):
+//   1. No iOS software keyboard for XEQ/GTO/LBL/CLP/ASN-label modals.
+//      Name entry via on-screen HP-41 keypad only.
+//   2. On-screen ENTER key (alphaChar 'N') types letter 'N' in text-label
+//      modals. On-screen ALPHA (alpha_toggle) terminates/submits.
+//   3. This is an accepted on-screen-vs-physical divergence (physical Enter
+//      still terminates for desktop/CLI parity D-25.6).
+//   4. Other modal kinds (numeric prompts) and physical-keyboard path unchanged.
+// =====================================================================
+
+describe('M — TOUCH-04 keypad-only name entry: ENTER=N, ALPHA=terminate', () => {
+  // Helper: render App with isIos=true (touch overlay dispatch path).
+  async function renderAppAsIos(overrides: Partial<CalcStateView> = {}) {
+    const view = makeEmptyView(overrides);
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(true);
+      return Promise.resolve(view);
+    });
+    const utils = render(<App />);
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_state', undefined));
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    return utils;
+  }
+
+  // M1: On-screen ENTER in xeq_name modal types 'N', does NOT terminate.
+  // Pre-fix: ENTER → routedKey='Enter' → terminates (wrong, display goes blank).
+  // Post-fix: ENTER carries alphaChar='N'; text-label modal branch routes it as 'N'.
+  it('M1: on-screen ENTER in xeq_name modal appends N; display shows "XEQ N_", no dispatch', async () => {
+    // isIos=false so SVG onClick is active; on-screen ENTER click dispatches via handleClick.
+    const { container } = await renderAppAndWait();
+    await clickKey(container, 'xeq_prompt');
+    expect(getDisplayText(container)).toBe('XEQ _');
+    // Click on-screen ENTER — must append 'N' (alphaChar), NOT terminate.
+    await clickKey(container, 'enter');
+    expect(getDisplayText(container)).toBe('XEQ N_');
+    // No xeq_* dispatch_op should have fired (modal still open).
+    const xeqDispatchCalls = mockInvoke.mock.calls.filter(
+      ([cmd, args]) => cmd === 'dispatch_op' &&
+        typeof args === 'object' && args !== null &&
+        typeof (args as { keyId?: string }).keyId === 'string' &&
+        ((args as { keyId: string }).keyId).startsWith('xeq_'),
+    );
+    expect(xeqDispatchCalls.length).toBe(0);
+  });
+
+  // M2: On-screen ALPHA (alpha_toggle) terminates/submits the xeq_name modal.
+  // Pre-fix: alpha_toggle → isPrintableChar fails → no-op, modal stays open (wrong).
+  // Post-fix: text-label modal branch maps alpha_toggle → 'Enter' → submits.
+  // Also tests live display build-up: T→O→N→E appended via on-screen keys.
+  // Key alphaChar mapping (Keyboard.tsx): 9→T, chs→O, enter→N, ln→E
+  it('M2: clicking TONE on keypad then ALPHA submits "xeq_TONE"', async () => {
+    const { container } = await renderAppAndWait();
+    await clickKey(container, 'xeq_prompt');
+    // T = key '9' (alphaChar: 'T')
+    await clickKey(container, '9');
+    expect(getDisplayText(container)).toBe('XEQ T_');
+    // O = CHS (alphaChar: 'O')
+    await clickKey(container, 'chs');
+    expect(getDisplayText(container)).toBe('XEQ TO_');
+    // N = ENTER (alphaChar: 'N') — must type 'N', not terminate
+    await clickKey(container, 'enter');
+    expect(getDisplayText(container)).toBe('XEQ TON_');
+    // E = LN (alphaChar: 'E')
+    await clickKey(container, 'ln');
+    expect(getDisplayText(container)).toBe('XEQ TONE_');
+    // ALPHA terminates: submit xeq_TONE
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(container, 'alpha_toggle');
+    expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TONE' });
+  });
+
+  // M3: isIos=true + xeq_name modal active → AlphaTouchInput bar NOT rendered.
+  // Pre-fix: bar IS shown (isFrontendModalMode gate — rejected on-device).
+  // Post-fix: bar absent; text-label modals use on-screen keypad only.
+  it('M3: isIos=true + xeq_name modal active → AlphaTouchInput bar absent', async () => {
+    const { container } = await renderAppAsIos();
+    const xeqOverlay = container.querySelector('[aria-label="XEQ"]') as HTMLElement | null;
+    if (!xeqOverlay) throw new Error('XEQ touch overlay not found');
+    await act(async () => { fireEvent.click(xeqOverlay); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+    // Bar must be absent — name entry is via keypad, not software keyboard bar.
+    // Queried on document (not container): the bar is portaled to document.body (sef).
+    const bar = document.querySelector('.alpha-touch-input-bar');
+    expect(bar).toBeNull();
+  });
+
+  // M3b: isIos=true + annunciators.alpha=true → AlphaTouchInput bar is NOT shown (u6t).
+  // Native keys-only ALPHA entry: plain ALPHA mode uses the on-screen HP-41 keys + the
+  // main display, no iOS software keyboard. The bar is reserved for the modal-label prompt.
+  it('M3b: isIos=true + plain ALPHA mode → AlphaTouchInput bar NOT shown (keys-only)', async () => {
+    await renderAppAsIos({
+      annunciators: { user: false, prgm: false, alpha: true, rad: false, grad: false },
+    });
+    // Queried on document (not container): the bar is portaled to document.body (sef).
+    const bar = document.querySelector('.alpha-touch-input-bar');
+    expect(bar).toBeNull();
+  });
+
+  // M3c: the AlphaTouchInput bar is removed everywhere on iOS (u6t) — even the
+  // INTG/SOLVE/DIFEQ "FUNCTION NAME?" modal-label prompt is now keys-only (the
+  // collect-for-modal pendingInput routes blue-key letters into the name accumulator and
+  // ALPHA submits via the same submit_modal_with_label IPC).
+  it('M3c: isIos=true + modal_requires_alpha_label → AlphaTouchInput bar NOT shown', async () => {
+    await renderAppAsIos({ modal_requires_alpha_label: true });
+    const bar = document.querySelector('.alpha-touch-input-bar');
+    expect(bar).toBeNull();
+  });
+
+  // M4: Regression — on-screen ENTER in an assign_label modal still terminates
+  // even when acc is non-empty. assign_label is NOT a text-label modal for the
+  // ENTER=N change (it IS a text-label kind for letter routing, but ENTER must
+  // still terminate it per the user decision scoping).
+  //
+  // Wait — re-reading the spec: assign_label IS in the text-label kinds
+  // {xeq_name, clp, assign_label}. So ENTER in assign_label ALSO types 'N'.
+  // The regression test should instead cover a NON-text-label modal.
+  //
+  // Use the FMT modal (fmt kind). ENTER in a fmt modal should do nothing
+  // (fmt only accepts digits 0-9; ENTER is not a digit → preserved as no-op).
+  // This verifies the ENTER=N branch is gated to text-label kinds only.
+  it('M4: on-screen ENTER in FMT modal does NOT type N (fmt only accepts digits)', async () => {
+    const { container } = await renderAppAndWait();
+    // Open FIX modal: SHIFT + '1' (fix_prompt id; key '7' opens SF modal).
+    await clickKey(container, 'shift');
+    await clickKey(container, '1');
+    expect(getDisplayText(container)).toBe('FIX _');
+    // Click on-screen ENTER — fmt modal ignores ENTER (not a digit).
+    // With the old code: routes 'Enter' → fmt case ignores it → display stays 'FIX _'.
+    // With new code: text-label guard fires only for xeq_name/clp/assign_label, NOT fmt.
+    //   So ENTER still routes as 'Enter' → fmt ignores → display stays 'FIX _'.
+    // Either way display should stay 'FIX _', confirming no N was appended.
+    await clickKey(container, 'enter');
+    expect(getDisplayText(container)).toBe('FIX _');
+    // No dispatch_op fired (modal still open).
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', expect.objectContaining({ keyId: expect.stringContaining('fix_N') }));
+  });
+});
+
+// =====================================================================
+// quick-task 260603-o2e — authentic PRGM step in main display
+// Regression: prgm=true => main display shows the step, not the X value.
+// Backend prgm_mode branch in CalcStateView::from_state now puts the step
+// into display_str; frontend renders display_str verbatim (no listing queried).
+// =====================================================================
+
+describe('quick-task 260603-o2e — authentic PRGM step in main display', () => {
+  it('O2E-1: prgm=true + display_str="000 END" => main display shows "000 END", not X register', async () => {
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({
+      display_str: '000 END',
+      annunciators: { user: false, prgm: true, alpha: false, rad: false, grad: false },
+    }));
+    const { container } = await renderAppAndWait();
+    expect(getDisplayText(container)).toBe('000 END');
+    expect(getDisplayText(container)).not.toBe('0.0000');
+  });
+
+  it('O2E-2: prgm=true + display_str="001 XEQ CLRG" => main display shows that step (not hardcoded END)', async () => {
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({
+      display_str: '001 XEQ CLRG',
+      annunciators: { user: false, prgm: true, alpha: false, rad: false, grad: false },
+    }));
+    const { container } = await renderAppAndWait();
+    expect(getDisplayText(container)).toBe('001 XEQ CLRG');
+  });
 });

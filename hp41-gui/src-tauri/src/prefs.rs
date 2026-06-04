@@ -28,12 +28,20 @@ use serde::{Deserialize, Serialize};
 ///   Defaults to "dark" on missing prefs.json (first-run default).
 /// - `onboarding_done`: set to `true` once the user dismisses the first-run quick-start
 ///   guide (D-49.4 / ONBOARD-05). Never appears in autosave.json (P59).
+/// - `macos_launch_mode`: "menu-bar" (status-item accessory) or "window" (normal decorated
+///   window). Ignored on Windows/Linux. Defaults to "menu-bar" so existing prefs.json files
+///   (no field) keep the current menu-bar behavior (ADR-v4.1-001).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct GuiPrefs {
     #[serde(default = "default_theme")]
     pub theme: String,
     #[serde(default)]
     pub onboarding_done: bool,
+    /// macOS-only launch mode: "menu-bar" (status-item accessory) or "window"
+    /// (normal decorated window). Ignored on Windows/Linux. Defaults to "menu-bar"
+    /// so existing prefs.json files (no field) keep the current menu-bar behavior.
+    #[serde(default = "default_launch_mode")]
+    pub macos_launch_mode: String,
 }
 
 /// Default theme value — "dark" per D-48.8.
@@ -41,11 +49,17 @@ fn default_theme() -> String {
     "dark".to_string()
 }
 
+/// Default launch mode — "menu-bar" (the established macOS behavior, ADR-v4.1-001).
+fn default_launch_mode() -> String {
+    "menu-bar".to_string()
+}
+
 impl Default for GuiPrefs {
     fn default() -> Self {
         GuiPrefs {
             theme: default_theme(),
             onboarding_done: false,
+            macos_launch_mode: default_launch_mode(),
         }
     }
 }
@@ -59,6 +73,37 @@ pub fn default_prefs_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".hp41")
         .join("prefs.json")
+}
+
+/// AppHandle-aware preferences path resolver. On mobile (iOS) uses app_local_data_dir()
+/// → Library/Application Support/<bundle_id>/prefs.json.
+/// On desktop delegates to default_prefs_path() — desktop behavior unchanged.
+///
+/// Phase 54 PERSIST-01 / D-54.3: mirrors persistence::state_path_for_app(), filename only differs.
+/// Pitfall 2: unwrap_or_else handles Tauri #12552 "Permission Denied" gracefully.
+/// Pitfall 3: fallback uses Library/Application Support, NOT .hp41 (container-root dot-dir).
+#[allow(unused_variables)] // `handle` is used only in #[cfg(mobile)] branch; intentional on desktop
+pub fn prefs_path_for_app(handle: &tauri::AppHandle) -> PathBuf {
+    #[cfg(mobile)]
+    {
+        use tauri::Manager; // `.path()` is a Manager-trait method; scoped to mobile to avoid a desktop unused-import warning
+        handle
+            .path()
+            .app_local_data_dir()
+            .unwrap_or_else(|e| {
+                eprintln!("hp41: app_local_data_dir failed ({e}), falling back to HOME");
+                dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("Library")
+                    .join("Application Support")
+                    .join("ch.talent-factory.hp41")
+            })
+            .join("prefs.json")
+    }
+    #[cfg(not(mobile))]
+    {
+        default_prefs_path()
+    }
 }
 
 /// Persist `prefs` to `path` as pretty-printed JSON.
@@ -84,6 +129,7 @@ pub fn save_prefs(path: &Path, prefs: &GuiPrefs) -> std::io::Result<()> {
 ///
 /// P59 / THEME-05: this function is fully isolated from the calculator state and autosave.json.
 pub const VALID_THEMES: &[&str] = &["dark", "light", "classic-beige", "high-contrast"];
+pub const VALID_LAUNCH_MODES: &[&str] = &["menu-bar", "window"];
 
 pub fn load_prefs(path: &Path) -> GuiPrefs {
     let mut prefs: GuiPrefs = match fs::File::open(path) {
@@ -100,6 +146,9 @@ pub fn load_prefs(path: &Path) -> GuiPrefs {
     };
     if !VALID_THEMES.contains(&prefs.theme.as_str()) {
         prefs.theme = default_theme();
+    }
+    if !VALID_LAUNCH_MODES.contains(&prefs.macos_launch_mode.as_str()) {
+        prefs.macos_launch_mode = default_launch_mode();
     }
     prefs
 }
@@ -121,6 +170,7 @@ mod tests {
         let prefs = GuiPrefs {
             theme: "light".to_string(),
             onboarding_done: false,
+            macos_launch_mode: "menu-bar".to_string(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
@@ -165,12 +215,63 @@ mod tests {
         let prefs = GuiPrefs {
             theme: "neon-pink".to_string(),
             onboarding_done: false,
+            macos_launch_mode: "menu-bar".to_string(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
         assert_eq!(
             loaded.theme, "dark",
             "unknown theme in prefs.json must fall back to 'dark'"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn test_launch_mode_roundtrip() {
+        let path = temp_path("prefs_launch_mode_roundtrip");
+        let prefs = GuiPrefs {
+            theme: "dark".to_string(),
+            onboarding_done: false,
+            macos_launch_mode: "window".to_string(),
+        };
+        save_prefs(&path, &prefs).unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.macos_launch_mode, "window",
+            "roundtrip must preserve macos_launch_mode"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Backward compat: a prefs.json without `macos_launch_mode` (written before this
+    /// feature) must load with the default "menu-bar" via #[serde(default)]. This is the
+    /// load-bearing guarantee that existing macOS users stay in menu-bar mode (D-2).
+    #[test]
+    fn test_launch_mode_serde_default() {
+        let path = temp_path("prefs_launch_mode_default");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, br#"{"theme":"dark","onboarding_done":true}"#).unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.macos_launch_mode, "menu-bar",
+            "missing macos_launch_mode must default to 'menu-bar' (backward compat)"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn test_unknown_launch_mode_falls_back_to_default() {
+        let path = temp_path("prefs_unknown_launch_mode");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            br#"{"theme":"dark","onboarding_done":false,"macos_launch_mode":"hologram"}"#,
+        )
+        .unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.macos_launch_mode, "menu-bar",
+            "unknown macos_launch_mode must fall back to 'menu-bar'"
         );
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
@@ -182,6 +283,7 @@ mod tests {
         let prefs = GuiPrefs {
             theme: "dark".to_string(),
             onboarding_done: true,
+            macos_launch_mode: "menu-bar".to_string(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);

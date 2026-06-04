@@ -1,0 +1,118 @@
+# ci-ios.yml — HP-41 Calculator signed IPA build + TestFlight upload (MANUAL signing)
+#
+# TRIGGER NOTE (D-57.4 supersedes ROADMAP Success Criterion #4):
+#   ROADMAP.md Phase 57 SC #4 originally said "runs on every push to main".
+#   D-57.4 (CONTEXT.md, the more recent authority) locks this workflow to
+#   workflow_dispatch ONLY. Each upload burns a TestFlight build number and
+#   exposes signing secrets; manual dispatch is the correct gate. A successful
+#   manual run satisfies SHIP-04.
+#
+# SIGNING APPROACH (revises D-57.2):
+#   Xcode 26's `-allowProvisioningUpdates` (Tauri's built-in export path) returns
+#   HTTP 401 against App Store Connect even with a valid ASC API key, so automatic
+#   provisioning is unusable here. Instead we use MANUAL signing: an explicit Apple
+#   Distribution cert + App Store provisioning profile are imported into a temporary
+#   keychain, Tauri archives the app, and `just ios-build-release` exports the archive
+#   with .github/ios-export-options.plist. See reference_ios_signing_testflight.
+#
+# REQUIRED REPO SECRETS (Settings → Secrets and variables → Actions):
+#   ASC_KEY_ID                Key ID string (App Store Connect API key — used by altool upload)
+#   ASC_ISSUER_ID             Issuer ID UUID
+#   ASC_API_KEY_P8            base64 of AuthKey_<ID>.p8
+#   IOS_DIST_CERT_P12         base64 of the Apple Distribution cert+key as a .p12
+#   IOS_DIST_CERT_PASSWORD    password for that .p12
+#   IOS_PROVISION_PROFILE_B64 base64 of the App Store .mobileprovision ("HP-41 App Store (ci-ios)")
+#
+# The cert (id N7QPP6P52Q) and profile were created via the ASC API; to rotate them,
+# re-create and re-encode, then update the three IOS_* secrets.
+
+name: ci-ios
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-and-upload:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: hp41-gui/src-tauri -> hp41-gui/src-tauri/target
+
+      # See ci-gui.yml: macOS runner occasionally leaves cargo proxying to rustup-init
+      # AFTER Swatinem/rust-cache restores ~/.cargo/bin/. Running rustup default
+      # stable POST cache-restore rebinds the cargo proxy.
+      - run: rustup default stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Install signing certificate and provisioning profile
+        env:
+          IOS_DIST_CERT_P12: ${{ secrets.IOS_DIST_CERT_P12 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          IOS_PROVISION_PROFILE_B64: ${{ secrets.IOS_PROVISION_PROFILE_B64 }}
+        run: |
+          set -euo pipefail
+          CERT="$RUNNER_TEMP/dist.p12"
+          PROFILE="$RUNNER_TEMP/profile.mobileprovision"
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PW="$(openssl rand -hex 16)"
+          echo "$IOS_DIST_CERT_P12" | base64 --decode > "$CERT"
+          echo "$IOS_PROVISION_PROFILE_B64" | base64 --decode > "$PROFILE"
+          # Dedicated, ephemeral keychain (runner is destroyed post-run anyway).
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db"
+          security import "$CERT" -P "$IOS_DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          # Profiles are indexed by their embedded UUID, not filename.
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE" "$HOME/Library/MobileDevice/Provisioning Profiles/HP-41-AppStore.mobileprovision"
+          rm -f "$CERT"
+
+      - name: Write ASC API key (for altool upload)
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "${{ secrets.ASC_API_KEY_P8 }}" | base64 --decode \
+            > "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8"
+          chmod 600 \
+            "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8"
+
+      - name: Build signed IPA
+        env:
+          IOS_BUILD_NUMBER: ${{ github.run_number }}
+        run: just ios-build-release
+
+      - name: Upload to TestFlight
+        run: |
+          IPA="hp41-gui/src-tauri/gen/apple/build/export/HP-41 Calculator.ipa"
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --api-key "${{ secrets.ASC_KEY_ID }}" \
+            --api-issuer "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Cleanup secrets
+        if: always()
+        run: |
+          rm -rf "$HOME/.appstoreconnect/private_keys/" \
+                 "$RUNNER_TEMP/signing.keychain-db" \
+                 "$RUNNER_TEMP/profile.mobileprovision" \
+                 "$HOME/Library/MobileDevice/Provisioning Profiles/HP-41-AppStore.mobileprovision" || true

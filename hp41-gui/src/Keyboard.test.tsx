@@ -11,10 +11,14 @@
 //   - USER mode active + NO match → falls back to primary label.
 //   - XSS-safety: malicious ASN label renders as LITERAL text, not as an
 //     injected element (React default text-node escape).
+// Phase 55 Plan 02 — iOS touch overlay behavior tests (TOUCH-01 + TOUCH-03):
+//   - isIos=true → one .key-touch-target per wired key (44 overlays)
+//   - isIos=false → zero .key-touch-target elements (desktop regression guard)
+//   - Single dispatch on click (no double-fire with SVG <g>)
 
 import { useRef } from 'react';
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 import { Keyboard, KEY_DEFS } from './Keyboard';
 
 function TestHarness({
@@ -225,5 +229,64 @@ describe('Keyboard USER-mode relabel rendering (D-26.9)', () => {
         // Only the 7-char prefix should appear; the full label must not.
         expect(texts.some(t => t === 'VERYLON')).toBe(true);
         expect(texts.some(t => t === longLabel)).toBe(false);
+    });
+});
+
+// Phase 55 Plan 02 — iOS touch overlay behavior tests (TOUCH-01 + TOUCH-03)
+describe('Keyboard iOS touch overlay behavior (55-02)', () => {
+    // Count wired keys: KEY_DEFS entries with a non-empty id
+    const wiredKeyCount = KEY_DEFS.filter(k => k.id && k.id !== '').length;
+
+    it("Test 1: renders one .key-touch-target per wired key when isIos=true (TOUCH-01)", () => {
+        const busyRef = { current: false };
+        const { container } = render(
+            <Keyboard
+                onKey={() => {}}
+                busyRef={busyRef}
+                shiftActive={false}
+                alphaActive={false}
+                isIos={true}
+            />
+        );
+        const overlays = container.querySelectorAll('.key-touch-target');
+        expect(overlays.length).toBe(wiredKeyCount);
+        cleanup();
+    });
+
+    it("Test 2: renders ZERO .key-touch-target elements when isIos=false (desktop regression guard)", () => {
+        const busyRef = { current: false };
+        const { container } = render(
+            <Keyboard
+                onKey={() => {}}
+                busyRef={busyRef}
+                shiftActive={false}
+                alphaActive={false}
+                isIos={false}
+            />
+        );
+        const overlays = container.querySelectorAll('.key-touch-target');
+        expect(overlays.length).toBe(0);
+        cleanup();
+    });
+
+    it("Test 3: clicking .key-touch-target dispatches via onKey exactly once (no double-fire)", () => {
+        const busyRef = { current: false };
+        const onKey = vi.fn();
+        const { container } = render(
+            <Keyboard
+                onKey={onKey}
+                busyRef={busyRef}
+                shiftActive={false}
+                alphaActive={false}
+                isIos={true}
+            />
+        );
+        // Click the first wired overlay
+        const firstOverlay = container.querySelector('.key-touch-target') as HTMLElement;
+        expect(firstOverlay).not.toBeNull();
+        fireEvent.click(firstOverlay);
+        // onKey must fire exactly once — no double-fire from SVG <g> onClick
+        expect(onKey).toHaveBeenCalledTimes(1);
+        cleanup();
     });
 });

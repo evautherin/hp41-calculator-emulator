@@ -18,7 +18,7 @@
 use crate::cards;
 use crate::key_map;
 use crate::persistence;
-use crate::prefs::{default_prefs_path, save_prefs, GuiPrefs, VALID_THEMES};
+use crate::prefs::{prefs_path_for_app, save_prefs, GuiPrefs, VALID_LAUNCH_MODES, VALID_THEMES};
 use crate::types::{CalcStateView, GuiError};
 use crate::{AppState, CancelFlag, PrefsState};
 use hp41_core::cardreader::{
@@ -30,10 +30,59 @@ use hp41_core::CalcState;
 use serde::Serialize;
 use tauri::AppHandle;
 use tauri::State;
+#[cfg(target_os = "macos")]
+use tauri::Manager; // brings try_state into scope for SuppressHideGuard (macOS only)
 use tauri_plugin_dialog::DialogExt;
 
 #[cfg(test)]
 use std::path::Path;
+
+/// RAII guard: while alive, sets PopoverState.suppress_hide so the macOS
+/// auto-hide-on-blur handler does not dismiss the popover while a native file
+/// dialog is open. Clearing on drop is panic-safe and covers early returns / `?`.
+///
+/// CORRECTNESS DEPENDS ON THE DIALOG COMMANDS STAYING SYNCHRONOUS. They run on
+/// Tauri's main thread, so `store(true)` happens-before the blur handler's
+/// `load` on that same thread, and `Relaxed` ordering suffices (the flag is a
+/// standalone signal, publishing no other data). If any of the four dialog
+/// commands is ever made `async`, Tauri moves it to a worker thread and the
+/// set/blur-read becomes a genuine cross-thread race where the blur could
+/// observe `false` before the store lands — hiding the popover under the dialog.
+/// Keep them synchronous, or revisit the ordering here.
+#[cfg(target_os = "macos")]
+struct SuppressHideGuard<'a> {
+    flag: Option<tauri::State<'a, crate::tray::PopoverState>>,
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> SuppressHideGuard<'a> {
+    fn new(app: &'a AppHandle) -> Self {
+        let flag = app.try_state::<crate::tray::PopoverState>();
+        if let Some(s) = &flag {
+            s.suppress_hide.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        Self { flag }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for SuppressHideGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(s) = &self.flag {
+            s.suppress_hide.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// No-op on non-macOS so call sites stay identical across platforms.
+#[cfg(not(target_os = "macos"))]
+struct SuppressHideGuard;
+#[cfg(not(target_os = "macos"))]
+impl SuppressHideGuard {
+    fn new(_app: &AppHandle) -> Self {
+        Self
+    }
+}
 
 /// Tauri command: dispatch an op identified by a string key ID.
 ///
@@ -176,7 +225,13 @@ pub fn handle_op_prepare(
     // ── '.' — block duplicate '.' and '.' after 'e' ──────────────────────────
     if key_id == "." {
         if !calc.entry_buf.contains('.') && !calc.entry_buf.contains('e') {
-            calc.entry_buf.push('.');
+            // Real HP-41CV leading-zero entry: '.' on an empty buffer shows "0." not ".".
+            // Seeding "0." matches hardware behavior and makes the display read "0.1" for ".1".
+            if calc.entry_buf.is_empty() {
+                calc.entry_buf.push_str("0.");
+            } else {
+                calc.entry_buf.push('.');
+            }
         }
         return Ok(None);
     }
@@ -208,6 +263,15 @@ pub fn handle_op_prepare(
             }
         }
         // No-op if entry_buf has no 'e' — React guards this but Rust is defensive.
+        return Ok(None);
+    }
+
+    // ── "entry_backspace" — HP-41 back-arrow (←) correction (D-25.6 / SC-4) ──
+    // Mirrors hp41-cli/src/app.rs Backspace intercept — both call the SAME shared
+    // core helper backspace_entry() from hp41-core::ops (no GUI duplication).
+    // MUST come before key_map::resolve() — no Op::EntryBackspace variant exists.
+    if key_id == "entry_backspace" {
+        hp41_core::ops::backspace_entry(calc);
         return Ok(None);
     }
 
@@ -435,6 +499,7 @@ pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
 ///
 /// # Supported keys
 /// - `"theme"`: one of `"dark"` | `"light"` | `"classic-beige"` | `"high-contrast"`.
+/// - `"macos_launch_mode"`: one of `"menu-bar"` | `"window"` (macOS-only effect).
 ///
 /// Returns `Err(String)` for unknown keys or invalid theme values (T-48-01 threat mitigation).
 /// Persists immediately to `~/.hp41/prefs.json` via `save_prefs` after updating in-memory state.
@@ -442,6 +507,7 @@ pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
 /// P59/THEME-05: never touches `CalcState` or `autosave.json`.
 #[tauri::command]
 pub fn set_pref(
+    app: AppHandle,
     key: String,
     value: String,
     prefs: State<'_, PrefsState>,
@@ -460,9 +526,49 @@ pub fn set_pref(
         "onboarding_done" => {
             p.onboarding_done = value == "true";
         }
+        "macos_launch_mode" => {
+            if !VALID_LAUNCH_MODES.contains(&value.as_str()) {
+                return Err(format!("unknown launch mode: {value}"));
+            }
+            p.macos_launch_mode = value;
+        }
         _ => return Err(format!("unknown pref key: {key}")),
     }
-    save_prefs(&default_prefs_path(), &*p).map_err(|e| e.to_string())
+    // Phase 54 PERSIST-01: use AppHandle-aware resolver so iOS writes to the app container.
+    save_prefs(&prefs_path_for_app(&app), &*p).map_err(|e| e.to_string())
+}
+
+/// Tauri command: restart the application.
+///
+/// Used by the Settings panel after the user changes `macos_launch_mode` — the new
+/// launch mode is decided in `setup()` (lib.rs) and only takes effect on the next
+/// launch, so we offer an immediate relaunch. `AppHandle::restart()` is `-> !` and
+/// never returns; the IPC promise on the frontend therefore never resolves, which is
+/// correct (the process is replaced).
+#[tauri::command]
+pub fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
+/// Tauri command: report whether the backend was compiled for macOS.
+///
+/// The frontend uses this to render the macOS-only launch-mode control. The launch-mode
+/// preference has no effect on Windows/Linux (the `setup()` branch is `cfg(macos)`), so
+/// showing the control there would mislead the user.
+#[tauri::command]
+pub fn is_macos() -> bool {
+    cfg!(target_os = "macos")
+}
+
+/// Tauri command: report whether the backend was compiled for iOS.
+///
+/// The frontend uses this to gate touch-specific behaviors (bottom sheets,
+/// collapsible stack panel, AlphaTouchInput bar, .key-touch-target overlays,
+/// haptic calls). Authoritative via compile-time `cfg(target_os = "ios")` —
+/// consistent with the existing `is_macos()` precedent (D-55.1).
+#[tauri::command]
+pub fn is_ios() -> bool {
+    cfg!(target_os = "ios")
 }
 
 /// Tauri command: persist the current CalcState to disk on demand (Ctrl+S / F5 in GUI).
@@ -478,10 +584,13 @@ pub fn set_pref(
 /// GUI divergence (KBD-02 / D-49.13): F5 triggers save in the GUI; CLI uses F5 for
 /// `run_program("A")`. This is intentional and documented — desktop keyboard idiom.
 #[tauri::command]
-pub fn save_state(state: State<'_, AppState>) -> Result<(), String> {
+pub fn save_state(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // CR-01: clone under lock, then release lock before disk I/O.
     let snapshot = state.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let path = persistence::default_state_path();
+    // Phase 54 PERSIST-01: use AppHandle-aware resolver so iOS saves to the app container.
+    // This is the visibilitychange invoke target (PERSIST-02); a wrong path silently discards
+    // the background save — must use the resolved path (RESEARCH Pitfall 1).
+    let path = persistence::state_path_for_app(&app);
     persistence::save_state(&path, &snapshot).map_err(|e| e.to_string())
 }
 
@@ -542,6 +651,7 @@ pub fn import_raw_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ImportRawResponse, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (no lock): open file dialog
     let file_result = app
         .dialog()
@@ -691,6 +801,7 @@ pub fn export_raw_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (brief lock): snapshot program bytes — released before dialog
     let encoded = {
         let calc = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -737,6 +848,7 @@ pub fn import_data_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (no lock): open file dialog
     let file_result = app
         .dialog()
@@ -788,6 +900,7 @@ pub fn export_data_dialog(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, GuiError> {
+    let _suppress = SuppressHideGuard::new(&app);
     // Phase 1 (brief lock): snapshot data card — released before dialog
     let encoded = {
         let calc = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -950,6 +1063,62 @@ mod tests {
         assert_eq!(
             calc.entry_buf, "42",
             "entry_buf must be unchanged when no 'e' present"
+        );
+    }
+
+    // ── Leading-zero decimal entry — D-25.6 parity with CLI (HP-41CV behavior) ─
+
+    #[test]
+    fn test_gui_decimal_on_empty_buf_seeds_leading_zero() {
+        // HP-41CV hardware: pressing '.' on an empty buffer shows "0." not ".".
+        // Mirrors CLI test_decimal_on_empty_buf_seeds_leading_zero (D-25.6 parity).
+        let mut calc = CalcState::new();
+        assert!(calc.entry_buf.is_empty());
+        handle_op(&mut calc, ".").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.",
+            "'.' key on empty entry_buf must seed \"0.\", not \".\""
+        );
+    }
+
+    #[test]
+    fn test_gui_decimal_then_digit_yields_zero_point_one() {
+        // '.' then '1' must produce entry_buf "0.1" (D-25.6: matches CLI behavior).
+        let mut calc = CalcState::new();
+        handle_op(&mut calc, ".").unwrap();
+        assert_eq!(calc.entry_buf, "0.");
+        handle_op(&mut calc, "1").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.1",
+            "'.' then '1' must yield entry_buf \"0.1\""
+        );
+    }
+
+    #[test]
+    fn test_gui_zero_decimal_digit_no_double_zero_regression() {
+        // Regression: '0' '.' '1' must yield "0.1", NOT "00.1".
+        // The buffer is "0" (non-empty) when '.' arrives — falls through to normal push.
+        let mut calc = CalcState::new();
+        handle_op(&mut calc, "0").unwrap();
+        handle_op(&mut calc, ".").unwrap();
+        handle_op(&mut calc, "1").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.1",
+            "'0' '.' '1' must yield \"0.1\", not \"00.1\""
+        );
+    }
+
+    #[test]
+    fn test_gui_second_decimal_after_zero_point_one_is_blocked() {
+        // Single-decimal-point invariant: a second '.' after "0.1" must be ignored.
+        let mut calc = CalcState::new();
+        handle_op(&mut calc, ".").unwrap();
+        handle_op(&mut calc, "1").unwrap();
+        assert_eq!(calc.entry_buf, "0.1");
+        handle_op(&mut calc, ".").unwrap();
+        assert_eq!(
+            calc.entry_buf, "0.1",
+            "second '.' must not be appended — single-decimal-point invariant"
         );
     }
 
@@ -1135,5 +1304,17 @@ mod tests {
             view.clock_active,
             "view.clock_active must mirror CalcState.clock_active (true)"
         );
+    }
+
+    #[test]
+    fn test_valid_launch_modes_accepts_known() {
+        assert!(VALID_LAUNCH_MODES.contains(&"menu-bar"));
+        assert!(VALID_LAUNCH_MODES.contains(&"window"));
+    }
+
+    #[test]
+    fn test_valid_launch_modes_rejects_unknown() {
+        assert!(!VALID_LAUNCH_MODES.contains(&"hologram"));
+        assert!(!VALID_LAUNCH_MODES.contains(&""));
     }
 }

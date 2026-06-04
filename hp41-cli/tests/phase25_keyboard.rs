@@ -321,9 +321,13 @@ fn key_to_op_v1x_letters_removed() {
 
     // Also assert the rarer stats/HMS bindings are gone — the full list per
     // D-25.3 / <interfaces> in 25-01-PLAN.md.
+    //
+    // `'a'` is intentionally NOT in this list: its v1.x binding (ASIN) is gone,
+    // but `a` was later re-bound as the ALPHA mode key (top-row mode key, like
+    // p→PRGM / u→USER). The "must be ASIN-free" guarantee is asserted below.
     let removed_secondary = [
-        'E', 'H', 'I', 'W', 'Y', 'a', 'c', 'k', 's', 'g', 'z', 'Z', 'm', 'D', 'y', 'b', 'O', 'V',
-        'j', 'J',
+        'E', 'H', 'I', 'W', 'Y', 'c', 'k', 's', 'g', 'z', 'Z', 'm', 'D', 'y', 'b', 'O', 'V', 'j',
+        'J',
     ];
     for c in removed_secondary {
         let ev = key(c);
@@ -333,10 +337,29 @@ fn key_to_op_v1x_letters_removed() {
             "v1.x letter binding for {c:?} must be removed (got {op:?})"
         );
     }
+
+    // `a` is the ALPHA mode key now, NOT its removed v1.x ASIN binding.
+    assert_eq!(
+        hp41_cli::keys::key_to_op(key('a'), &app),
+        Some(hp41_core::ops::Op::AlphaToggle),
+        "'a' must be the re-bound ALPHA mode key"
+    );
+    assert_ne!(
+        hp41_cli::keys::key_to_op(key('a'), &app),
+        Some(hp41_core::ops::Op::Asin),
+        "the v1.x a→ASIN binding must stay removed"
+    );
 }
 
 /// Sanity: the universal/primary positions kept in `key_to_op()` MUST still
 /// resolve correctly so we don't regress everyday calculator use.
+///
+/// NOTE: Backspace is still in key_to_op() → Op::Clx, but in practice
+/// app.handle_key() intercepts Backspace BEFORE key_to_op() is called
+/// (the backspace_entry() path). The key_to_op entry for Backspace is
+/// therefore dead code in the top-level non-modal path, but it remains
+/// in keys.rs for documentation completeness. Do NOT remove it — it
+/// accurately describes that Backspace is the CLX key.
 #[test]
 fn key_to_op_primary_positions_preserved() {
     let (app, _tmp) = make_app();
@@ -365,4 +388,81 @@ fn key_to_op_primary_positions_preserved() {
             want
         );
     }
+}
+
+// ── HP-41 back-arrow (←) fidelity tests ─────────────────────────────────────
+
+/// During active digit entry, Backspace removes only the last digit.
+/// "300" Backspace → entry_buf = "30", stack X unchanged.
+///
+/// This is the HP-41 fidelity fix: previously Backspace always cleared X
+/// (CLX). Now it calls backspace_entry() — shared core helper (D-25.6).
+#[test]
+fn test_backspace_during_entry_removes_last_digit() {
+    let (mut app, _tmp) = make_app();
+    // Simulate typing "3", "0", "0" via handle_key
+    app.handle_key(key('3'));
+    app.handle_key(key('0'));
+    app.handle_key(key('0'));
+    assert_eq!(
+        app.state.entry_buf, "300",
+        "entry_buf must be '300' after three digits"
+    );
+
+    // Backspace during entry: removes last char only
+    app.handle_key(raw_key(KeyCode::Backspace));
+    assert_eq!(
+        app.state.entry_buf, "30",
+        "Backspace must remove only the last digit"
+    );
+    // Stack X must not change (still 0 — no flush happened)
+    assert!(
+        app.state.stack.x.is_zero(),
+        "stack X must not change during entry deletion"
+    );
+}
+
+/// Multiple Backspaces peel digits one at a time.
+/// "300" ← ← → "3" (then one more ← → entry_buf empty, X=0).
+#[test]
+fn test_backspace_multiple_peels_one_at_a_time() {
+    let (mut app, _tmp) = make_app();
+    app.handle_key(key('3'));
+    app.handle_key(key('0'));
+    app.handle_key(key('0'));
+    app.handle_key(raw_key(KeyCode::Backspace));
+    assert_eq!(app.state.entry_buf, "30");
+    app.handle_key(raw_key(KeyCode::Backspace));
+    assert_eq!(app.state.entry_buf, "3");
+    // Full backspace: empties buf and clears X to 0
+    app.handle_key(raw_key(KeyCode::Backspace));
+    assert!(
+        app.state.entry_buf.is_empty(),
+        "full backspace must empty entry_buf"
+    );
+    assert!(
+        app.state.stack.x.is_zero(),
+        "full backspace must zero X (clx semantics)"
+    );
+}
+
+/// Backspace with NO active entry (entry_buf empty, number is complete)
+/// behaves exactly as CLX: X → 0, lift disabled.
+#[test]
+fn test_backspace_no_entry_acts_as_clx() {
+    let (mut app, _tmp) = make_app();
+    // Push 42 onto X so it is a "completed" number (no entry_buf)
+    app.state.stack.x = HpNum::from(42);
+    app.state.stack.lift_enabled = true;
+    assert!(app.state.entry_buf.is_empty());
+
+    app.handle_key(raw_key(KeyCode::Backspace));
+    assert!(
+        app.state.stack.x.is_zero(),
+        "Backspace with no entry must CLX (X=0)"
+    );
+    assert!(
+        !app.state.stack.lift_enabled,
+        "Backspace with no entry must disable lift"
+    );
 }

@@ -57,16 +57,16 @@ covering every non-trivial codec path.
 
 | Step | Keys | Display / Notes |
 |------|------|-----------------|
-| 01 | CLI: `PRGM` → `f LBL` → `ALPHA Q U A D ALPHA`<br>GUI: `PRGM` → `SHIFT + STO` (LBL) → type `q u a d` → `ENTER` | `01 LBL "QUAD"` |
+| 01 | CLI: `PRGM` → `f L` (LBL) → type `Q U A D` → `ENTER`<br>GUI: `PRGM` → `SHIFT + STO` (LBL) → enter `Q U A D` on the blue-letter keys → `ALPHA` | `01 LBL "QUAD"` |
 | 02 | `RCL 01` | `02 RCL 01` ← b = -5 |
-| 03 | `X²` | `03 X²` ← 25 |
+| 03 | X² (see note below) | `03 X²` ← 25 |
 | 04 | `RCL 04` | `04 RCL 04` ← 4 |
 | 05 | `RCL 00` | `05 RCL 00` ← a = 1 |
 | 06 | `×` | `06 ×` ← 4 |
 | 07 | `RCL 02` | `07 RCL 02` ← c = 6 |
 | 08 | `×` | `08 ×` ← 24 |
 | 09 | `−` | `09 −` ← 25 − 24 = 1 |
-| 10 | `SQRT` | `10 √x` ← √D = 1 |
+| 10 | √x / SQRT (see note below) | `10 √x` ← √D = 1 |
 | 11 | `STO 03` | `11 STO 03` ← R03 = √D = 1 |
 | 12 | `RCL 01` | `12 RCL 01` ← -5 |
 | 13 | `CHS` | `13 CHS` ← 5 |
@@ -85,6 +85,27 @@ covering every non-trivial codec path.
 | 26 | `÷` | `26 ÷` ← 2 |
 | 27 | `STO 07` | `27 STO 07` ← R07 = x2 = 2 |
 | 28 | `RCL 06` | `28 RCL 06` ← x1 back in X for display |
+
+> **Note — label entry (step 01).** Open the LBL modal first, then enter the
+> name into it. Do **not** prefix the name with a separate `ALPHA` toggle — that
+> toggle belongs to the ALPHA *register* (the card *filename* in §3), a different
+> operation.
+> - **CLI:** `f L` opens the modal; type `Q U A D`; press the keyboard `ENTER`
+>   to commit (the TUI modal commits on Enter — there is no on-screen keyboard).
+> - **GUI:** `SHIFT + STO` opens the modal; enter `Q U A D` using the on-screen
+>   **blue-letter keys**; press the on-screen **`ALPHA`** key to finish. Since the
+>   keys-only ALPHA rework (ADR-v4.1-003), the *on-screen* `ENTER` key types its
+>   blue letter **`N`**, so `ALPHA` — not the on-screen `ENTER` — terminates the
+>   entry. A physical Mac-keyboard `Enter` still commits the modal directly.
+>
+> **Note — X² (step 03) and √x (step 10).** Both have no dedicated key
+> (`key_path: null` in `docs/hp41cv-functions.json`). The intuitive `f √x`
+> does **not** record them — in PRGM mode that combination is the mode-aware
+> **CLP** opener (it shows `CLP _`; see §3). Enter them instead via:
+> - **CLI:** `f N` (XEQ-by-name) → type `X^2` (or `SQRT`) → `ENTER`. The
+>   resolver maps `X^2`/`XSQ` → `Op::Sq` and `SQRT` → `Op::Sqrt`.
+> - **GUI:** open the `?` overlay → **All Functions** tab → tap **X²** (or
+>   **√x**); in PRGM mode the tap inserts it as a program step.
 
 Exit `PRGM` mode (`ENTER` is auto-appended as `END`), then run the
 reference verification:
@@ -109,13 +130,21 @@ section 3.
 
 > **Platform note:** macOS users substitute `shasum -a 256` for every `sha256sum` invocation below — the GNU tool is not part of the macOS base install.
 
+> **ALPHA key.** `ALPHA … ALPHA` means: toggle ALPHA mode on, type the name,
+> toggle it off. CLI: the `a` key toggles ALPHA mode (top-row mode key, like
+> `p`=PRGM / `u`=USER) — so `a Q U A D a` (or end with `ENTER`). GUI: click the
+> on-screen `ALPHA` button. Letters typed here go to the ALPHA *register* (the
+> card filename), which is distinct from in-modal label entry (see §2 note).
+
 ```
 1.  ALPHA   Q U A D   ALPHA            ; ALPHA register = "QUAD"
 2.  XEQ "WPRGM" + ENTER                ; → ~/.hp41/cards/QUAD.raw exists (~40–50 B)
 3.  $ sha256sum ~/.hp41/cards/QUAD.raw → hash A
-4.  PRGM mode → CLP → ALPHA "QUAD" ALPHA → confirm   ; listing shows only "000 END"
-    ; CLI keys:  f→ + C   then type Q U A D + ENTER
-    ; GUI keys:  PRGM → SHIFT + √x  then type q u a d + ENTER
+4.  PRGM mode → CLP → type "QUAD" directly → confirm   ; listing shows only "000 END"
+    ; (CLP takes the label typed into the modal — NOT wrapped in ALPHA…ALPHA)
+    ; CLI keys:  f→ + C   then type Q U A D + ENTER (keyboard Enter commits)
+    ; GUI keys:  PRGM → SHIFT + √x  then Q U A D on blue keys + ALPHA to finish
+    ;            (on-screen ENTER types the blue letter N — use ALPHA; ADR-v4.1-003)
 5.  ALPHA   Q U A D   ALPHA
 6.  XEQ "RDPRGM" + ENTER               ; listing identical to original (28 lines)
 7.  XEQ "QUAD" + ENTER                 ; X=3., R03=1., R06=3., R07=2.  ← behavioural identity
@@ -188,7 +217,16 @@ normal stack view on the next keypress.
 
 ## 6. Same Procedure in the GUI
 
-Mirror sections 3 and 4 exactly. Three GUI-specific input paths to be aware of:
+Mirror sections 3 and 4 exactly.
+
+> **GUI terminator caveat (applies to every `+ ENTER` below).** In all text-label
+> modals — `XEQ "…"`, `LBL`, `CLP` — the **on-screen** `ENTER` key types its blue
+> letter `N` (keys-only ALPHA, ADR-v4.1-003). Terminate the entry with the
+> on-screen `ALPHA` key instead. A **physical** Mac/PC-keyboard `Enter` still
+> commits directly, so the `+ ENTER` notation below is accurate when you use the
+> hardware keyboard.
+
+Three GUI-specific input paths to be aware of:
 
 **ALPHA-register entry** (sections 3 & 4 step 1, 5, 8): activate ALPHA mode
 by clicking the `ALPHA` top-row button (the ALPHA annunciator lights up).
@@ -201,7 +239,11 @@ matches the appended letter).
 **LBL inside PRGM mode** (section 2 row 01): clicking `SHIFT + STO` opens
 the `LBL _` modal. The modal accepts letters directly from on-screen clicks
 (via the alphaChar fallback) or from the physical keyboard — no separate
-`ALPHA` toggle is needed. Press `ENTER` to commit.
+`ALPHA` toggle is needed to *start* entering. To **finish**, click the
+on-screen `ALPHA` key (`alpha_toggle` → dispatches `lbl_<name>`). Note: since
+the keys-only ALPHA rework (ADR-v4.1-003), the *on-screen* `ENTER` key types
+its blue letter `N`, so it does **not** commit; a physical-keyboard `Enter`
+still does.
 
 **CLP** (section 3 step 4): in PRGM mode, clicking `SHIFT + √x` opens the
 `CLP _` modal — this is *mode-aware*: outside PRGM the same combination

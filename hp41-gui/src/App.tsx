@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import './App.css';
 import { Keyboard, KEY_DEFS, THEME_GRADIENTS, type KeyDef } from './Keyboard';
+import { triggerHaptic, maybeFireErrorHaptic, ensureAudioResumed } from './haptics';
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
 import OnboardingWizard from './OnboardingWizard';
 import RawPickerOverlay from './RawPickerOverlay';
+import BottomSheet from './BottomSheet';
 import {
   handleModalKey,
   renderModalLcd,
@@ -156,6 +159,12 @@ function resolveKeyId(e: KeyboardEvent, state: CalcStateView | null): string | n
       return `alpha_${ch}`;
     }
   }
+  // Backspace in ALPHA mode → alpha_backspace (remove last alpha char; HP-41 ← key,
+  // CLI D-13 parity). MUST precede the MAP below where 'Backspace' → 'entry_backspace'
+  // (which operates on the number-entry buffer, not the ALPHA register). (u6t)
+  if (state?.annunciators?.alpha && e.key === 'Backspace') {
+    return 'alpha_backspace';
+  }
 
   // EEX-CHS: 'n' routes based on current in_eex_mode (D-06)
   if (e.key === 'n') return state?.in_eex_mode ? 'eex_chs' : 'chs';
@@ -170,7 +179,10 @@ function resolveKeyId(e: KeyboardEvent, state: CalcStateView | null): string | n
   if (e.key.length === 1 && 'SRfFX'.includes(e.key)) return null;
   // Named op mapping — authoritative source: hp41-cli/src/keys.rs key_to_op()
   const MAP: Record<string, string> = {
-    'Enter': 'enter', 'Backspace': 'clx',
+    // 'Backspace' → 'entry_backspace' (not 'clx'): the shared backspace_entry()
+    // core helper gives per-digit deletion during entry, CLX when buf is empty.
+    // This is the HP-41 fidelity fix — matches CLI behaviour (D-25.6).
+    'Enter': 'enter', 'Backspace': 'entry_backspace',
     '+': 'plus', '-': 'minus', '*': 'mul', '/': 'div',
     'r': 'rdn', 'x': 'xy_swap', 'l': 'lastx', 's': 'sqrt',
     // Phase 26 D-26.10 — physical-keyboard 'p' remap.
@@ -251,10 +263,20 @@ function App() {
   // Phase 41 D-41.2/D-41.8: live-display interval reference.
   // Holds the setInterval ID when clock_active || stopwatch_keyboard_mode is true.
   const liveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Phase 56 D-56.1/D-56.3: live needsTick value for the empty-deps visibilitychange
+  // listener (mirror of busyRef/liveTickRef pattern — read current value inside a
+  // stable listener without adding needsTick to its deps, which would re-register
+  // the listener every 100ms tick).
+  const needsTickRef = useRef(false);
+  // Phase 56 CR-01: live isIos value for the empty-deps visibilitychange listener.
+  // isIos is useState(false) set ASYNCHRONOUSLY after mount (invoke('is_ios').then(setIsIos)),
+  // so a value captured in the empty-deps closure is permanently stale `false` on iOS — which
+  // would dead-code the LIFE-02 resume branch on its only target platform. Mirror needsTickRef:
+  // sync this ref from a useEffect([isIos]) and read isIosRef.current inside the listener.
+  const isIosRef = useRef(false);
   const [printLog, setPrintLog] = useState<string[]>([]);
   const [printPanelOpen, setPrintPanelOpen] = useState(false);
   const printEndRef = useRef<HTMLDivElement>(null);
-  const activeStepRef = useRef<HTMLDivElement>(null);
   // Frontend-owned SHIFT one-shot prefix (no IPC round-trip).
   const [shiftActive, setShiftActive] = useState(false);
   // Phase 26 D-26.1 — frontend-owned modal state (no IPC round-trip).
@@ -272,6 +294,15 @@ function App() {
   // Theme defaults to 'dark'; overridden by get_prefs on mount.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<string>('dark');
+  // macOS launch mode — overridden by get_prefs on mount; only meaningful on macOS.
+  const [macosLaunchMode, setMacosLaunchMode] = useState<string>('menu-bar');
+  const [isMacos, setIsMacos] = useState(false);
+  const [isIos, setIsIos] = useState(false); // D-55.1 — gates touch behaviors on iOS
+  // Phase 55 Plan 05 — iOS collapsible stack panel (TOUCH-10).
+  // Default collapsed on iOS to give the keypad more vertical room.
+  // Local state only — not persisted to GuiPrefs (resets to collapsed on each launch).
+  // On desktop (isIos=false) this state is unused; the stack stays fully expanded.
+  const [stackExpanded, setStackExpanded] = useState(false);
   // Phase 49 D-49.4/D-49.8/ONBOARD-01 — onboarding wizard overlay state.
   // onboardingOpen: wizard visible; isFirstRun: true when auto-opened on first launch
   //   (Esc blocked in first-run mode per D-49.9), false when re-opened from settings.
@@ -288,6 +319,16 @@ function App() {
   // state value distinct on each call.
   const [toast, setToast] = useState<{ msg: string; seq: number } | null>(null);
   const toastSeqRef = useRef(0);
+  // Phase 55 Plan 03: iOS haptic + audio refs.
+  // audioResumedRef: one-shot guard — AudioContext resumed once on first pointerdown (TOUCH-06).
+  // errorHapticFiredRef: prevents notificationFeedback('error') from re-firing on every render
+  //   while a DATA ERROR / NO ROOM display is active (T-55-06 / Pitfall 7).
+  // audioCtxRef: holds the AudioContext instance created lazily on first iOS gesture;
+  //   TONE/BEEP audio is currently routed through Rust but Web Audio is pre-unocked here
+  //   so future audio additions are immediately audible without a gesture barrier.
+  const audioResumedRef = useRef(false);
+  const errorHapticFiredRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const showToast = useCallback((msg: string) => {
     toastSeqRef.current += 1;
     setToast({ msg, seq: toastSeqRef.current });
@@ -309,6 +350,16 @@ function App() {
     document.body.dataset.theme = newTheme;
     invoke('set_pref', { key: 'theme', value: newTheme }).catch(() => {
       // Persistence failure is non-fatal — theme applies visually regardless.
+    });
+  }, []);
+
+  // macOS launch-mode change — persist via fire-and-forget IPC (D-48.13 pattern).
+  // The new mode is applied at next startup (decided in setup()), so SettingsPanel
+  // reveals a "Restart now" affordance after the change.
+  const handleLaunchModeChange = useCallback((mode: string) => {
+    setMacosLaunchMode(mode);
+    invoke('set_pref', { key: 'macos_launch_mode', value: mode }).catch(() => {
+      // Persistence failure is non-fatal — the choice is re-applied on next change.
     });
   }, []);
 
@@ -471,6 +522,13 @@ function App() {
     };
   }, [needsTick, showToast]);
 
+  // Phase 56 D-56.1/D-56.3: keep needsTickRef in sync with the derived needsTick boolean.
+  // The empty-deps visibilitychange listener reads needsTickRef.current to get the live
+  // value without adding needsTick to the listener's deps (which would re-register every tick).
+  useEffect(() => {
+    needsTickRef.current = needsTick;
+  }, [needsTick]);
+
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
     invoke<CalcStateView>('get_state')
@@ -478,16 +536,50 @@ function App() {
       .catch(err => setErrorMessage(`Load failed: ${err}`));
   }, []);
 
+  useEffect(() => {
+    invoke<boolean>('is_macos').then(setIsMacos).catch(() => setIsMacos(false));
+  }, []);
+
+  // D-55.1 — detect iOS to gate touch behaviors (bottom sheets, collapsible stack,
+  // AlphaTouchInput bar, .key-touch-target overlays, haptic calls).
+  useEffect(() => {
+    invoke<boolean>('is_ios').then(setIsIos).catch(() => setIsIos(false));
+  }, []);
+
+  // Phase 56 CR-01: keep isIosRef in sync so the empty-deps visibilitychange listener
+  // reads the live (async-resolved) iOS flag instead of the stale mount-time `false`.
+  useEffect(() => {
+    isIosRef.current = isIos;
+  }, [isIos]);
+
+  // Re-fit the calculator scale whenever a full-screen overlay (help `?` /
+  // settings) opens or closes, OR when the print-sheet visibility changes.
+  // On iOS the help search input's autoFocus raises the virtual keyboard,
+  // which shrinks the viewport and shrinks the auto-scale; closing the overlay
+  // dismisses the keyboard but does NOT reliably fire a window 'resize' on
+  // WKWebView, so the scaler would otherwise stay stuck at the keyboard-visible
+  // (too-small) scale and the keypad's right column clips off screen.
+  // ScaledApp (main.tsx) listens for this event and re-measures across a few
+  // frames to outlast the keyboard-dismiss animation. Covers every close path
+  // (✕ button, Esc keyboard, Esc-in-overlay) via the helpOpen dep.
+  // print-sheet: the iOS BottomSheet is position:fixed so the ResizeObserver in
+  // main.tsx does NOT fire when the sheet mounts/unmounts; printLog.length > 0
+  // ensures the mxg stale-scale fix fires when the print sheet appears. (mxg)
+  useEffect(() => {
+    window.dispatchEvent(new Event('hp41:recompute-scale'));
+  }, [helpOpen, settingsOpen, printLog.length > 0]);
+
   // Phase 48 D-48.13 + Phase 49 ONBOARD-01/ONBOARD-05 — load persisted preferences on mount.
   // Sets document.body.dataset.theme to drive themes.css [data-theme] blocks.
   // Checks onboarding_done to auto-open wizard on first run (P59: lives in prefs.json,
   // NEVER in autosave.json). Silently falls back to 'dark' and opens wizard if prefs.json
   // is missing (first-run fallback — D-49.4 / RESEARCH Pitfall 3).
   useEffect(() => {
-    invoke<{ theme: string; onboarding_done: boolean }>('get_prefs')
+    invoke<{ theme: string; onboarding_done: boolean; macos_launch_mode: string }>('get_prefs')
       .then(prefs => {
         setTheme(prefs.theme);
         document.body.dataset.theme = prefs.theme;
+        setMacosLaunchMode(prefs.macos_launch_mode);
         if (!prefs.onboarding_done) {
           // First launch: auto-open wizard in first-run mode (Esc blocked per D-49.9).
           setIsFirstRun(true);
@@ -502,6 +594,27 @@ function App() {
       });
   }, []);
 
+  // Phase lu0 D-lu0-02: Overlay tap-to-run handler.
+  // Called by HelpOverlay when a tappable All Functions row is activated.
+  // keyId is the fully-formed `xeq_<token>` id (token === display_name for runnable entries).
+  // Close FIRST so the result is immediately visible on the display (D-lu0-02 "close the
+  // overlay so the user sees the result"). Reuses the existing dispatch_op + setCalcState
+  // plumbing (same as invokeForKey / dispatchKeyId). No new Tauri command — `dispatch_op`
+  // + the `xeq_` key_map prefix handle normal-run AND PRGM-insert (backend PRGM gate splits).
+  const handleOverlayRun = useCallback((keyId: string) => {
+    setHelpOpen(false);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    invoke<CalcStateView>('dispatch_op', { keyId })
+      .then(view => {
+        setCalcState(view);
+        setErrorMessage(null);
+        void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
+      })
+      .catch(err => showToast(extractErrMessage(err)))
+      .finally(() => { busyRef.current = false; });
+  }, [isIos, showToast]);
+
   // Physical-keyboard dispatch (option B): string-id path, no SHIFT/ALPHA frontend
   // mediation. resolveKeyId already maps physical keys to op ids directly. SST/BST
   // route to their dedicated Tauri commands; everything else goes through dispatch_op.
@@ -510,10 +623,14 @@ function App() {
     if (busyRef.current) return;
     busyRef.current = true;
     invokeForKey(keyId, calcState)
-      .then(view => { setCalcState(view); setErrorMessage(null); })
+      .then(view => {
+        setCalcState(view);
+        setErrorMessage(null);
+        void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
+      })
       .catch(err => showToast(extractErrMessage(err)))
       .finally(() => { busyRef.current = false; });
-  }, [calcState, showToast]);
+  }, [calcState, isIos, showToast]);
 
   // Apply a ModalKeyResult — updates state and optionally dispatches.
   // Returns true if a dispatch was issued (caller can short-circuit).
@@ -527,6 +644,7 @@ function App() {
         const view = await invokeForKey(result.dispatchId, calcState);
         setCalcState(view);
         setErrorMessage(null);
+        void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
       } catch (err) {
         showToast(extractErrMessage(err));
       } finally {
@@ -534,7 +652,7 @@ function App() {
       }
       return true;
     },
-    [calcState, showToast],
+    [calcState, isIos, showToast],
   );
 
   // On-screen keyboard click router. Resolution order:
@@ -590,11 +708,47 @@ function App() {
 
     if (!effectiveId) return;
 
+    // D-39.4/D-39.5 mirror (TOUCH path): stopwatch keyboard mode intercepts all
+    // on-screen taps, the same way handleKey (physical, ~L892) intercepts all
+    // physical keys. The physical path uses Space/Enter→toggle, 's'→SWPT,
+    // 'r'→STPW, Esc→sw_exit — but the on-screen keypad has no Space/s/r/Esc, so
+    // the touch mapping is: R/S→RUNSW/STOPSW toggle (the HP-41-canonical run/stop
+    // key), ENTER→STPW split, and ANY other tap→sw_exit (mirrors clock's
+    // "press any key to exit"; backend handle_op_prepare clears clock_active on
+    // any dispatch but only clears stopwatch_keyboard_mode on the explicit
+    // 'sw_exit' key_id, so touch users would otherwise be stranded in the mode).
+    // Without this block an on-screen R/S fell through to invokeForKey → run_stop
+    // (wrong op) and the stopwatch never started on iOS (touch-parity gap from
+    // Phase 41 — keyboard-mode handling existed only in the physical handleKey
+    // path). Touch-only addition; CLI has no touch so D-25.6 parity is unaffected.
+    if (calcState?.stopwatch_keyboard_mode) {
+      if (busyRef.current) return;
+      let swKeyId: string;
+      if (effectiveId === 'r_s') {
+        swKeyId = calcState.stopwatch_running ? 'xeq_STOPSW' : 'xeq_RUNSW';
+      } else if (effectiveId === 'enter') {
+        swKeyId = 'xeq_STPW';
+      } else {
+        swKeyId = 'sw_exit';
+      }
+      busyRef.current = true;
+      try {
+        const view = await invoke<CalcStateView>('dispatch_op', { keyId: swKeyId });
+        setCalcState(view);
+        setErrorMessage(null);
+      } catch (err) {
+        showToast(extractErrMessage(err));
+      } finally {
+        if (consumesShift) setShiftActive(false);
+        busyRef.current = false;
+      }
+      return;
+    }
+
     // Rule 6: if a modal is open, route through handleModalKey.
     if (pendingInput !== null) {
       // Phase 26 Plan 04 — translate on-screen click ids to the modal's
-      // key alphabet, then route through handleModalKey. Four cases in
-      // priority order:
+      // key alphabet, then route through handleModalKey. Cases in priority order:
       //   (a) assign_key + key.keyCode defined: encode the canonical HP-41
       //       hardware keyCode via makeKeyCodeMagic. CR-01: use key.keyCode
       //       (hardcoded CLI-canonical literal per Keyboard.tsx W9 doc),
@@ -605,22 +759,26 @@ function App() {
       //       canonical HP-41 mapping (variant 'top'/'shift', CHS, xge_y,
       //       clx_or_a, empty-id). Surface a toast and leave the modal
       //       open. D-07 forbids silent discards.
-      //   (c) effectiveId === 'enter' / 'clx_or_a': translate to the modal
-      //       alphabet 'Enter' / 'Backspace' so pending_input.ts's existing
-      //       `key === 'Enter'` / `key === 'Backspace'` predicates match.
-      //       Without this CR-03 fix, clicking the on-screen ENTER/← keys
-      //       inside an open assign_label / clp / xeq_name / gto / lbl
-      //       modal does nothing (the modal can only be confirmed by the
-      //       physical keyboard).
-      //   (d) v2.2.1 / quick-task 260516-c1p — text-input modal (xeq_name,
-      //       clp, assign_label) with a key that carries alphaChar: route
-      //       the alphaChar (single uppercase letter) instead of the raw
-      //       op-id. Lets on-screen Σ+ (alphaChar 'A'), 1/x ('B'), √x ('C')
-      //       etc. type letters into a LBL/XEQ/GTO/CLP/ASN-label modal
-      //       without requiring the physical keyboard. Also fixes the
-      //       latent pre-fix EEX-types-'E' bug (effectiveId 'e' was being
-      //       accepted by isPrintableChar; now correctly types 'P').
-      //   (e) default: forward effectiveId verbatim.
+      //   (c) TOUCH-04 (Phase 55 Plan 06 supersede) — text-label modal
+      //       (xeq_name, clp, assign_label) + effectiveId === 'alpha_toggle':
+      //       maps to 'Enter' so the on-screen ALPHA key terminates/submits.
+      //       HP-41-faithful: the ALPHA key exits ALPHA-entry mode on hardware.
+      //   (d) TOUCH-04 — text-label modal + key.alphaChar defined: route the
+      //       alphaChar (single uppercase letter) instead of the op-id.
+      //       MUST come before (e) so on-screen ENTER (alphaChar='N') types 'N'
+      //       rather than terminating. Also routes Σ+(A), 1/x(B), √x(C) etc.
+      //       NOTE: physical keyboard is NOT affected — see handleKey below.
+      //       On-screen-vs-physical divergence is accepted (user decision,
+      //       TOUCH-04): physical Enter keeps terminating for D-25.6 parity.
+      //   (e) effectiveId === 'enter' / 'clx_or_a': translate to 'Enter' /
+      //       'Backspace' for non-text-label modals (CR-03 fix; text-label
+      //       ENTER is handled in (d) above so this branch covers fmt, flag,
+      //       register, etc.). Backspace also applies to text-label kinds.
+      //   (f) default: forward effectiveId verbatim.
+      const isTextLabelKind =
+        pendingInput.kind === 'xeq_name' ||
+        pendingInput.kind === 'clp' ||
+        pendingInput.kind === 'assign_label';
       let routedKey: string;
       if (pendingInput.kind === 'assign_key') {
         if (key.keyCode === undefined) {
@@ -632,17 +790,17 @@ function App() {
           return;
         }
         routedKey = makeKeyCodeMagic(key.keyCode);
+      } else if (isTextLabelKind && effectiveId === 'alpha_toggle') {
+        // (c) TOUCH-04: on-screen ALPHA terminates text-label modals.
+        routedKey = 'Enter';
+      } else if (isTextLabelKind && key.alphaChar) {
+        // (d) TOUCH-04: on-screen keys with alphaChar type their letter.
+        // ENTER (alphaChar='N') types 'N'; priority over branch (e) below.
+        routedKey = key.alphaChar;
       } else if (effectiveId === 'enter') {
         routedKey = 'Enter';
       } else if (effectiveId === 'clx_or_a') {
         routedKey = 'Backspace';
-      } else if (
-        (pendingInput.kind === 'xeq_name'
-          || pendingInput.kind === 'clp'
-          || pendingInput.kind === 'assign_label')
-        && key.alphaChar
-      ) {
-        routedKey = key.alphaChar;
       } else {
         routedKey = effectiveId;
       }
@@ -675,20 +833,27 @@ function App() {
         // CL X/A — branch on alpha mode at click time. (On-screen-specific:
         // physical-keyboard has no equivalent path, so this stays out of
         // invokeForKey and lives here in handleClick.)
-        const targetId = alphaOn ? 'alpha_clear' : 'clx';
+        // Non-alpha: 'entry_backspace' → backspace_entry() core helper gives
+        // per-digit deletion during entry, CLX when no active entry (HP-41
+        // fidelity fix, D-25.6). Matches CLI behaviour and physical-keyboard
+        // resolveKeyId path. ALPHA mode: ← deletes the LAST alpha char
+        // (alpha_backspace, HP-41 ← key) — was alpha_clear (full wipe), corrected
+        // for native keys-only ALPHA entry (u6t). Full clear remains via XEQ "CLA".
+        const targetId = alphaOn ? 'alpha_backspace' : 'entry_backspace';
         view = await invoke<CalcStateView>('dispatch_op', { keyId: targetId });
       } else {
         view = await invokeForKey(effectiveId, calcState);
       }
       setCalcState(view);
       setErrorMessage(null);
+      void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
     } catch (err) {
       showToast(extractErrMessage(err));
     } finally {
       if (consumesShift) setShiftActive(false);
       busyRef.current = false;
     }
-  }, [calcState, shiftActive, pendingInput, applyModalResult, showToast]);
+  }, [calcState, isIos, shiftActive, pendingInput, applyModalResult, showToast]);
 
   // Physical-keyboard handler — useCallback with calcState dep so 'n' reads latest in_eex_mode.
   // Tab toggles SHIFT, Esc cancels in precedence order: help → modal → shift
@@ -798,7 +963,8 @@ function App() {
     if (onboardingOpen) return;
 
     // D-39.4/D-39.5 mirror: stopwatch keyboard mode intercepts all keys.
-    // Space/Enter → RUNSW/STOPSW toggle, 's' → split, 'r' → reset, Esc → exit.
+    // Space/Enter → RUNSW/STOPSW toggle, 's' → SWPT (recall split), 'r' → STPW
+    // (record split point), Esc → exit. (Touch path: R/S toggles, ENTER → STPW.)
     // Key IDs use xeq_ prefix for XROM resolution (key_map.rs xeq_ path).
     if (calcState?.stopwatch_keyboard_mode) {
       e.preventDefault();
@@ -917,6 +1083,40 @@ function App() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
 
+  // Phase 54 PERSIST-02: save state when the app is backgrounded (iOS resign-active).
+  // Fires in WKWebView when the user presses the Home button or switches apps.
+  // Fire-and-forget: the 30s auto-save thread (D-54.2a) is the safety net.
+  // Empty deps: handler has no dependency on React state — invoke always saves current state.
+  // D-54.2c: no page-hide or unload listeners added (redundant, risk double-saves).
+  //
+  // Phase 56 D-56.1/D-56.3 (LIFE-02): extended with a 'visible' branch that fires one
+  // gated tick_time on foreground return so the clock/stopwatch display is correct within
+  // one frame (no stale time visible). Reads needsTickRef.current AND isIosRef.current (both
+  // live values set by dedicated sync useEffects) — CR-01: isIos must NOT be read from the
+  // closure here because it resolves asynchronously after mount, so the empty-deps capture
+  // would be permanently stale `false` and dead-code this branch on iOS.
+  // busyRef guard mirrors the live-tick interval guard. NOT get_state (D-11 — only tick_time).
+  // Desktop/macOS: isIosRef.current is false → the 'visible' branch never fires spurious IPC.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        void invoke<void>('save_state').catch((err: unknown) => {
+          // Silent failure acceptable: the 30s timer is the safety net (D-54.2a)
+          console.warn('background save failed:', extractErrMessage(err));
+        });
+      } else if (document.visibilityState === 'visible' && isIosRef.current && needsTickRef.current) {
+        // iOS foreground return: force one tick_time so the clock/stopwatch display
+        // shows the correct current time within one render frame (LIFE-02).
+        if (busyRef.current) return;
+        invoke<CalcStateView>('tick_time')
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch((err: unknown) => showToast(extractErrMessage(err)));
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []); // empty deps: listener reads live values via refs (needsTickRef, isIosRef, busyRef)
+
   // Accumulate print_lines from each IPC response into local React state.
   // D-09: print_buffer is drained per IPC call; React retains full history.
   // D-07: setPrintPanelOpen(true) auto-shows panel on first print output.
@@ -991,14 +1191,26 @@ function App() {
   }, [calcState, pendingInput]);
 
   // Auto-scroll to bottom whenever the print log grows.
+  //
+  // WR-03: On iOS the print sentinel lives inside a BottomSheet whose
+  // `.bottom-sheet-content` is `overflow: hidden` with a 32px peek while
+  // collapsed. Calling scrollIntoView there silently no-ops (and can nudge
+  // the outer scroll). We do NOT auto-expand the sheet (that would change
+  // behavior the user hasn't asked for); we just skip the scroll while the
+  // enclosing bottom sheet is collapsed. On desktop there is no `.bottom-sheet`
+  // ancestor, so the guard passes through and behavior is unchanged. We also
+  // use `block: 'nearest'` to avoid moving the outer scroll position.
   useEffect(() => {
-    printEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const node = printEndRef.current;
+    if (!node) return;
+    const sheet = node.closest('.bottom-sheet');
+    if (sheet && !sheet.classList.contains('expanded')) {
+      // Collapsed bottom sheet — scrolling is a no-op; skip to avoid the
+      // misleading unconditional call and any outer-scroll nudge.
+      return;
+    }
+    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [printLog]);
-
-  // Auto-scroll active program step into view when pc changes (D-09)
-  useEffect(() => {
-    activeStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [calcState?.pc]);
 
   if (!calcState) {
     return <div className="calculator"><div className="display">Loading...</div></div>;
@@ -1034,7 +1246,10 @@ function App() {
     : (calcState.display_override ?? calcState.display_str);
 
   return (
-    <div className="calculator">
+    <div
+      className={`calculator${isIos ? ' calculator-safe-area' : ''}`}
+      data-isios={isIos || undefined}
+    >
       {/* Phase 48 D-48.1 — title bar with gear icon and ? help button.
           The gear icon uses onMouseDown + e.stopPropagation() to prevent the
           SettingsPanel's click-outside mousedown listener from immediately
@@ -1062,6 +1277,9 @@ function App() {
           currentTheme={theme}
           onThemeChange={handleThemeChange}
           onShowOnboarding={handleShowOnboarding}
+          isMacos={isMacos}
+          currentLaunchMode={macosLaunchMode}
+          onLaunchModeChange={handleLaunchModeChange}
         />
       </div>
       <div className="annunciators">
@@ -1081,13 +1299,47 @@ function App() {
       {errorMessage && (
         <div className="error-row" role="alert">{errorMessage}</div>
       )}
+      {/* Phase 55 Plan 05 — Collapsible stack panel on iOS (TOUCH-10).
+          On iOS: X row always visible; Y/Z/T/L wrapped in .stack-panel-collapsible
+          controlled by stackExpanded. Chevron toggle is 44pt (TOUCH-10 contract).
+          On desktop: full stack always expanded, no chevron. */}
       <div className="stack-panel">
-        {stackRows.map(([label, value]) => (
-          <div key={label} className="stack-row">
-            <span className="stack-label">{label}:</span>
-            <span>{value}</span>
-          </div>
-        ))}
+        {isIos ? (
+          <>
+            {/* X row always visible on iOS */}
+            <div className="stack-row">
+              <span className="stack-label">X:</span>
+              <span>{calcState.x_str}</span>
+            </div>
+            {/* Y/Z/T/L collapsible wrapper */}
+            <div className={`stack-panel-collapsible${stackExpanded ? '' : ' collapsed'}`}>
+              {stackRows.slice(1).map(([label, value]) => (
+                <div key={label} className="stack-row">
+                  <span className="stack-label">{label}:</span>
+                  <span>{value}</span>
+                </div>
+              ))}
+            </div>
+            {/* 44pt chevron toggle */}
+            <div className="stack-panel-toggle">
+              <span>{stackExpanded ? 'Stack' : 'Stack (collapsed)'}</span>
+              <button
+                className="stack-panel-toggle-btn"
+                aria-label={stackExpanded ? 'Collapse stack' : 'Expand stack'}
+                onClick={() => setStackExpanded(e => !e)}
+              >
+                {stackExpanded ? '▲' : '▼'}
+              </button>
+            </div>
+          </>
+        ) : (
+          stackRows.map(([label, value]) => (
+            <div key={label} className="stack-row">
+              <span className="stack-label">{label}:</span>
+              <span>{value}</span>
+            </div>
+          ))
+        )}
       </div>
       <Keyboard
         onKey={handleClick}
@@ -1097,45 +1349,76 @@ function App() {
         userActive={calcState.annunciators.user}
         userKeymap={calcState.user_keymap}
         gradientColors={THEME_GRADIENTS[theme] || THEME_GRADIENTS['dark']}
+        isIos={isIos}
+        onPointerDown={(key) => {
+          // Phase 55 Plan 03: per-key haptics + audio resume (TOUCH-05, TOUCH-06, TOUCH-08).
+          // Both calls are iOS-gated and silently catch on desktop.
+          // Audio resume MUST be called first — must be inside a user-gesture handler.
+          if (isIos) {
+            // Lazily create the AudioContext on the first touch gesture so that the
+            // constructor itself is also inside a user-gesture context (some browsers
+            // require this). The context is held in audioCtxRef for subsequent calls.
+            if (!audioCtxRef.current) {
+              audioCtxRef.current = new AudioContext();
+            }
+            void ensureAudioResumed(audioCtxRef.current, audioResumedRef);
+            void triggerHaptic(key, true);
+          }
+        }}
       />
-      {calcState.annunciators.prgm && (
-        <div className="prgm-panel">
-          <div className="prgm-panel-header">
-            PRGM &#8212; {calcState.program_steps.length - 1}{' '}
-            {calcState.program_steps.length - 1 === 1 ? 'step' : 'steps'}
-          </div>
-          <div className="prgm-panel-content">
-            {calcState.program_steps.map((step, i) => (
-              <div
-                key={i}
-                ref={calcState.pc === i ? activeStepRef : null}
-                className={`step-row${calcState.pc === i ? ' step-active' : ''}`}
-              >
-                {step}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {printPanelOpen && (
-        <div className="print-panel">
-          <div className="print-panel-header">
-            <span>PRINT</span>
-            <button className="print-panel-close" onClick={() => setPrintPanelOpen(false)}>×</button>
-          </div>
-          <div className="print-panel-content">
+      {/* u6t — iOS ALPHA entry is now keys-only: the AlphaTouchInput iOS-keyboard bar
+          (Phase 55 TOUCH-04) is removed entirely. Plain ALPHA-register entry uses the
+          on-screen HP-41 keys (← deletes the last char); the INTG/SOLVE/DIFEQ
+          "FUNCTION NAME?" prompt is spelled via the on-screen keys too — the
+          collect-for-modal pendingInput path routes blue-key letters into the name
+          accumulator and ALPHA submits via the same submit_modal_with_label IPC the bar
+          used (handleModalKey → __submit_modal_with_label__<acc> → invokeForKey). The
+          ALPHA text shows on the main 14-seg display. (ADR-v4.1-003.) */}
+      {/* Phase 55 Plan 05 — Print panel: bottom sheet on iOS, inline panel on desktop.
+          iOS: pull-up sheet visible when printLog.length > 0.
+          Desktop: existing .print-panel gated by printPanelOpen (byte-for-byte unchanged). */}
+      {isIos ? (
+        /* Portaled to document.body (sef): position:fixed must resolve against the
+           viewport, not the scaled .scaled-app-frame transform — otherwise the sheet
+           is glued to the scaled calculator's bottom edge and overlaps the keypad
+           (the same trap that affected the now-removed PRGM sheet). The mxg peek
+           reservation (querySelector('.bottom-sheet')) still finds it in body. */
+        createPortal(
+          <BottomSheet
+            id="print-sheet"
+            title="PRINT LOG"
+            visible={printLog.length > 0}
+            emptyText="No print output yet."
+          >
             {printLog.map((line, i) => (
               <div key={i} className="print-line">{line}</div>
             ))}
             <div ref={printEndRef} />
+          </BottomSheet>,
+          document.body,
+        )
+      ) : (
+        printPanelOpen && (
+          <div className="print-panel">
+            <div className="print-panel-header">
+              <span>PRINT</span>
+              <button className="print-panel-close" onClick={() => setPrintPanelOpen(false)}>×</button>
+            </div>
+            <div className="print-panel-content">
+              {printLog.map((line, i) => (
+                <div key={i} className="print-line">{line}</div>
+              ))}
+              <div ref={printEndRef} />
+            </div>
           </div>
-        </div>
+        )
       )}
       {/* Phase 26 D-26.8 — `?` help overlay. The component returns null when
           open=false, so unconditional placement in the tree is safe. Anchored
           inside `.calculator` (position: relative) so the overlay's `position:
           absolute` covers the calculator footprint only, not the page. */}
-      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* Phase lu0 D-lu0-02: pass isIos for iOS-aware default tab and onRun for tap-to-run. */}
+      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} isIos={isIos} onRun={handleOverlayRun} />
       {/* Phase 50 D-50.4/D-50.6 — multi-program picker overlay (mutually exclusive
           with help and wizard overlays, same z-index: 60). Renders when pickerData
           is non-null (set by importRawDialog on multi-program .raw archive response). */}

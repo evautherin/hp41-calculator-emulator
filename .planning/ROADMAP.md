@@ -16,6 +16,7 @@
 - ✅ **v3.2 Time Pac Emulation** — Phases 38–42, third XROM application module (HP 82182A Time Module, XROM 26, 35 XEQ entry points, first real-time behavior, 96.01% region coverage) — SHIPPED 2026-05-25 · [Archive](milestones/v3.2-ROADMAP.md)
 - ✅ **v3.3 Advantage Pac Emulation** — Phases 43–47, fourth XROM application module (XROM 22 + XROM 24, 114 XEQ entry points: bitwise/base conversion, named-matrix operations, advanced math/complex/solver/curve-fit, TVM) — SHIPPED 2026-05-26 · [Archive](milestones/v3.3-ROADMAP.md)
 - ✅ **v4.0 Platform Maturity** — Phases 48–52, visual themes, onboarding, GUI keyboard parity, `.raw` file I/O, Extended Memory — SHIPPED 2026-05-28 · [Archive](milestones/v4.0-ROADMAP.md)
+- ✅ **v4.1 iOS Foundation** — Phases 53–57, touch-first iPhone build to TestFlight (manual-signing CI pipeline; signed IPA on TestFlight + on-device) — SHIPPED 2026-06-04 · [Archive](milestones/v4.1-ROADMAP.md)
 
 ---
 
@@ -91,6 +92,13 @@ See [milestones/v4.0-ROADMAP.md](milestones/v4.0-ROADMAP.md) for full phase deta
 
 </details>
 
+<details>
+<summary>✅ v4.1 iOS Foundation (Phases 53–57) — SHIPPED 2026-06-04</summary>
+
+See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase detail.
+
+</details>
+
 ---
 
-*Last updated: 2026-05-28 — v4.0 Platform Maturity shipped (Phases 48–52). Next milestone: `/gsd-new-milestone`.*
+*Last updated: 2026-06-04 — v4.1 iOS Foundation SHIPPED (Phases 53–57; 25/25 requirements; milestone audit PASSED). Signed IPA on TestFlight + on-device. Next: new milestone.*

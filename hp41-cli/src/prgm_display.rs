@@ -106,7 +106,7 @@ fn op_display_name(op: &Op) -> String {
             };
             format!("STO{op_sym} {reg_name}")
         }
-        Op::Clreg => "CLREG".to_string(),
+        Op::Clreg => "CLRG".to_string(),
         // Phase 2: alpha
         Op::AlphaToggle => "ALPHA".to_string(),
         Op::AlphaAppend(c) => format!("'{c}'"),

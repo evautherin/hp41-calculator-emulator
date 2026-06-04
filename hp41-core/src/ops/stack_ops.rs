@@ -32,6 +32,39 @@ pub fn op_clx(state: &mut CalcState) -> Result<(), HpError> {
     Ok(())
 }
 
+/// HP-41 back-arrow (←) correction during number entry.
+///
+/// This is NOT a programmable Op — it is a shared state-editing helper,
+/// like flush_entry_buf. Both hp41-cli and hp41-gui call this function
+/// directly (CLI↔GUI parity, CLAUDE.md D-25.6; no duplication in GUI,
+/// CLAUDE.md SC-4).
+///
+/// Semantics:
+/// 1. If `entry_buf` is NON-EMPTY: pop the last character.
+///    - If `entry_buf` is now EMPTY after the pop: call `op_clx` so
+///      the display shows 0 (full-backspace end-state matches CLX).
+///    - Otherwise: leave `entry_buf` as the shortened string. The
+///      display already renders `entry_buf` while it is non-empty.
+/// 2. If `entry_buf` is EMPTY (not mid-entry): behave exactly as today →
+///    `op_clx` (clear X to 0, disable lift).
+///
+/// Cannot fail (infallible): char-by-char pop is correct for all
+/// entry_buf content ('.' decimal, '-' CHS sign, 'e' EEX, digits).
+pub fn backspace_entry(state: &mut CalcState) {
+    if state.entry_buf.is_empty() {
+        // Not in digit-entry mode — CLX semantics (unchanged from before).
+        let _ = op_clx(state);
+    } else {
+        // Pop the last character (safe: entry_buf is non-empty).
+        state.entry_buf.pop();
+        if state.entry_buf.is_empty() {
+            // Full backspace: same end-state as CLX (display shows 0).
+            let _ = op_clx(state);
+        }
+        // else: entry_buf still has digits — leave it for display rendering.
+    }
+}
+
 /// CHS: Change sign of X (negate). Does not modify any other register.
 ///
 /// LiftEffect: Neutral (HP-41 hardware: CHS during number entry appends sign;

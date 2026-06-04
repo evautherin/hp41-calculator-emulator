@@ -614,6 +614,47 @@ Phase 52 closes the v4.0 milestone with CLI/GUI wiring, a dedicated X-MEM help p
 
 ---
 
+## v4.1 additions (iOS Foundation, Phases 53–57)
+
+v4.1 brings the GUI to iPhone (Tauri v2 Mobile — ADR-v4.1-002), reusing `hp41-core` and the
+React frontend verbatim; desktop/macOS stay byte-for-byte unchanged (all iOS paths are
+`isIos`/`#[cfg(mobile)]`-gated). The phase-by-phase narrative (persistence, touch layout,
+lifecycle/clock, signing) is tracked in `.planning/milestones/`. This section records the
+**iOS touch-UI and help-overlay design decisions** that emerged from on-device testing as a
+pass of atomic quick tasks (`.planning/quick/260603-*`), each with its own ADR.
+
+**iOS scale + safe-area architecture (ADR-v4.1-005).** The calculator is fitted to the
+viewport by a single CSS `transform: scale()`. On iPhone this collided with safe-area insets
+and `position: fixed` overlays. The resolution: handle safe-area **once** on the un-scaled
+outer frame via a stylesheet class (`env()` in a React inline style is silently dropped by
+WKWebView), feed the inset-reduced area to `computeScale`, `createPortal` fixed overlays out
+of the transformed subtree (a `transform` ancestor becomes the containing block for
+`position:fixed` children), recompute scale on overlay/PRGM/keyboard transitions (the iOS
+keyboard dismiss fires no reliable `resize`), and lock pinch-zoom. These traps are catalogued
+in the `reference_ios_gui_layout_gotchas` memory.
+
+**iOS ALPHA entry reverts to native keys (ADR-v4.1-003, supersedes Phase-55 TOUCH-04).** The
+Phase-55 iOS software-keyboard ALPHA bar was removed entirely: ALPHA-register and
+"FUNCTION NAME?" entry now use only the on-screen HP-41 keys, with the text on the main
+14-seg display, as on hardware. The on-screen ← and physical Backspace delete the last ALPHA
+char (`alpha_backspace`), restoring CLI↔GUI parity (D-25.6) on this point. iOS touch targets
+were also sized to the actual key so the wide ENTER key's ALPHA letter `N` is tappable.
+
+**Help overlay becomes a tabbed function index with tap-to-run (ADR-v4.1-004, revises
+D-26.8).** The `?` overlay was a keyboard-shortcut cheat-sheet that hid 74 implemented
+keyless built-ins. It is now two tabs ("Keyboard Shortcuts" | "All Functions"), the latter
+listing every implemented function grouped Module→Category, with runnable rows tappable to
+execute (or insert an `XEQ` step in PRGM). Mnemonic fidelity was corrected in the same pass:
+`CLREG`→`CLRG`, `CL SIGMA`→`CLΣ` (back-compat aliases retained), and the non-authentic
+`CLRALPHA` alias of `CLA` hidden — catalogued in the new `docs/hp41cv-divergences.md`. The
+CLI `?` overlay was brought to parity (keyless built-ins advertise `XEQ "NAME"`).
+
+**Authentic single-step PRGM view (ADR-v4.1-006).** The GUI now shows the current program
+step in the main display in PRGM mode (mirroring the CLI's `format_step`, restoring D-25.6),
+removing the inauthentic multi-line program listing on both platforms; SST/BST navigate.
+
+---
+
 ## Quality Gate History
 
 | Gate | Target | v1.0 | v1.1 / v2.0 | v2.2 (Phase 27) | v3.0 (Phase 32) | v3.1 (Phase 37) | v3.2 (Phase 42) | v3.3 (Phase 47) |

@@ -81,7 +81,21 @@ fn inverse_trig_lowercase_removed_d25_3() {
     // c→ACOS, k→ATAN) is GONE. These ops are now reached via the
     // XEQ-by-Name modal (Plan 03) or their HP-41CV f-shifted keyboard
     // positions (Plan 02 / 04).
-    assert_eq!(key_to_op(press(KeyCode::Char('a')), &app), None);
+    //
+    // `a` was later re-bound — NOT to its v1.x ASIN, but as the ALPHA mode
+    // key (top-row mode key, like p→PRGM / u→USER). The D-25.3 guarantee
+    // that asserts here is "`a` is no longer ASIN"; it now dispatches the
+    // ALPHA toggle instead (entry half; exit is handled in handle_key).
+    assert_eq!(
+        key_to_op(press(KeyCode::Char('a')), &app),
+        Some(Op::AlphaToggle),
+        "'a' is the ALPHA mode key (re-bound), not its removed v1.x ASIN"
+    );
+    assert_ne!(
+        key_to_op(press(KeyCode::Char('a')), &app),
+        Some(Op::Asin),
+        "the v1.x a→ASIN binding must stay removed"
+    );
     assert_eq!(key_to_op(press(KeyCode::Char('c')), &app), None);
     assert_eq!(key_to_op(press(KeyCode::Char('k')), &app), None);
 }

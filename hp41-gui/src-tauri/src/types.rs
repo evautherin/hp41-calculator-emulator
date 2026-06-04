@@ -129,10 +129,13 @@ impl CalcStateView {
     ) -> Self {
         // display_str priority chain (D-01 + D-31.5 + D-39.1):
         //   -1. clock/stopwatch live display (highest priority, mirrors CLI ui.rs)
-        //   0. modal_prompt LCD-alternation (D-31.5 / D-31.6)
+        //   0. modal_prompt LCD-alternation (D-31.5 / D-31.6) — GUI-only, gated disjointly
         //   1. entry_buf (when user is typing)
-        //   2. alpha_reg via format_alpha
-        //   3. format_hpnum(stack.x, display_mode) (default)
+        //   2. prgm_mode: current program step via prgm_display::format_step (D-14)
+        //      Parity with CLI hp41-cli/src/ui.rs get_display_string (D-25.6):
+        //      clock -> stopwatch -> [modal_prompt] -> entry_buf -> prgm_mode -> alpha -> X
+        //   3. alpha_reg via format_alpha
+        //   4. format_hpnum(stack.x, display_mode) (default)
         let display_str = if let Some(s) = get_clock_display_str(state) {
             s
         } else if let Some(s) = get_stopwatch_display_str(state) {
@@ -149,6 +152,8 @@ impl CalcStateView {
             )
         } else if !state.entry_buf.is_empty() {
             state.entry_buf.clone()
+        } else if state.prgm_mode {
+            prgm_display::format_step(state)
         } else if state.alpha_mode {
             format_alpha(&state.alpha_reg)
         } else {
@@ -448,6 +453,38 @@ mod tests {
         assert!(
             !view.in_eex_mode,
             "in_eex_mode must be false when entry_buf has no 'e'"
+        );
+    }
+
+    /// quick-task 260603-o2e: prgm_mode branch added to display_str priority chain.
+    /// When prgm_mode is true and entry_buf is empty, display_str must equal format_step output.
+    /// When entry_buf is also non-empty (program entry in progress), entry_buf wins (mirrors CLI).
+    #[test]
+    fn test_prgm_mode_display_str() {
+        // prgm_mode=true, entry_buf empty → display_str = format_step = "000 END"
+        let mut state = CalcState::new();
+        state.prgm_mode = true;
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        assert_eq!(
+            view.display_str, "000 END",
+            "prgm_mode=true + empty entry_buf must show format_step (e.g. '000 END')"
+        );
+
+        // prgm_mode=true but entry_buf non-empty → entry_buf wins (D-25.6 / CLI parity)
+        state.entry_buf = "42".to_string();
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        assert_eq!(
+            view.display_str, "42",
+            "prgm_mode=true + non-empty entry_buf: entry_buf must win"
+        );
+
+        // prgm_mode=false → normal X-register display
+        state.prgm_mode = false;
+        state.entry_buf = String::new();
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        assert!(
+            !view.display_str.starts_with("000"),
+            "prgm_mode=false must NOT show a program step"
         );
     }
 

@@ -115,6 +115,16 @@ pub enum PendingInput {
     /// §Security V5). Enter dispatches `Op::Clp(acc)`; Esc cancels; Backspace
     /// pops the last char.
     ClpLabel(String),
+    /// LBL "name" — text-input modal for entering a global alpha program label
+    /// (opened by `f L` in PRGM mode). The label name is typed DIRECTLY into the
+    /// modal — there is NO ALPHA-mode toggle (that wrapper belongs to the ALPHA
+    /// *register*, not to in-modal label entry). Accumulator capped at 7 chars
+    /// (same HP-41 LBL hardware limit as `ClpLabel`). Enter dispatches
+    /// `Op::Lbl(acc)` — recorded as a program step by the PRGM-mode gate in
+    /// `dispatch()`; Esc cancels; Backspace pops the last char. Mirrors the GUI
+    /// `SHIFT+STO` → `lbl_<name>` flow (`key_map.rs`), closing the CLI ↔ GUI gap
+    /// where the CLI previously had no keyboard path to a global alpha label.
+    LblLabel(String),
     /// DEL nnn — 3-digit numeric accumulator for the program-step delete op.
     /// Final parse uses `.parse::<u8>().unwrap_or(u8::MAX)` so user input
     /// `999` silently clamps to 255 (T-25-06 mitigation).
@@ -652,7 +662,13 @@ impl App {
                 if self.state.entry_buf.contains('.') || self.state.entry_buf.contains('e') {
                     return; // silently ignore malformed input
                 }
-                self.state.entry_buf.push('.');
+                // Real HP-41CV leading-zero entry: '.' on an empty buffer shows "0." not ".".
+                // Seeding "0." matches hardware behavior and makes the display read "0.1" for ".1".
+                if self.state.entry_buf.is_empty() {
+                    self.state.entry_buf.push_str("0.");
+                } else {
+                    self.state.entry_buf.push('.');
+                }
                 self.message = None;
                 return;
             }
@@ -774,6 +790,18 @@ impl App {
                 }
                 Err(e) => self.message = Some(format!("{e}")),
             }
+            return;
+        }
+
+        // HP-41 back-arrow (←) correction: per-digit deletion during number entry.
+        // Intercept Backspace BEFORE key_to_op so the shared core helper runs
+        // instead of the generic Op::Clx mapping in keys.rs:105.
+        // MUST be after: modal handlers (all already returned above), ALPHA mode
+        // (already returned above — Op::AlphaBackspace is correct there).
+        // Only the bare number-entry / idle Backspace changes behaviour here.
+        if key.code == KeyCode::Backspace {
+            hp41_core::ops::backspace_entry(&mut self.state);
+            self.message = None;
             return;
         }
 
@@ -1193,6 +1221,9 @@ impl App {
             Some(PendingInput::ClpLabel(acc)) => {
                 self.handle_clp_label(key, acc);
             }
+            Some(PendingInput::LblLabel(acc)) => {
+                self.handle_lbl_label(key, acc);
+            }
             Some(PendingInput::DelCount(acc)) => {
                 self.handle_del_count(key, acc);
             }
@@ -1482,6 +1513,40 @@ impl App {
             }
             _ => {
                 self.pending_input = Some(PendingInput::ClpLabel(acc));
+            }
+        }
+    }
+
+    /// LBL "name" entry handler — mirrors `handle_clp_label` but dispatches
+    /// `Op::Lbl(acc)`. In PRGM mode the dispatch gate records it as a program
+    /// step; the label name is typed directly (no ALPHA-mode toggle). Same
+    /// 7-char hardware cap as CLP. Empty Enter cancels silently (an empty label
+    /// is not a valid program step).
+    fn handle_lbl_label(&mut self, key: KeyEvent, acc: String) {
+        match key.code {
+            KeyCode::Esc => {
+                self.pending_input = None;
+            }
+            KeyCode::Enter => {
+                if !acc.is_empty() {
+                    self.call_dispatch(Op::Lbl(acc));
+                }
+                self.pending_input = None;
+            }
+            KeyCode::Backspace => {
+                let mut new_acc = acc;
+                new_acc.pop();
+                self.pending_input = Some(PendingInput::LblLabel(new_acc));
+            }
+            KeyCode::Char(ch) => {
+                let mut new_acc = acc;
+                if new_acc.len() < Self::CLP_LABEL_CAP {
+                    new_acc.push(ch);
+                }
+                self.pending_input = Some(PendingInput::LblLabel(new_acc));
+            }
+            _ => {
+                self.pending_input = Some(PendingInput::LblLabel(acc));
             }
         }
     }
@@ -2267,6 +2332,69 @@ mod tests {
         );
     }
 
+    // ── Leading-zero decimal entry (HP-41CV hardware behavior) ────────────────
+
+    #[test]
+    fn test_decimal_on_empty_buf_seeds_leading_zero() {
+        // HP-41CV hardware: pressing '.' on an empty buffer shows "0." not ".".
+        let mut app = make_app();
+        assert!(app.state.entry_buf.is_empty());
+        app.handle_key(make_key(KeyCode::Char('.')));
+        assert_eq!(
+            app.state.entry_buf, "0.",
+            "'.' on empty entry_buf must seed \"0.\", not \".\""
+        );
+    }
+
+    #[test]
+    fn test_decimal_then_digit_yields_zero_point_one() {
+        // '.' + '1' must produce entry_buf "0.1" which flushes to numeric 0.1.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('.')));
+        app.handle_key(make_key(KeyCode::Char('1')));
+        assert_eq!(
+            app.state.entry_buf, "0.1",
+            "'.' then '1' must yield entry_buf \"0.1\""
+        );
+        // Flush via Enter and verify stack X == 0.1.
+        hp41_core::ops::dispatch(&mut app.state, hp41_core::ops::Op::Enter)
+            .expect("Enter must succeed");
+        let formatted = hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        assert_eq!(
+            formatted, "0.1000",
+            "'.' '1' ENTER must push numeric 0.1 (shown as 0.1000 in FIX 4)"
+        );
+        assert!(app.state.entry_buf.is_empty());
+    }
+
+    #[test]
+    fn test_zero_decimal_digit_no_double_zero_regression() {
+        // Regression: '0' '.' '1' must yield "0.1", NOT "00.1".
+        // The buffer is "0" (non-empty) when '.' arrives — falls through to normal push.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('0')));
+        app.handle_key(make_key(KeyCode::Char('.')));
+        app.handle_key(make_key(KeyCode::Char('1')));
+        assert_eq!(
+            app.state.entry_buf, "0.1",
+            "'0' '.' '1' must yield \"0.1\", not \"00.1\""
+        );
+    }
+
+    #[test]
+    fn test_second_decimal_after_zero_point_one_is_blocked() {
+        // Single-decimal-point invariant: a second '.' after "0.1" must be ignored.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('.')));
+        app.handle_key(make_key(KeyCode::Char('1')));
+        assert_eq!(app.state.entry_buf, "0.1");
+        app.handle_key(make_key(KeyCode::Char('.')));
+        assert_eq!(
+            app.state.entry_buf, "0.1",
+            "second '.' must not be appended — single-decimal-point invariant"
+        );
+    }
+
     #[test]
     fn test_eex_appended_when_valid() {
         let mut app = make_app();
@@ -2912,6 +3040,117 @@ mod synthetic_modal_tests {
             app.state.stack.x,
             hp41_core::HpNum::from(51i32),
             "SyntheticByte(0xCE) in program must execute as GETKEY and push 51"
+        );
+    }
+
+    /// CLI ↔ GUI parity gap closure: `f L` in PRGM mode opens the LBL modal,
+    /// typed letters accumulate directly (NO ALPHA toggle), and Enter records
+    /// `Op::Lbl("QUAD")` as the first program step — exactly the section-2
+    /// row-01 flow from docs/verifying-card-reader.md.
+    #[test]
+    fn test_f_l_records_global_alpha_label_in_prgm_mode() {
+        let mut app = make_app();
+        app.state.prgm_mode = true;
+
+        // f  → arm shift; L → open LBL modal
+        app.handle_key(press(KeyCode::Char('f')));
+        app.handle_key(press(KeyCode::Char('L')));
+        assert!(
+            matches!(app.pending_input, Some(PendingInput::LblLabel(_))),
+            "f L must open the LBL label modal"
+        );
+
+        // Type the label DIRECTLY — no ALPHA wrapper.
+        for ch in ['Q', 'U', 'A', 'D'] {
+            app.handle_key(press(KeyCode::Char(ch)));
+        }
+        assert!(
+            !app.state.alpha_mode,
+            "LBL modal entry must NOT toggle ALPHA mode"
+        );
+
+        // Enter commits → recorded as the first program step.
+        app.handle_key(press(KeyCode::Enter));
+        assert!(
+            app.pending_input.is_none(),
+            "Enter must close the LBL modal"
+        );
+        assert_eq!(
+            app.state.program.first(),
+            Some(&Op::Lbl("QUAD".to_string())),
+            "f L QUAD Enter must record LBL \"QUAD\" as the first program step"
+        );
+    }
+
+    /// Empty Enter in the LBL modal cancels silently — an empty label is not a
+    /// valid program step (mirrors the CLP empty-Enter convention).
+    #[test]
+    fn test_f_l_empty_enter_records_nothing() {
+        let mut app = make_app();
+        app.state.prgm_mode = true;
+        app.handle_key(press(KeyCode::Char('f')));
+        app.handle_key(press(KeyCode::Char('L')));
+        app.handle_key(press(KeyCode::Enter));
+        assert!(
+            app.pending_input.is_none(),
+            "empty Enter must close the modal"
+        );
+        assert!(
+            app.state.program.is_empty(),
+            "empty LBL Enter must not record any program step"
+        );
+    }
+
+    /// CLI ALPHA-mode ENTRY gap closure: pressing `a` outside alpha mode enters
+    /// ALPHA mode; letters then append to the alpha register; `a` again exits.
+    /// Previously the CLI had only the EXIT half — no keyboard route IN at all.
+    #[test]
+    fn test_a_key_enters_and_exits_alpha_mode() {
+        let mut app = make_app();
+        assert!(!app.state.alpha_mode, "starts outside ALPHA mode");
+
+        // 'a' ENTERS ALPHA mode (the previously-missing half).
+        app.handle_key(press(KeyCode::Char('a')));
+        assert!(app.state.alpha_mode, "pressing 'a' must ENTER ALPHA mode");
+
+        // Letters now append to the ALPHA register.
+        for ch in ['Q', 'U', 'A', 'D'] {
+            app.handle_key(press(KeyCode::Char(ch)));
+        }
+        assert_eq!(
+            app.state.alpha_reg, "QUAD",
+            "letters typed in ALPHA mode must append to alpha_reg"
+        );
+
+        // 'a' EXITS ALPHA mode (pre-existing exit half) without altering text.
+        app.handle_key(press(KeyCode::Char('a')));
+        assert!(
+            !app.state.alpha_mode,
+            "pressing 'a' again must EXIT ALPHA mode"
+        );
+        assert_eq!(
+            app.state.alpha_reg, "QUAD",
+            "exit must not alter the register"
+        );
+    }
+
+    /// Regression: `f a` (ARCL) must still win over the new plain-`a` ALPHA
+    /// entry — the `shift_armed` block runs before `key_to_op`.
+    #[test]
+    fn test_f_a_opens_arcl_not_alpha() {
+        let mut app = make_app();
+        app.handle_key(press(KeyCode::Char('f')));
+        app.handle_key(press(KeyCode::Char('a')));
+        assert!(!app.state.alpha_mode, "f a must NOT enter ALPHA mode");
+        assert!(
+            matches!(
+                app.pending_input,
+                Some(PendingInput::RegisterPrompt {
+                    op: crate::keys::RegisterOpKind::Arcl,
+                    ..
+                })
+            ),
+            "f a must open the ARCL register prompt, not toggle ALPHA"
         );
     }
 

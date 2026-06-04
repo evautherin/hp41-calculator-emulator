@@ -111,8 +111,15 @@ fn help_overlay_rows_contain_category_headers() {
     // help_entries_all() to stay in sync with the merged accessor.
     let rows = help_overlay_rows();
 
+    // CLI-parity (260603-scc): help_overlay_rows() now lists only implemented
+    // entries (deferred-v3 dropped), so a category whose entries are all deferred
+    // produces no header. Derive the expected categories from implemented-only
+    // entries to match.
     let mut distinct_categories: Vec<String> = Vec::new();
     for e in help_entries_all() {
+        if e.status != "implemented" {
+            continue;
+        }
         if !distinct_categories.iter().any(|c| c == &e.category) {
             distinct_categories.push(e.category.clone());
         }
@@ -129,5 +136,49 @@ fn help_overlay_rows_contain_category_headers() {
          got {} headers for {} categories",
         header_count,
         distinct_categories.len()
+    );
+}
+
+#[test]
+fn help_overlay_rows_cover_all_implemented_functions() {
+    // CLI-parity (260603-scc) — the CLI analog of the GUI's C1 completeness
+    // guardrail (help_data.test.ts). Every implemented function across all 6 pools
+    // must appear as a non-header row in the `?` overlay, so no implemented
+    // function can ever be silently hidden from CLI discovery. Fails with the
+    // exact list of missing mnemonics.
+    let rows = help_overlay_rows();
+    let shown: HashSet<&str> = rows
+        .iter()
+        .filter(|r| !(r.desc.starts_with("===") && r.desc.ends_with("===")))
+        .map(|r| r.op.as_str())
+        .collect();
+
+    let missing: Vec<&str> = help_entries_all()
+        .filter(|e| e.status == "implemented")
+        .map(|e| e.display_name.as_str())
+        .filter(|name| !shown.contains(name))
+        .collect();
+
+    assert!(
+        missing.is_empty(),
+        "These implemented functions are missing from the `?` overlay \
+         (help_overlay_rows) — they would be undiscoverable in the CLI: {missing:?}"
+    );
+}
+
+#[test]
+fn help_overlay_rows_suggest_xeq_for_keyless_builtins() {
+    // CLI-parity (260603-scc): keyless built-ins (key_path:null, no XROM) show
+    // `XEQ "NAME"` in the key column so the overlay documents how to run them.
+    let rows = help_overlay_rows();
+    // CLST is an implemented keyless built-in (no comfort key, no XROM).
+    let clst = rows
+        .iter()
+        .find(|r| r.op == "CLST")
+        .expect("CLST must appear in the ? overlay");
+    assert_eq!(
+        clst.key, "XEQ \"CLST\"",
+        "keyless built-in CLST should advertise its XEQ-by-name route, got {:?}",
+        clst.key
     );
 }

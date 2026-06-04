@@ -120,6 +120,19 @@ pub fn key_to_op(key: KeyEvent, _app: &App) -> Option<Op> {
         KeyCode::Char('l') => Some(Op::Lastx),
         KeyCode::Char('p') => Some(Op::PrgmMode),
         KeyCode::Char('u') => Some(Op::UserMode),
+        // ALPHA — top-row mode key (like PRGM/USER above). Pressing `a`/`A`
+        // OUTSIDE alpha mode toggles it ON (`Op::AlphaToggle` flips
+        // `alpha_mode` false→true). This arm is reached ONLY when not already
+        // in alpha mode: `App::handle_key` routes to `handle_alpha_mode_key()`
+        // and returns BEFORE `key_to_op` whenever `alpha_mode` is true, so the
+        // EXIT half (`a`/Enter/Esc) is handled there. Closes the CLI gap where
+        // ALPHA mode had no keyboard ENTRY (only the exit half existed);
+        // mirrors the GUI on-screen ALPHA button. `f a` (ARCL) still wins —
+        // the `shift_armed` block returns first — and `Ctrl+A` (AssignKey)
+        // also returns earlier. Deliberately NOT given a JSON `key_path`: the
+        // GUI's physical-keyboard map binds `a`→ASIN (legacy), so advertising
+        // `a`=ALPHA in the shared help would mislead GUI users.
+        KeyCode::Char('a') | KeyCode::Char('A') => Some(Op::AlphaToggle),
 
         // ── Modal openers handled BEFORE key_to_op in app.handle_key() ──
         // S → StoRegister, R → RclRegister, F → FmtDigits, P → PrintModal,
@@ -136,8 +149,9 @@ pub fn key_to_op(key: KeyEvent, _app: &App) -> Option<Op> {
         KeyCode::F(_) => None,
 
         // All other keys — including every v1.x letter binding stripped
-        // per D-25.3 (C, T, L, G, E, H, I, W, Y, q, a, c, k, s, g, z, Z,
-        // m, D, y, b, O, V, h, j, J) — are silently unmapped.
+        // per D-25.3 (C, T, L, G, E, H, I, W, Y, q, c, k, s, g, z, Z,
+        // m, D, y, b, O, V, h, j, J) — are silently unmapped. (`a` is the
+        // exception: re-bound above as the ALPHA mode key, not its v1.x ASIN.)
         _ => None,
     }
 }
@@ -180,6 +194,7 @@ pub fn key_to_op(key: KeyEvent, _app: &App) -> Option<Op> {
 /// | `f-i` | `RegisterPrompt { Isg, … }`                    |
 /// | `f-d` | `RegisterPrompt { Dse, … }`                    |
 /// | `f-C` | `ClpLabel("")`                                  |
+/// | `f-L` | `LblLabel("")`                                  |
 /// | `f-D` | `DelCount("")`                                  |
 /// | `f-T` | `TonePrompt`                                    |
 /// | `f-N` | `XeqByName("")`                                 |
@@ -305,6 +320,17 @@ pub fn shifted_key_to_op(key: KeyEvent, app: &mut App) -> Option<Op> {
         // with primary HP-41CV positions or with the IsClear `c` letter).
         KeyCode::Char('C') => {
             app.pending_input = Some(PendingInput::ClpLabel(String::new()));
+            None
+        }
+        // `L` opens the LBL "name" modal — the CLI keyboard route to a global
+        // alpha program label (e.g. `LBL "QUAD"`). Mirrors the GUI `SHIFT+STO`
+        // → `lbl_<name>` flow per CLI ↔ GUI parity (D-25.6); the CLI previously
+        // had NO keyboard path to a global alpha label (only `Ctrl+A` USER-key
+        // assignment, which is a different feature). Both cases accepted because
+        // `Op::Lbl` has `key_path: null` — there is no canonical HP-41CV key,
+        // so a mnemonic letter is used (consistent with `C`/`D`/`T`/`N` above).
+        KeyCode::Char('L') | KeyCode::Char('l') => {
+            app.pending_input = Some(PendingInput::LblLabel(String::new()));
             None
         }
         KeyCode::Char('D') => {

@@ -13,7 +13,6 @@ use hp41_core::CalcState;
 /// Format the current program step.
 /// Returns "{pc:03} {op_name}" where op_name is the HP-41 key label for the Op.
 /// Returns "{pc:03} END" when pc is at or beyond the end of the program.
-#[allow(dead_code)]
 pub fn format_step(state: &CalcState) -> String {
     let step_num = state.pc;
     let op_name = state
@@ -123,7 +122,7 @@ fn op_display_name(op: &Op) -> String {
             };
             format!("STO{op_sym} {reg_name}")
         }
-        Op::Clreg => "CLREG".to_string(),
+        Op::Clreg => "CLRG".to_string(),
         // Phase 2: alpha
         Op::AlphaToggle => "ALPHA".to_string(),
         Op::AlphaAppend(c) => format!("'{c}'"),

@@ -226,7 +226,7 @@
   },
   {
     "key": "V",
-    "op": "CL SIGMA",
+    "op": "CLΣ",
     "description": "Clear statistics accumulators (SIGMA regs R1–R6)"
   },
   {

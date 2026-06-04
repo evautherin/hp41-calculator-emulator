@@ -63,7 +63,7 @@
 | ViewInd | VIEW IND | Indirect | ✓ v2.x | 24 | `f-v` | VIEW IND nn - display value of indirect register |
 | XeqInd | XEQ IND | Indirect | ✓ v2.x | 22 | — | XEQ IND nn - indirect subroutine call |
 | Abs | ABS | Math | ✓ v2.x | 20 | — | Absolute value of X |
-| ClSigmaStat | CL SIGMA | Math | ✓ v2.x | 6 | — | Clear stat registers R01..R06 to zero |
+| ClSigmaStat | CLΣ | Math | ✓ v2.x | 6 | — | Clear stat registers R01..R06 to zero |
 | Corr | CORR | Math | ✓ v2.x | 6 | — | Correlation coefficient r in X |
 | Exp | E^X | Math | ✓ v2.x | 2 | — | Natural exponential of X |
 | Fact | N! | Math | ✓ v2.x | 20 | — | Factorial of integer X; OutOfRange for X>69 |
@@ -114,7 +114,7 @@
 | XNeY_XEQ | X<>Y? | Programming | ✓ v2.x | 25 | `XEQ "X<>Y?"` | X != Y? conditional test (XEQ-by-Name only) |
 | XNeZero_XEQ | X#0? | Programming | ✓ v2.x | 25 | `XEQ "X#0?"` | X != 0? conditional test (XEQ-by-Name only) |
 | Xeq | XEQ | Programming | ✓ v2.x | 3 | `f-N` | XEQ name - subroutine call (max 4 deep) |
-| Clreg | CLREG | Registers | ✓ v2.x | 2 | — | Clear all storage registers R00..R99 to zero |
+| Clreg | CLRG | Registers | ✓ v2.x | 2 | — | Clear all storage registers R00..R99 to zero |
 | RclReg | RCL | Registers | ✓ v2.x | 2 | `R` | RCL nn - recall register nn into X (0..99) |
 | StoArith | STO+/-/*// | Registers | ✓ v2.x | 9 | `S` | STO arithmetic on register nn using X |
 | StoArithStack | STO+/-/*// Y/Z/T/L | Registers | ✓ v2.x | 9 | `S` | STO arithmetic on stack register using X |

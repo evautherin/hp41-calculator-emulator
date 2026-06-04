@@ -21,6 +21,13 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// macOS menu-bar mode: force a normal visible window so the smoke spec (which
+// asserts the LCD renders) works if the suite is ever run on macOS. The spawned
+// tauri-driver — and the app it launches — inherits process.env. No effect on
+// the Ubuntu CI job, where the menu-bar path is macOS-gated and never runs and
+// the non-macOS setup arm shows the window unconditionally.
+process.env.HP41_SHOW_ON_START = '1';
+
 let tauriDriver;
 
 // Probe TCP port 4444 in a loop until tauri-driver is accepting connections,

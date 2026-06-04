@@ -478,7 +478,7 @@
     },
     {
         "op_variant": "Clreg",
-        "display_name": "CLREG",
+        "display_name": "CLRG",
         "category": "Registers",
         "status": "implemented",
         "phase": "2",
@@ -667,7 +667,7 @@
     },
     {
         "op_variant": "ClSigmaStat",
-        "display_name": "CL SIGMA",
+        "display_name": "CLΣ",
         "category": "Math",
         "status": "implemented",
         "phase": "6",
