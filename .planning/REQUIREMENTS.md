@@ -24,16 +24,16 @@ Requirements for the v4.2 milestone. Each maps to exactly one roadmap phase.
 
 ### Runtime Matcher (HSMATCH)
 
-- [ ] **HSMATCH-01**: Both matchers score a query over `display_name` + `description` + `category` + `search_aliases` — CLI `filter_help_rows` (`help_data.rs`) and the GUI overlay filter (`HelpOverlay.tsx`).
-- [ ] **HSMATCH-02**: Matches are ranked in tiers, highest first: exact match > word-prefix match > substring match > fuzzy match.
-- [ ] **HSMATCH-03**: A hand-rolled fuzzy distance (Levenshtein / trigram, ~30–40 LOC, **no new dependency**) provides typo tolerance, implemented in Rust and mirrored bit-for-bit in TypeScript.
-- [ ] **HSMATCH-04**: A non-empty query renders a relevance-ranked flat list (best matches first); an empty query preserves the existing category-grouped view unchanged.
-- [ ] **HSMATCH-05**: Both DE and EN aliases resolve a query to the intended entry (e.g. "Zinseszins" and "compound interest" both → TVM).
+- [x] **HSMATCH-01**: Both matchers score a query over `display_name` + `description` + `category` + `search_aliases` — CLI `filter_help_rows` (`help_data.rs`) and the GUI overlay filter (`HelpOverlay.tsx`).
+- [x] **HSMATCH-02**: Matches are ranked in tiers, highest first: exact match > word-prefix match > substring match > fuzzy match.
+- [x] **HSMATCH-03**: A hand-rolled fuzzy distance (Levenshtein / trigram, ~30–40 LOC, **no new dependency**) provides typo tolerance, implemented in Rust and mirrored bit-for-bit in TypeScript.
+- [x] **HSMATCH-04**: A non-empty query renders a relevance-ranked flat list (best matches first); an empty query preserves the existing category-grouped view unchanged.
+- [x] **HSMATCH-05**: Both DE and EN aliases resolve a query to the intended entry (e.g. "Zinseszins" and "compound interest" both → TVM).
 
 ### UX (HSUX)
 
-- [ ] **HSUX-01**: The existing `?`-overlay live-filter input is reused in both CLI and GUI — no new view, mode, or screen is added.
-- [ ] **HSUX-02**: Typo'd queries surface the intended function via fuzzy matching (e.g. "Zineszins" → TVM, "Wurzel" → SQRT).
+- [x] **HSUX-01**: The existing `?`-overlay live-filter input is reused in both CLI and GUI — no new view, mode, or screen is added.
+- [x] **HSUX-02**: Typo'd queries surface the intended function via fuzzy matching (e.g. "Zineszins" → TVM, "Wurzel" → SQRT).
 
 ### Quality / CI (HSQUAL)
 
@@ -77,13 +77,13 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HSGEN-01 | Phase 60 | Pending |
 | HSGEN-02 | Phase 60 | Pending |
 | HSGEN-03 | Phase 60 | Pending |
-| HSMATCH-01 | Phase 59 | Pending |
-| HSMATCH-02 | Phase 59 | Pending |
-| HSMATCH-03 | Phase 59 | Pending |
-| HSMATCH-04 | Phase 59 | Pending |
-| HSMATCH-05 | Phase 59 | Pending |
-| HSUX-01 | Phase 59 | Pending |
-| HSUX-02 | Phase 59 | Pending |
+| HSMATCH-01 | Phase 59 | Complete |
+| HSMATCH-02 | Phase 59 | Complete |
+| HSMATCH-03 | Phase 59 | Complete |
+| HSMATCH-04 | Phase 59 | Complete |
+| HSMATCH-05 | Phase 59 | Complete |
+| HSUX-01 | Phase 59 | Complete |
+| HSUX-02 | Phase 59 | Complete |
 | HSQUAL-01 | Phase 61 | Pending |
 | HSQUAL-02 | Phase 61 | Pending |
 | HSQUAL-03 | Phase 61 | Pending |
