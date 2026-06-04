@@ -265,14 +265,22 @@ ios-init:
 ios-build:
 	cd hp41-gui && npm run tauri ios build
 
-# iOS: signed release IPA for App Store Connect (distribution) export.
-# Passes --export-method app-store-connect and --ci (no interactive prompts).
-# Requires APPLE_API_KEY, APPLE_API_ISSUER, APPLE_API_KEY_PATH env vars for signing
-# (consumed by Tauri CLI, forwarded to xcodebuild -allowProvisioningUpdates).
+# iOS: signed App Store IPA via MANUAL signing.
+# Xcode 26's -allowProvisioningUpdates (Tauri's built-in export path) 401s against ASC, so we let
+# Tauri ARCHIVE the app and then export the archive ourselves with an explicit cert + profile
+# (.github/ios-export-options.plist). See the reference_ios_signing_testflight memory.
+# Prereqs (CI installs them; see ci-ios.yml): the "Apple Distribution: Talent Factory AG" cert in the
+# keychain and the "HP-41 App Store (ci-ios)" profile installed. Env IOS_BUILD_NUMBER -> CFBundleVersion.
 [group('ios')]
 ios-build-release:
 	cd hp41-gui && npm ci
-	cd hp41-gui && npm run tauri ios build -- --export-method app-store-connect --ci
+	# Tauri archives; its own export step fails under manual signing — ignore it, we export below.
+	cd hp41-gui && npm run tauri ios build -- --export-method app-store-connect || true
+	test -d "hp41-gui/src-tauri/gen/apple/build/hp41-gui_iOS.xcarchive"
+	# Tauri overwrites the bundle version from the crate version; stamp a unique, increasing build number.
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{ env_var_or_default('IOS_BUILD_NUMBER', '1') }}" "hp41-gui/src-tauri/gen/apple/build/hp41-gui_iOS.xcarchive/Products/Applications/HP-41 Calculator.app/Info.plist"
+	rm -rf "hp41-gui/src-tauri/gen/apple/build/export"
+	xcodebuild -exportArchive -archivePath "hp41-gui/src-tauri/gen/apple/build/hp41-gui_iOS.xcarchive" -exportOptionsPlist ".github/ios-export-options.plist" -exportPath "hp41-gui/src-tauri/gen/apple/build/export"
 
 # iOS: boot in the Simulator on the simulator triple aarch64-apple-ios-sim.
 # P-iOS-01: list the CURRENT available devices instead of hardcoding a name (a
