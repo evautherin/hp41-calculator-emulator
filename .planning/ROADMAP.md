@@ -102,7 +102,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 
 ### v4.2 Help Search Enrichment (Phases 58–61)
 
-- [ ] **Phase 58: Data Model** — Add `search_aliases` field to both help-entry mirrors (Rust + TypeScript), backward-compat serde, no visual change
+- [x] **Phase 58: Data Model** — Add `search_aliases` field to both help-entry mirrors (Rust + TypeScript), backward-compat serde, no visual change ✅ verified PASS 6/6 (2026-06-04)
 - [ ] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results
 - [ ] **Phase 60: Alias Authoring Pipeline** — `scripts/help-aliases/` scaffold + LLM runner + populated DE+EN aliases committed to all six JSON pools
 - [ ] **Phase 61: Quality Gates** — Unit tests, CLI-TS parity fixture, JSON schema CI gate, docs/CLAUDE.md update
@@ -166,11 +166,11 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. Data Model | 0/1 | Not started | - |
+| 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
 | 59. Runtime Matcher | 0/? | Not started | - |
 | 60. Alias Authoring Pipeline | 0/? | Not started | - |
 | 61. Quality Gates | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-06-04 — v4.2 Help Search Enrichment roadmap created (Phases 58–61, 18 requirements, 4 phases). Next: `/gsd-plan-phase 58`.*
+*Last updated: 2026-06-04 — Phase 58 (Data Model) complete + verified PASS 6/6 (HSDATA-01/02/04). Next: `/gsd-plan-phase 59`.*

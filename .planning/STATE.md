@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
 status: executing
-last_updated: "2026-06-04T16:58:50.113Z"
-last_activity: 2026-06-04 -- Phase 58 planning complete
+last_updated: "2026-06-04T17:25:00.000Z"
+last_activity: 2026-06-04 -- Phase 58 executed + verified (PASS 6/6)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,23 +29,23 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 ## Current Position
 
-Phase: Not started (roadmap created, planning begins with Phase 58)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-04 -- Phase 58 planning complete
+Phase: 58 Data Model — Complete ✓ (verified PASS 6/6)
+Plan: 58-01 — Complete ✓
+Status: Ready to plan Phase 59
+Last activity: 2026-06-04 -- Phase 58 executed + verified (HSDATA-01/02/04 satisfied)
 
 ## Progress Bar
 
 ```
 v4.2 Help Search Enrichment
-Phase 58 ░░░░░░░░░░  0%   Phase 59 ░░░░░░░░░░  0%
+Phase 58 ██████████ 100%  Phase 59 ░░░░░░░░░░  0%
 Phase 60 ░░░░░░░░░░  0%   Phase 61 ░░░░░░░░░░  0%
-Overall  ░░░░░░░░░░  0%
+Overall  ██▌░░░░░░░  25%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 58 | Data Model — `search_aliases` field on both help-entry mirrors | Not started |
+| 58 | Data Model — `search_aliases` field on both help-entry mirrors | Complete ✓ |
 | 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Not started |
 | 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Not started |
 | 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Not started |
@@ -113,7 +113,7 @@ None.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 58` to plan Phase 58: Data Model
+- Run `/gsd-plan-phase 59` to plan Phase 59: Runtime Matcher (alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked)
 
 ---
 
@@ -132,4 +132,4 @@ None.
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-04 — v4.2 Help Search Enrichment roadmap created (Phases 58–61, 18 requirements, 4 phases). Next: `/gsd-plan-phase 58`.*
+*Last updated: 2026-06-04 — Phase 58 (Data Model) executed + verified PASS 6/6 (HSDATA-01/02/04). `search_aliases` field added to both help-entry mirrors with backward-compat tests; render projection untouched (D-58.5); six JSON pools byte-for-byte unchanged. Next: `/gsd-plan-phase 59`.*
