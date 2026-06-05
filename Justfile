@@ -81,6 +81,16 @@ coverage:
 license-audit:
 	bash scripts/check-free42-contamination.sh
 
+# Phase 61 Plan 61-04 (HSQUAL-03). Validates the `search_aliases` field across
+# all SIX help-data JSON pools: where present it must be an array of strings, and
+# every status:"implemented" entry must carry >=1 alias. The matching CI job in
+# ci.yml is named "Schema gate (search_aliases)" — keep script invocation in sync
+# if the path ever changes. Lives in ci.yml (NOT ci-gui.yml) because ci-gui.yml's
+# paths: filter excludes docs/*.json, so an alias-schema gate there would never fire.
+[group('ci')]
+schema-aliases-check:
+	bash scripts/check-aliases-schema.sh
+
 # Full CI gate: lint → test → coverage → license-audit (Phase 32 D-32.8 belt+suspenders)
 [group('ci')]
 ci: lint test coverage license-audit
