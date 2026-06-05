@@ -25,7 +25,12 @@ use hp41_cli::help_data::{filter_help_rows, ranked_help_entries, score_entry, He
 /// populated so `score_entry` can find matches in every field.
 /// Uses the same literal pattern as `hp41-cli/src/help_data.rs` `HelpEntry`
 /// struct definition (all fields, `#[serde(default)]` absent from test context).
-fn make_entry(display_name: &str, description: &str, category: &str, aliases: &[&str]) -> HelpEntry {
+fn make_entry(
+    display_name: &str,
+    description: &str,
+    category: &str,
+    aliases: &[&str],
+) -> HelpEntry {
     HelpEntry {
         op_variant: display_name.to_string(),
         display_name: display_name.to_string(),
@@ -50,28 +55,59 @@ fn tier_order_exact_prefix_substring_fuzzy() {
     // Exact name match: query "tvm" == display_name "tvm" (lowercased)
     let exact_entry = make_entry("tvm", "Time Value of Money", "Finance", &[]);
     let exact_score = score_entry(&exact_entry, "tvm");
-    assert_eq!(exact_score, 40, "exact name match must score 40, got {}", exact_score);
+    assert_eq!(
+        exact_score, 40,
+        "exact name match must score 40, got {}",
+        exact_score
+    );
 
     // Word-prefix name match: query "tv" is a prefix of "tvm"
     let prefix_entry = make_entry("tvm", "Time Value of Money", "Finance", &[]);
     let prefix_score = score_entry(&prefix_entry, "tv");
-    assert_eq!(prefix_score, 32, "word-prefix name match must score 32, got {}", prefix_score);
+    assert_eq!(
+        prefix_score, 32,
+        "word-prefix name match must score 32, got {}",
+        prefix_score
+    );
 
     // Substring name match: query "vm" is a substring (not prefix) of "tvm"
     let substr_entry = make_entry("tvm", "Time Value of Money", "Finance", &[]);
     let substr_score = score_entry(&substr_entry, "vm");
-    assert_eq!(substr_score, 24, "substring name match must score 24, got {}", substr_score);
+    assert_eq!(
+        substr_score, 24,
+        "substring name match must score 24, got {}",
+        substr_score
+    );
 
     // Fuzzy name match: query "tvm" vs display_name "tvm" is exact; use a 1-typo case:
     // query "tvm" vs display_name "tvn" — 1 edit, threshold max(1, 3/4)=1 → fuzzy match score 8
     let fuzzy_entry = make_entry("tvn", "Time Value of Money", "Finance", &[]);
     let fuzzy_score = score_entry(&fuzzy_entry, "tvm");
-    assert_eq!(fuzzy_score, 8, "fuzzy name match (1 typo) must score 8, got {}", fuzzy_score);
+    assert_eq!(
+        fuzzy_score, 8,
+        "fuzzy name match (1 typo) must score 8, got {}",
+        fuzzy_score
+    );
 
     // Tier order is strictly descending
-    assert!(exact_score > prefix_score, "exact({}) must beat prefix({})", exact_score, prefix_score);
-    assert!(prefix_score > substr_score, "prefix({}) must beat substr({})", prefix_score, substr_score);
-    assert!(substr_score > fuzzy_score, "substr({}) must beat fuzzy({})", substr_score, fuzzy_score);
+    assert!(
+        exact_score > prefix_score,
+        "exact({}) must beat prefix({})",
+        exact_score,
+        prefix_score
+    );
+    assert!(
+        prefix_score > substr_score,
+        "prefix({}) must beat substr({})",
+        prefix_score,
+        substr_score
+    );
+    assert!(
+        substr_score > fuzzy_score,
+        "substr({}) must beat fuzzy({})",
+        substr_score,
+        fuzzy_score
+    );
     assert!(fuzzy_score > 0, "fuzzy match must be non-zero");
 }
 
@@ -83,7 +119,12 @@ fn tier_order_exact_prefix_substring_fuzzy() {
 #[test]
 fn fuzzy_typo_zineszins_resolves_tvm() {
     // TVM with alias "Zinseszins" (German: compound interest)
-    let tvm = make_entry("TVM", "Time Value of Money solver", "Finance", &["Zinseszins", "compound interest"]);
+    let tvm = make_entry(
+        "TVM",
+        "Time Value of Money solver",
+        "Finance",
+        &["Zinseszins", "compound interest"],
+    );
     // "zineszins" is 1 edit from "zinseszins" (dropped the second 's' after 'z')
     // threshold = max(1, 9/4) = 2, so distance 1 is within threshold
     let score = score_entry(&tvm, "zineszins");
@@ -118,13 +159,17 @@ fn fuzzy_wurzel_resolves_sqrt() {
     );
 
     // In a pool, SQRT must be the max-scoring entry for "wurzel"
-    let pool = vec![
+    let pool = [
         make_entry("SIN", "Sine of X", "Trigonometry", &[]),
         make_entry("COS", "Cosine of X", "Trigonometry", &[]),
         sqrt.clone(),
         make_entry("TAN", "Tangent of X", "Trigonometry", &[]),
     ];
-    let max_score = pool.iter().map(|e| score_entry(e, "wurzel")).max().unwrap_or(0);
+    let max_score = pool
+        .iter()
+        .map(|e| score_entry(e, "wurzel"))
+        .max()
+        .unwrap_or(0);
     assert_eq!(
         score, max_score,
         "SQRT must be the highest-scoring entry for 'wurzel' in the pool; pool max = {}, sqrt score = {}",
@@ -182,14 +227,26 @@ fn alias_de_en_both_resolve() {
 #[test]
 fn empty_query_returns_all_grouped() {
     let rows = vec![
-        HelpRow { key: "f-1".to_string(), op: "SIN".to_string(), desc: "Sine of X".to_string() },
+        HelpRow {
+            key: "f-1".to_string(),
+            op: "SIN".to_string(),
+            desc: "Sine of X".to_string(),
+        },
         HelpRow {
             key: "".to_string(),
             op: "".to_string(),
             desc: "=== Trigonometry ===".to_string(),
         },
-        HelpRow { key: "f-2".to_string(), op: "COS".to_string(), desc: "Cosine of X".to_string() },
-        HelpRow { key: "g-7".to_string(), op: "SQRT".to_string(), desc: "Square root".to_string() },
+        HelpRow {
+            key: "f-2".to_string(),
+            op: "COS".to_string(),
+            desc: "Cosine of X".to_string(),
+        },
+        HelpRow {
+            key: "g-7".to_string(),
+            op: "SQRT".to_string(),
+            desc: "Square root".to_string(),
+        },
     ];
 
     let filtered = filter_help_rows(&rows, "");
@@ -237,7 +294,12 @@ fn score_over_all_four_fields() {
     );
 
     // Match only via alias (query == alias, nothing else matches)
-    let alias_entry = make_entry("NOOP3", "no match description here", "No-match-cat", &["Zinseszins"]);
+    let alias_entry = make_entry(
+        "NOOP3",
+        "no match description here",
+        "No-match-cat",
+        &["Zinseszins"],
+    );
     assert!(
         score_entry(&alias_entry, "zinseszins") > 0,
         "entry matching only via alias 'Zinseszins' must score > 0 for query 'zinseszins'"

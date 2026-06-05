@@ -481,7 +481,10 @@ pub fn score_entry(entry: &HelpEntry, q: &str) -> u8 {
 /// empty — callers should use the [`filter_help_rows`] / [`help_overlay_rows`]
 /// path for the empty-query case.
 pub fn ranked_help_entries(query: &str) -> Vec<HelpRow> {
-    debug_assert!(!query.is_empty(), "ranked_help_entries called with empty query");
+    debug_assert!(
+        !query.is_empty(),
+        "ranked_help_entries called with empty query"
+    );
     // Trim before scoring to mirror the GUI caller (`query.toLowerCase().trim()`),
     // so a leading/trailing space cannot make the CLI miss a match the GUI finds.
     let q = query.trim().to_lowercase();
@@ -494,7 +497,11 @@ pub fn ranked_help_entries(query: &str) -> Vec<HelpRow> {
         .filter(|e| e.status == "implemented")
         .filter_map(|e| {
             let s = score_entry(e, &q);
-            if s > 0 { Some((s, e)) } else { None }
+            if s > 0 {
+                Some((s, e))
+            } else {
+                None
+            }
         })
         .collect();
     // Stable sort: score DESC, then display_name ASC for ties.
