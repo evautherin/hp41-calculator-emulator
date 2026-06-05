@@ -2,11 +2,13 @@
 
 ## Current State
 
+**v4.2 Help Search Enrichment — SHIPPED 2026-06-05.** The `?` help overlay is now an intent-aware function finder: an invisible `search_aliases` match surface (DE+EN) on all six help pools, a hand-rolled tiered+fuzzy matcher (exact > prefix > substring > fuzzy, zero new deps) mirrored CLI↔GUI, 364 implemented entries aliased, plus a CI schema gate + CLI↔GUI parity fixture locking it in. All 18 v1 requirements satisfied; milestone audit `tech_debt` (no functional gaps — cross-phase integration verified end-to-end). `hp41-core` untouched. Shipped as PR #23 (develop→main).
+
 **v4.1 iOS Foundation — SHIPPED 2026-06-04.** The HP-41 runs on iPhone (Tauri v2 + React, shared `hp41-core`): iOS sandbox persistence, touch-first UI, app lifecycle/clock, and a **manual-signing `ci-ios` pipeline** that delivers a signed IPA to TestFlight (installed + verified on a physical device). All 25 requirements satisfied; milestone audit PASSED. Desktop/macOS behavior unchanged (iOS paths `isIos`/`#[cfg(mobile)]`-gated).
 
 **Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
 
-**Active milestone: v4.2 Help Search Enrichment** (started 2026-06-04) — make the `?` help overlay intent-aware "free search" (DE+EN aliases, typo tolerance) with zero runtime ML and zero new deps. See the Current Milestone section below.
+**No active milestone** — planning the next one (`/gsd-new-milestone`).
 
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
@@ -82,19 +84,9 @@
 
 ---
 
-## Current Milestone: v4.2 Help Search Enrichment
+## Last Shipped Milestone: v4.2 Help Search Enrichment (2026-06-05)
 
-**Goal:** Make the `?` help overlay feel like intent-aware "free search" — users type *what they want* (e.g. *"Zinseszins"*, *"how to clear everything"*, in DE or EN, typos tolerated) and find the right function — **without shipping any runtime ML** and **without a new runtime dependency**. AI is used only at authoring time; runtime stays pure lexical.
-
-**Target features:**
-- **Data model** — additive `search_aliases` field on the help entry, mirrored in CLI Rust (`help_data.rs`, `#[serde(default)]`) and GUI TS (`help_data.ts`), populated with DE+EN aliases across all six `docs/hp41-*-functions.json` pools. Invisible match surface; no layout change.
-- **Authoring pipeline** — an offline, dev-only LLM script (`scripts/help-aliases/`) that generates the DE+EN aliases as **committed static data**; never shipped, no runtime inference. Schema-only CI gate (no regenerate-and-diff).
-- **Runtime matcher** — upgrade both mirrored matchers from plain substring to alias-aware + hand-rolled fuzzy (zero-dep Levenshtein/trigram) + relevance-ranked tiers (exact > word-prefix > substring > fuzzy). Empty query keeps the category view; active query switches to a ranked flat list.
-- **Quality** — scoring/fuzzy/DE-EN unit tests in both frontends, a CLI↔GUI parity fixture guarding the duplicated matcher, and a six-pool schema gate.
-
-**Key constraints (from approved design):** zero new runtime deps · `hp41-core` untouched (UI/help concern only) · no save-file impact · iOS-safe (text-only growth) · mirrors the established `op_display_name` CLI↔GUI duplication pattern. Documented exception: `search_aliases` may contain German because it is *search input*, not documentation.
-
-**Design spec:** `docs/superpowers/specs/2026-06-03-help-search-enrichment-design.md` (approved, design phase).
+Shipped — full detail in `.planning/MILESTONES.md` (v4.2 entry) and `milestones/v4.2-ROADMAP.md`; audit at `milestones/v4.2-MILESTONE-AUDIT.md`. Design spec: `docs/superpowers/specs/2026-06-03-help-search-enrichment-design.md`. No active milestone — run `/gsd-new-milestone` to start the next.
 
 ---
 
@@ -302,11 +294,19 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **XMEM-01..07**: Extended Memory core — `XmemFile` model, 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) in `hp41-core`, 4-way exhaustive-match wiring, backward-compat serde — Phase 51
 - ✓ **XMEM-08..10**: X-MEM production hardening — XEQ-by-name via `builtin_card_op` (CLI+GUI, no `keys.rs`/`key_map.rs` changes per D-52.4), v3.3 backward-compat + isolation tests, 6th help pool ("Extended Memory" `?` section), op↔JSON parity + per-op test-count meta-gates, 3 ADRs + divergences doc — Phase 52
 
+### Validated (v4.2 — Help Search Enrichment, shipped 2026-06-05)
+
+- ✓ **HSDATA-01/02/03/04**: invisible `search_aliases` field on both help-entry mirrors (Rust `Vec<String>` + TS `string[]`), serde-default back-compat, populated across all six pools — Phases 58, 60
+- ✓ **HSGEN-01/02/03**: offline `scripts/help-aliases/` generator + LLM runner; alias-only diff; all six pools populated (364 implemented entries) — Phase 60
+- ✓ **HSMATCH-01..05**: alias-aware tiered scorer (exact > prefix > substring > fuzzy) over name+desc+category+aliases, hand-rolled bounded Levenshtein (zero deps), empty-query passthrough, DE+EN resolution — Phase 59
+- ✓ **HSUX-01/02**: reuses the existing `?` overlay input; no new view — Phase 59
+- ✓ **HSQUAL-01/02/03/04**: Rust + TS real-data unit tests, CLI↔GUI parity fixture (drift guard), six-pool schema CI gate (`ci.yml`), CLAUDE.md docs — Phase 61
+
 ### Active
 
-_v4.2 Help Search Enrichment in progress (started 2026-06-04) — requirements defined in `.planning/REQUIREMENTS.md`. Goal: intent-aware `?` help overlay (DE+EN `search_aliases`, hand-rolled fuzzy matching, relevance ranking), AI used only at authoring time; zero runtime ML, zero new deps, `hp41-core` untouched. Categories: Data Model (HSDATA), Authoring Pipeline (HSGEN), Runtime Matcher (HSMATCH), UX (HSUX), Quality/CI (HSQUAL)._
+_No active milestone. v4.2 Help Search Enrichment shipped 2026-06-05 (PR #23, develop→main). Run `/gsd-new-milestone` to define the next._
 
-_v4.1 iOS Foundation shipped 2026-06-04 (Phases 53–57) — touch-first iPhone build distributed via TestFlight (Tauri v2 Mobile, Approach A; signed IPA installed + verified on device). Deferred before public App Store release: `PrivacyInfo.xcprivacy` bundle wiring (pending todo)._
+_Carried-over deferred items: `PrivacyInfo.xcprivacy` bundle wiring before any public iOS App Store release (from v4.1, pending todo); HSCOV-01 (zero-result / missed-query logging) remains v2/deferred._
 
 ### Out of Scope
 
@@ -409,4 +409,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-06-04 — v4.2 Help Search Enrichment milestone started. Goal: intent-aware `?` help overlay (DE+EN aliases, fuzzy, relevance ranking); AI at authoring time only, zero runtime ML/deps, `hp41-core` untouched. v4.1 iOS Foundation shipped + archived 2026-06-04.*
+*Last updated: 2026-06-05 after v4.2 milestone — Help Search Enrichment shipped + archived (Phases 58–61, 18 v1 requirements, audit `tech_debt`/no functional gaps). Intent-aware `?` overlay with DE+EN aliases, hand-rolled fuzzy, CI-gated coverage; `hp41-core` untouched, zero new deps. PR #23 open (develop→main). Next: `/gsd-new-milestone`.*

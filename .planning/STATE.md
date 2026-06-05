@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
-status: shipped
-last_updated: "2026-06-05T14:40:00.000Z"
-last_activity: 2026-06-05 -- Milestone v4.2 shipped — PR #23 (develop→main)
+status: Awaiting next milestone
+last_updated: "2026-06-05T18:50:04.363Z"
+last_activity: 2026-06-05 — Milestone v4.2 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -19,20 +19,20 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
+See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 61 complete — all four v4.2 phases shipped; milestone feature-complete, ready for `/gsd-ship`
+**Current focus:** v4.2 Help Search Enrichment shipped + archived (PR #23 open, develop→main). No active milestone — run `/gsd-new-milestone`. Pending: merge PR #23 with `--merge` (never squash) so the `v4.2` tag stays reachable and `release.yml` auto-publishes.
 
 ---
 
 ## Current Position
 
-Phase: 61 (quality-gates) — COMPLETE (5/5 plans, 3 waves)
-Plan: 5 of 5 complete (W1 data+fixture · W2 Rust/TS tests + schema gate · W3 CLAUDE.md docs)
-Status: Milestone v4.2 SHIPPED — PR #23 open (develop→main). Merge with `--merge` (never squash); run /gsd-complete-milestone to tag v4.2 + archive BEFORE the merge so release.yml auto-publishes.
-Last activity: 2026-06-05 -- Milestone v4.2 shipped — PR #23
+Phase: Milestone v4.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-05 — Milestone v4.2 completed and archived
 
 ## Progress Bar
 
@@ -138,3 +138,7 @@ None.
 
 *State initialized: 2026-05-06*
 *Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) COMPLETE. Wave 1: `scripts/help-aliases/` generator crate (12 tests). Wave 2: ran the generator live, populated DE+EN `search_aliases` for all 364 implemented entries across six pools (~3000 aliases). A Wave-2 human review caught that the PrettyFormatter writeback churned 227 entries' inline `xrom`/`divergences` (D-60.4 violation); replaced it with a byte-preserving text splice + `--apply-cache` re-apply (zero new LLM cost), 14 crate tests. Final diff is alias-only on every pool; `cargo check -p hp41-cli` + `just gui-ci` green; total 235 KB (max 81 KB). `--bare` dropped from claude flags (broke local OAuth). Next: `/gsd-plan-phase 61` (Schema Gate + Verification — also verify `Zinseszins`/`Wurzel`/`compound interest` resolve; "Zinseszins" not yet a literal TVM alias).*
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

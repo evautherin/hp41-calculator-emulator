@@ -1,5 +1,34 @@
 # Milestones
 
+## v4.2 — Help Search Enrichment
+
+**Status:** ✅ SHIPPED 2026-06-05
+**Phases:** 4 (Phases 58–61)
+**Plans:** 11 total, all complete
+**Tasks:** 11
+**Timeline:** 2 days (2026-06-04 → 2026-06-05)
+**Source:** 52 commits, 65 files changed (+14,394 / −599) since v4.1
+**Tag:** v4.2
+**Ship:** PR #23 (develop→main)
+
+### Delivered
+
+Turned the existing `?` help overlay into an intent-aware function finder — German + English aliases, hand-rolled typo-tolerant fuzzy matching, and relevance ranking — with no new view, just a smarter filter behind the same input. `hp41-core` untouched (UI/help-only milestone); zero new runtime dependencies.
+
+### Key Accomplishments
+
+1. **search_aliases data model (Phase 58)** — invisible `search_aliases` field added to both help-entry mirrors (Rust `Vec<String>` + TS `string[]`) with serde-default / optional-field backward-compat; all six JSON pools and every render path provably untouched.
+2. **Tiered runtime matcher (Phase 59)** — alias-aware scorer (exact > prefix > substring > fuzzy) over display_name + description + category + search_aliases, with a hand-rolled bounded Levenshtein (zero new deps); non-empty query → relevance-ranked flat list, empty query → existing category-grouped view bit-for-bit unchanged; reuses the existing `?` overlay input in both frontends (no new view).
+3. **Alias authoring pipeline (Phase 60)** — `scripts/help-aliases/` generator + LLM runner producing a true alias-only diff; 364 `status:"implemented"` entries across all six pools DE+EN-aliased (a Wave-2 writeback defect was caught by human review and fixed before commit).
+4. **Quality gates (Phase 61)** — real-data unit tests (Rust 10 + TS 36), a committed CLI↔GUI parity fixture asserted by both frontends (top-1 drift guard), and a six-pool `search_aliases` schema CI gate (hp41cv hardcoded, never globbed) wired into `ci.yml`; CLAUDE.md JSON-canonical-data-flow section updated (search_aliases field, DE-in-search exception, five→six pools).
+
+### Known deferred items at close
+
+- HSCOV-01 (zero-result / missed-query logging) — v2/deferred, intentionally out of v4.2 scope.
+- Verification bookkeeping accepted as tech debt (see `milestones/v4.2-MILESTONE-AUDIT.md`, status `tech_debt`): Phases 60 & 61 have no aggregated VERIFICATION.md (data-gen phase / verification phase whose deliverables ARE the green gates); Nyquist `wave_0_complete: false` across phases. No functional gaps — the cross-phase integration audit confirmed all 18 v1 requirements wired end-to-end.
+
+---
+
 ## v4.0 — Platform Maturity
 
 **Status:** ✅ SHIPPED 2026-05-28
