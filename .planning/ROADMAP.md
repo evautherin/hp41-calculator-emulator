@@ -162,7 +162,12 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   2. A CLI-TS parity fixture asserts identical ranked results for a set of canonical queries — `just test` and `just gui-ci` must both be green; this fixture is the drift guard equivalent to the `op_display_name` exhaustive-match invariant
   3. `ci.yml` (and/or `ci-gui.yml`) includes a schema-only `just` recipe that validates `search_aliases` is present and correctly typed across all six JSON pools, and that every `status: "implemented"` entry has >= 1 alias; CI is red if the gate fails
   4. `CLAUDE.md`'s JSON-canonical-data-flow section documents the `search_aliases` field, the DE-in-search-input convention exception, and the upgraded matcher behaviour
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 61-01-PLAN.md — Data/fixture foundation: spec-example alias hand-edit (Zinseszins/compound interest→TVM, Wurzel→SQRT) + committed CLI↔GUI parity fixture
+  - [ ] 61-02-PLAN.md — Rust real-data tests (tiers/fuzzy/DE+EN alias/empty-query) + Rust side of parity fixture
+  - [ ] 61-03-PLAN.md — TS Vitest real-data tests + TS side of parity fixture (mirrors Rust)
+  - [ ] 61-04-PLAN.md — Six-pool search_aliases schema gate (bash+jq) + `just schema-aliases-check` recipe + ci.yml job
+  - [ ] 61-05-PLAN.md — CLAUDE.md JSON-canonical-data-flow docs update (search_aliases, DE-in-search convention, tiered matcher)
 **UI hint**: yes
 
 ---
@@ -174,8 +179,8 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 | 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
 | 59. Runtime Matcher | 3/3 | Complete   | 2026-06-04 |
 | 60. Alias Authoring Pipeline | 2/2 | Complete |  |
-| 61. Quality Gates | 0/? | Not started | - |
+| 61. Quality Gates | 0/5 | In progress | - |
 
 ---
 
-*Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) COMPLETE: generator crate + 364 DE+EN-aliased implemented entries across six pools (alias-only diff, both frontends build). Writeback corrected to a byte-preserving splice during Wave 2. Next: `/gsd-plan-phase 61` (Schema Gate + Verification).*
+*Last updated: 2026-06-05 — Phase 61 (Quality Gates) PLANNED: 5 plans across 3 waves. W1 data/fixture foundation; W2 parallel Rust test + TS test + schema gate; W3 CLAUDE.md docs. Next: `/gsd-execute-phase 61`.*
