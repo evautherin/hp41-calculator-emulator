@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
-status: planning
-last_updated: "2026-06-05T05:53:20.000Z"
-last_activity: 2026-06-05
+status: executing
+last_updated: "2026-06-05T07:54:30.690Z"
+last_activity: 2026-06-05 -- Phase 60 planning complete
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
+  total_plans: 6
   completed_plans: 4
   percent: 50
 ---
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 Phase: 59 (runtime-matcher) — VERIFIED PASS ✓
 Plan: 3 of 3 complete
-Status: Human UAT 2/2 passed (2026-06-05, re-scoped to engine-level on current EN data; DE/alias queries deferred to Phase 60/61). Ready to plan Phase 60.
-Last activity: 2026-06-05
+Status: Ready to execute
+Last activity: 2026-06-05 -- Phase 60 planning complete
 
 ## Progress Bar
 
