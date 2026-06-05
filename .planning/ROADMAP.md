@@ -105,7 +105,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 - [x] **Phase 58: Data Model** — Add `search_aliases` field to both help-entry mirrors (Rust + TypeScript), backward-compat serde, no visual change ✅ verified PASS 6/6 (2026-06-04)
 - [x] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results ✅ executed 2026-06-04, human UAT PASS 2/2 2026-06-05 (engine-level: four-tier + typo tolerance on current EN data; DE/alias acceptance deferred to Phase 60/61)
 - [x] **Phase 60: Alias Authoring Pipeline** — `scripts/help-aliases/` scaffold + LLM runner + populated DE+EN aliases committed to all six JSON pools ✅ executed 2026-06-05 (364 implemented entries aliased, alias-only diff, both frontends build)
-- [ ] **Phase 61: Quality Gates** — Unit tests, CLI-TS parity fixture, JSON schema CI gate, docs/CLAUDE.md update
+- [x] **Phase 61: Quality Gates** — Unit tests, CLI-TS parity fixture, JSON schema CI gate, docs/CLAUDE.md update ✅ executed 2026-06-05 (Rust 10 + TS 36 tests green, 6-pool schema gate wired into ci.yml, CLAUDE.md JSON-canonical-data-flow updated)
 
 ---
 
@@ -163,11 +163,11 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   3. `ci.yml` (and/or `ci-gui.yml`) includes a schema-only `just` recipe that validates `search_aliases` is present and correctly typed across all six JSON pools, and that every `status: "implemented"` entry has >= 1 alias; CI is red if the gate fails
   4. `CLAUDE.md`'s JSON-canonical-data-flow section documents the `search_aliases` field, the DE-in-search-input convention exception, and the upgraded matcher behaviour
 **Plans**: 5 plans
-  - [ ] 61-01-PLAN.md — Data/fixture foundation: spec-example alias hand-edit (Zinseszins/compound interest→TVM, Wurzel→SQRT) + committed CLI↔GUI parity fixture
-  - [ ] 61-02-PLAN.md — Rust real-data tests (tiers/fuzzy/DE+EN alias/empty-query) + Rust side of parity fixture
-  - [ ] 61-03-PLAN.md — TS Vitest real-data tests + TS side of parity fixture (mirrors Rust)
-  - [ ] 61-04-PLAN.md — Six-pool search_aliases schema gate (bash+jq) + `just schema-aliases-check` recipe + ci.yml job
-  - [ ] 61-05-PLAN.md — CLAUDE.md JSON-canonical-data-flow docs update (search_aliases, DE-in-search convention, tiered matcher)
+  - [x] 61-01-PLAN.md — Data/fixture foundation: spec-example alias hand-edit (Zinseszins/compound interest→TVM, Wurzel→SQRT) + committed CLI↔GUI parity fixture
+  - [x] 61-02-PLAN.md — Rust real-data tests (tiers/fuzzy/DE+EN alias/empty-query) + Rust side of parity fixture (10 tests green)
+  - [x] 61-03-PLAN.md — TS Vitest real-data tests + TS side of parity fixture (mirrors Rust) (36 tests green, +12)
+  - [x] 61-04-PLAN.md — Six-pool search_aliases schema gate (bash+jq) + `just schema-aliases-check` recipe + ci.yml job (bite-verified, in ci.yml not ci-gui.yml)
+  - [x] 61-05-PLAN.md — CLAUDE.md JSON-canonical-data-flow docs update (search_aliases, DE-in-search convention, tiered matcher, five→six pools)
 **UI hint**: yes
 
 ---

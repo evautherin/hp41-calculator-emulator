@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
 status: executing
-last_updated: "2026-06-05T13:54:41.771Z"
-last_activity: 2026-06-05 -- Phase 61 planning complete
+last_updated: "2026-06-05T14:25:36.000Z"
+last_activity: 2026-06-05 -- Phase 61 execution complete (5/5 plans, all gates green)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 6
-  percent: 55
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,24 +23,24 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 60 complete — Phase 61 (Schema Gate + Verification) next to plan
+**Current focus:** Phase 61 complete — all four v4.2 phases shipped; milestone feature-complete, ready for `/gsd-ship`
 
 ---
 
 ## Current Position
 
-Phase: 60 (alias-authoring-pipeline) — COMPLETE (2/2 plans)
-Plan: 2 of 2 complete (Wave 1 generator crate + Wave 2 data run)
-Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 61 planning complete
+Phase: 61 (quality-gates) — COMPLETE (5/5 plans, 3 waves)
+Plan: 5 of 5 complete (W1 data+fixture · W2 Rust/TS tests + schema gate · W3 CLAUDE.md docs)
+Status: Milestone v4.2 feature-complete — ready for /gsd-ship
+Last activity: 2026-06-05 -- Phase 61 execution complete (Rust 10 + TS 36 + schema gate all green)
 
 ## Progress Bar
 
 ```
 v4.2 Help Search Enrichment
 Phase 58 ██████████ 100%  Phase 59 ██████████ 100%
-Phase 60 ██████████ 100%  Phase 61 ░░░░░░░░░░  0%
-Overall  ████████░░  75%
+Phase 60 ██████████ 100%  Phase 61 ██████████ 100%
+Overall  ██████████ 100%
 ```
 
 | Phase | Goal | Status |
@@ -48,7 +48,7 @@ Overall  ████████░░  75%
 | 58 | Data Model — `search_aliases` field on both help-entry mirrors | Complete ✓ |
 | 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Complete ✓ (UAT 2/2) |
 | 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Complete ✓ — 364 entries DE+EN-aliased, alias-only diff, both frontends build |
-| 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Not started |
+| 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Complete ✓ — Rust 10 + TS 36 tests, 6-pool schema gate (ci.yml), CLAUDE.md updated |
 
 ## Quick Tasks Completed
 
