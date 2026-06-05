@@ -9,7 +9,17 @@
         "description": "Input binary number from ALPHA register into X",
         "example": "\"1010\" ALPHA, XEQ BININ -> X = 10",
         "notes": "Set ALPHA to binary string first. 36-bit max. Use BINVIEW to display result back.",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 1 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 1 },
+        "search_aliases": [
+            "binary input",
+            "binary string to X",
+            "ALPHA binary convert",
+            "bin to decimal",
+            "binary number entry",
+            "Binärzahl eingeben",
+            "Binär einlesen",
+            "ALPHA Binärzahl"
+        ]
     },
     {
         "op_variant": "AdvBinview",
@@ -19,7 +29,17 @@
         "phase": "43",
         "key_path": "XEQ \"BINVIEW\"",
         "description": "Display X as 36-bit binary in ALPHA register",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 2 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 2 },
+        "search_aliases": [
+            "binary display",
+            "show binary",
+            "X to binary",
+            "decimal to binary",
+            "binary representation",
+            "Binär anzeigen",
+            "Binärdarstellung",
+            "X als Binär"
+        ]
     },
     {
         "op_variant": "AdvOctin",
@@ -29,7 +49,17 @@
         "phase": "43",
         "key_path": "XEQ \"OCTIN\"",
         "description": "Input octal number from ALPHA register into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 3 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 3 },
+        "search_aliases": [
+            "octal input",
+            "octal to X",
+            "ALPHA octal",
+            "oct to decimal",
+            "octal number entry",
+            "Oktalzahl eingeben",
+            "Oktal einlesen",
+            "ALPHA Oktal"
+        ]
     },
     {
         "op_variant": "AdvHexin",
@@ -39,7 +69,17 @@
         "phase": "43",
         "key_path": "XEQ \"HEXIN\"",
         "description": "Input hexadecimal number from ALPHA register into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 4 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 4 },
+        "search_aliases": [
+            "hex input",
+            "hexadecimal input",
+            "ALPHA hex",
+            "hex to decimal",
+            "hex number entry",
+            "Hexadezimal eingeben",
+            "Hex einlesen",
+            "Hexzahl ALPHA"
+        ]
     },
     {
         "op_variant": "AdvHexview",
@@ -49,7 +89,17 @@
         "phase": "43",
         "key_path": "XEQ \"HEXVIEW\"",
         "description": "Display X as hexadecimal in ALPHA register",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 5 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 5 },
+        "search_aliases": [
+            "hex display",
+            "show hex",
+            "X to hex",
+            "decimal to hex",
+            "hexadecimal view",
+            "Hex anzeigen",
+            "Hexdarstellung",
+            "X als Hexadezimal"
+        ]
     },
     {
         "op_variant": "AdvCvtview",
@@ -59,7 +109,17 @@
         "phase": "43",
         "key_path": "XEQ \"CVTVIEW\"",
         "description": "Display X in decimal, octal, and hex in ALPHA register",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 6 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 6 },
+        "search_aliases": [
+            "convert view",
+            "all bases display",
+            "dec oct hex view",
+            "multi-base display",
+            "base conversion view",
+            "Zahlenbasen anzeigen",
+            "Dez Okt Hex",
+            "Basiskonvertierung anzeigen"
+        ]
     },
     {
         "op_variant": "AdvNot",
@@ -69,7 +129,17 @@
         "phase": "43",
         "key_path": "XEQ \"NOT\"",
         "description": "Bitwise NOT of X (36-bit word)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 7 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 7 },
+        "search_aliases": [
+            "bitwise NOT",
+            "bit invert",
+            "ones complement",
+            "logical NOT",
+            "invert bits",
+            "Bitweise NOT",
+            "Bitnegation",
+            "Einerkomplement"
+        ]
     },
     {
         "op_variant": "AdvAnd",
@@ -79,7 +149,17 @@
         "phase": "43",
         "key_path": "XEQ \"AND\"",
         "description": "Bitwise AND of X and Y (36-bit word)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 8 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 8 },
+        "search_aliases": [
+            "bitwise AND",
+            "logical AND",
+            "bit mask",
+            "AND operation",
+            "binary AND",
+            "Bitweise AND",
+            "Logisches UND",
+            "Bit-Maske"
+        ]
     },
     {
         "op_variant": "AdvOr",
@@ -89,7 +169,17 @@
         "phase": "43",
         "key_path": "XEQ \"OR\"",
         "description": "Bitwise OR of X and Y (36-bit word)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 9 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 9 },
+        "search_aliases": [
+            "bitwise OR",
+            "logical OR",
+            "OR operation",
+            "binary OR",
+            "bit set",
+            "Bitweise OR",
+            "Logisches ODER",
+            "ODER Verknüpfung"
+        ]
     },
     {
         "op_variant": "AdvXor",
@@ -99,7 +189,17 @@
         "phase": "43",
         "key_path": "XEQ \"XOR\"",
         "description": "Bitwise XOR of X and Y (36-bit word)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 10 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 10 },
+        "search_aliases": [
+            "bitwise XOR",
+            "exclusive OR",
+            "XOR operation",
+            "binary XOR",
+            "bit toggle",
+            "Bitweise XOR",
+            "Exklusiv ODER",
+            "Antivalenz"
+        ]
     },
     {
         "op_variant": "AdvRotxy",
@@ -109,7 +209,17 @@
         "phase": "43",
         "key_path": "XEQ \"ROTXY\"",
         "description": "Rotate Y left by X bits (36-bit circular rotation)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 11 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 11 },
+        "search_aliases": [
+            "rotate bits",
+            "bit rotation",
+            "circular shift",
+            "rotate left by X",
+            "ring shift",
+            "Bits rotieren",
+            "Bitrotation",
+            "zyklische Verschiebung"
+        ]
     },
     {
         "op_variant": "AdvBitTest",
@@ -119,7 +229,17 @@
         "phase": "43",
         "key_path": "XEQ \"BIT?\"",
         "description": "Skip next step if bit X of Y is set",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 12 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 12 },
+        "search_aliases": [
+            "bit test",
+            "check bit",
+            "bit set test",
+            "skip if bit set",
+            "test bit flag",
+            "Bit prüfen",
+            "Bit testen",
+            "Bit gesetzt prüfen"
+        ]
     },
     {
         "op_variant": "AdvIPlus",
@@ -129,7 +249,16 @@
         "phase": "43",
         "key_path": "XEQ \"I+\"",
         "description": "Increment matrix row index I by 1",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 13 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 13 },
+        "search_aliases": [
+            "increment row index",
+            "row index plus",
+            "advance row pointer",
+            "matrix zeile erhöhen",
+            "Zeilenindex I plus",
+            "Zeile vorwärts",
+            "matrix row step up"
+        ]
     },
     {
         "op_variant": "AdvIMinus",
@@ -139,7 +268,16 @@
         "phase": "43",
         "key_path": "XEQ \"I-\"",
         "description": "Decrement matrix row index I by 1",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 14 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 14 },
+        "search_aliases": [
+            "decrement row index",
+            "row index minus",
+            "back row pointer",
+            "matrix zeile verringern",
+            "Zeilenindex I minus",
+            "Zeile rückwärts",
+            "matrix row step down"
+        ]
     },
     {
         "op_variant": "AdvJPlus",
@@ -149,7 +287,16 @@
         "phase": "43",
         "key_path": "XEQ \"J+\"",
         "description": "Increment matrix column index J by 1",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 15 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 15 },
+        "search_aliases": [
+            "increment column index",
+            "column index plus",
+            "advance column pointer",
+            "Spaltenindex J plus",
+            "Spalte vorwärts",
+            "matrix spalte erhöhen",
+            "matrix column step up"
+        ]
     },
     {
         "op_variant": "AdvJMinus",
@@ -159,7 +306,16 @@
         "phase": "43",
         "key_path": "XEQ \"J-\"",
         "description": "Decrement matrix column index J by 1",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 16 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 16 },
+        "search_aliases": [
+            "decrement column index",
+            "column index minus",
+            "back column pointer",
+            "Spaltenindex J minus",
+            "Spalte rückwärts",
+            "matrix spalte verringern",
+            "matrix column step down"
+        ]
     },
     {
         "op_variant": "AdvMr",
@@ -169,7 +325,16 @@
         "phase": "43",
         "key_path": "XEQ \"MR\"",
         "description": "Recall element (I,J) of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 17 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 17 },
+        "search_aliases": [
+            "recall matrix element",
+            "matrix cell read",
+            "fetch matrix value IJ",
+            "Matrixelement abrufen",
+            "Matrix lesen IJ",
+            "Matrixwert lesen",
+            "matrix element recall"
+        ]
     },
     {
         "op_variant": "AdvMs",
@@ -179,7 +344,16 @@
         "phase": "43",
         "key_path": "XEQ \"MS\"",
         "description": "Store X into element (I,J) of current matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 18 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 18 },
+        "search_aliases": [
+            "store matrix element",
+            "matrix cell write",
+            "save matrix value IJ",
+            "Matrixelement speichern",
+            "Matrix schreiben IJ",
+            "Matrixwert speichern",
+            "matrix element store"
+        ]
     },
     {
         "op_variant": "AdvMrij",
@@ -189,7 +363,16 @@
         "phase": "43",
         "key_path": "XEQ \"MRIJ\"",
         "description": "Recall element (Y,X) of current matrix; update I,J",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 19 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 19 },
+        "search_aliases": [
+            "recall matrix row column",
+            "matrix read with index update",
+            "matrix IJ recall update",
+            "Matrix mit Index abrufen",
+            "Matrixelement IJ lesen aktualisieren",
+            "recall matrix indices",
+            "matrix element index recall"
+        ]
     },
     {
         "op_variant": "AdvMsij",
@@ -199,7 +382,16 @@
         "phase": "43",
         "key_path": "XEQ \"MSIJ\"",
         "description": "Store Z into element (Y,X) of current matrix; update I,J",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 20 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 20 },
+        "search_aliases": [
+            "store matrix row column",
+            "matrix write with index update",
+            "matrix IJ store update",
+            "Matrix mit Index speichern",
+            "Matrixelement IJ schreiben aktualisieren",
+            "store matrix indices",
+            "matrix element index store"
+        ]
     },
     {
         "op_variant": "AdvMsijr",
@@ -209,7 +401,15 @@
         "phase": "43",
         "key_path": "XEQ \"MSIJR\"",
         "description": "Store Z into element (Y,X); recall it back into X; update I,J",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 21 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 21 },
+        "search_aliases": [
+            "store recall matrix IJ",
+            "matrix write read IJ",
+            "store and recall matrix element",
+            "Matrix speichern zurücklesen IJ",
+            "Matrixelement speichern abrufen",
+            "matrix store recall update indices"
+        ]
     },
     {
         "op_variant": "AdvMrcPlus",
@@ -219,7 +419,15 @@
         "phase": "43",
         "key_path": "XEQ \"MRC+\"",
         "description": "Add X to element (I,J) and recall result into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 22 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 22 },
+        "search_aliases": [
+            "matrix add recall",
+            "accumulate matrix element",
+            "add to matrix cell recall",
+            "Matrixelement addieren abrufen",
+            "Matrix akkumulieren lesen",
+            "matrix cell add and recall result"
+        ]
     },
     {
         "op_variant": "AdvMrcMinus",
@@ -229,7 +437,15 @@
         "phase": "43",
         "key_path": "XEQ \"MRC-\"",
         "description": "Subtract X from element (I,J) and recall result into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 23 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 23 },
+        "search_aliases": [
+            "matrix subtract recall",
+            "decrement matrix element recall",
+            "subtract from matrix cell",
+            "Matrixelement subtrahieren abrufen",
+            "Matrix vermindern lesen",
+            "matrix cell subtract and recall result"
+        ]
     },
     {
         "op_variant": "AdvMrrPlus",
@@ -239,7 +455,15 @@
         "phase": "43",
         "key_path": "XEQ \"MRR+\"",
         "description": "Add X to element (I,J) and store; advance column J",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 24 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 24 },
+        "search_aliases": [
+            "matrix add advance column",
+            "add matrix element next column",
+            "accumulate and advance column",
+            "Matrixelement addieren Spalte vorwärts",
+            "Matrix addieren weiterschalten Spalte",
+            "matrix row plus column step"
+        ]
     },
     {
         "op_variant": "AdvMrrMinus",
@@ -249,7 +473,15 @@
         "phase": "43",
         "key_path": "XEQ \"MRR-\"",
         "description": "Subtract X from element (I,J) and store; advance column J",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 25 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 25 },
+        "search_aliases": [
+            "matrix subtract advance column",
+            "subtract matrix element next column",
+            "decrement and advance column",
+            "Matrixelement subtrahieren Spalte vorwärts",
+            "Matrix subtrahieren Spalte weiterschalten",
+            "matrix row minus column step"
+        ]
     },
     {
         "op_variant": "AdvMsrPlus",
@@ -259,7 +491,16 @@
         "phase": "43",
         "key_path": "XEQ \"MSR+\"",
         "description": "Store X into element (I,J); advance row I",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 26 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 26 },
+        "search_aliases": [
+            "store matrix advance row",
+            "matrix write next row",
+            "store and step row",
+            "Matrixelement speichern Zeile vorwärts",
+            "Matrix schreiben nächste Zeile",
+            "matrix store row increment",
+            "store advance row index"
+        ]
     },
     {
         "op_variant": "AdvMscPlus",
@@ -269,7 +510,16 @@
         "phase": "43",
         "key_path": "XEQ \"MSC+\"",
         "description": "Store X into element (I,J); advance column J",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 27 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 27 },
+        "search_aliases": [
+            "store matrix advance column",
+            "matrix write next column",
+            "store and step column",
+            "Matrixelement speichern Spalte vorwärts",
+            "Matrix schreiben nächste Spalte",
+            "matrix store column increment",
+            "store advance column index"
+        ]
     },
     {
         "op_variant": "AdvMswap",
@@ -279,7 +529,16 @@
         "phase": "43",
         "key_path": "XEQ \"MSWAP\"",
         "description": "Exchange X register with element (I,J) of current matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 28 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 28 },
+        "search_aliases": [
+            "matrix swap element",
+            "exchange matrix cell",
+            "matrix element exchange register",
+            "Matrixelement tauschen",
+            "Matrix Element austauschen",
+            "swap X matrix IJ",
+            "matrix cell swap register"
+        ]
     },
     {
         "op_variant": "AdvMnameQuery",
@@ -289,7 +548,16 @@
         "phase": "43",
         "key_path": "XEQ \"MNAME?\"",
         "description": "Store current matrix name into ALPHA register",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 29 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 29 },
+        "search_aliases": [
+            "matrix name query",
+            "get current matrix name",
+            "matrix name alpha register",
+            "Matrixname abfragen",
+            "aktuellen Matrixnamen lesen",
+            "matrix name into alpha",
+            "current matrix name"
+        ]
     },
     {
         "op_variant": "AdvDimQuery",
@@ -299,7 +567,16 @@
         "phase": "43",
         "key_path": "XEQ \"DIM?\"",
         "description": "Recall dimensions of current matrix: Y=rows, X=cols",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 30 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 30 },
+        "search_aliases": [
+            "matrix dimensions query",
+            "rows columns recall",
+            "matrix size query",
+            "Matrixdimensionen abfragen",
+            "Zeilen Spalten abfragen",
+            "Matrixgröße lesen",
+            "matrix rows cols recall"
+        ]
     },
     {
         "op_variant": "AdvMatdim",
@@ -309,7 +586,16 @@
         "phase": "43",
         "key_path": "XEQ \"MATDIM\"",
         "description": "Redimension current matrix to Y rows by X cols",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 31 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 31 },
+        "search_aliases": [
+            "redimension matrix",
+            "resize matrix rows columns",
+            "set matrix dimensions",
+            "Matrix neu dimensionieren",
+            "Matrixgröße ändern",
+            "Matrix dimensionieren",
+            "matrix dim set rows cols"
+        ]
     },
     {
         "op_variant": "AdvMp",
@@ -319,7 +605,16 @@
         "phase": "43",
         "key_path": "XEQ \"MP\"",
         "description": "Set current matrix pointer to named matrix in ALPHA",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 32 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 32 },
+        "search_aliases": [
+            "set matrix pointer",
+            "select current matrix",
+            "matrix pointer alpha name",
+            "Matrixzeiger setzen",
+            "aktuelle Matrix auswählen",
+            "matrix select by name",
+            "matrix pointer set alpha"
+        ]
     },
     {
         "op_variant": "AdvPiv",
@@ -329,7 +624,17 @@
         "phase": "43",
         "key_path": "XEQ \"PIV\"",
         "description": "Partial pivot: swap rows to maximize |element (I,J)|",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 33 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 33 },
+        "search_aliases": [
+            "Pivot",
+            "partieller Pivot",
+            "Zeilenpivot",
+            "partial pivot",
+            "swap pivot row",
+            "Zeile tauschen Pivot",
+            "maximize element",
+            "Gauss Pivot"
+        ]
     },
     {
         "op_variant": "AdvRExchangeR",
@@ -339,7 +644,17 @@
         "phase": "43",
         "key_path": "XEQ \"R<>R\"",
         "description": "Exchange rows Y and X of current matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 34 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 34 },
+        "search_aliases": [
+            "Zeilen tauschen",
+            "Zeilentausch",
+            "row exchange",
+            "swap rows",
+            "Reihen vertauschen",
+            "row swap matrix",
+            "exchange matrix rows",
+            "Zeilen vertauschen"
+        ]
     },
     {
         "op_variant": "AdvRGtRQuery",
@@ -349,7 +664,17 @@
         "phase": "43",
         "key_path": "XEQ \"R>R?\"",
         "description": "Skip next step if row I > row count of current matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 35 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 35 },
+        "search_aliases": [
+            "Zeilenanzahl vergleichen",
+            "row count compare",
+            "skip if row greater",
+            "Zeile größer",
+            "Zeilenzahl prüfen",
+            "row conditional skip",
+            "matrix row count check",
+            "bedingt überspringen Zeile"
+        ]
     },
     {
         "op_variant": "AdvSum",
@@ -359,7 +684,17 @@
         "phase": "43",
         "key_path": "XEQ \"SUM\"",
         "description": "Sum all elements of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 36 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 36 },
+        "search_aliases": [
+            "Matrixsumme",
+            "Summe Matrix",
+            "matrix sum",
+            "sum all elements",
+            "Elementesumme",
+            "total sum matrix",
+            "alle Elemente summieren",
+            "sum matrix"
+        ]
     },
     {
         "op_variant": "AdvSumab",
@@ -369,7 +704,17 @@
         "phase": "43",
         "key_path": "XEQ \"SUMAB\"",
         "description": "Sum absolute values of all elements of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 37 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 37 },
+        "search_aliases": [
+            "Betragssumme",
+            "Absolutwertsumme",
+            "sum absolute values",
+            "abs sum matrix",
+            "sum of absolute elements",
+            "Summe Beträge",
+            "absolute element sum",
+            "Betrag summieren"
+        ]
     },
     {
         "op_variant": "AdvMax",
@@ -379,7 +724,17 @@
         "phase": "43",
         "key_path": "XEQ \"MAX\"",
         "description": "Maximum element of current matrix into X; row/col in Y/Z",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 38 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 38 },
+        "search_aliases": [
+            "Maximum Matrix",
+            "größtes Element",
+            "matrix max",
+            "max element",
+            "Maximalwert Matrix",
+            "find maximum element",
+            "max position row col",
+            "Maximum finden"
+        ]
     },
     {
         "op_variant": "AdvMaxab",
@@ -389,7 +744,17 @@
         "phase": "43",
         "key_path": "XEQ \"MAXAB\"",
         "description": "Maximum |element| of current matrix into X; row/col in Y/Z",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 39 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 39 },
+        "search_aliases": [
+            "Maximum Betrag",
+            "größter Absolutwert",
+            "max absolute value",
+            "abs max element",
+            "Maximalwert Betrag",
+            "maximum absolute element",
+            "Betrag Maximum",
+            "abs größtes Element"
+        ]
     },
     {
         "op_variant": "AdvMin",
@@ -399,7 +764,17 @@
         "phase": "43",
         "key_path": "XEQ \"MIN\"",
         "description": "Minimum element of current matrix into X; row/col in Y/Z",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 40 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 40 },
+        "search_aliases": [
+            "Minimum Matrix",
+            "kleinstes Element",
+            "matrix min",
+            "min element",
+            "Minimalwert Matrix",
+            "find minimum element",
+            "min position row col",
+            "Minimum finden"
+        ]
     },
     {
         "op_variant": "AdvRmaxab",
@@ -409,7 +784,17 @@
         "phase": "43",
         "key_path": "XEQ \"RMAXAB\"",
         "description": "Row index of maximum |element| in current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 41 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 41 },
+        "search_aliases": [
+            "Zeilenindex Maximum",
+            "row index max abs",
+            "Pivot-Zeile Index",
+            "max abs row index",
+            "Zeilenmaximum Index",
+            "row of maximum absolute",
+            "Pivotzeile finden",
+            "pivot row search"
+        ]
     },
     {
         "op_variant": "AdvRnrm",
@@ -419,7 +804,17 @@
         "phase": "43",
         "key_path": "XEQ \"RNRM\"",
         "description": "Row norm (max absolute row sum) of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 42 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 42 },
+        "search_aliases": [
+            "Zeilennorm",
+            "row norm",
+            "maximale Zeilensumme",
+            "max absolute row sum",
+            "Infinity-Norm",
+            "Zeilensummennorm",
+            "matrix row norm",
+            "Maximumnorm"
+        ]
     },
     {
         "op_variant": "AdvRsum",
@@ -429,7 +824,17 @@
         "phase": "43",
         "key_path": "XEQ \"RSUM\"",
         "description": "Sum of row I of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 43 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 43 },
+        "search_aliases": [
+            "Zeilensumme",
+            "row sum",
+            "Summe Zeile",
+            "sum row elements",
+            "Zeilenelemente summieren",
+            "row total",
+            "Zeilensumme berechnen",
+            "sum of row"
+        ]
     },
     {
         "op_variant": "AdvFnrm",
@@ -439,7 +844,17 @@
         "phase": "43",
         "key_path": "XEQ \"FNRM\"",
         "description": "Frobenius norm (sqrt of sum of squared elements) into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 44 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 44 },
+        "search_aliases": [
+            "Frobeniusnorm",
+            "Frobenius norm",
+            "Euklidische Matrixnorm",
+            "Matrixnorm",
+            "sqrt sum squared elements",
+            "F-Norm",
+            "matrix Frobenius",
+            "quadratische Norm Matrix"
+        ]
     },
     {
         "op_variant": "AdvMdet",
@@ -451,7 +866,17 @@
         "description": "Determinant of current matrix into X",
         "example": "Set current matrix via MP, then XEQ MDET -> X = det",
         "notes": "Requires square matrix. Uses LU decomposition. Stack lift enabled after.",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 45 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 45 },
+        "search_aliases": [
+            "Determinante",
+            "matrix determinant",
+            "det Matrix",
+            "LU Zerlegung",
+            "quadratische Matrix det",
+            "determinant calculate",
+            "Determinante berechnen",
+            "square matrix determinant"
+        ]
     },
     {
         "op_variant": "AdvMinv",
@@ -463,7 +888,17 @@
         "description": "Invert current matrix in place",
         "example": "Set current matrix via MP, then XEQ MINV -> A^-1 in place",
         "notes": "Overwrites matrix with its inverse. DATA ERROR if singular. Named matrices (AdvMatrix).",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 46 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 46 },
+        "search_aliases": [
+            "Matrix invertieren",
+            "inverse Matrix",
+            "matrix inverse",
+            "Matrixinverse",
+            "Kehrmatrix",
+            "invert matrix",
+            "inverse berechnen",
+            "Matrix Umkehrung"
+        ]
     },
     {
         "op_variant": "AdvMsys",
@@ -473,7 +908,17 @@
         "phase": "43",
         "key_path": "XEQ \"MSYS\"",
         "description": "Solve linear system: coefficient matrix in ALPHA, RHS in second ALPHA",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 47 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 47 },
+        "search_aliases": [
+            "Gleichungssystem lösen",
+            "solve linear system",
+            "lineares Gleichungssystem",
+            "LGS",
+            "Koeffizientenmatrix",
+            "linear equations solve",
+            "equation solver matrix",
+            "Ax=b lösen"
+        ]
     },
     {
         "op_variant": "AdvMMulM",
@@ -483,7 +928,17 @@
         "phase": "43",
         "key_path": "XEQ \"M*M\"",
         "description": "Multiply two named matrices; result into third named matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 48 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 48 },
+        "search_aliases": [
+            "Matrizen multiplizieren",
+            "matrix multiply",
+            "Matrixprodukt",
+            "matrix product",
+            "M mal M",
+            "multiply two matrices",
+            "Matrizenmultiplikation",
+            "named matrix multiply"
+        ]
     },
     {
         "op_variant": "AdvMatPlus",
@@ -493,7 +948,17 @@
         "phase": "43",
         "key_path": "XEQ \"MAT+\"",
         "description": "Add two named matrices element-wise; result into third",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 49 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 49 },
+        "search_aliases": [
+            "Matrizen addieren",
+            "matrix addition",
+            "add matrices",
+            "elementweise Addition",
+            "Matrizenaddition",
+            "matrix plus",
+            "add element-wise",
+            "Matrizen zusammenzählen"
+        ]
     },
     {
         "op_variant": "AdvMatMinus",
@@ -503,7 +968,17 @@
         "phase": "43",
         "key_path": "XEQ \"MAT-\"",
         "description": "Subtract two named matrices element-wise; result into third",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 50 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 50 },
+        "search_aliases": [
+            "Matrizen subtrahieren",
+            "matrix subtraction",
+            "subtract matrices",
+            "elementweise Subtraktion",
+            "Matrizensubtraktion",
+            "matrix minus",
+            "subtract element-wise",
+            "Differenz Matrizen"
+        ]
     },
     {
         "op_variant": "AdvMatScalarMul",
@@ -513,7 +988,17 @@
         "phase": "43",
         "key_path": "XEQ \"MAT*C\"",
         "description": "Multiply all elements of current matrix by scalar X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 51 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 51 },
+        "search_aliases": [
+            "Skalarmultiplikation",
+            "scalar multiply matrix",
+            "Matrix mit Skalar",
+            "multiply by scalar",
+            "Vielfaches Matrix",
+            "scale matrix",
+            "Matrix skalieren",
+            "alle Elemente mal Skalar"
+        ]
     },
     {
         "op_variant": "AdvMatScalarDiv",
@@ -523,7 +1008,17 @@
         "phase": "43",
         "key_path": "XEQ \"MAT/C\"",
         "description": "Divide all elements of current matrix by scalar X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 52 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 52 },
+        "search_aliases": [
+            "Skalardivision",
+            "scalar divide matrix",
+            "Matrix durch Skalar",
+            "divide by scalar",
+            "Matrix dividieren",
+            "scale down matrix",
+            "Elemente dividieren",
+            "Matrix Skalar teilen"
+        ]
     },
     {
         "op_variant": "AdvTrnps",
@@ -533,7 +1028,17 @@
         "phase": "43",
         "key_path": "XEQ \"TRNPS\"",
         "description": "Transpose current matrix in place",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 53 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 53 },
+        "search_aliases": [
+            "TRNPS",
+            "transpose matrix",
+            "matrix transponieren",
+            "Zeilen Spalten tauschen",
+            "transponierte Matrix",
+            "matrix flip",
+            "rows columns swap",
+            "Matrix umkehren"
+        ]
     },
     {
         "op_variant": "AdvMmove",
@@ -543,7 +1048,17 @@
         "phase": "43",
         "key_path": "XEQ \"MMOVE\"",
         "description": "Copy source matrix (ALPHA) into destination matrix (second ALPHA)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 54 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 54 },
+        "search_aliases": [
+            "MMOVE",
+            "copy matrix",
+            "Matrix kopieren",
+            "matrix duplicate",
+            "Matrix duplizieren",
+            "source destination copy",
+            "Matrix verschieben",
+            "move matrix data"
+        ]
     },
     {
         "op_variant": "AdvCExchangeC",
@@ -553,7 +1068,17 @@
         "phase": "43",
         "key_path": "XEQ \"C<>C\"",
         "description": "Exchange columns Y and X of current matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 55 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 55 },
+        "search_aliases": [
+            "C<>C",
+            "exchange columns",
+            "Spalten tauschen",
+            "swap columns",
+            "Spalten vertauschen",
+            "column swap matrix",
+            "Matrix Spalten tauschen",
+            "two columns exchange"
+        ]
     },
     {
         "op_variant": "AdvCmaxab",
@@ -563,7 +1088,17 @@
         "phase": "43",
         "key_path": "XEQ \"CMAXAB\"",
         "description": "Column index of maximum |element| in current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 56 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 56 },
+        "search_aliases": [
+            "CMAXAB",
+            "column max absolute",
+            "größter Betrag Spalte",
+            "maximum absolute element column",
+            "Spaltenindex Maximum",
+            "pivot column index",
+            "maximaler Betrag Spaltenindex",
+            "column absolute maximum index"
+        ]
     },
     {
         "op_variant": "AdvCnrm",
@@ -573,7 +1108,17 @@
         "phase": "43",
         "key_path": "XEQ \"CNRM\"",
         "description": "Column norm (max absolute column sum) of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 57 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 57 },
+        "search_aliases": [
+            "CNRM",
+            "column norm",
+            "Spaltennorm",
+            "max column sum",
+            "maximale Spaltensumme",
+            "matrix norm columns",
+            "Matrixnorm Spalten",
+            "column absolute sum norm"
+        ]
     },
     {
         "op_variant": "AdvCsum",
@@ -583,7 +1128,17 @@
         "phase": "43",
         "key_path": "XEQ \"CSUM\"",
         "description": "Sum of column J of current matrix into X",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 58 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 58 },
+        "search_aliases": [
+            "CSUM",
+            "column sum",
+            "Spaltensumme",
+            "sum column elements",
+            "Spalte summieren",
+            "add column values",
+            "Spaltenwerte addieren",
+            "column total"
+        ]
     },
     {
         "op_variant": "AdvYcPlusC",
@@ -593,7 +1148,17 @@
         "phase": "43",
         "key_path": "XEQ \"YC+C\"",
         "description": "Scale column Y by X and add to column J of current matrix",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 59 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 59 },
+        "search_aliases": [
+            "YC+C",
+            "scale column add",
+            "Spalte skalieren addieren",
+            "column linear combination",
+            "lineare Kombination Spalte",
+            "multiply column add",
+            "Spalte multiplizieren addieren",
+            "axpy column"
+        ]
     },
     {
         "op_variant": "AdvMatrx",
@@ -603,7 +1168,17 @@
         "phase": "43",
         "key_path": "XEQ \"MATRX\"",
         "description": "Interactive matrix editor workflow (ALPHA selects matrix)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 60 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 60 },
+        "search_aliases": [
+            "MATRX",
+            "matrix editor workflow",
+            "Matrix Editor",
+            "interactive matrix select",
+            "Matrix Arbeitsmappe",
+            "Matrix bearbeiten starten",
+            "matrix entry workflow",
+            "Matrix eingeben interaktiv"
+        ]
     },
     {
         "op_variant": "AdvMtr",
@@ -613,7 +1188,17 @@
         "phase": "43",
         "key_path": "XEQ \"MTR\"",
         "description": "Select named matrix (ALPHA) as current matrix pointer",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 61 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 61 },
+        "search_aliases": [
+            "MTR",
+            "select matrix",
+            "Matrix auswählen",
+            "set current matrix",
+            "aktive Matrix setzen",
+            "matrix pointer",
+            "Matrix zeiger",
+            "current matrix activate"
+        ]
     },
     {
         "op_variant": "AdvMedit",
@@ -623,7 +1208,17 @@
         "phase": "43",
         "key_path": "XEQ \"MEDIT\"",
         "description": "Edit real matrix elements interactively row by row",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 62 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 62 },
+        "search_aliases": [
+            "MEDIT",
+            "edit matrix elements",
+            "Matrixelemente editieren",
+            "real matrix row edit",
+            "Matrix Einträge bearbeiten",
+            "reelle Elemente eingeben",
+            "matrix interactive edit",
+            "Zeile für Zeile eingeben"
+        ]
     },
     {
         "op_variant": "AdvCmedit",
@@ -633,7 +1228,17 @@
         "phase": "43",
         "key_path": "XEQ \"CMEDIT\"",
         "description": "Edit complex matrix elements interactively (real, imag pairs)",
-        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 63 }
+        "xrom": { "module": "Adv Conv", "module_id": 22, "function_id": 63 },
+        "search_aliases": [
+            "CMEDIT",
+            "edit complex matrix",
+            "komplexe Matrix editieren",
+            "complex elements edit",
+            "Real Imaginär Matrix",
+            "komplexe Einträge bearbeiten",
+            "real imaginary pairs edit",
+            "komplexe Matrix interaktiv"
+        ]
     },
     {
         "op_variant": "AdvExpZ",
@@ -643,7 +1248,16 @@
         "phase": "43",
         "key_path": "XEQ \"E^Z\"",
         "description": "Complex exponential e^(X+iY) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 1 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 1 },
+        "search_aliases": [
+            "komplexe Exponentialfunktion",
+            "complex exponential",
+            "e hoch komplex",
+            "e^z komplex",
+            "Euler Zahl komplex",
+            "complex e power",
+            "exp komplex"
+        ]
     },
     {
         "op_variant": "AdvLnZ",
@@ -653,7 +1267,15 @@
         "phase": "43",
         "key_path": "XEQ \"LNZ\"",
         "description": "Complex natural log ln(X+iY) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 2 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 2 },
+        "search_aliases": [
+            "komplexer natürlicher Logarithmus",
+            "complex natural log",
+            "ln komplex",
+            "natürlicher Log komplex",
+            "complex ln z",
+            "Logarithmus komplex"
+        ]
     },
     {
         "op_variant": "AdvLogZ",
@@ -663,7 +1285,15 @@
         "phase": "43",
         "key_path": "XEQ \"LOGZ\"",
         "description": "Complex log base 10 log10(X+iY) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 3 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 3 },
+        "search_aliases": [
+            "komplexer Zehnerlogarithmus",
+            "complex log base 10",
+            "log10 komplex",
+            "dekadischer Logarithmus komplex",
+            "complex common log",
+            "log komplex"
+        ]
     },
     {
         "op_variant": "AdvZPowN",
@@ -673,7 +1303,15 @@
         "phase": "43",
         "key_path": "XEQ \"Z^N\"",
         "description": "Complex integer power (X+iY)^N where N is in Z",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 4 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 4 },
+        "search_aliases": [
+            "komplexe ganzzahlige Potenz",
+            "complex integer power",
+            "z hoch n komplex",
+            "Potenz komplex ganzzahlig",
+            "complex power integer",
+            "ganzzahlige Potenz"
+        ]
     },
     {
         "op_variant": "AdvZPow1n",
@@ -683,7 +1321,15 @@
         "phase": "43",
         "key_path": "XEQ \"Z^1/N\"",
         "description": "Complex Nth root (X+iY)^(1/N) where N is in Z",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 5 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 5 },
+        "search_aliases": [
+            "komplexe n-te Wurzel",
+            "complex nth root",
+            "n-te Wurzel komplex",
+            "Wurzel komplex ganzzahlig",
+            "complex root integer",
+            "Wurzelfunktion komplex"
+        ]
     },
     {
         "op_variant": "AdvZPowW",
@@ -693,7 +1339,15 @@
         "phase": "43",
         "key_path": "XEQ \"Z^W\"",
         "description": "Complex power (X+iY)^(Z+iT) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 6 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 6 },
+        "search_aliases": [
+            "komplexe Potenz komplex",
+            "complex power complex exponent",
+            "z hoch w",
+            "allgemeine komplexe Potenz",
+            "complex exponent",
+            "Potenz komplexe Basis"
+        ]
     },
     {
         "op_variant": "AdvZPow1w",
@@ -703,7 +1357,15 @@
         "phase": "43",
         "key_path": "XEQ \"Z^1/W\"",
         "description": "Complex root (X+iY)^(1/(Z+iT)) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 7 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 7 },
+        "search_aliases": [
+            "komplexe Wurzel komplex",
+            "complex root complex exponent",
+            "allgemeine Wurzel komplex",
+            "z hoch 1 durch w",
+            "complex fractional power",
+            "Wurzel komplex"
+        ]
     },
     {
         "op_variant": "AdvMagz",
@@ -713,7 +1375,16 @@
         "phase": "43",
         "key_path": "XEQ \"|Z|\"",
         "description": "Magnitude (modulus) of complex number X+iY into X",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 8 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 8 },
+        "search_aliases": [
+            "Betrag komplexe Zahl",
+            "Modulus komplex",
+            "magnitude complex",
+            "absolute value complex",
+            "Absolutwert komplex",
+            "Betragsfunktion",
+            "komplexer Betrag"
+        ]
     },
     {
         "op_variant": "AdvSinZ",
@@ -723,7 +1394,15 @@
         "phase": "43",
         "key_path": "XEQ \"SINZ\"",
         "description": "Complex sine sin(X+iY) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 9 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 9 },
+        "search_aliases": [
+            "komplexer Sinus",
+            "complex sine",
+            "sin komplex",
+            "Sinus komplex",
+            "trigonometrisch komplex",
+            "sinz"
+        ]
     },
     {
         "op_variant": "AdvCosZ",
@@ -733,7 +1412,15 @@
         "phase": "43",
         "key_path": "XEQ \"COSZ\"",
         "description": "Complex cosine cos(X+iY) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 10 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 10 },
+        "search_aliases": [
+            "komplexer Kosinus",
+            "complex cosine",
+            "cos komplex",
+            "Kosinus komplex",
+            "trigonometrisch komplex",
+            "cosz"
+        ]
     },
     {
         "op_variant": "AdvTanZ",
@@ -743,7 +1430,15 @@
         "phase": "43",
         "key_path": "XEQ \"TANZ\"",
         "description": "Complex tangent tan(X+iY) -> result in X (real) and Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 11 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 11 },
+        "search_aliases": [
+            "komplexer Tangens",
+            "complex tangent",
+            "tan komplex",
+            "Tangens komplex",
+            "trigonometrisch komplex",
+            "tanz"
+        ]
     },
     {
         "op_variant": "AdvAPowZ",
@@ -753,7 +1448,15 @@
         "phase": "43",
         "key_path": "XEQ \"A^Z\"",
         "description": "Complex power A^(X+iY) where real base A is in Z",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 12 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 12 },
+        "search_aliases": [
+            "reelle Basis komplex",
+            "real base complex power",
+            "a hoch komplex",
+            "Potenz reelle Basis",
+            "complex exponent real base",
+            "a^z komplex"
+        ]
     },
     {
         "op_variant": "AdvCPlus",
@@ -763,7 +1466,15 @@
         "phase": "43",
         "key_path": "XEQ \"CADD\"",
         "description": "Complex addition: (X+iY) + (Z+iT) -> X (real), Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 13 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 13 },
+        "search_aliases": [
+            "komplexe Addition",
+            "complex addition",
+            "addieren komplex",
+            "Summe komplex",
+            "complex numbers add",
+            "cadd"
+        ]
     },
     {
         "op_variant": "AdvCMinus",
@@ -773,7 +1484,15 @@
         "phase": "43",
         "key_path": "XEQ \"CSUB\"",
         "description": "Complex subtraction: (Z+iT) - (X+iY) -> X (real), Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 14 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 14 },
+        "search_aliases": [
+            "komplexe Subtraktion",
+            "complex subtraction",
+            "subtrahieren komplex",
+            "Differenz komplex",
+            "complex numbers subtract",
+            "csub"
+        ]
     },
     {
         "op_variant": "AdvCinv",
@@ -783,7 +1502,15 @@
         "phase": "43",
         "key_path": "XEQ \"CINV\"",
         "description": "Complex reciprocal 1/(X+iY) -> X (real), Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 15 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 15 },
+        "search_aliases": [
+            "komplexer Kehrwert",
+            "complex reciprocal",
+            "Kehrwert komplex",
+            "1 durch z komplex",
+            "complex inverse",
+            "1/z"
+        ]
     },
     {
         "op_variant": "AdvCMul",
@@ -793,7 +1520,15 @@
         "phase": "43",
         "key_path": "XEQ \"CMUL\"",
         "description": "Complex multiplication: (X+iY) * (Z+iT) -> X (real), Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 16 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 16 },
+        "search_aliases": [
+            "komplexe Multiplikation",
+            "complex multiplication",
+            "multiplizieren komplex",
+            "Produkt komplex",
+            "complex numbers multiply",
+            "cmul"
+        ]
     },
     {
         "op_variant": "AdvCDiv",
@@ -803,7 +1538,15 @@
         "phase": "43",
         "key_path": "XEQ \"CDIV\"",
         "description": "Complex division: (Z+iT) / (X+iY) -> X (real), Y (imag)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 17 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 17 },
+        "search_aliases": [
+            "komplexe Division",
+            "complex division",
+            "dividieren komplex",
+            "Quotient komplex",
+            "complex numbers divide",
+            "cdiv"
+        ]
     },
     {
         "op_variant": "AdvAip",
@@ -813,7 +1556,15 @@
         "phase": "43",
         "key_path": "XEQ \"AIP\"",
         "description": "Add integer part of X to ALPHA register as character",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 18 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 18 },
+        "search_aliases": [
+            "ganzzahliger Teil Alpha",
+            "integer part alpha register",
+            "Ganzzahl Alpha Register",
+            "AIP Alpha",
+            "integer to alpha",
+            "Zeichen Alpha ganzzahlig"
+        ]
     },
     {
         "op_variant": "AdvPly",
@@ -823,7 +1574,15 @@
         "phase": "43",
         "key_path": "XEQ \"PLY\"",
         "description": "Evaluate polynomial at X using coefficients in registers R01..R(N+1)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 19 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 19 },
+        "search_aliases": [
+            "Polynom auswerten",
+            "polynomial evaluation",
+            "Horner Schema",
+            "Polynom Koeffizienten",
+            "evaluate polynomial",
+            "Polynomwert berechnen"
+        ]
     },
     {
         "op_variant": "AdvRts",
@@ -833,7 +1592,15 @@
         "phase": "43",
         "key_path": "XEQ \"RTS\"",
         "description": "Find all roots of polynomial with coefficients in registers R01..R(N+1)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 20 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 20 },
+        "search_aliases": [
+            "Nullstellen Polynom",
+            "polynomial roots",
+            "Wurzeln finden Polynom",
+            "Nullstellensuche",
+            "root finding polynomial",
+            "alle Nullstellen"
+        ]
     },
     {
         "op_variant": "AdvFsolve",
@@ -845,7 +1612,17 @@
         "description": "Find root of f(x)=0 via Brent's method; calls user program label",
         "example": "Store LBL in ALPHA, set X1/X2 guesses, XEQ FSOLVE",
         "notes": "Calls user program for each f(x) evaluation. Brent's method; bracket required. Max 4-deep call stack.",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 21 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 21 },
+        "search_aliases": [
+            "find root equation",
+            "Nullstelle finden",
+            "solve f(x) zero",
+            "Gleichung lösen Nullstelle",
+            "Brent method root",
+            "Wurzel berechnen",
+            "zero crossing finder",
+            "Nullstellensuche Programm"
+        ]
     },
     {
         "op_variant": "AdvFintg",
@@ -857,7 +1634,17 @@
         "description": "Integrate f(x) via Romberg quadrature; calls user program label",
         "example": "Store LBL in ALPHA, set a and b bounds, XEQ FINTG",
         "notes": "Romberg integration; accuracy scales with FIX setting. Calls user program. Cross-nesting allowed with FSOLVE.",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 22 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 22 },
+        "search_aliases": [
+            "integrate function",
+            "Integral berechnen",
+            "numerical integration",
+            "numerische Integration",
+            "Romberg quadrature",
+            "area under curve",
+            "bestimmtes Integral",
+            "Fläche unter Kurve"
+        ]
     },
     {
         "op_variant": "AdvFdifeq",
@@ -867,7 +1654,16 @@
         "phase": "43",
         "key_path": "XEQ \"FDIFEQ\"",
         "description": "Solve ODE y'=f(x,y) via Runge-Kutta; calls user program label",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 23 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 23 },
+        "search_aliases": [
+            "solve differential equation",
+            "Differentialgleichung lösen",
+            "ODE solver",
+            "DGL lösen",
+            "Runge-Kutta method",
+            "y prime f(x,y)",
+            "gewöhnliche Differentialgleichung"
+        ]
     },
     {
         "op_variant": "AdvFroot",
@@ -877,7 +1673,16 @@
         "phase": "43",
         "key_path": "XEQ \"FROOT\"",
         "description": "Find all roots of polynomial via Laguerre's method; degree from X",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 24 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 24 },
+        "search_aliases": [
+            "polynomial roots",
+            "Polynomwurzeln",
+            "find all roots",
+            "alle Nullstellen Polynom",
+            "Laguerre method",
+            "Polynom lösen",
+            "polynomial solver"
+        ]
     },
     {
         "op_variant": "AdvCfit",
@@ -887,7 +1692,17 @@
         "phase": "43",
         "key_path": "XEQ \"CFIT\"",
         "description": "Curve fit: select model (lin/exp/log/power) based on best correlation",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 25 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 25 },
+        "search_aliases": [
+            "curve fitting model",
+            "Kurvenanpassung Modell",
+            "best fit select",
+            "bestes Modell wählen",
+            "regression model",
+            "Regressionsmodell",
+            "lin exp log power fit",
+            "Korrelation Anpassung"
+        ]
     },
     {
         "op_variant": "AdvAs",
@@ -897,7 +1712,16 @@
         "phase": "43",
         "key_path": "XEQ \"AS\"",
         "description": "Accumulate statistics: add (X,Y) data point to curve fit registers",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 26 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 26 },
+        "search_aliases": [
+            "add data point",
+            "Datenpunkt hinzufügen",
+            "accumulate statistics",
+            "Statistik eingeben",
+            "curve fit data entry",
+            "XY Punkt eintragen",
+            "Messwert hinzufügen"
+        ]
     },
     {
         "op_variant": "AdvDs",
@@ -907,7 +1731,16 @@
         "phase": "43",
         "key_path": "XEQ \"DS\"",
         "description": "Delete statistics: remove (X,Y) data point from curve fit registers",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 27 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 27 },
+        "search_aliases": [
+            "delete data point",
+            "Datenpunkt löschen",
+            "remove statistics",
+            "Statistik entfernen",
+            "undo data entry",
+            "Messwert entfernen",
+            "XY Punkt löschen"
+        ]
     },
     {
         "op_variant": "AdvBfit",
@@ -917,7 +1750,15 @@
         "phase": "43",
         "key_path": "XEQ \"BFIT\"",
         "description": "Best fit: compute curve fit coefficients for selected model",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 28 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 28 },
+        "search_aliases": [
+            "compute fit coefficients",
+            "Anpassungskoeffizienten berechnen",
+            "regression coefficients",
+            "Regressionskoeffizienten",
+            "best fit parameters",
+            "Kurvenanpassung berechnen"
+        ]
     },
     {
         "op_variant": "AdvFit",
@@ -927,7 +1768,16 @@
         "phase": "43",
         "key_path": "XEQ \"FIT\"",
         "description": "Fit: compute predicted Y from X using current curve fit model",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 29 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 29 },
+        "search_aliases": [
+            "predict Y from X",
+            "Y vorhersagen",
+            "curve fit interpolate",
+            "Kurvenanpassung Vorhersage",
+            "fitted value",
+            "Schätzwert Y",
+            "extrapolate Y"
+        ]
     },
     {
         "op_variant": "AdvYQueryX",
@@ -937,7 +1787,16 @@
         "phase": "43",
         "key_path": "XEQ \"Y?X\"",
         "description": "Predict X from Y using current inverse curve fit model",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 30 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 30 },
+        "search_aliases": [
+            "predict X from Y",
+            "X aus Y berechnen",
+            "inverse curve fit",
+            "umgekehrte Regression",
+            "reverse fit",
+            "inverse Anpassung",
+            "X Wert schätzen"
+        ]
     },
     {
         "op_variant": "AdvSzQuery",
@@ -947,7 +1806,15 @@
         "phase": "43",
         "key_path": "XEQ \"SZ?\"",
         "description": "Skip next step if data point count for curve fit is zero",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 31 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 31 },
+        "search_aliases": [
+            "skip if no data",
+            "überspringen wenn leer",
+            "curve fit empty check",
+            "Datenpunkt Zähler null",
+            "no data conditional",
+            "bedingte Verzweigung leer"
+        ]
     },
     {
         "op_variant": "AdvVPlus",
@@ -957,7 +1824,15 @@
         "phase": "43",
         "key_path": "XEQ \"V+\"",
         "description": "Vector addition: add vector in registers to second vector; result in first",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 32 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 32 },
+        "search_aliases": [
+            "vector addition",
+            "Vektoraddition",
+            "add vectors",
+            "Vektoren addieren",
+            "vector sum",
+            "Vektorsumme"
+        ]
     },
     {
         "op_variant": "AdvVMinus",
@@ -967,7 +1842,15 @@
         "phase": "43",
         "key_path": "XEQ \"V-\"",
         "description": "Vector subtraction: subtract second vector from first; result in first",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 33 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 33 },
+        "search_aliases": [
+            "vector subtraction",
+            "Vektorsubtraktion",
+            "subtract vectors",
+            "Vektoren subtrahieren",
+            "vector difference",
+            "Vektordifferenz"
+        ]
     },
     {
         "op_variant": "AdvDot",
@@ -977,7 +1860,15 @@
         "phase": "43",
         "key_path": "XEQ \"DOT\"",
         "description": "Dot product of two vectors into X",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 34 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 34 },
+        "search_aliases": [
+            "dot product",
+            "Skalarprodukt",
+            "scalar product",
+            "inneres Produkt",
+            "vector dot product",
+            "Punktprodukt zweier Vektoren"
+        ]
     },
     {
         "op_variant": "AdvCross",
@@ -987,7 +1878,16 @@
         "phase": "43",
         "key_path": "XEQ \"CROSS\"",
         "description": "Cross product of two 3D vectors; result in first vector registers",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 35 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 35 },
+        "search_aliases": [
+            "cross product",
+            "Kreuzprodukt",
+            "vector product",
+            "Vektorprodukt",
+            "3D cross product",
+            "äußeres Produkt",
+            "Kreuzprodukt 3D"
+        ]
     },
     {
         "op_variant": "AdvVc",
@@ -997,7 +1897,16 @@
         "phase": "43",
         "key_path": "XEQ \"VC\"",
         "description": "Create vector: load components from X, Y, Z into vector registers",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 36 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 36 },
+        "search_aliases": [
+            "create vector",
+            "Vektor erstellen",
+            "load vector components",
+            "Vektorkomponenten laden",
+            "vector from XYZ",
+            "Vektor aus Komponenten",
+            "initialize vector"
+        ]
     },
     {
         "op_variant": "AdvVs",
@@ -1007,7 +1916,15 @@
         "phase": "43",
         "key_path": "XEQ \"VS\"",
         "description": "Store vector components from registers into X, Y, Z",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 37 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 37 },
+        "search_aliases": [
+            "store vector",
+            "Vektor speichern",
+            "vector to XYZ",
+            "Vektorkomponenten speichern",
+            "save vector registers",
+            "Vektor ablegen"
+        ]
     },
     {
         "op_variant": "AdvVr",
@@ -1017,7 +1934,15 @@
         "phase": "43",
         "key_path": "XEQ \"VR\"",
         "description": "Recall vector components from registers into X, Y, Z",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 38 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 38 },
+        "search_aliases": [
+            "recall vector",
+            "Vektor abrufen",
+            "load vector XYZ",
+            "Vektorkomponenten abrufen",
+            "get vector registers",
+            "Vektor laden"
+        ]
     },
     {
         "op_variant": "AdvVe",
@@ -1027,7 +1952,16 @@
         "phase": "43",
         "key_path": "XEQ \"VE\"",
         "description": "Unit vector: normalize current vector to length 1",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 39 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 39 },
+        "search_aliases": [
+            "unit vector",
+            "Einheitsvektor",
+            "normalize vector",
+            "Vektor normieren",
+            "vector length one",
+            "Vektor normalisieren",
+            "Einheitsvektor berechnen"
+        ]
     },
     {
         "op_variant": "AdvVxy",
@@ -1037,7 +1971,16 @@
         "phase": "43",
         "key_path": "XEQ \"VXY\"",
         "description": "2D vector from polar (X=magnitude, Y=angle) to cartesian components",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 40 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 40 },
+        "search_aliases": [
+            "polar to cartesian",
+            "Polar nach kartesisch",
+            "2D vector convert",
+            "Polarkoordinaten umrechnen",
+            "magnitude angle to XY",
+            "Betrag Winkel zu XY",
+            "Polarkarte umrechnen"
+        ]
     },
     {
         "op_variant": "AdvUv",
@@ -1047,7 +1990,17 @@
         "phase": "43",
         "key_path": "XEQ \"UV\"",
         "description": "Angle between two vectors into X (in current angle mode)",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 41 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 41 },
+        "search_aliases": [
+            "Winkel zwischen Vektoren",
+            "Vektorwinkel",
+            "Zwischenwinkel Vektor",
+            "angle between vectors",
+            "vector angle",
+            "dot product angle",
+            "UV Winkel Grad",
+            "angle vectors 3D"
+        ]
     },
     {
         "op_variant": "AdvVMag",
@@ -1057,7 +2010,17 @@
         "phase": "43",
         "key_path": "XEQ \"|V|\"",
         "description": "Magnitude (length) of current vector into X",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 42 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 42 },
+        "search_aliases": [
+            "Vektorbetrag",
+            "Vektorlänge",
+            "Betrag Vektor",
+            "Länge Vektor",
+            "vector magnitude",
+            "vector length",
+            "Euclidean norm",
+            "norm Vektor"
+        ]
     },
     {
         "op_variant": "AdvVStar",
@@ -1067,7 +2030,17 @@
         "phase": "43",
         "key_path": "XEQ \"V*\"",
         "description": "Scale vector: multiply all components by scalar X",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 43 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 43 },
+        "search_aliases": [
+            "Vektor skalieren",
+            "Vektor multiplizieren Skalar",
+            "skalare Multiplikation",
+            "scale vector",
+            "scalar multiply vector",
+            "vector scaling",
+            "Skalierung Vektor",
+            "multiply vector components"
+        ]
     },
     {
         "op_variant": "AdvVd",
@@ -1077,7 +2050,17 @@
         "phase": "43",
         "key_path": "XEQ \"VD\"",
         "description": "Divide vector: divide all components by scalar X",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 44 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 44 },
+        "search_aliases": [
+            "Vektor dividieren",
+            "Vektordivision Skalar",
+            "Vektor durch Zahl",
+            "divide vector",
+            "vector division scalar",
+            "scale down vector",
+            "Vektor teilen",
+            "vector divide components"
+        ]
     },
     {
         "op_variant": "AdvTr",
@@ -1087,7 +2070,17 @@
         "phase": "43",
         "key_path": "XEQ \"TR\"",
         "description": "Triple product: scalar triple product of three 3D vectors",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 45 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 45 },
+        "search_aliases": [
+            "Spatprodukt",
+            "dreifaches Vektorprodukt",
+            "Tripel Produkt Vektor",
+            "scalar triple product",
+            "triple product 3D",
+            "box product vectors",
+            "gemischtes Produkt",
+            "Determinante drei Vektoren"
+        ]
     },
     {
         "op_variant": "AdvTvm",
@@ -1099,7 +2092,17 @@
         "description": "Time Value of Money solver: interactive menu for N/I/PV/PMT/FV",
         "example": "XEQ TVM -> interactive N/I/PV/PMT/FV menu",
         "notes": "Enter 4 of 5 TVM variables; solve for the 5th. State persists across save/load. Cash flow sign: inflows positive.",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 46 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 46 },
+        "search_aliases": [
+            "TVM",
+            "time value of money",
+            "financial solver",
+            "N I PV PMT FV",
+            "TVM menu",
+            "Zeitwert des Geldes",
+            "Finanzmathematik Löser",
+            "Finanzrechner interaktiv"
+        ]
     },
     {
         "op_variant": "AdvTvmN",
@@ -1109,7 +2112,17 @@
         "phase": "43",
         "key_path": "XEQ \"N\"",
         "description": "Solve for number of periods N in TVM equation",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 47 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 47 },
+        "search_aliases": [
+            "solve N",
+            "number of periods",
+            "payment count",
+            "loan duration",
+            "Anzahl Perioden",
+            "Laufzeit berechnen",
+            "Perioden lösen",
+            "Anzahl Zahlungen"
+        ]
     },
     {
         "op_variant": "AdvTvmPv",
@@ -1119,7 +2132,17 @@
         "phase": "43",
         "key_path": "XEQ \"PV\"",
         "description": "Solve for present value PV in TVM equation",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 48 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 48 },
+        "search_aliases": [
+            "present value",
+            "solve PV",
+            "loan amount",
+            "principal value",
+            "Barwert",
+            "Gegenwartswert berechnen",
+            "Anfangskapital",
+            "Barwert lösen"
+        ]
     },
     {
         "op_variant": "AdvTvmPmt",
@@ -1129,7 +2152,17 @@
         "phase": "43",
         "key_path": "XEQ \"PMT\"",
         "description": "Solve for periodic payment PMT in TVM equation",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 49 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 49 },
+        "search_aliases": [
+            "periodic payment",
+            "solve PMT",
+            "monthly payment",
+            "installment amount",
+            "Ratenzahlung",
+            "monatliche Rate",
+            "Annuität berechnen",
+            "Zahlung lösen"
+        ]
     },
     {
         "op_variant": "AdvTvmFv",
@@ -1139,7 +2172,17 @@
         "phase": "43",
         "key_path": "XEQ \"FV\"",
         "description": "Solve for future value FV in TVM equation",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 50 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 50 },
+        "search_aliases": [
+            "future value",
+            "solve FV",
+            "end value",
+            "savings goal",
+            "Endwert",
+            "Zukunftswert berechnen",
+            "Endkapital",
+            "Zielwert lösen"
+        ]
     },
     {
         "op_variant": "AdvTvmStarI",
@@ -1149,6 +2192,16 @@
         "phase": "43",
         "key_path": "XEQ \"*I\"",
         "description": "Solve for periodic interest rate *I in TVM equation",
-        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 51 }
+        "xrom": { "module": "Adv Math", "module_id": 24, "function_id": 51 },
+        "search_aliases": [
+            "interest rate",
+            "solve rate",
+            "periodic interest",
+            "rate per period",
+            "Zinssatz berechnen",
+            "Zinsen pro Periode",
+            "Zinsrate lösen",
+            "periodischer Zinssatz"
+        ]
     }
 ]

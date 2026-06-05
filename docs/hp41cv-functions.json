@@ -8,7 +8,17 @@
         "key_path": "+",
         "description": "Add: X <- Y + X, drop stack",
         "example": "3 ENTER 4 + -> 7.0000",
-        "notes": "Consumes X and Y; stack drops (T replicates into Z). Stack lift enabled for next entry."
+        "notes": "Consumes X and Y; stack drops (T replicates into Z). Stack lift enabled for next entry.",
+        "search_aliases": [
+            "addieren",
+            "plus",
+            "addition",
+            "Y plus X",
+            "Summe berechnen",
+            "add numbers",
+            "Zahlen addieren",
+            "sum stack"
+        ]
     },
     {
         "op_variant": "Sub",
@@ -19,7 +29,17 @@
         "key_path": "-",
         "description": "Subtract: X <- Y - X, drop stack",
         "example": "10 ENTER 3 - -> 7.0000",
-        "notes": "Y minus X; result in X. Stack drops; T replicates. Stack lift enabled."
+        "notes": "Y minus X; result in X. Stack drops; T replicates. Stack lift enabled.",
+        "search_aliases": [
+            "subtrahieren",
+            "minus",
+            "subtraktion",
+            "Y minus X",
+            "abziehen",
+            "subtract",
+            "Differenz",
+            "Zahlen subtrahieren"
+        ]
     },
     {
         "op_variant": "Mul",
@@ -30,7 +50,17 @@
         "key_path": "*",
         "description": "Multiply: X <- Y * X, drop stack",
         "example": "6 ENTER 7 * -> 42.0000",
-        "notes": "Consumes X and Y; stack drops. T replicates into Z. Stack lift enabled."
+        "notes": "Consumes X and Y; stack drops. T replicates into Z. Stack lift enabled.",
+        "search_aliases": [
+            "multiplizieren",
+            "mal",
+            "multiplikation",
+            "Y mal X",
+            "Produkt berechnen",
+            "multiply",
+            "times",
+            "Zahlen multiplizieren"
+        ]
     },
     {
         "op_variant": "Div",
@@ -41,7 +71,17 @@
         "key_path": "/",
         "description": "Divide: X <- Y / X, drop stack",
         "example": "10 ENTER 4 / -> 2.5000",
-        "notes": "Y divided by X. Division by zero returns DATA ERROR. Stack lift enabled."
+        "notes": "Y divided by X. Division by zero returns DATA ERROR. Stack lift enabled.",
+        "search_aliases": [
+            "dividieren",
+            "teilen",
+            "durch",
+            "division",
+            "Y durch X",
+            "Quotient",
+            "divide",
+            "Y geteilt durch X"
+        ]
     },
     {
         "op_variant": "Enter",
@@ -52,7 +92,17 @@
         "key_path": "ENTER",
         "description": "Lift stack and duplicate X into Y",
         "example": "5 ENTER -> X=5, Y=5 (stack lifted)",
-        "notes": "Disables stack lift; next digit entry overwrites X without pushing. T register lost."
+        "notes": "Disables stack lift; next digit entry overwrites X without pushing. T register lost.",
+        "search_aliases": [
+            "enter key push",
+            "stack lift",
+            "duplicate x register",
+            "copy x to y",
+            "Eingabe bestätigen",
+            "Zahl eingeben",
+            "Stack heben",
+            "X duplizieren"
+        ]
     },
     {
         "op_variant": "Clx",
@@ -61,7 +111,17 @@
         "status": "implemented",
         "phase": "1",
         "key_path": "BACKSPACE",
-        "description": "Clear X register (entry cancel)"
+        "description": "Clear X register (entry cancel)",
+        "search_aliases": [
+            "clear x register",
+            "delete entry",
+            "cancel input",
+            "reset x",
+            "Eingabe löschen",
+            "X löschen",
+            "Eingabe abbrechen",
+            "Register leeren"
+        ]
     },
     {
         "op_variant": "Chs",
@@ -72,7 +132,17 @@
         "key_path": "n",
         "description": "Change sign of X (negate)",
         "example": "5 CHS -> -5.0000",
-        "notes": "Negates X in place; stack unchanged. During digit entry: toggles mantissa sign. Stack lift neutral."
+        "notes": "Negates X in place; stack unchanged. During digit entry: toggles mantissa sign. Stack lift neutral.",
+        "search_aliases": [
+            "change sign",
+            "negate x",
+            "toggle sign",
+            "flip sign negative",
+            "Vorzeichen ändern",
+            "negieren Minuszeichen",
+            "Vorzeichen wechseln",
+            "minus setzen"
+        ]
     },
     {
         "op_variant": "Rdn",
@@ -83,7 +153,17 @@
         "key_path": "r",
         "description": "Roll stack down: X<-Y, Y<-Z, Z<-T, T<-X",
         "example": "Rv -> X=Y, Y=Z, Z=T, T=old X",
-        "notes": "Circular rotation; no values lost. Four presses restore original stack. Stack lift enabled."
+        "notes": "Circular rotation; no values lost. Four presses restore original stack. Stack lift enabled.",
+        "search_aliases": [
+            "roll down stack",
+            "rotate stack down",
+            "roll stack",
+            "cycle stack down",
+            "Stack rollen unten",
+            "Stapel rotieren abwärts",
+            "Stapel runter",
+            "Stack durchrollen"
+        ]
     },
     {
         "op_variant": "Rup",
@@ -92,7 +172,17 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Roll stack up: X<-T, T<-Z, Z<-Y, Y<-X"
+        "description": "Roll stack up: X<-T, T<-Z, Z<-Y, Y<-X",
+        "search_aliases": [
+            "roll up stack",
+            "rotate stack up",
+            "roll stack up",
+            "cycle stack up",
+            "Stack rollen oben",
+            "Stapel aufwärts",
+            "Stapel rollen hoch",
+            "Stack aufwärts rotieren"
+        ]
     },
     {
         "op_variant": "XySwap",
@@ -103,7 +193,17 @@
         "key_path": "x",
         "description": "Swap X and Y registers",
         "example": "X=3, Y=7 -> X<>Y -> X=7, Y=3",
-        "notes": "Only X and Y swap; Z and T unchanged. Stack lift enabled. Useful for argument reversal."
+        "notes": "Only X and Y swap; Z and T unchanged. Stack lift enabled. Useful for argument reversal.",
+        "search_aliases": [
+            "swap x y",
+            "exchange x y",
+            "flip x y registers",
+            "reverse arguments",
+            "X Y tauschen",
+            "Register vertauschen",
+            "X und Y wechseln",
+            "Argumente umkehren"
+        ]
     },
     {
         "op_variant": "Lastx",
@@ -114,7 +214,17 @@
         "key_path": "l",
         "description": "Recall last X (value before last operation)",
         "example": "5 SQRT LASTX -> X=5 (original X recalled)",
-        "notes": "LASTX is saved before most operations. Useful for error recovery or reusing an operand."
+        "notes": "LASTX is saved before most operations. Useful for error recovery or reusing an operand.",
+        "search_aliases": [
+            "last x recall",
+            "recover last operand",
+            "previous x value",
+            "undo operand error",
+            "letztes X zurück",
+            "letzter X-Wert",
+            "vorherigen Wert holen",
+            "Fehlerkorrektur Operand"
+        ]
     },
     {
         "op_variant": "Pi",
@@ -126,7 +236,16 @@
         "description": "Push pi onto X (3.141592654, 10-digit rounded)",
         "divergences": ["10-digit precision per Phase 20 D-09"],
         "example": "PI -> 3.141592654",
-        "notes": "Pushes pi onto stack (stack lift occurs). Precision is 10 significant digits per HP-41 OM."
+        "notes": "Pushes pi onto stack (stack lift occurs). Precision is 10 significant digits per HP-41 OM.",
+        "search_aliases": [
+            "pi Konstante",
+            "Kreiszahl eingeben",
+            "pi value 3.14",
+            "mathematische Konstante pi",
+            "pi push stack",
+            "Kreiszahl Pi",
+            "pi 3.141592654"
+        ]
     },
     {
         "op_variant": "Int",
@@ -137,7 +256,16 @@
         "key_path": null,
         "description": "Truncate X toward zero (integer part)",
         "example": "3.7 INT -> 3; -3.7 INT -> -3",
-        "notes": "Truncates toward zero (not floor). LASTX saved. Stack lift enabled."
+        "notes": "Truncates toward zero (not floor). LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "Ganzzahl Anteil",
+            "truncate toward zero",
+            "ganzzahliger Anteil",
+            "Nachkommastellen abschneiden",
+            "integer part",
+            "INT Funktion",
+            "Dezimalstellen entfernen"
+        ]
     },
     {
         "op_variant": "Rnd",
@@ -146,7 +274,15 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Round X to precision of current display mode"
+        "description": "Round X to precision of current display mode",
+        "search_aliases": [
+            "Runden Anzeigegenauigkeit",
+            "round display mode",
+            "Anzeigemodus runden",
+            "display precision round",
+            "gerundeter Wert",
+            "FIX SCI ENG runden"
+        ]
     },
     {
         "op_variant": "Frc",
@@ -155,7 +291,15 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Fractional part of X (sign-preserving)"
+        "description": "Fractional part of X (sign-preserving)",
+        "search_aliases": [
+            "Nachkommaanteil",
+            "fractional part",
+            "Dezimalanteil berechnen",
+            "Bruchteil von X",
+            "decimal fraction",
+            "Kommaanteil"
+        ]
     },
     {
         "op_variant": "Abs",
@@ -166,7 +310,15 @@
         "key_path": null,
         "description": "Absolute value of X",
         "example": "-5 ABS -> 5.0000",
-        "notes": "Modifies X in place; stack unchanged. Stack lift enabled after."
+        "notes": "Modifies X in place; stack unchanged. Stack lift enabled after.",
+        "search_aliases": [
+            "Absolutwert",
+            "absolute value",
+            "Betrag berechnen",
+            "Vorzeichen entfernen",
+            "ABS Funktion",
+            "positiver Wert"
+        ]
     },
     {
         "op_variant": "Sign",
@@ -176,7 +328,16 @@
         "phase": "20",
         "key_path": null,
         "description": "Sign of X: -1, 0, or +1",
-        "divergences": []
+        "divergences": [],
+        "search_aliases": [
+            "Vorzeichen ermitteln",
+            "sign function",
+            "Vorzeichenfunktion",
+            "signum",
+            "plus minus null",
+            "Vorzeichen bestimmen",
+            "sign of X"
+        ]
     },
     {
         "op_variant": "Fact",
@@ -186,7 +347,15 @@
         "phase": "20",
         "key_path": null,
         "description": "Factorial of integer X; OutOfRange for X>69",
-        "divergences": ["FACT effective cap <= 26 per Phase 27 proptest calibration; X in 27..=69 returns Overflow via the Decimal::from_f64 wall"]
+        "divergences": ["FACT effective cap <= 26 per Phase 27 proptest calibration; X in 27..=69 returns Overflow via the Decimal::from_f64 wall"],
+        "search_aliases": [
+            "Fakultät",
+            "factorial n!",
+            "n Fakultät berechnen",
+            "Permutationen Kombinatorik",
+            "n! berechnen",
+            "Fakultät Ganzzahl"
+        ]
     },
     {
         "op_variant": "Recip",
@@ -197,7 +366,16 @@
         "key_path": null,
         "description": "Reciprocal of X",
         "example": "4 1/X -> 0.2500",
-        "notes": "Returns 1 divided by X; DATA ERROR if X=0. LASTX saved. Stack lift enabled."
+        "notes": "Returns 1 divided by X; DATA ERROR if X=0. LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "Kehrwert",
+            "reciprocal",
+            "1 durch X",
+            "Umkehrwert",
+            "inverse value",
+            "1/X berechnen",
+            "Kehrbruch"
+        ]
     },
     {
         "op_variant": "Sqrt",
@@ -208,7 +386,15 @@
         "key_path": null,
         "description": "Square root of X",
         "example": "9 SQRT -> 3.0000",
-        "notes": "DATA ERROR if X < 0. LASTX saved. Stack lift enabled after."
+        "notes": "DATA ERROR if X < 0. LASTX saved. Stack lift enabled after.",
+        "search_aliases": [
+            "Quadratwurzel",
+            "square root",
+            "Wurzel ziehen",
+            "SQRT berechnen",
+            "Wurzel aus X",
+            "Wurzelfunktion"
+        ]
     },
     {
         "op_variant": "Sq",
@@ -219,7 +405,16 @@
         "key_path": null,
         "description": "Square of X",
         "example": "5 X^2 -> 25.0000",
-        "notes": "Replaces X with X squared. LASTX saved. Stack lift enabled."
+        "notes": "Replaces X with X squared. LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "Quadrat",
+            "X hoch zwei",
+            "X squared",
+            "quadrieren",
+            "X^2 berechnen",
+            "zweite Potenz",
+            "Zahl quadrieren"
+        ]
     },
     {
         "op_variant": "YPow",
@@ -230,7 +425,16 @@
         "key_path": null,
         "description": "Y raised to power X",
         "example": "2 ENTER 10 Y^X -> 1024.0000",
-        "notes": "Y is base, X is exponent. Stack drops; T replicates. LASTX=X."
+        "notes": "Y is base, X is exponent. Stack drops; T replicates. LASTX=X.",
+        "search_aliases": [
+            "Potenz",
+            "Y hoch X",
+            "power function",
+            "Potenzrechnung",
+            "Y^X berechnen",
+            "Hochzahl",
+            "Basis Exponent"
+        ]
     },
     {
         "op_variant": "Mod",
@@ -241,7 +445,16 @@
         "key_path": null,
         "description": "Y mod X with trunc-toward-zero convention",
         "example": "7 ENTER 3 MOD -> 1.0000",
-        "notes": "Result sign follows Y (HP-41C/CV QRG). -7 MOD 3 -> -1. Stack drops."
+        "notes": "Result sign follows Y (HP-41C/CV QRG). -7 MOD 3 -> -1. Stack drops.",
+        "search_aliases": [
+            "Modulo",
+            "Restdivision",
+            "Rest Division",
+            "modulo berechnen",
+            "remainder",
+            "Y mod X",
+            "Restwert"
+        ]
     },
     {
         "op_variant": "PctChange",
@@ -250,7 +463,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": "%",
-        "description": "Percent change from Y to X: ((X-Y)/Y)*100"
+        "description": "Percent change from Y to X: ((X-Y)/Y)*100",
+        "search_aliases": [
+            "prozentuale Änderung",
+            "percent change",
+            "Prozentveränderung",
+            "prozentualer Unterschied",
+            "Wachstumsrate",
+            "growth rate",
+            "relative Änderung",
+            "percentage change"
+        ]
     },
     {
         "op_variant": "Ln",
@@ -261,7 +484,16 @@
         "key_path": null,
         "description": "Natural logarithm of X",
         "example": "E^X LN -> original X (inverse pair)",
-        "notes": "DATA ERROR if X <= 0. LASTX saved. Stack lift enabled."
+        "notes": "DATA ERROR if X <= 0. LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "natürlicher Logarithmus",
+            "natural log",
+            "ln berechnen",
+            "Logarithmus naturalis",
+            "e Logarithmus",
+            "LN Funktion",
+            "Basis e Logarithmus"
+        ]
     },
     {
         "op_variant": "Log",
@@ -272,7 +504,16 @@
         "key_path": null,
         "description": "Base-10 logarithm of X",
         "example": "100 LOG -> 2.0000",
-        "notes": "DATA ERROR if X <= 0. LASTX saved. Use 10^X to invert."
+        "notes": "DATA ERROR if X <= 0. LASTX saved. Use 10^X to invert.",
+        "search_aliases": [
+            "Logarithmus",
+            "base 10 log",
+            "dekadischer Logarithmus",
+            "Zehnerlogarithmus",
+            "log10",
+            "LOG berechnen",
+            "Logarithmus zur Basis 10"
+        ]
     },
     {
         "op_variant": "Exp",
@@ -283,7 +524,16 @@
         "key_path": null,
         "description": "Natural exponential of X",
         "example": "1 E^X -> 2.718281828",
-        "notes": "Raises e to X. LASTX saved. Stack lift enabled after."
+        "notes": "Raises e to X. LASTX saved. Stack lift enabled after.",
+        "search_aliases": [
+            "Exponentialfunktion",
+            "e hoch X",
+            "natural exponential",
+            "e^X berechnen",
+            "Basis e Potenz",
+            "EXP Funktion",
+            "natürliche Exponentialfunktion"
+        ]
     },
     {
         "op_variant": "TenPow",
@@ -292,7 +542,16 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Base-10 exponential of X"
+        "description": "Base-10 exponential of X",
+        "search_aliases": [
+            "zehn hoch X",
+            "base 10 exponential",
+            "10^X berechnen",
+            "Zehnerpotenzen",
+            "Antilogarithmus",
+            "inverse log",
+            "10 Potenz"
+        ]
     },
     {
         "op_variant": "Sin",
@@ -303,7 +562,17 @@
         "key_path": null,
         "description": "Sine of X (in current angle mode)",
         "example": "DEG mode: 30 SIN -> 0.5000",
-        "notes": "Uses current angle mode (DEG/RAD/GRAD). LASTX saved. Stack lift enabled."
+        "notes": "Uses current angle mode (DEG/RAD/GRAD). LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "Sinus",
+            "sinus berechnen",
+            "sine function",
+            "sin x",
+            "Winkelfunktion Sinus",
+            "sin Grad",
+            "sin Bogenmaß",
+            "trigonometric sine"
+        ]
     },
     {
         "op_variant": "Cos",
@@ -314,7 +583,17 @@
         "key_path": null,
         "description": "Cosine of X (in current angle mode)",
         "example": "DEG mode: 60 COS -> 0.5000",
-        "notes": "Uses current angle mode (DEG/RAD/GRAD). LASTX saved. Stack lift enabled."
+        "notes": "Uses current angle mode (DEG/RAD/GRAD). LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "Kosinus",
+            "kosinus berechnen",
+            "cosine function",
+            "cos x",
+            "Winkelfunktion Kosinus",
+            "cos Grad",
+            "cos Bogenmaß",
+            "trigonometric cosine"
+        ]
     },
     {
         "op_variant": "Tan",
@@ -325,7 +604,17 @@
         "key_path": null,
         "description": "Tangent of X (in current angle mode)",
         "example": "DEG mode: 45 TAN -> 1.0000",
-        "notes": "DATA ERROR at 90 deg. LASTX saved. Stack lift enabled."
+        "notes": "DATA ERROR at 90 deg. LASTX saved. Stack lift enabled.",
+        "search_aliases": [
+            "Tangens",
+            "tangens berechnen",
+            "tangent function",
+            "tan x",
+            "Winkelfunktion Tangens",
+            "tan Grad",
+            "90 Grad Fehler",
+            "trigonometric tangent"
+        ]
     },
     {
         "op_variant": "Asin",
@@ -336,7 +625,17 @@
         "key_path": null,
         "description": "Arc sine of X (result in current angle mode)",
         "example": "0.5 ASIN -> 30.0000 (DEG mode)",
-        "notes": "Domain: -1 <= X <= 1; DATA ERROR outside. Result in current angle mode."
+        "notes": "Domain: -1 <= X <= 1; DATA ERROR outside. Result in current angle mode.",
+        "search_aliases": [
+            "Arcussinus",
+            "arcsin",
+            "arc sine",
+            "inverse sine",
+            "Winkel aus Sinus",
+            "umgekehrter Sinus",
+            "arcus sinus",
+            "asin Wertebereich"
+        ]
     },
     {
         "op_variant": "Acos",
@@ -345,7 +644,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Arc cosine of X (result in current angle mode)"
+        "description": "Arc cosine of X (result in current angle mode)",
+        "search_aliases": [
+            "Arcuskosinus",
+            "arccos",
+            "arc cosine",
+            "inverse cosine",
+            "Winkel aus Kosinus",
+            "umgekehrter Kosinus",
+            "arcus kosinus",
+            "acos Wertebereich"
+        ]
     },
     {
         "op_variant": "Atan",
@@ -354,7 +663,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Arc tangent of X (result in current angle mode)"
+        "description": "Arc tangent of X (result in current angle mode)",
+        "search_aliases": [
+            "Arcustangens",
+            "arctan",
+            "arc tangent",
+            "inverse tangent",
+            "Winkel aus Tangens",
+            "umgekehrter Tangens",
+            "arcus tangens",
+            "atan Grad"
+        ]
     },
     {
         "op_variant": "PolarToRect",
@@ -363,7 +682,17 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Convert polar (Y=mag, X=angle) to rectangular"
+        "description": "Convert polar (Y=mag, X=angle) to rectangular",
+        "search_aliases": [
+            "polar to rectangular",
+            "polar rectangular conversion",
+            "Polarkoordinaten kartesisch",
+            "Betrag Winkel zu xy",
+            "magnitude angle to xy",
+            "Koordinaten umrechnen polar",
+            "complex rectangular form",
+            "Polarform kartesische Form"
+        ]
     },
     {
         "op_variant": "RectToPolar",
@@ -372,7 +701,17 @@
         "status": "implemented",
         "phase": "20",
         "key_path": null,
-        "description": "Convert rectangular (Y=x, X=y) to polar"
+        "description": "Convert rectangular (Y=x, X=y) to polar",
+        "search_aliases": [
+            "rectangular to polar",
+            "xy to magnitude angle",
+            "kartesisch polar umrechnen",
+            "Betrag Winkel berechnen",
+            "rectangular polar conversion",
+            "kartesische Koordinaten Polarform",
+            "complex polar form",
+            "xy zu Polarform"
+        ]
     },
     {
         "op_variant": "SetDeg",
@@ -383,7 +722,17 @@
         "key_path": null,
         "description": "Set angle mode to DEG",
         "example": "DEG (sets trig input/output to degrees)",
-        "notes": "Affects SIN/COS/TAN and inverses. DEG annunciator hidden (default mode). Neutral stack lift."
+        "notes": "Affects SIN/COS/TAN and inverses. DEG annunciator hidden (default mode). Neutral stack lift.",
+        "search_aliases": [
+            "DEG mode",
+            "degree angle mode",
+            "Grad Modus",
+            "Winkeleinheit Grad",
+            "angle degrees set",
+            "Gradzahl einstellen",
+            "trigonometry degrees",
+            "Grad setzen"
+        ]
     },
     {
         "op_variant": "SetRad",
@@ -392,7 +741,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Set angle mode to RAD"
+        "description": "Set angle mode to RAD",
+        "search_aliases": [
+            "RAD mode",
+            "radian angle mode",
+            "Bogenmaß Modus",
+            "Radiant einstellen",
+            "angle radians set",
+            "Bogenmaß setzen",
+            "trigonometry radians",
+            "Winkel Bogenmaß"
+        ]
     },
     {
         "op_variant": "SetGrad",
@@ -401,7 +760,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Set angle mode to GRAD"
+        "description": "Set angle mode to GRAD",
+        "search_aliases": [
+            "GRAD mode",
+            "gradian angle mode",
+            "Neugrad Modus",
+            "Gon einstellen",
+            "angle gradians set",
+            "Neugrad setzen",
+            "trigonometry gradians",
+            "Winkel Neugrad"
+        ]
     },
     {
         "op_variant": "FmtFix",
@@ -412,7 +781,17 @@
         "key_path": "F",
         "description": "FIX n - fixed decimal display (n=0..9)",
         "example": "FIX 4 -> shows 4 decimal places",
-        "notes": "FIX 4: 3.14159 shows as 3.1416. Does not change stored value; display only."
+        "notes": "FIX 4: 3.14159 shows as 3.1416. Does not change stored value; display only.",
+        "search_aliases": [
+            "FIX decimal places",
+            "fixed decimal display",
+            "Dezimalstellen fest",
+            "Nachkommastellen anzeigen",
+            "feste Dezimalstellen",
+            "fixed point notation",
+            "decimal format",
+            "FIX Anzeige"
+        ]
     },
     {
         "op_variant": "FmtSci",
@@ -423,7 +802,17 @@
         "key_path": "F",
         "description": "SCI n - scientific notation display (n=0..9)",
         "example": "SCI 2 -> 3.14E0 (shows exponent)",
-        "notes": "n = significant digits after decimal in mantissa. Display mode only; no precision change."
+        "notes": "n = significant digits after decimal in mantissa. Display mode only; no precision change.",
+        "search_aliases": [
+            "SCI scientific notation",
+            "scientific display format",
+            "Wissenschaftliche Notation",
+            "Exponentialschreibweise",
+            "Exponentialdarstellung",
+            "SCI Anzeige",
+            "exponential format",
+            "Exponentdarstellung"
+        ]
     },
     {
         "op_variant": "FmtEng",
@@ -434,7 +823,17 @@
         "key_path": "F",
         "description": "ENG n - engineering notation display (n=0..9)",
         "example": "ENG 3 -> exponent always multiple of 3",
-        "notes": "Exponent is always a multiple of 3 (kilo/mega/etc). Display mode only."
+        "notes": "Exponent is always a multiple of 3 (kilo/mega/etc). Display mode only.",
+        "search_aliases": [
+            "ENG engineering notation",
+            "engineering display format",
+            "Ingenieursnotation",
+            "Ingenieur Darstellung",
+            "kilo mega notation",
+            "Exponent Vielfaches 3",
+            "ENG Anzeige",
+            "engineering format"
+        ]
     },
     {
         "op_variant": "StoReg",
@@ -445,7 +844,17 @@
         "key_path": "S",
         "description": "STO nn - store X into register nn (0..99)",
         "example": "42 STO 05 -> R05 = 42 (X unchanged)",
-        "notes": "Copies X to register; X and stack unchanged. Stack lift neutral."
+        "notes": "Copies X to register; X and stack unchanged. Stack lift neutral.",
+        "search_aliases": [
+            "store register",
+            "STO nn",
+            "Wert speichern",
+            "Register speichern",
+            "X ins Register",
+            "value to register",
+            "Zahl ablegen",
+            "in Register schreiben"
+        ]
     },
     {
         "op_variant": "RclReg",
@@ -456,7 +865,17 @@
         "key_path": "R",
         "description": "RCL nn - recall register nn into X (0..99)",
         "example": "RCL 05 -> X = R05 (stack lifts)",
-        "notes": "Pushes register value onto stack (stack lifts). Register content unchanged. Stack lift enabled."
+        "notes": "Pushes register value onto stack (stack lifts). Register content unchanged. Stack lift enabled.",
+        "search_aliases": [
+            "recall register",
+            "RCL nn",
+            "Register abrufen",
+            "Wert laden",
+            "Register holen",
+            "load from register",
+            "Inhalt abrufen",
+            "stack push register"
+        ]
     },
     {
         "op_variant": "StoArith",
@@ -465,7 +884,17 @@
         "status": "implemented",
         "phase": "9",
         "key_path": "S",
-        "description": "STO arithmetic on register nn using X"
+        "description": "STO arithmetic on register nn using X",
+        "search_aliases": [
+            "STO plus minus",
+            "add to register",
+            "register addieren",
+            "STO arithmetic register",
+            "in Register rechnen",
+            "STO Rechenoperation",
+            "register subtrahieren",
+            "register multiplizieren"
+        ]
     },
     {
         "op_variant": "StoArithStack",
@@ -474,7 +903,16 @@
         "status": "implemented",
         "phase": "9",
         "key_path": "S",
-        "description": "STO arithmetic on stack register using X"
+        "description": "STO arithmetic on stack register using X",
+        "search_aliases": [
+            "STO stack register",
+            "Stapelregister Arithmetik",
+            "STO Y Z T L",
+            "stack register operation",
+            "STO Y Register",
+            "stack arithmetic store",
+            "Register Y Z T"
+        ]
     },
     {
         "op_variant": "Clreg",
@@ -483,7 +921,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Clear all storage registers R00..R99 to zero"
+        "description": "Clear all storage registers R00..R99 to zero",
+        "search_aliases": [
+            "alle Register löschen",
+            "clear all registers",
+            "CLRG Befehl",
+            "Speicher löschen",
+            "reset storage registers",
+            "Register nullsetzen",
+            "R00 bis R99 löschen",
+            "clear storage registers"
+        ]
     },
     {
         "op_variant": "AlphaToggle",
@@ -492,7 +940,17 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Toggle ALPHA mode (input/output text characters)"
+        "description": "Toggle ALPHA mode (input/output text characters)",
+        "search_aliases": [
+            "ALPHA Modus",
+            "Textmodus umschalten",
+            "alpha mode toggle",
+            "Buchstabeneingabe",
+            "text input mode",
+            "alpha ein aus",
+            "character mode",
+            "ALPHA aktivieren"
+        ]
     },
     {
         "op_variant": "AlphaAppend",
@@ -501,7 +959,16 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Append character to ALPHA register (max 24 chars)"
+        "description": "Append character to ALPHA register (max 24 chars)",
+        "search_aliases": [
+            "Zeichen anfügen",
+            "alpha append char",
+            "Buchstabe hinzufügen",
+            "character append alpha",
+            "text eingeben",
+            "ALPHA Zeichen",
+            "append to alpha register"
+        ]
     },
     {
         "op_variant": "AlphaClear",
@@ -510,7 +977,16 @@
         "status": "implemented",
         "phase": "2",
         "key_path": null,
-        "description": "Clear ALPHA register (legacy alias of CLA)"
+        "description": "Clear ALPHA register (legacy alias of CLA)",
+        "search_aliases": [
+            "ALPHA löschen",
+            "clear alpha register",
+            "CLRALPHA",
+            "alpha register leeren",
+            "text löschen",
+            "alpha clear legacy",
+            "Zeichenkette löschen"
+        ]
     },
     {
         "op_variant": "Lbl",
@@ -519,7 +995,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": null,
-        "description": "Program label marker (no-op at execution)"
+        "description": "Program label marker (no-op at execution)",
+        "search_aliases": [
+            "label",
+            "program label",
+            "Marke",
+            "Sprungmarke",
+            "Programmmarke",
+            "define label",
+            "label marker",
+            "Bezeichnung"
+        ]
     },
     {
         "op_variant": "Gto",
@@ -528,7 +1014,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": null,
-        "description": "GTO name - unconditional branch to label"
+        "description": "GTO name - unconditional branch to label",
+        "search_aliases": [
+            "goto",
+            "jump",
+            "branch",
+            "unconditional jump",
+            "Sprung",
+            "Verzweigung",
+            "gehe zu",
+            "unbedingter Sprung"
+        ]
     },
     {
         "op_variant": "Xeq",
@@ -537,7 +1033,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": "f-N",
-        "description": "XEQ name - subroutine call (max 4 deep)"
+        "description": "XEQ name - subroutine call (max 4 deep)",
+        "search_aliases": [
+            "execute",
+            "call subroutine",
+            "run program",
+            "ausführen",
+            "Unterprogramm aufrufen",
+            "subroutine call",
+            "starte Programm",
+            "Aufruf"
+        ]
     },
     {
         "op_variant": "Rtn",
@@ -546,7 +1052,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": null,
-        "description": "Return from subroutine"
+        "description": "Return from subroutine",
+        "search_aliases": [
+            "return",
+            "return subroutine",
+            "exit program",
+            "Rückkehr",
+            "zurück",
+            "Unterprogramm Ende",
+            "end subroutine",
+            "Programmrückkehr"
+        ]
     },
     {
         "op_variant": "PrgmMode",
@@ -555,7 +1071,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": "p",
-        "description": "Toggle PRGM recording mode"
+        "description": "Toggle PRGM recording mode",
+        "search_aliases": [
+            "program mode",
+            "programming mode",
+            "record program",
+            "Programmmodus",
+            "Programm aufnehmen",
+            "Programmierung",
+            "edit program",
+            "Eingabemodus"
+        ]
     },
     {
         "op_variant": "Test",
@@ -564,7 +1090,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": "f--",
-        "description": "Conditional test (skip next step on false)"
+        "description": "Conditional test (skip next step on false)",
+        "search_aliases": [
+            "conditional test",
+            "skip next",
+            "compare",
+            "Bedingung",
+            "Vergleich",
+            "bedingte Abfrage",
+            "überspringen",
+            "if statement"
+        ]
     },
     {
         "op_variant": "Isg",
@@ -573,7 +1109,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": "f-i",
-        "description": "ISG nn - increment counter, skip on overflow"
+        "description": "ISG nn - increment counter, skip on overflow",
+        "search_aliases": [
+            "increment skip",
+            "counter loop",
+            "count up skip",
+            "Zähler erhöhen",
+            "Schleife aufwärts",
+            "ISG Schleife",
+            "aufwärts zählen",
+            "Inkrement überspringen"
+        ]
     },
     {
         "op_variant": "Dse",
@@ -582,7 +1128,17 @@
         "status": "implemented",
         "phase": "3",
         "key_path": "f-d",
-        "description": "DSE nn - decrement counter, skip on underflow"
+        "description": "DSE nn - decrement counter, skip on underflow",
+        "search_aliases": [
+            "decrement skip",
+            "count down",
+            "counter down skip",
+            "Zähler verringern",
+            "abwärts zählen",
+            "DSE Schleife",
+            "Dekrement überspringen",
+            "Rückwärtsschleife"
+        ]
     },
     {
         "op_variant": "UserMode",
@@ -591,7 +1147,17 @@
         "status": "implemented",
         "phase": "5",
         "key_path": "u",
-        "description": "Toggle USER mode (key assignments active)"
+        "description": "Toggle USER mode (key assignments active)",
+        "search_aliases": [
+            "user mode",
+            "key assignment",
+            "custom keys",
+            "Benutzermodus",
+            "Tastenbelegung",
+            "eigene Tasten",
+            "assign keys",
+            "USER Modus"
+        ]
     },
     {
         "op_variant": "AlphaBackspace",
@@ -600,7 +1166,16 @@
         "status": "implemented",
         "phase": "5",
         "key_path": null,
-        "description": "Delete last character from ALPHA register"
+        "description": "Delete last character from ALPHA register",
+        "search_aliases": [
+            "letztes Zeichen löschen",
+            "backspace alpha",
+            "alpha rückschritt",
+            "delete last char",
+            "Zeichen entfernen",
+            "alpha backspace",
+            "rückwärts löschen"
+        ]
     },
     {
         "op_variant": "SigmaPlus",
@@ -609,7 +1184,16 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Accumulate X,Y into stat registers; push count"
+        "description": "Accumulate X,Y into stat registers; push count",
+        "search_aliases": [
+            "Statistik akkumulieren",
+            "Datenpunkt hinzufügen",
+            "stat registers fill",
+            "sigma plus",
+            "Messwert eingeben Statistik",
+            "statistical accumulate",
+            "X Y Statistik eingeben"
+        ]
     },
     {
         "op_variant": "SigmaMinus",
@@ -618,7 +1202,16 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Remove X,Y from stat registers; push count"
+        "description": "Remove X,Y from stat registers; push count",
+        "search_aliases": [
+            "Datenpunkt entfernen",
+            "sigma minus",
+            "stat undo",
+            "Statistikregister korrigieren",
+            "remove data point",
+            "falsche Eingabe Statistik",
+            "Messwert löschen"
+        ]
     },
     {
         "op_variant": "Mean",
@@ -627,7 +1220,16 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Push x-bar to X, y-bar to Y from stat regs"
+        "description": "Push x-bar to X, y-bar to Y from stat regs",
+        "search_aliases": [
+            "Mittelwert",
+            "mean average",
+            "Durchschnitt berechnen",
+            "x-bar y-bar",
+            "arithmetisches Mittel",
+            "Erwartungswert Statistik",
+            "Mittelwert berechnen"
+        ]
     },
     {
         "op_variant": "Sdev",
@@ -636,7 +1238,16 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Sample std dev (n-1): X<-sigma_x, Y<-sigma_y"
+        "description": "Sample std dev (n-1): X<-sigma_x, Y<-sigma_y",
+        "search_aliases": [
+            "Standardabweichung",
+            "standard deviation",
+            "Streuung berechnen",
+            "sigma x sigma y",
+            "sample std dev",
+            "Stichprobenstreuung",
+            "Varianz Statistik"
+        ]
     },
     {
         "op_variant": "LR",
@@ -645,7 +1256,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Linear regression: slope m to Y, intercept b to X"
+        "description": "Linear regression: slope m to Y, intercept b to X",
+        "search_aliases": [
+            "linear regression",
+            "slope intercept",
+            "regression coefficients",
+            "best fit line",
+            "least squares",
+            "Regressionsgerade",
+            "lineare Regression",
+            "Steigung Achsenabschnitt"
+        ]
     },
     {
         "op_variant": "Yhat",
@@ -654,7 +1275,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "y-hat prediction via linear regression"
+        "description": "y-hat prediction via linear regression",
+        "search_aliases": [
+            "y prediction",
+            "predicted value",
+            "regression forecast",
+            "y-hat value",
+            "estimated y",
+            "y Vorhersage",
+            "geschätztes y",
+            "Regressionsprognose"
+        ]
     },
     {
         "op_variant": "Corr",
@@ -663,7 +1294,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Correlation coefficient r in X"
+        "description": "Correlation coefficient r in X",
+        "search_aliases": [
+            "correlation coefficient",
+            "pearson r",
+            "r value",
+            "regression r",
+            "statistical correlation",
+            "Korrelationskoeffizient",
+            "Korrelation r",
+            "Pearson Korrelation"
+        ]
     },
     {
         "op_variant": "ClSigmaStat",
@@ -672,7 +1313,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Clear stat registers R01..R06 to zero"
+        "description": "Clear stat registers R01..R06 to zero",
+        "search_aliases": [
+            "clear statistics",
+            "reset stat registers",
+            "clear sigma",
+            "erase stats data",
+            "Statistik löschen",
+            "Statistikregister löschen",
+            "Sigma löschen",
+            "Statistik zurücksetzen"
+        ]
     },
     {
         "op_variant": "HmsToH",
@@ -681,7 +1332,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Convert H.MMSS to decimal hours"
+        "description": "Convert H.MMSS to decimal hours",
+        "search_aliases": [
+            "Stunden Minuten Sekunden Dezimal",
+            "HMS to decimal hours",
+            "Zeitformat Dezimal umrechnen",
+            "H.MMSS dezimal",
+            "hours minutes seconds decimal",
+            "Sexagesimal Dezimalstunden",
+            "Zeitformat konvertieren",
+            "sexagesimal to decimal"
+        ]
     },
     {
         "op_variant": "HToHms",
@@ -690,7 +1351,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Convert decimal hours to H.MMSS"
+        "description": "Convert decimal hours to H.MMSS",
+        "search_aliases": [
+            "Dezimalstunden in HMS",
+            "decimal hours to HMS",
+            "Dezimal zu Zeitformat",
+            "H.MMSS Format umrechnen",
+            "decimal to hours minutes seconds",
+            "Dezimalzeit in Sexagesimal",
+            "time conversion decimal",
+            "Stunden Minuten Format"
+        ]
     },
     {
         "op_variant": "HmsAdd",
@@ -699,7 +1370,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Add two H.MMSS values (base-60 carry)"
+        "description": "Add two H.MMSS values (base-60 carry)",
+        "search_aliases": [
+            "Zeitwerte addieren",
+            "add time values",
+            "HMS Addition",
+            "Stunden Minuten addieren",
+            "Zeitaddition Basis 60",
+            "base 60 addition",
+            "H.MMSS addieren",
+            "Zeitformat plus"
+        ]
     },
     {
         "op_variant": "HmsSub",
@@ -708,7 +1389,17 @@
         "status": "implemented",
         "phase": "6",
         "key_path": null,
-        "description": "Subtract H.MMSS values (base-60 borrow)"
+        "description": "Subtract H.MMSS values (base-60 borrow)",
+        "search_aliases": [
+            "Zeitwerte subtrahieren",
+            "subtract time values",
+            "HMS Subtraktion",
+            "Stunden Minuten subtrahieren",
+            "Zeitsubtraktion Basis 60",
+            "base 60 subtraction",
+            "H.MMSS subtrahieren",
+            "Zeitformat minus"
+        ]
     },
     {
         "op_variant": "PRX",
@@ -717,7 +1408,17 @@
         "status": "implemented",
         "phase": "11",
         "key_path": null,
-        "description": "Print X register, right-aligned to 24 chars"
+        "description": "Print X register, right-aligned to 24 chars",
+        "search_aliases": [
+            "print x",
+            "print x register",
+            "X drucken",
+            "X Register drucken",
+            "Anzeige drucken",
+            "aktuellen Wert drucken",
+            "Zahl ausgeben",
+            "print number display"
+        ]
     },
     {
         "op_variant": "PRA",
@@ -726,7 +1427,17 @@
         "status": "implemented",
         "phase": "11",
         "key_path": null,
-        "description": "Print ALPHA register, left-aligned to 24 chars"
+        "description": "Print ALPHA register, left-aligned to 24 chars",
+        "search_aliases": [
+            "print alpha",
+            "print alpha register",
+            "print text",
+            "Alpha drucken",
+            "Text drucken",
+            "Alpha Register drucken",
+            "Beschriftung drucken",
+            "print string label"
+        ]
     },
     {
         "op_variant": "PRSTK",
@@ -735,7 +1446,17 @@
         "status": "implemented",
         "phase": "11",
         "key_path": null,
-        "description": "Print full stack T/Z/Y/X/LASTX/ALPHA"
+        "description": "Print full stack T/Z/Y/X/LASTX/ALPHA",
+        "search_aliases": [
+            "print stack",
+            "print full stack",
+            "print all registers",
+            "Stack drucken",
+            "Stapel drucken",
+            "alle Register drucken",
+            "stack dump",
+            "Stack komplett ausgeben"
+        ]
     },
     {
         "op_variant": "GetKey",
@@ -744,7 +1465,19 @@
         "status": "implemented",
         "phase": "12",
         "key_path": null,
-        "description": "Push last key code (HP-41 row*10+col) to X"
+        "description": "Push last key code (HP-41 row*10+col) to X",
+        "search_aliases": [
+            "get key code",
+            "last key pressed",
+            "key scan code",
+            "keyboard scan",
+            "read keypress",
+            "row column code",
+            "Tastencode lesen",
+            "letzte Taste Code",
+            "Tastenscan",
+            "Taste abfragen"
+        ]
     },
     {
         "op_variant": "Null",
@@ -753,7 +1486,19 @@
         "status": "implemented",
         "phase": "12",
         "key_path": null,
-        "description": "True no-op; does not modify any state"
+        "description": "True no-op; does not modify any state",
+        "search_aliases": [
+            "no operation",
+            "no-op",
+            "do nothing",
+            "placeholder step",
+            "empty instruction",
+            "keine Operation",
+            "Platzhalter",
+            "leere Anweisung",
+            "nichts ausführen",
+            "Leeranweisung"
+        ]
     },
     {
         "op_variant": "StoM",
@@ -762,7 +1507,17 @@
         "status": "implemented",
         "phase": "12",
         "key_path": "S",
-        "description": "Store X to hidden register M"
+        "description": "Store X to hidden register M",
+        "search_aliases": [
+            "store M register",
+            "save to M",
+            "hidden register M store",
+            "synthetic register M",
+            "M speichern",
+            "verstecktes Register M",
+            "in M ablegen",
+            "Register M schreiben"
+        ]
     },
     {
         "op_variant": "StoN",
@@ -771,7 +1526,17 @@
         "status": "implemented",
         "phase": "12",
         "key_path": "S",
-        "description": "Store X to hidden register N"
+        "description": "Store X to hidden register N",
+        "search_aliases": [
+            "store N register",
+            "save to N",
+            "hidden register N store",
+            "synthetic register N",
+            "N speichern",
+            "verstecktes Register N",
+            "in N ablegen",
+            "Register N schreiben"
+        ]
     },
     {
         "op_variant": "StoO",
@@ -780,7 +1545,17 @@
         "status": "implemented",
         "phase": "12",
         "key_path": "S",
-        "description": "Store X to hidden register O"
+        "description": "Store X to hidden register O",
+        "search_aliases": [
+            "store O register",
+            "save to O",
+            "hidden register O store",
+            "synthetic register O",
+            "O speichern",
+            "verstecktes Register O",
+            "in O ablegen",
+            "Register O schreiben"
+        ]
     },
     {
         "op_variant": "RclM",
@@ -789,7 +1564,17 @@
         "status": "implemented",
         "phase": "12",
         "key_path": "R",
-        "description": "Recall hidden register M into X"
+        "description": "Recall hidden register M into X",
+        "search_aliases": [
+            "recall M register",
+            "load from M",
+            "hidden register M recall",
+            "get M value",
+            "M abrufen",
+            "Register M lesen",
+            "verstecktes Register M abrufen",
+            "M laden"
+        ]
     },
     {
         "op_variant": "RclN",
@@ -798,7 +1583,17 @@
         "status": "implemented",
         "phase": "12",
         "key_path": "R",
-        "description": "Recall hidden register N into X"
+        "description": "Recall hidden register N into X",
+        "search_aliases": [
+            "recall N register",
+            "load from N",
+            "hidden register N recall",
+            "get N value",
+            "N abrufen",
+            "Register N lesen",
+            "verstecktes Register N abrufen",
+            "N laden"
+        ]
     },
     {
         "op_variant": "RclO",
@@ -807,7 +1602,17 @@
         "status": "implemented",
         "phase": "12",
         "key_path": "R",
-        "description": "Recall hidden register O into X"
+        "description": "Recall hidden register O into X",
+        "search_aliases": [
+            "recall O register",
+            "load from O",
+            "hidden register O recall",
+            "get O value",
+            "O abrufen",
+            "Register O lesen",
+            "verstecktes Register O abrufen",
+            "O laden"
+        ]
     },
     {
         "op_variant": "Wdta",
@@ -816,7 +1621,17 @@
         "status": "implemented",
         "phase": "v2.1",
         "key_path": "XEQ \"WDTA\"",
-        "description": "Write data registers to card (name in ALPHA)"
+        "description": "Write data registers to card (name in ALPHA)",
+        "search_aliases": [
+            "write data card",
+            "Daten schreiben Karte",
+            "Datenkarte schreiben",
+            "save data registers card",
+            "Register sichern Karte",
+            "Karte Daten speichern",
+            "card write data",
+            "Daten auf Karte"
+        ]
     },
     {
         "op_variant": "Rdta",
@@ -825,7 +1640,17 @@
         "status": "implemented",
         "phase": "v2.1",
         "key_path": "XEQ \"RDTA\"",
-        "description": "Read data registers from card (name in ALPHA)"
+        "description": "Read data registers from card (name in ALPHA)",
+        "search_aliases": [
+            "read data card",
+            "Daten lesen Karte",
+            "Datenkarte lesen",
+            "load data registers card",
+            "Register laden Karte",
+            "Karte Daten laden",
+            "card read data",
+            "Daten von Karte"
+        ]
     },
     {
         "op_variant": "Wprgm",
@@ -834,7 +1659,17 @@
         "status": "implemented",
         "phase": "v2.1",
         "key_path": "XEQ \"WPRGM\"",
-        "description": "Write current program to card (name in ALPHA)"
+        "description": "Write current program to card (name in ALPHA)",
+        "search_aliases": [
+            "write program card",
+            "Programm schreiben Karte",
+            "Programmkarte schreiben",
+            "save program card",
+            "Programm sichern Karte",
+            "Karte Programm speichern",
+            "card write program",
+            "Programm auf Karte"
+        ]
     },
     {
         "op_variant": "Rdprgm",
@@ -843,7 +1678,17 @@
         "status": "implemented",
         "phase": "v2.1",
         "key_path": "XEQ \"RDPRGM\"",
-        "description": "Read program from card (name in ALPHA)"
+        "description": "Read program from card (name in ALPHA)",
+        "search_aliases": [
+            "read program card",
+            "Programm lesen Karte",
+            "Programmkarte lesen",
+            "load program card",
+            "Programm laden Karte",
+            "Karte Programm laden",
+            "card read program",
+            "Programm von Karte"
+        ]
     },
     {
         "op_variant": "SfFlag",
@@ -852,7 +1697,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": "f-7",
-        "description": "SF n - set flag n (0..55)"
+        "description": "SF n - set flag n (0..55)",
+        "search_aliases": [
+            "set flag",
+            "Flagge setzen",
+            "flag aktivieren",
+            "flag on",
+            "Flag einschalten",
+            "SF n",
+            "enable flag",
+            "flag setzen"
+        ]
     },
     {
         "op_variant": "CfFlag",
@@ -861,7 +1716,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": "f-8",
-        "description": "CF n - clear flag n (0..55)"
+        "description": "CF n - clear flag n (0..55)",
+        "search_aliases": [
+            "clear flag",
+            "Flagge löschen",
+            "flag deaktivieren",
+            "flag off",
+            "Flag ausschalten",
+            "CF n",
+            "disable flag",
+            "flag zurücksetzen"
+        ]
     },
     {
         "op_variant": "FlagTest",
@@ -870,7 +1735,19 @@
         "status": "implemented",
         "phase": "21",
         "key_path": "f-9",
-        "description": "Conditional flag test (skip next step on false)"
+        "description": "Conditional flag test (skip next step on false)",
+        "search_aliases": [
+            "flag testen",
+            "test flag",
+            "Flagge prüfen",
+            "is flag set",
+            "flag gesetzt",
+            "flag abfragen",
+            "FS? FC?",
+            "bedingte Flag Prüfung",
+            "conditional flag check",
+            "flag skip"
+        ]
     },
     {
         "op_variant": "View",
@@ -879,7 +1756,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": "f-v",
-        "description": "VIEW nn - show formatted value of register nn"
+        "description": "VIEW nn - show formatted value of register nn",
+        "search_aliases": [
+            "view register value",
+            "Register anzeigen",
+            "zeige Register",
+            "display register contents",
+            "Registerinhalt zeigen",
+            "VIEW register",
+            "show register value",
+            "Registerwert anzeigen"
+        ]
     },
     {
         "op_variant": "AView",
@@ -888,7 +1775,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": null,
-        "description": "Show ALPHA register on display (24-char truncate)"
+        "description": "Show ALPHA register on display (24-char truncate)",
+        "search_aliases": [
+            "show alpha display",
+            "ALPHA anzeigen",
+            "Alpharegister anzeigen",
+            "alpha string display",
+            "AVIEW display",
+            "Zeichenkette anzeigen",
+            "alpha register show",
+            "text anzeigen"
+        ]
     },
     {
         "op_variant": "Prompt",
@@ -897,7 +1794,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": null,
-        "description": "Show ALPHA on display; break execution in run_loop"
+        "description": "Show ALPHA on display; break execution in run_loop",
+        "search_aliases": [
+            "prompt pause program",
+            "Programmunterbrechung",
+            "ALPHA Pause anzeigen",
+            "halt show message",
+            "Prompt stop execute",
+            "anhalten anzeigen",
+            "pause alpha display",
+            "Eingabe anhalten"
+        ]
     },
     {
         "op_variant": "Aon",
@@ -906,7 +1813,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": null,
-        "description": "Enable ALPHA auto-display (sets system flag 48)"
+        "description": "Enable ALPHA auto-display (sets system flag 48)",
+        "search_aliases": [
+            "alpha auto display on",
+            "ALPHA automatisch anzeigen",
+            "AON aktivieren",
+            "alpha mode enable",
+            "automatische Alpha Anzeige",
+            "alpha display on",
+            "enable alpha display",
+            "ALPHA einschalten"
+        ]
     },
     {
         "op_variant": "Aoff",
@@ -915,7 +1832,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": null,
-        "description": "Disable ALPHA auto-display (clears flag 48)"
+        "description": "Disable ALPHA auto-display (clears flag 48)",
+        "search_aliases": [
+            "alpha auto display off",
+            "ALPHA automatisch ausschalten",
+            "AOFF deaktivieren",
+            "alpha mode disable",
+            "alpha display off",
+            "disable alpha display",
+            "ALPHA ausschalten",
+            "auto alpha deaktivieren"
+        ]
     },
     {
         "op_variant": "Cld",
@@ -924,7 +1851,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": null,
-        "description": "Explicit clear of display_override"
+        "description": "Explicit clear of display_override",
+        "search_aliases": [
+            "clear display override",
+            "Anzeige löschen",
+            "CLD display reset",
+            "display clear",
+            "Anzeige zurücksetzen",
+            "override löschen",
+            "display override clear",
+            "Anzeigeüberschreibung löschen"
+        ]
     },
     {
         "op_variant": "Beep",
@@ -933,7 +1870,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": null,
-        "description": "Push BEEP event to event_buffer"
+        "description": "Push BEEP event to event_buffer",
+        "search_aliases": [
+            "BEEP Signalton",
+            "akustisches Signal",
+            "Piepton ausgeben",
+            "beep sound alert",
+            "audio alert beep",
+            "Ton Warnsignal",
+            "calculator beep",
+            "Signalton Taschenrechner"
+        ]
     },
     {
         "op_variant": "Tone",
@@ -942,7 +1889,17 @@
         "status": "implemented",
         "phase": "21",
         "key_path": "f-T",
-        "description": "TONE n - push TONE event (n=0..9) to buffer"
+        "description": "TONE n - push TONE event (n=0..9) to buffer",
+        "search_aliases": [
+            "TONE Ton abspielen",
+            "Tonfolge ausgeben",
+            "play tone number",
+            "Ton Nummer 0-9",
+            "audio tone sequence",
+            "Melodieton erzeugen",
+            "sound tone n",
+            "akustischer Ton"
+        ]
     },
     {
         "op_variant": "Stop",
@@ -951,7 +1908,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "Halt program execution (breaks run_loop)"
+        "description": "Halt program execution (breaks run_loop)",
+        "search_aliases": [
+            "stop program",
+            "halt",
+            "end program",
+            "Programm stoppen",
+            "anhalten",
+            "Halt",
+            "Programmabbruch",
+            "pause execution"
+        ]
     },
     {
         "op_variant": "Pse",
@@ -960,7 +1927,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "Pause: display X and emit ~1s delay marker"
+        "description": "Pause: display X and emit ~1s delay marker",
+        "search_aliases": [
+            "pause",
+            "display pause",
+            "show result",
+            "Pause",
+            "Anzeigepause",
+            "kurze Pause",
+            "Anzeigeverzögerung",
+            "brief display"
+        ]
     },
     {
         "op_variant": "GtoInd",
@@ -969,7 +1946,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "GTO IND nn - indirect branch through register nn"
+        "description": "GTO IND nn - indirect branch through register nn",
+        "search_aliases": [
+            "indirekter Sprung",
+            "Sprung über Register",
+            "indirect goto",
+            "indirect branch",
+            "indirect jump",
+            "Register-Sprung",
+            "goto via register",
+            "branch indirect"
+        ]
     },
     {
         "op_variant": "XeqInd",
@@ -978,7 +1965,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "XEQ IND nn - indirect subroutine call"
+        "description": "XEQ IND nn - indirect subroutine call",
+        "search_aliases": [
+            "indirekter Aufruf",
+            "Unterprogramm indirekt",
+            "indirect execute",
+            "indirect subroutine call",
+            "call via register",
+            "indirektes Ausführen",
+            "execute indirect",
+            "XEQ über Register"
+        ]
     },
     {
         "op_variant": "Clp",
@@ -988,7 +1985,16 @@
         "phase": "22",
         "key_path": "f-C",
         "description": "CLP name - clear program from LBL to next LBL",
-        "divergences": ["CLP boundary = next LBL (no END/.END. markers)"]
+        "divergences": ["CLP boundary = next LBL (no END/.END. markers)"],
+        "search_aliases": [
+            "clear program",
+            "delete program",
+            "erase program",
+            "Programm löschen",
+            "Programm entfernen",
+            "remove program",
+            "Programm bereinigen"
+        ]
     },
     {
         "op_variant": "Del",
@@ -997,7 +2003,16 @@
         "status": "implemented",
         "phase": "22",
         "key_path": "f-D",
-        "description": "DEL nnn - delete nnn program steps starting at pc"
+        "description": "DEL nnn - delete nnn program steps starting at pc",
+        "search_aliases": [
+            "delete steps",
+            "remove steps",
+            "erase lines",
+            "Schritte löschen",
+            "Zeilen entfernen",
+            "Programmschritte löschen",
+            "delete program steps"
+        ]
     },
     {
         "op_variant": "Ins",
@@ -1006,7 +2021,16 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "Insert Op::Null (no-op placeholder) at state.pc"
+        "description": "Insert Op::Null (no-op placeholder) at state.pc",
+        "search_aliases": [
+            "insert step",
+            "insert placeholder",
+            "add empty step",
+            "Schritt einfügen",
+            "einfügen",
+            "leerer Schritt",
+            "Platzhalter einfügen"
+        ]
     },
     {
         "op_variant": "Size",
@@ -1015,7 +2039,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "SIZE nnn - resize state.regs to nnn (1..319)"
+        "description": "SIZE nnn - resize state.regs to nnn (1..319)",
+        "search_aliases": [
+            "register size",
+            "set registers",
+            "memory size",
+            "Registergröße",
+            "Register festlegen",
+            "Speicher einstellen",
+            "Anzahl Register",
+            "resize registers"
+        ]
     },
     {
         "op_variant": "Cla",
@@ -1024,7 +2058,16 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "Clear ALPHA register (hardware-faithful display name)"
+        "description": "Clear ALPHA register (hardware-faithful display name)",
+        "search_aliases": [
+            "CLA",
+            "alpha löschen",
+            "clear alpha",
+            "ALPHA leeren",
+            "Zeichenpuffer löschen",
+            "alpha register reset",
+            "clear text register"
+        ]
     },
     {
         "op_variant": "Clst",
@@ -1033,7 +2076,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "Clear stack X/Y/Z/T (preserves LASTX and lift)"
+        "description": "Clear stack X/Y/Z/T (preserves LASTX and lift)",
+        "search_aliases": [
+            "clear stack all",
+            "reset stack registers",
+            "empty stack",
+            "wipe all stack",
+            "Stapel löschen",
+            "Stack leeren komplett",
+            "alle Stapelregister löschen",
+            "Stack zurücksetzen"
+        ]
     },
     {
         "op_variant": "Pack",
@@ -1043,7 +2096,17 @@
         "phase": "22",
         "key_path": null,
         "description": "Compact program memory (no-op in flat-Vec model)",
-        "divergences": ["PACK is no-op (flat-Vec has no gaps to compact)"]
+        "divergences": ["PACK is no-op (flat-Vec has no gaps to compact)"],
+        "search_aliases": [
+            "pack memory",
+            "compact program",
+            "defragment",
+            "Speicher komprimieren",
+            "packen",
+            "defragmentieren",
+            "Speicher bereinigen",
+            "memory compact"
+        ]
     },
     {
         "op_variant": "Catalog",
@@ -1052,7 +2115,23 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "CATALOG n - emit catalog n (1..4) to print buffer"
+        "description": "CATALOG n - emit catalog n (1..4) to print buffer",
+        "search_aliases": [
+            "Katalog ausgeben",
+            "Katalog drucken",
+            "Programme auflisten",
+            "Funktionsliste drucken",
+            "XROM Module anzeigen",
+            "Programmverzeichnis",
+            "catalog print",
+            "list programs",
+            "program catalog",
+            "function catalog",
+            "print catalog",
+            "list user programs",
+            "catalog buffer",
+            "XROM catalog"
+        ]
     },
     {
         "op_variant": "Asn",
@@ -1061,7 +2140,17 @@
         "status": "implemented",
         "phase": "22",
         "key_path": null,
-        "description": "ASN name key - assign name to key (USER mode)"
+        "description": "ASN name key - assign name to key (USER mode)",
+        "search_aliases": [
+            "assign key",
+            "key assignment",
+            "custom key",
+            "Taste belegen",
+            "Tastenzuweisung",
+            "zuweisen",
+            "map key",
+            "Taste definieren"
+        ]
     },
     {
         "op_variant": "Arcl",
@@ -1070,7 +2159,16 @@
         "status": "implemented",
         "phase": "23",
         "key_path": "f-a",
-        "description": "ARCL nn - append register's value to ALPHA"
+        "description": "ARCL nn - append register's value to ALPHA",
+        "search_aliases": [
+            "ARCL",
+            "register an alpha",
+            "Registerwert anfügen",
+            "append register to alpha",
+            "Zahl in text",
+            "register recall alpha",
+            "Wert zu alpha"
+        ]
     },
     {
         "op_variant": "Asto",
@@ -1079,7 +2177,16 @@
         "status": "implemented",
         "phase": "23",
         "key_path": "f-A",
-        "description": "ASTO nn - pack first 6 ALPHA chars into reg nn"
+        "description": "ASTO nn - pack first 6 ALPHA chars into reg nn",
+        "search_aliases": [
+            "ASTO",
+            "alpha in register",
+            "text in register packen",
+            "alpha store register",
+            "Zeichen speichern",
+            "pack alpha chars",
+            "alpha register schreiben"
+        ]
     },
     {
         "op_variant": "Atox",
@@ -1088,7 +2195,16 @@
         "status": "implemented",
         "phase": "23",
         "key_path": null,
-        "description": "Pop first ALPHA char, push its codepoint to X"
+        "description": "Pop first ALPHA char, push its codepoint to X",
+        "search_aliases": [
+            "ATOX",
+            "ASCII code aus alpha",
+            "zeichen zu zahl",
+            "character to codepoint",
+            "erstes Zeichen extrahieren",
+            "alpha char code",
+            "Zeichencode X"
+        ]
     },
     {
         "op_variant": "Xtoa",
@@ -1097,7 +2213,16 @@
         "status": "implemented",
         "phase": "23",
         "key_path": null,
-        "description": "Convert X mod 256 to char, append to ALPHA"
+        "description": "Convert X mod 256 to char, append to ALPHA",
+        "search_aliases": [
+            "XTOA",
+            "Zahl zu Zeichen",
+            "number to character",
+            "ASCII Zeichen anfügen",
+            "code zu Buchstabe",
+            "X to alpha char",
+            "codepoint zu Zeichen"
+        ]
     },
     {
         "op_variant": "Arot",
@@ -1107,7 +2232,16 @@
         "phase": "23",
         "key_path": null,
         "description": "Rotate ALPHA by X chars (positive=left rotation)",
-        "divergences": ["AROT silent-truncate non-integer N"]
+        "divergences": ["AROT silent-truncate non-integer N"],
+        "search_aliases": [
+            "AROT",
+            "alpha rotieren",
+            "text rotieren",
+            "rotate alpha string",
+            "Zeichenkette drehen",
+            "alpha rotation links",
+            "string shift"
+        ]
     },
     {
         "op_variant": "Posa",
@@ -1117,7 +2251,16 @@
         "phase": "23",
         "key_path": null,
         "description": "POSA - position of X (ASCII codepoint) in ALPHA",
-        "divergences": ["POSA single-char only; multi-char deferred to v3.x"]
+        "divergences": ["POSA single-char only; multi-char deferred to v3.x"],
+        "search_aliases": [
+            "POSA",
+            "Zeichen suchen alpha",
+            "position in text",
+            "find char in alpha",
+            "ASCII position suchen",
+            "character position",
+            "Zeichenposition finden"
+        ]
     },
     {
         "op_variant": "StoInd",
@@ -1126,7 +2269,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "S",
-        "description": "STO IND nn - store via indirect register address"
+        "description": "STO IND nn - store via indirect register address",
+        "search_aliases": [
+            "indirekt speichern",
+            "über Register speichern",
+            "store indirect",
+            "indirect store",
+            "store via register",
+            "indirekter Store",
+            "Speichern indirekt",
+            "register indirect store"
+        ]
     },
     {
         "op_variant": "RclInd",
@@ -1135,7 +2288,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "R",
-        "description": "RCL IND nn - recall via indirect register address"
+        "description": "RCL IND nn - recall via indirect register address",
+        "search_aliases": [
+            "indirekt abrufen",
+            "über Register abrufen",
+            "recall indirect",
+            "indirect recall",
+            "recall via register",
+            "indirekter Recall",
+            "Abrufen indirekt",
+            "fetch indirect"
+        ]
     },
     {
         "op_variant": "StoArithInd",
@@ -1144,7 +2307,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "S",
-        "description": "STO arithmetic via indirect register address"
+        "description": "STO arithmetic via indirect register address",
+        "search_aliases": [
+            "indirektes arithmetisches Speichern",
+            "Rechenoperation indirekt speichern",
+            "store arithmetic indirect",
+            "indirect arithmetic store",
+            "STO plus minus indirect",
+            "STO mal durch indirekt",
+            "arithmetic store register",
+            "indirekt rechnen speichern"
+        ]
     },
     {
         "op_variant": "IsgInd",
@@ -1153,7 +2326,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-i",
-        "description": "ISG IND nn - increment counter via indirect addr"
+        "description": "ISG IND nn - increment counter via indirect addr",
+        "search_aliases": [
+            "Zähler erhöhen indirekt",
+            "inkrementieren indirekt",
+            "increment skip greater indirect",
+            "ISG indirect",
+            "Schleife inkrementieren indirekt",
+            "loop increment indirect",
+            "counter increment indirect",
+            "Zählschleife indirekt erhöhen"
+        ]
     },
     {
         "op_variant": "DseInd",
@@ -1162,7 +2345,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-d",
-        "description": "DSE IND nn - decrement counter via indirect addr"
+        "description": "DSE IND nn - decrement counter via indirect addr",
+        "search_aliases": [
+            "Zähler verringern indirekt",
+            "dekrementieren indirekt",
+            "decrement skip equal indirect",
+            "DSE indirect",
+            "Schleife dekrementieren indirekt",
+            "loop decrement indirect",
+            "counter decrement indirect",
+            "Zählschleife indirekt verringern"
+        ]
     },
     {
         "op_variant": "SfFlagInd",
@@ -1171,7 +2364,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-7",
-        "description": "SF IND nn - set flag via indirect register address"
+        "description": "SF IND nn - set flag via indirect register address",
+        "search_aliases": [
+            "Flag setzen indirekt",
+            "indirektes Flag setzen",
+            "set flag indirect",
+            "SF indirect",
+            "flag set via register",
+            "Register Flag setzen",
+            "indirect set flag",
+            "Flag über Register setzen"
+        ]
     },
     {
         "op_variant": "CfFlagInd",
@@ -1180,7 +2383,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-8",
-        "description": "CF IND nn - clear flag via indirect register addr"
+        "description": "CF IND nn - clear flag via indirect register addr",
+        "search_aliases": [
+            "Flag löschen indirekt",
+            "Flag rücksetzen indirekt",
+            "clear flag indirect",
+            "CF indirect",
+            "flag clear via register",
+            "indirektes Flag löschen",
+            "indirect clear flag",
+            "Flag über Register löschen"
+        ]
     },
     {
         "op_variant": "FlagTestInd",
@@ -1189,7 +2402,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-9",
-        "description": "Conditional flag test via indirect address"
+        "description": "Conditional flag test via indirect address",
+        "search_aliases": [
+            "Flag testen indirekt",
+            "Flag-Prüfung indirekt",
+            "flag test indirect",
+            "test flag indirect",
+            "conditional flag indirect",
+            "FS FC test indirect",
+            "Bedingung Flag indirekt",
+            "Flag-Abfrage indirekt"
+        ]
     },
     {
         "op_variant": "ArclInd",
@@ -1198,7 +2421,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-a",
-        "description": "ARCL IND nn - append indirect register to ALPHA"
+        "description": "ARCL IND nn - append indirect register to ALPHA",
+        "search_aliases": [
+            "Alpha anhängen indirekt",
+            "indirektes Anhängen Alpha",
+            "append indirect",
+            "alpha recall indirect",
+            "ARCL indirect",
+            "alpha append register indirect",
+            "Register an Alpha indirekt",
+            "Alpha ergänzen indirekt"
+        ]
     },
     {
         "op_variant": "AstoInd",
@@ -1207,7 +2440,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-A",
-        "description": "ASTO IND nn - pack ALPHA into indirect register"
+        "description": "ASTO IND nn - pack ALPHA into indirect register",
+        "search_aliases": [
+            "Alpha speichern indirekt",
+            "indirektes Alpha speichern",
+            "alpha store indirect",
+            "ASTO indirect",
+            "pack alpha indirect",
+            "store alpha indirect",
+            "Alpha einpacken indirekt",
+            "Alpha in Register indirekt"
+        ]
     },
     {
         "op_variant": "ViewInd",
@@ -1216,7 +2459,17 @@
         "status": "implemented",
         "phase": "24",
         "key_path": "f-v",
-        "description": "VIEW IND nn - display value of indirect register"
+        "description": "VIEW IND nn - display value of indirect register",
+        "search_aliases": [
+            "anzeigen indirekt",
+            "indirektes Anzeigen",
+            "view indirect",
+            "display indirect",
+            "show register indirect",
+            "indirect view",
+            "Register anzeigen indirekt",
+            "Wert anzeigen indirekt"
+        ]
     },
     {
         "op_variant": "XNeY_XEQ",
@@ -1225,7 +2478,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X<>Y?\"",
-        "description": "X != Y? conditional test (XEQ-by-Name only)"
+        "description": "X != Y? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "not equal test",
+            "x not equal y",
+            "inequality test",
+            "ungleich",
+            "X ungleich Y",
+            "Ungleichungstest",
+            "verschieden",
+            "X ne Y"
+        ]
     },
     {
         "op_variant": "XLtY_XEQ",
@@ -1234,7 +2497,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X<Y?\"",
-        "description": "X < Y? conditional test (XEQ-by-Name only)"
+        "description": "X < Y? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "less than test",
+            "x less than y",
+            "smaller than",
+            "kleiner als",
+            "X kleiner Y",
+            "Kleiner-Vergleich",
+            "X lt Y",
+            "Kleinervergleich"
+        ]
     },
     {
         "op_variant": "XGeY_XEQ",
@@ -1243,7 +2516,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X>=Y?\"",
-        "description": "X >= Y? conditional test (XEQ-by-Name only)"
+        "description": "X >= Y? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "greater equal test",
+            "x greater equal y",
+            "at least",
+            "größer gleich",
+            "X größer gleich Y",
+            "Größer-Gleich-Test",
+            "mindestens",
+            "X ge Y"
+        ]
     },
     {
         "op_variant": "XNeZero_XEQ",
@@ -1252,7 +2535,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X#0?\"",
-        "description": "X != 0? conditional test (XEQ-by-Name only)"
+        "description": "X != 0? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "ungleich null",
+            "nicht null test",
+            "X ungleich 0",
+            "nonzero test",
+            "not equal zero",
+            "X nicht null",
+            "X ne zero",
+            "Bedingung ungleich null"
+        ]
     },
     {
         "op_variant": "XLtZero_XEQ",
@@ -1261,7 +2554,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X<0?\"",
-        "description": "X < 0? conditional test (XEQ-by-Name only)"
+        "description": "X < 0? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "kleiner null",
+            "negativ test",
+            "X negativ",
+            "less than zero",
+            "negative test",
+            "X kleiner als null",
+            "X below zero",
+            "Bedingung negativ"
+        ]
     },
     {
         "op_variant": "XGtZero_XEQ",
@@ -1270,7 +2573,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X>0?\"",
-        "description": "X > 0? conditional test (XEQ-by-Name only)"
+        "description": "X > 0? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "größer null",
+            "positiv test",
+            "X positiv",
+            "greater than zero",
+            "positive test",
+            "X größer als null",
+            "X above zero",
+            "Bedingung positiv"
+        ]
     },
     {
         "op_variant": "XLeZero_XEQ",
@@ -1279,7 +2592,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X<=0?\"",
-        "description": "X <= 0? conditional test (XEQ-by-Name only)"
+        "description": "X <= 0? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "kleiner gleich null",
+            "nicht positiv",
+            "X kleiner gleich 0",
+            "less than or equal zero",
+            "nonpositive test",
+            "at most zero",
+            "X le zero",
+            "Bedingung nicht positiv"
+        ]
     },
     {
         "op_variant": "XGeZero_XEQ",
@@ -1288,7 +2611,17 @@
         "status": "implemented",
         "phase": "25",
         "key_path": "XEQ \"X>=0?\"",
-        "description": "X >= 0? conditional test (XEQ-by-Name only)"
+        "description": "X >= 0? conditional test (XEQ-by-Name only)",
+        "search_aliases": [
+            "größer gleich null",
+            "nicht negativ",
+            "X größer gleich 0",
+            "greater than or equal zero",
+            "nonnegative test",
+            "at least zero",
+            "X ge zero",
+            "Bedingung nicht negativ"
+        ]
     },
     {
         "op_variant": "MAT_PLUS_MATHPAC",

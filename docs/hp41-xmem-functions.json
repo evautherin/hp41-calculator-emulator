@@ -8,7 +8,17 @@
         "key_path": "XEQ \"EMDIR\"",
         "description": "Catalog all X-MEM files; names + register counts printed to PRINT buffer",
         "example": "XEQ \"EMDIR\" -> prints file list e.g. PROG1 P 20 / DATA1 D 100",
-        "notes": "Output goes to print_buffer; drain via PRA/PRX. Empty X-MEM prints nothing."
+        "notes": "Output goes to print_buffer; drain via PRA/PRX. Empty X-MEM prints nothing.",
+        "search_aliases": [
+            "EMDIR",
+            "extended memory directory",
+            "xmem file list",
+            "list xmem files",
+            "erweiterter Speicher Verzeichnis",
+            "XMEM Verzeichnis",
+            "Dateien auflisten",
+            "memory catalog print"
+        ]
     },
     {
         "op_variant": "EmRoom",
@@ -19,7 +29,17 @@
         "key_path": "XEQ \"EMROOM\"",
         "description": "Return number of available X-MEM registers in X",
         "example": "XEQ \"EMROOM\" -> X = 600 (600 registers free in a fresh X-MEM)",
-        "notes": "Result in X; total capacity is 600 registers, decreasing by (entry + registers) per stored file."
+        "notes": "Result in X; total capacity is 600 registers, decreasing by (entry + registers) per stored file.",
+        "search_aliases": [
+            "EMROOM",
+            "extended memory free space",
+            "xmem available registers",
+            "freier erweiterter Speicher",
+            "verfügbare Register",
+            "memory capacity remaining",
+            "wie viel Speicher frei",
+            "xmem room"
+        ]
     },
     {
         "op_variant": "SaveP",
@@ -30,7 +50,17 @@
         "key_path": "XEQ \"SAVEP\"",
         "description": "Save current program to X-MEM file named by ALPHA register",
         "example": "\"MYPROG\" ALPHA, XEQ \"SAVEP\" -> program stored as MYPROG in X-MEM",
-        "notes": "ALPHA must hold the filename (1-6 chars). Round-trip: SAVEP then GETP restores exact program."
+        "notes": "ALPHA must hold the filename (1-6 chars). Round-trip: SAVEP then GETP restores exact program.",
+        "search_aliases": [
+            "SAVEP",
+            "save program xmem",
+            "store program extended memory",
+            "Programm speichern XMEM",
+            "Programm sichern",
+            "backup program",
+            "program to extended memory",
+            "Programm ablegen"
+        ]
     },
     {
         "op_variant": "GetP",
@@ -41,7 +71,17 @@
         "key_path": "XEQ \"GETP\"",
         "description": "Load program from X-MEM file named by ALPHA into current program memory",
         "example": "\"MYPROG\" ALPHA, XEQ \"GETP\" -> program memory replaced with MYPROG",
-        "notes": "ALPHA must hold the filename. Existing program memory is overwritten."
+        "notes": "ALPHA must hold the filename. Existing program memory is overwritten.",
+        "search_aliases": [
+            "GETP",
+            "load program xmem",
+            "restore program extended memory",
+            "Programm laden XMEM",
+            "Programm wiederherstellen",
+            "retrieve program",
+            "program from extended memory",
+            "Programm abrufen"
+        ]
     },
     {
         "op_variant": "SaveD",
@@ -52,7 +92,17 @@
         "key_path": "XEQ \"SAVED\"",
         "description": "Save all currently-allocated data registers to X-MEM file named by ALPHA register",
         "example": "\"REGS\" ALPHA, XEQ \"SAVED\" -> current data registers stored in X-MEM file REGS",
-        "notes": "Saves the data-register set as currently sized by SIZE. Use GETD to restore. Pairs with GETD for register transfer."
+        "notes": "Saves the data-register set as currently sized by SIZE. Use GETD to restore. Pairs with GETD for register transfer.",
+        "search_aliases": [
+            "SAVED",
+            "save data registers xmem",
+            "store registers extended memory",
+            "Datenregister speichern",
+            "Register sichern XMEM",
+            "backup registers",
+            "data register save",
+            "Daten ablegen erweiterter Speicher"
+        ]
     },
     {
         "op_variant": "GetD",
@@ -63,7 +113,17 @@
         "key_path": "XEQ \"GETD\"",
         "description": "Load all data registers from X-MEM file named by ALPHA register",
         "example": "\"REGS\" ALPHA, XEQ \"GETD\" -> data registers restored from X-MEM file REGS",
-        "notes": "Loads the saved data-register set from a data file. Existing registers are overwritten."
+        "notes": "Loads the saved data-register set from a data file. Existing registers are overwritten.",
+        "search_aliases": [
+            "GETD",
+            "load data registers xmem",
+            "restore registers extended memory",
+            "Datenregister laden",
+            "Register wiederherstellen XMEM",
+            "retrieve registers",
+            "data register restore",
+            "Daten abrufen erweiterter Speicher"
+        ]
     },
     {
         "op_variant": "EmReg",
@@ -74,7 +134,17 @@
         "key_path": "XEQ \"EMREG\"",
         "description": "Recall register N (index from X) of the active X-MEM data file; pushes its value onto X",
         "example": "5, XEQ \"EMREG\" -> X = value of register 5 in the active X-MEM data file",
-        "notes": "N is taken from X (integer truncation). The active file is set by the most recent SAVED/GETD/SAVERX. Errors if no active data file or N is out of range."
+        "notes": "N is taken from X (integer truncation). The active file is set by the most recent SAVED/GETD/SAVERX. Errors if no active data file or N is out of range.",
+        "search_aliases": [
+            "EMREG",
+            "recall xmem register",
+            "read extended memory register",
+            "XMEM Register lesen",
+            "Register abrufen erweiterter Speicher",
+            "xmem data register recall",
+            "einzelnes Register lesen",
+            "get register value xmem"
+        ]
     },
     {
         "op_variant": "SaveRx",
@@ -85,6 +155,16 @@
         "key_path": "XEQ \"SAVERX\"",
         "description": "Store Y into register N (index from X) of the active X-MEM data file",
         "example": "42 ENTER 5, XEQ \"SAVERX\" -> register 5 of the active data file set to 42 (X=index, Y=value)",
-        "notes": "X holds the register index, Y holds the value. The active file is set by the most recent SAVED/GETD. Errors if no active data file or index out of range."
+        "notes": "X holds the register index, Y holds the value. The active file is set by the most recent SAVED/GETD. Errors if no active data file or index out of range.",
+        "search_aliases": [
+            "SAVERX",
+            "store value xmem register",
+            "write extended memory register",
+            "XMEM Register schreiben",
+            "Wert in Register speichern",
+            "xmem data register store",
+            "einzelnes Register speichern",
+            "register index store xmem"
+        ]
     }
 ]

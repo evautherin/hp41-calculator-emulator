@@ -9,7 +9,17 @@
         "description": "Extended univariate summary (weighted mean, CV)",
         "example": "Accumulate SIGMA+ data, then XEQ ΣBSTAT",
         "notes": "Requires prior SIGMA+ data entry. Returns mean, std dev, CV. Uses stat registers R01-R06.",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 1 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 1 },
+        "search_aliases": [
+            "gewichteter Mittelwert",
+            "Variationskoeffizient",
+            "erweiterte Statistik",
+            "weighted mean CV",
+            "coefficient of variation",
+            "Streuungsmaß Statistik",
+            "extended summary stats",
+            "Sigma B Statistik"
+        ]
     },
     {
         "op_variant": "SigmaBstg",
@@ -19,7 +29,16 @@
         "phase": "33",
         "key_path": "XEQ \"ΣBSTG\"",
         "description": "Grouped-data univariate summary",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 2 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 2 },
+        "search_aliases": [
+            "gruppierte Daten",
+            "Klassenstatistik",
+            "Häufigkeitsverteilung",
+            "grouped data summary",
+            "Gruppenstatistik Zusammenfassung",
+            "grouped univariate stats",
+            "Klassen Häufigkeit"
+        ]
     },
     {
         "op_variant": "SigmaMmtug",
@@ -29,7 +48,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣMMTUG\"",
         "description": "Moments — ungrouped data (mean, variance, skew, kurtosis)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 3 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 3 },
+        "search_aliases": [
+            "ungrupierte Momente",
+            "Schiefe Kurtosis",
+            "statistische Momente",
+            "moments ungrouped data",
+            "skewness kurtosis raw",
+            "Wölbung Schiefe",
+            "Varianz Momente",
+            "higher moments stats"
+        ]
     },
     {
         "op_variant": "SigmaMmtgd",
@@ -39,7 +68,16 @@
         "phase": "33",
         "key_path": "XEQ \"ΣMMTGD\"",
         "description": "Moments — grouped data (mean, variance, skew, kurtosis)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 4 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 4 },
+        "search_aliases": [
+            "gruppierte Momente",
+            "Schiefe Kurtosis Gruppen",
+            "moments grouped data",
+            "Gruppenmomente Statistik",
+            "skewness grouped data",
+            "Wölbung gruppiert",
+            "grouped higher moments"
+        ]
     },
     {
         "op_variant": "SigmaAovone",
@@ -49,7 +87,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣAOVONE\"",
         "description": "One-way ANOVA: F-ratio across multiple groups",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 5 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 5 },
+        "search_aliases": [
+            "one-way ANOVA",
+            "single factor ANOVA",
+            "F-ratio groups",
+            "einfaktorielle Varianzanalyse",
+            "einfaktorielle ANOVA",
+            "F-Test Gruppen",
+            "Gruppenvergleich Varianz",
+            "variance between groups"
+        ]
     },
     {
         "op_variant": "SigmaAovtwo",
@@ -59,7 +107,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣAOVTWO\"",
         "description": "Two-way ANOVA: two-factor analysis of variance",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 6 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 6 },
+        "search_aliases": [
+            "two-way ANOVA",
+            "two factor ANOVA",
+            "zweifaktorielle Varianzanalyse",
+            "zweifaktorielle ANOVA",
+            "Faktorielles Design Varianz",
+            "two factor variance",
+            "Interaktionseffekt ANOVA",
+            "factorial ANOVA"
+        ]
     },
     {
         "op_variant": "SigmaAnocov",
@@ -69,7 +127,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣANOCOV\"",
         "description": "Analysis of covariance (single covariate)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 7 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 7 },
+        "search_aliases": [
+            "ANCOVA",
+            "analysis of covariance",
+            "Kovarianzanalyse",
+            "covariate ANOVA",
+            "Kovariate Varianzanalyse",
+            "single covariate analysis",
+            "ANOVA Kovariate",
+            "Varianzanalyse Kovariate"
+        ]
     },
     {
         "op_variant": "SigmaLin",
@@ -81,7 +149,17 @@
         "description": "Linear curve fit: y = a + b·x",
         "example": "Enter (x,y) pairs via SIGMA+, then XEQ ΣLIN",
         "notes": "Returns intercept a in Y, slope b in X, correlation r in Z. Uses L.R. stat registers.",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 8 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 8 },
+        "search_aliases": [
+            "linear regression",
+            "lineare Regression",
+            "linear fit",
+            "Regressionsgerade",
+            "least squares line",
+            "Ausgleichsgerade",
+            "slope intercept fit",
+            "Steigung Achsenabschnitt"
+        ]
     },
     {
         "op_variant": "SigmaExp",
@@ -91,7 +169,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣEXP\"",
         "description": "Exponential curve fit: y = a·e^(b·x)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 9 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 9 },
+        "search_aliases": [
+            "exponential regression",
+            "exponentielle Regression",
+            "exponential fit",
+            "Exponentialanpassung",
+            "exp curve fit",
+            "Wachstum Regression",
+            "exponential growth fit",
+            "Exponentialkurve"
+        ]
     },
     {
         "op_variant": "SigmaLogi",
@@ -101,7 +189,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣLOGI\"",
         "description": "Logarithmic curve fit: y = a + b·ln(x)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 10 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 10 },
+        "search_aliases": [
+            "logarithmic regression",
+            "logarithmische Regression",
+            "log curve fit",
+            "Logarithmuskurve",
+            "natural log fit",
+            "log Anpassung",
+            "ln regression",
+            "log Kurvenanpassung"
+        ]
     },
     {
         "op_variant": "SigmaPow",
@@ -111,7 +209,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣPOW\"",
         "description": "Power curve fit: y = a·x^b",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 11 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 11 },
+        "search_aliases": [
+            "power law fit",
+            "Potenzregression",
+            "power regression",
+            "Potenzgesetz",
+            "power curve fit",
+            "Potenzfunktion Anpassung",
+            "power law regression",
+            "Potenzanpassung"
+        ]
     },
     {
         "op_variant": "SigmaMlrxy",
@@ -121,7 +229,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣMLRXY\"",
         "description": "Multiple linear regression — two predictors (Y on X)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 12 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 12 },
+        "search_aliases": [
+            "multiple regression two",
+            "multiple lineare Regression",
+            "MLR two predictors",
+            "zwei Prädiktoren",
+            "two variable regression",
+            "Mehrfachregression XY",
+            "multilinear regression XY",
+            "zweifache Regression"
+        ]
     },
     {
         "op_variant": "SigmaMlrxyz",
@@ -131,7 +249,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣMLRXYZ\"",
         "description": "Multiple linear regression — three predictors (Y on X,Z)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 13 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 13 },
+        "search_aliases": [
+            "multiple regression three",
+            "drei Prädiktoren",
+            "MLR three variables",
+            "three variable regression",
+            "Mehrfachregression XYZ",
+            "multilinear regression XYZ",
+            "three predictor regression",
+            "dreifache Regression"
+        ]
     },
     {
         "op_variant": "SigmaPolypWorkflow",
@@ -142,7 +270,17 @@
         "key_path": "XEQ \"ΣPOLYP\"",
         "description": "Polynomial regression — accepts degree via modal prompt",
         "divergences": ["DEGREE=? modal prompt is HP-41 emulator convention transcribed from Math Pac I POLY precedent (OM 00041-90030 does not specify the degree-entry interaction)."],
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 14 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 14 },
+        "search_aliases": [
+            "polynomial regression",
+            "Polynomregression",
+            "poly fit degree",
+            "Polynom Grad",
+            "polynomial curve fit",
+            "polynomiale Anpassung",
+            "higher order regression",
+            "Polynomkurve"
+        ]
     },
     {
         "op_variant": "SigmaPolyc",
@@ -152,7 +290,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣPOLYC\"",
         "description": "Polynomial coefficient recall after ΣPOLYP fit",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 15 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 15 },
+        "search_aliases": [
+            "polynomial coefficients",
+            "Polynomkoeffizienten",
+            "poly coefficient recall",
+            "Koeffizienten abrufen",
+            "recall poly coefficients",
+            "Polynom Koeffizient",
+            "coefficient extraction",
+            "Polynomparameter"
+        ]
     },
     {
         "op_variant": "SigmaPtst",
@@ -162,7 +310,18 @@
         "phase": "33",
         "key_path": "XEQ \"ΣPTST\"",
         "description": "Paired-sample t-test (within-subject differences)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 16 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 16 },
+        "search_aliases": [
+            "paired t-test",
+            "paired sample test",
+            "within-subject test",
+            "matched pairs test",
+            "repeated measures t",
+            "gepaarter t-Test",
+            "verbundene Stichproben",
+            "Vorher-Nachher-Test",
+            "abhängige Stichproben"
+        ]
     },
     {
         "op_variant": "SigmaTstat",
@@ -173,7 +332,17 @@
         "key_path": "XEQ \"ΣTSTAT\"",
         "description": "Two-sample t-test (pooled-variance assumption)",
         "divergences": ["Pooled-variance two-sample t-test only; Welch's unequal-variance variant is explicitly excluded per REQUIREMENTS.md Out-of-Scope (Phase 33 SPEC.md Req. 25)."],
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 17 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 17 },
+        "search_aliases": [
+            "two-sample t-test",
+            "independent samples t",
+            "pooled variance t-test",
+            "Student t-test",
+            "Zweistichproben t-Test",
+            "unabhängige Stichproben",
+            "gepoolte Varianz",
+            "t-Statistik berechnen"
+        ]
     },
     {
         "op_variant": "SigmaXsqev",
@@ -183,7 +352,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣXSQEV\"",
         "description": "Chi-square goodness-of-fit evaluation",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 18 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 18 },
+        "search_aliases": [
+            "chi-square goodness of fit",
+            "chi-squared test",
+            "Chi-Quadrat Anpassungstest",
+            "Anpassungsgüte",
+            "goodness of fit evaluation",
+            "χ² Auswertung",
+            "chi2 test",
+            "Güte der Anpassung"
+        ]
     },
     {
         "op_variant": "SigmaEfxsq",
@@ -193,7 +372,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣEFXSQ\"",
         "description": "Chi-square with expected-frequency input",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 19 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 19 },
+        "search_aliases": [
+            "chi-square expected frequency",
+            "chi-squared erwartete Häufigkeit",
+            "expected frequency input",
+            "Chi-Quadrat Häufigkeiten",
+            "erwartete Frequenzen",
+            "chi2 expected counts",
+            "Häufigkeitstest Chi-Quadrat",
+            "expected vs observed chi"
+        ]
     },
     {
         "op_variant": "SigmaCtkkk",
@@ -203,7 +392,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣCTKKK\"",
         "description": "Contingency table — Kendall's tau-c statistic",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 20 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 20 },
+        "search_aliases": [
+            "Kendall tau-c",
+            "kendall tau c statistic",
+            "Kontingenztafel Kendall tau-c",
+            "contingency table tau-c",
+            "Rangkorrelation tau-c",
+            "kendall rank tau c",
+            "Kontingenztabelle tau-c",
+            "nonparametric tau c"
+        ]
     },
     {
         "op_variant": "SigmaCtkk",
@@ -213,7 +412,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣCTKK\"",
         "description": "Contingency table — Kendall's tau-b (corrected)",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 21 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 21 },
+        "search_aliases": [
+            "Kendall tau-b",
+            "kendall tau b corrected",
+            "Kontingenztafel Kendall tau-b",
+            "contingency table tau-b",
+            "korrigiertes tau-b",
+            "Kendalls tau-b Rangkorrelation",
+            "rank correlation tau-b",
+            "contingency kendall corrected"
+        ]
     },
     {
         "op_variant": "SigmaSpear",
@@ -223,7 +432,17 @@
         "phase": "33",
         "key_path": "XEQ \"ΣSPEAR\"",
         "description": "Spearman rank correlation coefficient",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 22 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 22 },
+        "search_aliases": [
+            "Spearman Rangkorrelation",
+            "Spearman rank correlation",
+            "Spearman rho",
+            "nichtparametrische Korrelation",
+            "rank order correlation",
+            "Rangkorrelationskoeffizient",
+            "nonparametric correlation",
+            "Spearman Korrelation"
+        ]
     },
     {
         "op_variant": "SigmaNormdWorkflow",
@@ -235,7 +454,17 @@
         "description": "Standard normal CDF / PDF / inverse (probit) — three-mode dispatcher",
         "example": "1.96 XEQ ΣNORMD -> CDF=0.9750 (upper tail 2.5%)",
         "notes": "Modal prompt selects CDF/PDF/inverse. X=z-score for CDF/PDF; X=probability for inverse.",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 23 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 23 },
+        "search_aliases": [
+            "Standardnormalverteilung CDF PDF",
+            "Normal Verteilung Wahrscheinlichkeit",
+            "z-Wert Wahrscheinlichkeit",
+            "Normalverteilung kumuliert",
+            "probit inverse normal",
+            "standard normal distribution",
+            "Gauß Verteilung z-Score",
+            "z-score probability CDF"
+        ]
     },
     {
         "op_variant": "SigmaChisqdWorkflow",
@@ -247,7 +476,17 @@
         "description": "Chi-square distribution CDF / PDF (prompts for ν)",
         "example": "XEQ ΣCHISQD -> ν=? prompt; X=test statistic -> CDF",
         "notes": "Prompts for degrees of freedom ν. Uses X as the chi-square test statistic.",
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 24 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 24 },
+        "search_aliases": [
+            "Chi-Quadrat Verteilung",
+            "chi-square distribution CDF",
+            "Chi-Quadrat CDF PDF",
+            "Freiheitsgrade Chi-Verteilung",
+            "degrees of freedom chi",
+            "Anpassungstest Chi-Quadrat",
+            "goodness of fit chi-squared",
+            "chi-squared test statistic nu"
+        ]
     },
     {
         "op_variant": "Rand",
@@ -260,7 +499,17 @@
         "example": "XEQ RAND -> X = random number in [0,1)",
         "notes": "LCG: r = FRC(9821*r + 0.211327). Use SEED to set reproducible seed. Stack lift enabled.",
         "divergences": ["v3.1 emulator extension — not part of OM 00041-90030 'feature-complete' claim. LCG formula r_{n+1} = FRC(9821*r_n + 0.211327) per NPS p. 21 / Don Malm community convention."],
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 25 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 25 },
+        "search_aliases": [
+            "random number",
+            "pseudo random",
+            "Zufallszahl",
+            "uniform distribution",
+            "RNG next",
+            "gleichmäßig verteilt",
+            "random 0 1",
+            "Zufallsgenerator"
+        ]
     },
     {
         "op_variant": "Seed",
@@ -273,6 +522,16 @@
         "example": "0.5 XEQ SEED -> sets seed to 0.5 for reproducible RAND",
         "notes": "Seed persists across save/load. Useful for reproducible simulations.",
         "divergences": ["v3.1 emulator extension — not part of OM 00041-90030 'feature-complete' claim. LCG formula r_{n+1} = FRC(9821*r_n + 0.211327) per NPS p. 21 / Don Malm community convention."],
-        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 26 }
+        "xrom": { "module": "Stat 1", "module_id": 2, "function_id": 26 },
+        "search_aliases": [
+            "seed random",
+            "set seed",
+            "Startwert Zufall",
+            "reproducible simulation",
+            "initialize RNG",
+            "Seed setzen",
+            "Startwert setzen",
+            "reproduzierbare Simulation"
+        ]
     }
 ]

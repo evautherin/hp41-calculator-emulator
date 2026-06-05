@@ -9,7 +9,17 @@
         "description": "Display current system time in X (HH.MMSSss)",
         "example": "XEQ TIME -> X = 14.3025 (14:30:25)",
         "notes": "Format HH.MMSSss (hours.minutes-seconds-centiseconds). Stack lift enabled.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 1 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 1 },
+        "search_aliases": [
+            "current time",
+            "show time",
+            "display time",
+            "Uhrzeit anzeigen",
+            "aktuelle Uhrzeit",
+            "Zeit anzeigen",
+            "HH.MMSSss",
+            "Uhrzeit"
+        ]
     },
     {
         "op_variant": "TimeDate",
@@ -21,7 +31,17 @@
         "description": "Display current date in X (MM.DDYYYY or DD.MMYYYY)",
         "example": "XEQ DATE -> X = 5.272026 (MDY: May 27, 2026)",
         "notes": "Format depends on MDY/DMY setting. Use MDY or DMY to switch format.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 2 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 2 },
+        "search_aliases": [
+            "current date",
+            "show date",
+            "display date",
+            "Datum anzeigen",
+            "aktuelles Datum",
+            "today date",
+            "Datum Format",
+            "Kalender"
+        ]
     },
     {
         "op_variant": "TimeSetime",
@@ -31,7 +51,17 @@
         "phase": "38",
         "key_path": "XEQ \"SETIME\"",
         "description": "Set the system time from X (HH.MMSSss)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 3 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 3 },
+        "search_aliases": [
+            "Zeit setzen",
+            "Uhrzeit einstellen",
+            "Systemzeit eingeben",
+            "Zeit stellen",
+            "set time",
+            "system time entry",
+            "HH.MMSSss format",
+            "clock set"
+        ]
     },
     {
         "op_variant": "TimeSetdate",
@@ -41,7 +71,17 @@
         "phase": "38",
         "key_path": "XEQ \"SETDATE\"",
         "description": "Set the system date from X (MM.DDYYYY or DD.MMYYYY)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 4 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 4 },
+        "search_aliases": [
+            "Datum setzen",
+            "Datum einstellen",
+            "Systemdatum eingeben",
+            "Datum stellen",
+            "set date",
+            "system date entry",
+            "date format MM.DD",
+            "calendar set"
+        ]
     },
     {
         "op_variant": "TimeClk12",
@@ -51,7 +91,17 @@
         "phase": "38",
         "key_path": "XEQ \"CLK12\"",
         "description": "Switch to 12-hour clock format (AM/PM)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 5 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 5 },
+        "search_aliases": [
+            "12 Stunden Uhr",
+            "AM PM Format",
+            "12-hour clock",
+            "Uhrzeitformat 12h",
+            "AM PM Anzeige",
+            "switch 12 hour",
+            "12h Zeitformat",
+            "12 Stunden Format"
+        ]
     },
     {
         "op_variant": "TimeClk24",
@@ -61,7 +111,17 @@
         "phase": "38",
         "key_path": "XEQ \"CLK24\"",
         "description": "Switch to 24-hour clock format",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 6 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 6 },
+        "search_aliases": [
+            "24 Stunden Uhr",
+            "24-hour clock",
+            "Uhrzeitformat 24h",
+            "24h Zeitformat",
+            "Militärzeit",
+            "switch 24 hour",
+            "kein AM PM",
+            "24 Stunden Format"
+        ]
     },
     {
         "op_variant": "TimeClkt",
@@ -71,7 +131,17 @@
         "phase": "38",
         "key_path": "XEQ \"CLKT\"",
         "description": "Toggle clock display mode on the LCD",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 7 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 7 },
+        "search_aliases": [
+            "Uhr anzeigen",
+            "Zeitanzeige umschalten",
+            "Uhrzeit LCD",
+            "Uhr ein aus",
+            "clock display toggle",
+            "show clock",
+            "LCD time display",
+            "toggle clock"
+        ]
     },
     {
         "op_variant": "TimeClktd",
@@ -81,7 +151,17 @@
         "phase": "38",
         "key_path": "XEQ \"CLKTD\"",
         "description": "Toggle clock-and-date display mode on the LCD",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 8 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 8 },
+        "search_aliases": [
+            "Uhr und Datum anzeigen",
+            "Datum Zeitanzeige",
+            "Uhrzeit Datum LCD",
+            "Datum Uhr umschalten",
+            "clock date toggle",
+            "show time and date",
+            "LCD clock date",
+            "date time display"
+        ]
     },
     {
         "op_variant": "TimeClock",
@@ -91,7 +171,17 @@
         "phase": "38",
         "key_path": "XEQ \"CLOCK\"",
         "description": "Enter live clock display mode — press any key to exit",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 9 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 9 },
+        "search_aliases": [
+            "live clock",
+            "clock mode",
+            "real time clock",
+            "Echtzeituhr",
+            "Uhranzeige",
+            "Uhr Anzeige Modus",
+            "clock display",
+            "Uhr live"
+        ]
     },
     {
         "op_variant": "TimeCorrect",
@@ -102,7 +192,17 @@
         "key_path": "XEQ \"CORRECT\"",
         "description": "Apply crystal accuracy correction (no-op; host clock is authoritative)",
         "divergences": ["No-op in emulation; system clock is authoritative"],
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 10 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 10 },
+        "search_aliases": [
+            "Kristallkorrektur anwenden",
+            "crystal correction apply",
+            "Uhrkorrektur",
+            "Gangkorrektur",
+            "accuracy correction clock",
+            "Frequenzkorrektur",
+            "clock accuracy apply",
+            "Uhr kalibrieren"
+        ]
     },
     {
         "op_variant": "TimeTplusx",
@@ -112,7 +212,17 @@
         "phase": "38",
         "key_path": "XEQ \"T+X\"",
         "description": "Add X seconds to the current time",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 11 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 11 },
+        "search_aliases": [
+            "add seconds time",
+            "Zeit addieren",
+            "Sekunden addieren",
+            "time offset",
+            "advance time",
+            "Zeit plus Sekunden",
+            "Zeitversatz",
+            "add to time"
+        ]
     },
     {
         "op_variant": "TimeDatePlus",
@@ -124,7 +234,17 @@
         "description": "Add X days to date in Y; result in X",
         "example": "5.272026 ENTER 30 XEQ DATE+ -> date 30 days later",
         "notes": "Y = start date (MM.DDYYYY in MDY mode), X = days to add. Result replaces X.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 12 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 12 },
+        "search_aliases": [
+            "add days to date",
+            "date plus days",
+            "date arithmetic",
+            "future date calculation",
+            "days offset",
+            "Datum addieren",
+            "Tage zu Datum addieren",
+            "Datum verschieben"
+        ]
     },
     {
         "op_variant": "TimeDdays",
@@ -136,7 +256,17 @@
         "description": "Days between date in X and date in Y",
         "example": "date2 ENTER date1 XEQ DDAYS -> X = days between",
         "notes": "Positive if Y > X (Y is later). Uses Fliegel-Van Flandern JDN arithmetic.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 13 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 13 },
+        "search_aliases": [
+            "days between dates",
+            "date difference",
+            "elapsed days",
+            "day count between",
+            "date interval",
+            "Tage zwischen Daten",
+            "Tagesdifferenz",
+            "Datumsabstand berechnen"
+        ]
     },
     {
         "op_variant": "TimeDow",
@@ -146,7 +276,17 @@
         "phase": "38",
         "key_path": "XEQ \"DOW\"",
         "description": "Day of week for date in X (0=Sun, 1=Mon … 6=Sat)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 14 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 14 },
+        "search_aliases": [
+            "day of week",
+            "weekday from date",
+            "which weekday",
+            "day name date",
+            "Wochentag",
+            "Wochentag berechnen",
+            "welcher Wochentag",
+            "Tag der Woche"
+        ]
     },
     {
         "op_variant": "TimeDmy",
@@ -156,7 +296,17 @@
         "phase": "38",
         "key_path": "XEQ \"DMY\"",
         "description": "Switch date format to DD.MMYYYY",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 15 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 15 },
+        "search_aliases": [
+            "date format DMY",
+            "day month year",
+            "European date format",
+            "switch to DMY",
+            "Datumsformat TT.MM.JJJJ",
+            "europäisches Datumsformat",
+            "Tag Monat Jahr Format",
+            "Datumsformat umschalten"
+        ]
     },
     {
         "op_variant": "TimeMdy",
@@ -166,7 +316,17 @@
         "phase": "38",
         "key_path": "XEQ \"MDY\"",
         "description": "Switch date format to MM.DDYYYY",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 16 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 16 },
+        "search_aliases": [
+            "date format MDY",
+            "month day year",
+            "American date format",
+            "US date format",
+            "switch to MDY",
+            "Datumsformat MM.TT.JJJJ",
+            "amerikanisches Datumsformat",
+            "Monat Tag Jahr Format"
+        ]
     },
     {
         "op_variant": "TimeAtime",
@@ -176,7 +336,17 @@
         "phase": "38",
         "key_path": "XEQ \"ATIME\"",
         "description": "Append current time as ALPHA string (respects CLK12/CLK24 setting)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 17 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 17 },
+        "search_aliases": [
+            "append time alpha",
+            "Zeit anhängen Alpha",
+            "Uhrzeit als Text",
+            "current time string",
+            "clock to alpha",
+            "Zeit anzeigen String",
+            "time alpha register",
+            "Uhrzeit einfügen"
+        ]
     },
     {
         "op_variant": "TimeAtime24",
@@ -186,7 +356,17 @@
         "phase": "38",
         "key_path": "XEQ \"ATIME24\"",
         "description": "Append current time as ALPHA string (24-hour format)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 18 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 18 },
+        "search_aliases": [
+            "append time 24h",
+            "Zeit 24 Stunden Alpha",
+            "24-Stunden-Format String",
+            "24 hour time alpha",
+            "military time string",
+            "Uhrzeit 24h einfügen",
+            "24h clock alpha",
+            "Zeit anhängen 24"
+        ]
     },
     {
         "op_variant": "TimeAdate",
@@ -196,7 +376,17 @@
         "phase": "38",
         "key_path": "XEQ \"ADATE\"",
         "description": "Append current date as ALPHA string",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 19 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 19 },
+        "search_aliases": [
+            "append date alpha",
+            "Datum anhängen Alpha",
+            "current date string",
+            "aktuelles Datum Text",
+            "date to alpha register",
+            "Datum einfügen String",
+            "date as text",
+            "Datum anzeigen Alpha"
+        ]
     },
     {
         "op_variant": "TimeRunsw",
@@ -208,7 +398,17 @@
         "description": "Start (run) the stopwatch",
         "example": "XEQ RUNSW -> starts counting; XEQ RCLSW -> elapsed",
         "notes": "Stopwatch counts in HH.MMSScc. Use STOPSW to pause, RCLSW to read elapsed time.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 20 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 20 },
+        "search_aliases": [
+            "stopwatch start",
+            "Stoppuhr starten",
+            "start stopwatch",
+            "Stoppuhr laufen lassen",
+            "timer starten",
+            "Zeitmessung starten",
+            "RUNSW starten",
+            "chronometer start"
+        ]
     },
     {
         "op_variant": "TimeStopsw",
@@ -220,7 +420,17 @@
         "description": "Stop the stopwatch",
         "example": "XEQ STOPSW -> freezes elapsed time; RCLSW -> value",
         "notes": "Stopwatch value is preserved after stopping. RUNSW resumes from current value.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 21 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 21 },
+        "search_aliases": [
+            "stopwatch stop",
+            "Stoppuhr stoppen",
+            "stop stopwatch",
+            "Stoppuhr anhalten",
+            "timer stoppen",
+            "Zeitmessung stoppen",
+            "STOPSW anhalten",
+            "Stoppuhr pausieren"
+        ]
     },
     {
         "op_variant": "TimeRclsw",
@@ -232,7 +442,17 @@
         "description": "Recall stopwatch elapsed time into X",
         "example": "XEQ RCLSW -> X = HH.MMSScc elapsed time",
         "notes": "Works while running or stopped. Stack lift enabled; elapsed time pushed onto X.",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 22 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 22 },
+        "search_aliases": [
+            "stopwatch read",
+            "Stoppuhr ablesen",
+            "elapsed time",
+            "verstrichene Zeit",
+            "RCLSW abrufen",
+            "Stoppuhr auslesen",
+            "abgelaufene Zeit",
+            "recall stopwatch time"
+        ]
     },
     {
         "op_variant": "TimeSetsw",
@@ -242,7 +462,17 @@
         "phase": "38",
         "key_path": "XEQ \"SETSW\"",
         "description": "Set stopwatch to value in X",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 23 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 23 },
+        "search_aliases": [
+            "stopwatch set",
+            "Stoppuhr setzen",
+            "set stopwatch value",
+            "Stoppuhr einstellen",
+            "timer setzen",
+            "Stoppuhr Wert setzen",
+            "SETSW initialisieren",
+            "Startzeit setzen"
+        ]
     },
     {
         "op_variant": "TimeSw",
@@ -253,7 +483,17 @@
         "key_path": "XEQ \"SW\"",
         "description": "Interactive stopwatch display mode with live LCD updates",
         "divergences": ["Extended interactive stopwatch keyboard mode -- emulator extension"],
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 24 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 24 },
+        "search_aliases": [
+            "stopwatch display",
+            "Stoppuhr Anzeige",
+            "live stopwatch",
+            "interaktive Stoppuhr",
+            "stopwatch mode",
+            "Stoppuhr Modus",
+            "Echtzeit Stoppuhr",
+            "SW Anzeigemodus"
+        ]
     },
     {
         "op_variant": "TimeSwpt",
@@ -263,7 +503,17 @@
         "phase": "38",
         "key_path": "XEQ \"SWPT\"",
         "description": "Recall split-point time recorded by STPW into X as HH.MMSScc",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 25 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 25 },
+        "search_aliases": [
+            "split time read",
+            "Zwischenzeit ablesen",
+            "split point recall",
+            "Zwischenzeit abrufen",
+            "lap time read",
+            "Rundenzeit ablesen",
+            "SWPT abrufen",
+            "Splitzeit anzeigen"
+        ]
     },
     {
         "op_variant": "TimeStpw",
@@ -273,7 +523,17 @@
         "phase": "38",
         "key_path": "XEQ \"STPW\"",
         "description": "Record current elapsed time as split point (stopwatch continues running)",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 26 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 26 },
+        "search_aliases": [
+            "split time record",
+            "Zwischenzeit aufzeichnen",
+            "lap time mark",
+            "Rundenzeit markieren",
+            "split point set",
+            "Zwischenstopp setzen",
+            "STPW aufzeichnen",
+            "Splitzeit speichern"
+        ]
     },
     {
         "op_variant": "TimeXyzalm",
@@ -283,7 +543,18 @@
         "phase": "38",
         "key_path": "XEQ \"XYZALM\"",
         "description": "Set alarm: X=time, Y=date, Z=repeat interval",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 27 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 27 },
+        "search_aliases": [
+            "set alarm",
+            "schedule alarm",
+            "alarm time date",
+            "recurring alarm",
+            "repeat alarm",
+            "Alarm setzen",
+            "Wecker programmieren",
+            "wiederkehrender Alarm",
+            "Alarm mit Datum Uhrzeit"
+        ]
     },
     {
         "op_variant": "TimeAlmcat",
@@ -293,7 +564,17 @@
         "phase": "38",
         "key_path": "XEQ \"ALMCAT\"",
         "description": "Catalog all pending alarms to the display",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 28 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 28 },
+        "search_aliases": [
+            "alarm catalog",
+            "list alarms",
+            "show alarms",
+            "pending alarms",
+            "Alarmliste",
+            "Alarme anzeigen",
+            "Alarmübersicht",
+            "ausstehende Alarme"
+        ]
     },
     {
         "op_variant": "TimeAlmnow",
@@ -303,7 +584,16 @@
         "phase": "38",
         "key_path": "XEQ \"ALMNOW\"",
         "description": "Trigger the next alarm immediately",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 29 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 29 },
+        "search_aliases": [
+            "trigger alarm now",
+            "immediate alarm",
+            "fire next alarm",
+            "alarm sofort",
+            "Alarm auslösen",
+            "nächsten Alarm jetzt",
+            "Alarm triggern"
+        ]
     },
     {
         "op_variant": "TimeRclalm",
@@ -313,7 +603,17 @@
         "phase": "38",
         "key_path": "XEQ \"RCLALM\"",
         "description": "Recall alarm N from X into X/Y/Z registers",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 30 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 30 },
+        "search_aliases": [
+            "recall alarm",
+            "retrieve alarm",
+            "get alarm number",
+            "alarm to registers",
+            "Alarm abrufen",
+            "Alarm zurückrufen",
+            "Alarm in Register",
+            "Alarm lesen"
+        ]
     },
     {
         "op_variant": "TimeRclaf",
@@ -324,7 +624,17 @@
         "key_path": "XEQ \"RCLAF\"",
         "description": "Recall stored accuracy factor into X",
         "divergences": ["Recalls stored accuracy factor; no crystal to adjust"],
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 31 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 31 },
+        "search_aliases": [
+            "Genauigkeitsfaktor abrufen",
+            "recall accuracy factor",
+            "Korrekturfaktor lesen",
+            "AF zurückrufen",
+            "Gangkorrektur auslesen",
+            "accuracy factor recall",
+            "Korrekturfaktor X",
+            "recall correction factor"
+        ]
     },
     {
         "op_variant": "TimeSetaf",
@@ -335,7 +645,17 @@
         "key_path": "XEQ \"SETAF\"",
         "description": "Set accuracy factor from X (crystal correction)",
         "divergences": ["Accuracy factor stored but has no effect in emulation"],
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 32 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 32 },
+        "search_aliases": [
+            "Genauigkeitsfaktor setzen",
+            "set accuracy factor",
+            "Korrekturfaktor eingeben",
+            "AF setzen",
+            "Gangkorrektur einstellen",
+            "crystal factor set",
+            "accuracy factor store",
+            "Korrekturfaktor speichern"
+        ]
     },
     {
         "op_variant": "TimeClalma",
@@ -345,7 +665,16 @@
         "phase": "38",
         "key_path": "XEQ \"CLALMA\"",
         "description": "Clear first alarm matching ALPHA register content from the catalog",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 33 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 33 },
+        "search_aliases": [
+            "clear alarm by name",
+            "delete alarm alpha",
+            "remove named alarm",
+            "cancel alarm name",
+            "Alarm nach Name löschen",
+            "benannten Alarm entfernen",
+            "Alarm Alpha löschen"
+        ]
     },
     {
         "op_variant": "TimeClalmx",
@@ -355,7 +684,16 @@
         "phase": "38",
         "key_path": "XEQ \"CLALMX\"",
         "description": "Clear alarm number X from the alarm catalog",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 34 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 34 },
+        "search_aliases": [
+            "clear alarm number",
+            "delete alarm x",
+            "remove specific alarm",
+            "cancel alarm",
+            "Alarm Nummer löschen",
+            "bestimmten Alarm löschen",
+            "Alarm entfernen"
+        ]
     },
     {
         "op_variant": "TimeClralms",
@@ -365,6 +703,16 @@
         "phase": "38",
         "key_path": "XEQ \"CLRALMS\"",
         "description": "Clear all alarms from the catalog",
-        "xrom": { "module": "Time", "module_id": 26, "function_id": 35 }
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 35 },
+        "search_aliases": [
+            "clear all alarms",
+            "delete all alarms",
+            "reset alarms",
+            "remove all alarms",
+            "alle Alarme löschen",
+            "Alarme zurücksetzen",
+            "Alarmliste leeren",
+            "alle Wecker löschen"
+        ]
     }
 ]
