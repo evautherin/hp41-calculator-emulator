@@ -149,7 +149,9 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   2. The script calls an LLM only on the developer's machine — no model, no API call, and no inference is present in any compiled binary or CI artifact
   3. Every `status: "implemented"` entry across all six JSON pools has at least one alias populated; the data is committed to the repository as static content
   4. The documentation for the script states clearly that it is re-run only when functions are added or their semantics change — not as a regenerate-and-diff CI check
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 60-01-PLAN.md — Build the dev-only `scripts/help-aliases/` generator crate (minimal-diff pool I/O, fill-only merge, `claude -p` wrapper + per-category batching, unit tests, `just help-aliases` recipe, README)
+  - [ ] 60-02-PLAN.md — Run the generator to populate DE+EN `search_aliases` across all six pools, human-review the alias diff, build-smoke both frontends, commit the static data
 
 ### Phase 61: Quality Gates
 **Goal**: The search enrichment is verified by automated tests and CI gates, and documented in CLAUDE.md so future contributors understand the alias convention and matcher contract
@@ -171,9 +173,9 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
 | 59. Runtime Matcher | 3/3 | Complete   | 2026-06-04 |
-| 60. Alias Authoring Pipeline | 0/? | Not started | - |
+| 60. Alias Authoring Pipeline | 0/2 | Not started | - |
 | 61. Quality Gates | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-06-05 — Phase 59 (Runtime Matcher) human UAT PASS 2/2; phase complete. UAT re-scoped to engine-level (Phase-59 deliverable) since DE/alias queries depend on Phase-60 data. Next: `/gsd-plan-phase 60`.*
+*Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) planned: 2 plans / 2 waves (W1 generator crate + tests, W2 data run + review + commit). Next: `/gsd-execute-phase 60`.*
