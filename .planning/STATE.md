@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
-status: executing
-last_updated: "2026-06-05T14:25:36.000Z"
-last_activity: 2026-06-05 -- Phase 61 execution complete (5/5 plans, all gates green)
+status: shipped
+last_updated: "2026-06-05T14:40:00.000Z"
+last_activity: 2026-06-05 -- Milestone v4.2 shipped — PR #23 (develop→main)
 progress:
   total_phases: 4
   completed_phases: 4
@@ -31,8 +31,8 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 Phase: 61 (quality-gates) — COMPLETE (5/5 plans, 3 waves)
 Plan: 5 of 5 complete (W1 data+fixture · W2 Rust/TS tests + schema gate · W3 CLAUDE.md docs)
-Status: Milestone v4.2 feature-complete — ready for /gsd-ship
-Last activity: 2026-06-05 -- Phase 61 execution complete (Rust 10 + TS 36 + schema gate all green)
+Status: Milestone v4.2 SHIPPED — PR #23 open (develop→main). Merge with `--merge` (never squash); run /gsd-complete-milestone to tag v4.2 + archive BEFORE the merge so release.yml auto-publishes.
+Last activity: 2026-06-05 -- Milestone v4.2 shipped — PR #23
 
 ## Progress Bar
 
