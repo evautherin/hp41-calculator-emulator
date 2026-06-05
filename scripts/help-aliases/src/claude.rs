@@ -9,7 +9,8 @@
 //! no live subprocess is invoked on the test path (deterministic unit tests only).
 //!
 //! claude binary: resolved via PATH (not hardcoded) for portability (D-60.1).
-//! Flags: -p --output-format json --max-turns 1 --bare --dangerously-skip-permissions --model sonnet
+//! Flags: -p --output-format json --max-turns 1 --dangerously-skip-permissions --model sonnet
+//! (--bare dropped — it bypasses local OAuth auth; see try_invoke note.)
 
 use serde_json::Value;
 use std::process::Command;
@@ -49,7 +50,10 @@ fn try_invoke(prompt: &str) -> Result<Value, String> {
             "json",
             "--max-turns",
             "1",
-            "--bare",
+            // NOTE: --bare was dropped after a Phase-60 Wave-2 probe found it bypasses
+            // the local OAuth session ("Not logged in · Please run /login"); without it
+            // the same flags authenticate and return the expected envelope (RESEARCH
+            // Open Question 2, resolved 2026-06-05).
             "--dangerously-skip-permissions",
             "--model",
             "sonnet",

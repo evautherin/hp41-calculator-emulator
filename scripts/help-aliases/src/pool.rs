@@ -1,125 +1,214 @@
-//! Pool I/O: load and save JSON help pools with minimal-diff writeback (D-60.4).
+//! Pool I/O: load JSON help pools and write back via a byte-preserving text splice (D-60.4).
 //!
 //! Key properties:
-//! - `serde_json` `preserve_order` feature keeps IndexMap insertion order across roundtrips.
-//! - `save_pool` uses a custom UTF-8 formatter: 4-space indent, no \uXXXX escaping for non-ASCII.
-//! - Trailing newline is always appended (all existing pools end with \n).
+//! - `load_pool` parses with the `preserve_order` feature so callers see entries in file order.
+//! - `splice_aliases` is the writeback: it inserts ONLY a `search_aliases` array before each
+//!   target entry's closing brace, leaving every other byte of the file untouched — key order,
+//!   inline `xrom`/`divergences` formatting, non-ASCII characters (Σ, —, …, umlauts) and
+//!   whitespace are all preserved exactly.
 //!
-//! These invariants are tested by `pool::tests::{roundtrip_identity, key_order_preserved, utf8_unescaped}`.
+//! Why a text splice and not `serde_json` re-serialization: the pools hand-author compact,
+//! single-line sub-structures (e.g. `"xrom": { "module": "Time", "module_id": 26, ... }` and
+//! `"divergences": ["…"]`). `serde_json`'s `PrettyFormatter` always expands nested objects and
+//! arrays to multi-line form, which would churn ~227 entries' formatting on a no-op write and
+//! break the D-60.4 alias-only-diff guarantee. Re-serialization was the original 60-01 approach;
+//! a Phase-60 Wave-2 data run exposed the churn and it was replaced by this splice.
+//!
+//! These invariants are tested by `pool::tests::{splice_preserves_inline_xrom,
+//! splice_noop_when_absent, splice_skips_populated, splice_utf8_literal, splice_appends_last}`.
 
-use serde_json::ser::{Formatter, PrettyFormatter};
 use serde_json::Value;
-use std::io;
+use std::collections::BTreeMap;
 
 // ---------------------------------------------------------------------------
-// Custom Formatter: 4-space indent + literal UTF-8 (no \uXXXX escaping)
-// ---------------------------------------------------------------------------
-
-/// Wraps `PrettyFormatter` for structural formatting and overrides `write_string_fragment`
-/// to emit non-ASCII bytes literally, preventing the default `\uXXXX` escaping.
-///
-/// All structural formatting (object/array braces, commas, colons, whitespace) is
-/// delegated to the inner `PrettyFormatter`.
-pub struct Utf8PrettyFormatter<'a> {
-    inner: PrettyFormatter<'a>,
-}
-
-impl<'a> Utf8PrettyFormatter<'a> {
-    /// Create a new formatter with 4-space indent (matching the pool file format).
-    pub fn new() -> Self {
-        Self {
-            inner: PrettyFormatter::with_indent(b"    "),
-        }
-    }
-}
-
-impl<'a> Formatter for Utf8PrettyFormatter<'a> {
-    // ── Structural methods delegated to PrettyFormatter ──────────────────────
-
-    fn begin_array<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.begin_array(w)
-    }
-    fn end_array<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.end_array(w)
-    }
-    fn begin_array_value<W: io::Write + ?Sized>(&mut self, w: &mut W, first: bool) -> io::Result<()> {
-        self.inner.begin_array_value(w, first)
-    }
-    fn end_array_value<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.end_array_value(w)
-    }
-    fn begin_object<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.begin_object(w)
-    }
-    fn end_object<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.end_object(w)
-    }
-    fn begin_object_key<W: io::Write + ?Sized>(&mut self, w: &mut W, first: bool) -> io::Result<()> {
-        self.inner.begin_object_key(w, first)
-    }
-    fn end_object_key<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.end_object_key(w)
-    }
-    fn begin_object_value<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.begin_object_value(w)
-    }
-    fn end_object_value<W: io::Write + ?Sized>(&mut self, w: &mut W) -> io::Result<()> {
-        self.inner.end_object_value(w)
-    }
-
-    // ── Override: emit non-ASCII string bytes literally (no \uXXXX) ──────────
-
-    /// Write string content without escaping non-ASCII characters.
-    ///
-    /// The default serde_json implementation escapes all codepoints > 127 as `\uXXXX`.
-    /// This override writes the raw UTF-8 bytes directly, so `Σ`, `—`, `ä` etc.
-    /// survive a load → save roundtrip un-escaped (D-60.4 / Pitfall 2).
-    fn write_string_fragment<W: io::Write + ?Sized>(
-        &mut self,
-        w: &mut W,
-        fragment: &str,
-    ) -> io::Result<()> {
-        w.write_all(fragment.as_bytes())
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Public API
+// Load
 // ---------------------------------------------------------------------------
 
 /// Load a JSON help pool from disk into a `Vec<Value>`.
 ///
 /// The `preserve_order` feature ensures `Value::Object` is backed by `IndexMap`,
-/// maintaining insertion order across a load→save roundtrip (D-60.4 / Pitfall 1).
+/// so callers observe keys (and entries) in file order. Used to build the work
+/// list and the run-summary counts; the WRITE path is `splice_aliases`, not a
+/// re-serialization of these values.
 ///
 /// Panics on I/O or parse error (these are programming errors in a dev-only tool).
 pub fn load_pool(path: &str) -> Vec<Value> {
-    let json =
-        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+    let json = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path}: {e}"));
     serde_json::from_str(&json).unwrap_or_else(|e| panic!("parse {path}: {e}"))
 }
 
-/// Save a JSON help pool back to disk using the custom UTF-8 formatter.
+/// Read a pool file's raw text (the splice operates on this, not on parsed values).
 ///
-/// Guarantees:
-/// - 4-space indent (pool format: outer items 4 sp, properties 8 sp = 2 levels).
-/// - Non-ASCII bytes written literally (no `\uXXXX` escaping).
-/// - A single trailing newline is always present.
-///
-/// Panics on serialization or I/O error.
-pub fn save_pool(path: &str, entries: &[Value]) {
-    let mut buf: Vec<u8> = Vec::new();
-    let mut ser =
-        serde_json::Serializer::with_formatter(&mut buf, Utf8PrettyFormatter::new());
-    serde::Serialize::serialize(entries, &mut ser)
-        .unwrap_or_else(|e| panic!("serialize {path}: {e}"));
+/// Panics on I/O error.
+pub fn read_text(path: &str) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path}: {e}"))
+}
 
-    // Ensure a single trailing newline (all existing pools end with \n).
-    if !buf.ends_with(b"\n") {
-        buf.push(b'\n');
+/// Write spliced pool text back to disk verbatim (the splice already preserves the
+/// trailing newline because it copies every non-inserted byte unchanged).
+///
+/// Panics on I/O error.
+pub fn write_text(path: &str, text: &str) {
+    std::fs::write(path, text).unwrap_or_else(|e| panic!("write {path}: {e}"));
+}
+
+// ---------------------------------------------------------------------------
+// Byte-preserving alias splice (the writeback — D-60.4)
+// ---------------------------------------------------------------------------
+
+/// Insert `search_aliases` arrays into the pool TEXT without disturbing any other byte.
+///
+/// For each top-level array entry whose `op_variant` is a key in `by_op` and which does
+/// not already contain a `search_aliases` key, the alias array is spliced in immediately
+/// before the entry's closing brace, with a comma appended to the previous last property.
+/// Entries are matched by their `op_variant` value; ordering, indentation (8-space key,
+/// 12-space element — the pool format), inline sub-structures and non-ASCII bytes are
+/// preserved exactly.
+///
+/// Returns the new file text, or an `Err` describing a structural problem.
+pub fn splice_aliases(
+    original: &str,
+    by_op: &BTreeMap<String, Vec<String>>,
+) -> Result<String, String> {
+    let src = original.as_bytes();
+    let n = src.len();
+    let mut out: Vec<u8> = Vec::with_capacity(n + 4096);
+
+    let mut i = 0usize;
+    let mut depth: i32 = 0; // structural nesting of { and [ (outside strings)
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut entry_open: Option<usize> = None; // byte offset of the '{' that opened the current entry
+
+    while i < n {
+        let b = src[i];
+
+        if in_string {
+            out.push(b);
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        match b {
+            b'"' => {
+                in_string = true;
+                out.push(b);
+            }
+            b'{' | b'[' => {
+                depth += 1;
+                if depth == 2 && b == b'{' {
+                    entry_open = Some(i);
+                }
+                out.push(b);
+            }
+            b'}' => {
+                if depth == 2 {
+                    // Entry-closing brace: decide whether to splice aliases in.
+                    let start = entry_open.take().unwrap_or(i);
+                    let entry_src = &original[start..i];
+                    if let Some(op) = extract_op_variant(entry_src) {
+                        if let Some(aliases) = by_op.get(&op) {
+                            if !entry_src.contains("\"search_aliases\"") && !aliases.is_empty() {
+                                // `out` currently ends with the entry's last property value
+                                // followed by the whitespace that indents this closing brace
+                                // (e.g. "\n    "). Trim that whitespace, append a comma to the
+                                // last property, splice the alias block, then restore the
+                                // whitespace so the brace lands exactly where it was.
+                                let mut k = out.len();
+                                while k > 0 && matches!(out[k - 1], b' ' | b'\t' | b'\n' | b'\r') {
+                                    k -= 1;
+                                }
+                                let trailing_ws: Vec<u8> = out[k..].to_vec();
+                                out.truncate(k);
+                                out.push(b',');
+                                push_alias_block(&mut out, aliases);
+                                out.extend_from_slice(&trailing_ws);
+                            }
+                        }
+                    }
+                }
+                depth -= 1;
+                out.push(b);
+            }
+            b']' => {
+                depth -= 1;
+                out.push(b);
+            }
+            _ => out.push(b),
+        }
+        i += 1;
     }
 
-    std::fs::write(path, &buf).unwrap_or_else(|e| panic!("write {path}: {e}"));
+    if depth != 0 {
+        return Err(format!("unbalanced JSON structure (final depth {depth})"));
+    }
+    String::from_utf8(out).map_err(|e| format!("splice produced invalid UTF-8: {e}"))
+}
+
+/// Append a `search_aliases` block at the pool's property indent (8-space key, 12-space
+/// elements, 8-space closing bracket). No leading comma — the caller appends the comma to
+/// the previous property first. No trailing newline — the caller restores the brace indent.
+fn push_alias_block(out: &mut Vec<u8>, aliases: &[String]) {
+    out.extend_from_slice(b"\n        \"search_aliases\": [");
+    for (idx, alias) in aliases.iter().enumerate() {
+        out.extend_from_slice(b"\n            \"");
+        push_json_escaped(out, alias);
+        out.push(b'"');
+        if idx + 1 < aliases.len() {
+            out.push(b',');
+        }
+    }
+    out.extend_from_slice(b"\n        ]");
+}
+
+/// JSON-escape a string's content into `out`: escape `"`, `\`, and control chars, but emit
+/// non-ASCII codepoints (umlauts, Σ, …) as literal UTF-8 (matching the pools' un-escaped style).
+fn push_json_escaped(out: &mut Vec<u8>, s: &str) {
+    for c in s.chars() {
+        match c {
+            '"' => out.extend_from_slice(b"\\\""),
+            '\\' => out.extend_from_slice(b"\\\\"),
+            '\n' => out.extend_from_slice(b"\\n"),
+            '\r' => out.extend_from_slice(b"\\r"),
+            '\t' => out.extend_from_slice(b"\\t"),
+            c if (c as u32) < 0x20 => {
+                out.extend_from_slice(format!("\\u{:04x}", c as u32).as_bytes());
+            }
+            c => {
+                let mut buf = [0u8; 4];
+                out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+            }
+        }
+    }
+}
+
+/// Extract the `op_variant` string value from an entry's source text (first occurrence).
+/// op_variant values are simple identifiers, so a forward scan to the closing quote suffices.
+fn extract_op_variant(entry_src: &str) -> Option<String> {
+    let key_pos = entry_src.find("\"op_variant\"")?;
+    let rest = &entry_src[key_pos + "\"op_variant\"".len()..];
+    let colon = rest.find(':')?;
+    let after_colon = &rest[colon + 1..];
+    let open_q = after_colon.find('"')?;
+    let value_start = &after_colon[open_q + 1..];
+    let mut esc = false;
+    for (bi, ch) in value_start.char_indices() {
+        if esc {
+            esc = false;
+        } else if ch == '\\' {
+            esc = true;
+        } else if ch == '"' {
+            return Some(value_start[..bi].to_string());
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -131,162 +220,120 @@ pub fn save_pool(path: &str, entries: &[Value]) {
 mod tests {
     use super::*;
 
-    /// Minimal fixture: two entries with NO search_aliases.
-    /// Used to verify that load → save produces byte-identical output (D-60.4).
-    const FIXTURE_NO_ALIASES: &str = r#"[
+    /// Real-shape fixture: the LAST key of each entry is a compact single-line `xrom` object,
+    /// exactly like the math1/stat1/time/advantage pools. This is the case the original
+    /// `PrettyFormatter` writeback churned (expanding it to multi-line) — the regression guard.
+    const FIXTURE_INLINE_XROM: &str = r#"[
     {
-        "op_variant": "TestOp",
-        "display_name": "TEST",
-        "category": "Test",
+        "op_variant": "TimeNow",
+        "display_name": "TIME",
+        "category": "Clock",
         "status": "implemented",
-        "phase": "1",
-        "key_path": null,
-        "description": "A test operation"
+        "phase": "38",
+        "key_path": "XEQ \"TIME\"",
+        "description": "Display current system time",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 1 }
     },
     {
-        "op_variant": "TestOp2",
-        "display_name": "TEST2",
-        "category": "Test",
+        "op_variant": "TimeDate",
+        "display_name": "DATE",
+        "category": "Clock",
         "status": "implemented",
-        "phase": "1",
-        "key_path": null,
-        "description": "A second test operation"
+        "phase": "38",
+        "key_path": "XEQ \"DATE\"",
+        "description": "Display current date",
+        "xrom": { "module": "Time", "module_id": 26, "function_id": 2 }
     }
 ]
 "#;
 
-    /// Fixture with a non-ASCII character (Sigma), em-dash, and umlaut.
-    const FIXTURE_UTF8: &str = r#"[
+    fn by_op(pairs: &[(&str, &[&str])]) -> BTreeMap<String, Vec<String>> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.iter().map(|s| s.to_string()).collect()))
+            .collect()
+    }
+
+    /// The inline `xrom` line must remain byte-identical after a splice; the ONLY changes are
+    /// the appended comma on the xrom line and the new search_aliases block (D-60.4).
+    #[test]
+    fn splice_preserves_inline_xrom() {
+        let map = by_op(&[("TimeNow", &["current time", "Uhrzeit"])]);
+        let out = splice_aliases(FIXTURE_INLINE_XROM, &map).unwrap();
+
+        // The inline xrom object for the UNCHANGED second entry stays exactly on one line.
+        assert!(
+            out.contains("\"xrom\": { \"module\": \"Time\", \"module_id\": 26, \"function_id\": 2 }"),
+            "untouched entry's inline xrom must not be reformatted"
+        );
+        // The CHANGED entry's xrom stays inline too — only a trailing comma is added to it.
+        assert!(
+            out.contains("\"xrom\": { \"module\": \"Time\", \"module_id\": 26, \"function_id\": 1 },"),
+            "changed entry's inline xrom must stay one line, gaining only a trailing comma"
+        );
+        // The alias block was inserted at the right indent, after the xrom.
+        assert!(out.contains("\n        \"search_aliases\": [\n            \"current time\",\n            \"Uhrzeit\"\n        ]"));
+        // Output is still valid JSON with aliases landing as the entry's last key.
+        let parsed: Vec<Value> = serde_json::from_str(&out).unwrap();
+        let keys: Vec<&str> = parsed[0].as_object().unwrap().keys().map(|s| s.as_str()).collect();
+        assert_eq!(keys.last(), Some(&"search_aliases"), "aliases must be the last key");
+        assert!(parsed[1].as_object().unwrap().get("search_aliases").is_none(), "entry not in by_op stays unaliased");
+    }
+
+    /// A no-op splice (no matching op_variants) yields byte-identical output.
+    #[test]
+    fn splice_noop_when_absent() {
+        let map = by_op(&[("NotInPool", &["x"])]);
+        let out = splice_aliases(FIXTURE_INLINE_XROM, &map).unwrap();
+        assert_eq!(out, FIXTURE_INLINE_XROM, "no matching entries -> byte-identical");
+    }
+
+    /// An entry that already carries `search_aliases` is never touched (fill-only safety net).
+    #[test]
+    fn splice_skips_populated() {
+        let fixture = r#"[
     {
-        "op_variant": "SumOp",
-        "display_name": "CLΣ",
-        "category": "Statistics",
+        "op_variant": "Already",
         "status": "implemented",
-        "phase": "1",
-        "key_path": null,
-        "description": "Clear Σ registers — enter clock mode … and Ä umlaut"
+        "description": "has aliases",
+        "search_aliases": ["keep me"]
     }
 ]
 "#;
+        let map = by_op(&[("Already", &["should not appear"])]);
+        let out = splice_aliases(fixture, &map).unwrap();
+        assert_eq!(out, fixture, "pre-populated entry must be left byte-for-byte unchanged");
+        assert!(!out.contains("should not appear"));
+    }
 
-    /// Fixture with a pre-populated `search_aliases` entry (to verify key order after insertion).
-    const FIXTURE_FOR_ORDER: &str = r#"[
+    /// Non-ASCII alias content (umlaut, Σ, em-dash) is written literally, never `\uXXXX`.
+    #[test]
+    fn splice_utf8_literal() {
+        let map = by_op(&[("TimeNow", &["verfügbare Register", "CLΣ — Zeit …"])]);
+        let out = splice_aliases(FIXTURE_INLINE_XROM, &map).unwrap();
+        assert!(out.contains("verfügbare Register"), "umlaut must be literal");
+        assert!(out.contains("CLΣ — Zeit …"), "Σ/—/… must be literal");
+        assert!(!out.contains("\\u00fc") && !out.contains("\\u03a3") && !out.contains("\\u2014"));
+        // Still valid JSON.
+        serde_json::from_str::<Vec<Value>>(&out).unwrap();
+    }
+
+    /// When an entry's last key is a plain string (not an inline object), the splice still
+    /// appends only a comma + the alias block (the simple, common hp41cv shape).
+    #[test]
+    fn splice_appends_last() {
+        let fixture = r#"[
     {
-        "op_variant": "TestOp",
-        "display_name": "TEST",
-        "category": "Test",
+        "op_variant": "Plus",
         "status": "implemented",
-        "phase": "1",
-        "key_path": null,
-        "description": "A test operation",
-        "notes": "Some notes here"
+        "notes": "Consumes X and Y."
     }
 ]
 "#;
-
-    /// A load → save with NO aliases added must produce byte-identical output (D-60.4).
-    ///
-    /// Proves that `preserve_order` + `Utf8PrettyFormatter` roundtrips a pool without noise.
-    #[test]
-    fn roundtrip_identity() {
-        let entries: Vec<Value> = serde_json::from_str(FIXTURE_NO_ALIASES).unwrap();
-
-        let mut buf: Vec<u8> = Vec::new();
-        let mut ser =
-            serde_json::Serializer::with_formatter(&mut buf, Utf8PrettyFormatter::new());
-        serde::Serialize::serialize(&entries, &mut ser).unwrap();
-        if !buf.ends_with(b"\n") {
-            buf.push(b'\n');
-        }
-
-        let result = String::from_utf8(buf).unwrap();
-        assert_eq!(
-            result, FIXTURE_NO_ALIASES,
-            "roundtrip produced non-identical output"
-        );
-    }
-
-    /// After inserting a `search_aliases` key, it must appear LAST in the serialized object
-    /// (after all pre-existing keys like `notes`), and all other keys must be in their
-    /// original positions (preserve_order guarantee).
-    #[test]
-    fn key_order_preserved() {
-        let mut entries: Vec<Value> = serde_json::from_str(FIXTURE_FOR_ORDER).unwrap();
-
-        // Insert search_aliases on the first entry.
-        if let Value::Object(ref mut map) = entries[0] {
-            map.insert(
-                "search_aliases".to_string(),
-                Value::Array(vec![
-                    Value::String("test alias".to_string()),
-                    Value::String("another alias".to_string()),
-                ]),
-            );
-        }
-
-        let mut buf: Vec<u8> = Vec::new();
-        let mut ser =
-            serde_json::Serializer::with_formatter(&mut buf, Utf8PrettyFormatter::new());
-        serde::Serialize::serialize(&entries, &mut ser).unwrap();
-        let result = String::from_utf8(buf).unwrap();
-
-        // Verify all expected keys appear in the correct order.
-        let op_pos = result.find("\"op_variant\"").unwrap();
-        let display_pos = result.find("\"display_name\"").unwrap();
-        let notes_pos = result.find("\"notes\"").unwrap();
-        let aliases_pos = result.find("\"search_aliases\"").unwrap();
-
-        assert!(op_pos < display_pos, "op_variant must come before display_name");
-        assert!(notes_pos < aliases_pos, "notes must come before search_aliases");
-
-        // Also verify search_aliases is actually LAST by checking nothing after it
-        // (except whitespace, closing braces, and the outer array structure).
-        let after_aliases = &result[aliases_pos..];
-        assert!(
-            !after_aliases.contains("\"op_variant\""),
-            "op_variant must not appear after search_aliases"
-        );
-        assert!(
-            !after_aliases.contains("\"notes\""),
-            "notes must not appear after search_aliases"
-        );
-    }
-
-    /// Non-ASCII characters (Σ, —, …, Ä) must survive load → save without `\uXXXX` escaping.
-    ///
-    /// This guards Pitfall 2: `serde_json` default escapes all codepoints > 127.
-    #[test]
-    fn utf8_unescaped() {
-        let entries: Vec<Value> = serde_json::from_str(FIXTURE_UTF8).unwrap();
-
-        let mut buf: Vec<u8> = Vec::new();
-        let mut ser =
-            serde_json::Serializer::with_formatter(&mut buf, Utf8PrettyFormatter::new());
-        serde::Serialize::serialize(&entries, &mut ser).unwrap();
-        let result = String::from_utf8(buf).unwrap();
-
-        // Verify the literal characters are present (not escaped).
-        assert!(result.contains('Σ'), "Σ must be present as a literal character");
-        assert!(result.contains('—'), "— must be present as a literal character");
-        assert!(result.contains('…'), "… must be present as a literal character");
-        assert!(result.contains('Ä'), "Ä must be present as a literal character");
-
-        // Verify no \uXXXX escape sequences for our characters.
-        assert!(
-            !result.contains("\\u03a3"),
-            "Σ must not be escaped as \\u03a3"
-        );
-        assert!(
-            !result.contains("\\u2014"),
-            "— must not be escaped as \\u2014"
-        );
-        assert!(
-            !result.contains("\\u2026"),
-            "… must not be escaped as \\u2026"
-        );
-        assert!(
-            !result.contains("\\u00c4"),
-            "Ä must not be escaped as \\u00c4"
-        );
+        let map = by_op(&[("Plus", &["add", "addieren"])]);
+        let out = splice_aliases(fixture, &map).unwrap();
+        assert!(out.contains("\"notes\": \"Consumes X and Y.\",\n        \"search_aliases\": ["));
+        let parsed: Vec<Value> = serde_json::from_str(&out).unwrap();
+        assert_eq!(parsed[0].as_object().unwrap().get("search_aliases").unwrap().as_array().unwrap().len(), 2);
     }
 }
