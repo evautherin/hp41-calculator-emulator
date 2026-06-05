@@ -18,6 +18,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { allFunctionsEntries, xeqToken, helpEntriesAll, OVERLAY_HIDDEN_ALIASES, type HelpEntry, scoreEntry, rankedEntries } from './help_data';
+// Phase 61 Plan 61-03 (HSQUAL-02): canonical CLI↔GUI drift-guard fixture.
+// Static JSON import (resolveJsonModule enabled). The SAME fixture is asserted
+// by the Rust test (hp41-cli/tests/phase61_help_search_aliases.rs, via
+// include_str!) and by this Vitest test — both MUST produce the same top-1 for
+// every query. Each fixture query is already lowercased+trimmed.
+import parityFixture from '../../docs/fixtures/help_search_parity.json';
 
 describe('allFunctionsEntries', () => {
     it('includes implemented key_path:null entries — e.g. SIN and CLRG', () => {
@@ -311,4 +317,124 @@ describe('Phase 59 ranking — rankedEntries', () => {
         const results = rankedEntries(pool, '');
         expect(results.length).toBe(pool.length);
     });
+});
+
+// ── Phase 61 Plan 61-03 — Real-data quality gates + CLI↔GUI drift guard ────────
+//
+// HSQUAL-01 / HSQUAL-02. Unlike the Phase-59 RED contract above (synthetic
+// makeEntry fixtures), this block runs the scorer against the LIVE six-pool JSON
+// via rankedEntries(allFunctionsEntries(), q). It is the GUI mirror of the Rust
+// suite hp41-cli/tests/phase61_help_search_aliases.rs and proves:
+//   - all four scoring tiers (exact > prefix > substring > fuzzy) on real data,
+//   - DE+EN alias resolution top-1 (zeitwert des geldes / zinseszins /
+//     compound interest → TVM; square root / quadratwurzel / wurzel → SQRT),
+//   - a fuzzy-hit top-1 (sqirt → SQRT),
+//   - empty-query passthrough per HSMATCH-04 (rankedEntries(pool, '') === pool),
+//   - the canonical parity fixture (docs/fixtures/help_search_parity.json) —
+//     the SAME top-1 the Rust test asserts (drift guard).
+//
+// Queries are pre-lowercased+trimmed by the caller, matching the contract of
+// rankedEntries (the Rust ranked_help_entries lowercases upstream).
+describe('Phase 61 — help search quality gates (real six-pool data)', () => {
+    const pool = allFunctionsEntries();
+
+    // ── All four scoring tiers against real data (HSQUAL-01) ──────────────────
+    it('tier: exact name match — "tvm" top-1 is TVM (exact, score 40)', () => {
+        const results = rankedEntries(pool, 'tvm');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].display_name).toBe('TVM');
+        // Top entry must be an exact-name hit (highest tier).
+        expect(scoreEntry(results[0], 'tvm')).toBe(40);
+    });
+
+    it('tier: prefix name match — "sqr" word-prefix hits SQRT (prefix, score 32)', () => {
+        const sqrt = pool.find(e => e.display_name === 'SQRT');
+        expect(sqrt, 'SQRT must exist in the live cv pool').toBeDefined();
+        // "sqr" is a prefix of "sqrt" but not exact → prefix tier on display_name.
+        expect(scoreEntry(sqrt as HelpEntry, 'sqr')).toBe(32);
+    });
+
+    it('tier: substring name match — "vm" is a non-prefix substring of "TVM" (substr, score 24)', () => {
+        const tvm = pool.find(e => e.display_name === 'TVM');
+        expect(tvm, 'TVM must exist in the live advantage pool').toBeDefined();
+        // "vm" is inside "tvm" but neither exact nor a word-prefix → substring tier.
+        expect(scoreEntry(tvm as HelpEntry, 'vm')).toBe(24);
+    });
+
+    it('tier: fuzzy name match — "sqirt" (1 typo) is a fuzzy hit on SQRT (fuzzy, score 8)', () => {
+        const sqrt = pool.find(e => e.display_name === 'SQRT');
+        expect(sqrt, 'SQRT must exist in the live cv pool').toBeDefined();
+        // "sqirt" → "sqrt" is 1 edit; not exact/prefix/substring → fuzzy name tier.
+        expect(scoreEntry(sqrt as HelpEntry, 'sqirt')).toBe(8);
+    });
+
+    // ── DE + EN alias resolution top-1 (HSQUAL-01, mirrors Rust suite) ─────────
+    it('alias DE+EN → TVM: "zeitwert des geldes" / "zinseszins" / "compound interest" each rank TVM top-1', () => {
+        for (const q of ['zeitwert des geldes', 'zinseszins', 'compound interest']) {
+            const results = rankedEntries(pool, q);
+            expect(results.length, `query "${q}" must return results`).toBeGreaterThan(0);
+            expect(results[0].display_name, `query "${q}" top-1`).toBe('TVM');
+        }
+    });
+
+    it('alias DE+EN → SQRT: "square root" / "quadratwurzel" / "wurzel" each rank SQRT top-1', () => {
+        for (const q of ['square root', 'quadratwurzel', 'wurzel']) {
+            const results = rankedEntries(pool, q);
+            expect(results.length, `query "${q}" must return results`).toBeGreaterThan(0);
+            expect(results[0].display_name, `query "${q}" top-1`).toBe('SQRT');
+        }
+    });
+
+    // ── Fuzzy-hit top-1 (HSQUAL-01) ───────────────────────────────────────────
+    it('fuzzy top-1: "sqirt" ranks SQRT first on the live pool', () => {
+        const results = rankedEntries(pool, 'sqirt');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].display_name).toBe('SQRT');
+    });
+
+    // ── Empty-query passthrough per HSMATCH-04 ────────────────────────────────
+    // TS contract: the empty string '' is the correct input and returns the pool
+    // UNCHANGED (no filtering). This differs from the Rust whitespace handling —
+    // do NOT import Rust behavior here. Assert same length AND same order.
+    it('empty-query passthrough: rankedEntries(pool, "") returns the pool unchanged (HSMATCH-04)', () => {
+        const results = rankedEntries(pool, '');
+        // Same reference (rankedEntries returns the pool as-is for '').
+        expect(results).toBe(pool);
+        expect(results.length).toBe(pool.length);
+        // Order preserved element-for-element.
+        for (let i = 0; i < pool.length; i++) {
+            expect(results[i].op_variant).toBe(pool[i].op_variant);
+        }
+    });
+});
+
+// ── Phase 61 Plan 61-03 — CLI↔GUI parity fixture loop (HSQUAL-02 drift guard) ──
+//
+// The canonical fixture docs/fixtures/help_search_parity.json drives BOTH the
+// Rust test (61-02, via include_str!) and this GUI test (via static JSON import).
+// For every fixture query, rankedEntries(allFunctionsEntries(), query)[0] must
+// equal expected_top[0] — identical to the Rust assertion. If a query's top-1
+// diverges, that is a real CLI↔GUI drift / data regression: report it as a
+// blocker — do NOT weaken the assertion or edit the frozen fixture/JSON data.
+describe('Phase 61 — CLI↔GUI parity fixture (top-1 drift guard, HSQUAL-02)', () => {
+    const pool = allFunctionsEntries();
+
+    it('fixture has the expected canonical shape (top_n=1 queries)', () => {
+        expect(Array.isArray(parityFixture.queries)).toBe(true);
+        expect(parityFixture.queries.length).toBeGreaterThan(0);
+        for (const c of parityFixture.queries) {
+            expect(c.top_n).toBe(1);
+            // Each query is already lowercased (canonical fixture invariant).
+            expect(c.query).toBe(c.query.toLowerCase());
+            expect(c.expected_top.length).toBeGreaterThanOrEqual(1);
+        }
+    });
+
+    for (const c of parityFixture.queries) {
+        it(`parity: "${c.query}" → top-1 ${c.expected_top[0]} (${c.note})`, () => {
+            const results = rankedEntries(pool, c.query);
+            expect(results.length, `query "${c.query}" must return at least one result`).toBeGreaterThan(0);
+            expect(results[0].display_name, `query "${c.query}" top-1 must match Rust`).toBe(c.expected_top[0]);
+        });
+    }
 });
