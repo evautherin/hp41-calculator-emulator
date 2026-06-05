@@ -1,0 +1,53 @@
+{
+  "_comment": "Canonical query -> expected ranked display_names for the help search tiered matcher. Asserted by BOTH the Rust test (hp41-cli/tests/phase61_help_search_aliases.rs, via include_str!) and the TS/Vitest test (hp41-gui/src/help_data.test.ts, via static JSON import). Each query is already lowercased. Only top_n=1 (top-1) is asserted, using queries whose top-1 is stable regardless of other alias edits (Pitfall P-HS-03). Tie-break is documented and load-bearing: results sort by score DESC, then display_name ASC.",
+  "queries": [
+    {
+      "query": "tvm",
+      "top_n": 1,
+      "expected_top": ["TVM"],
+      "note": "exact name match"
+    },
+    {
+      "query": "pi",
+      "top_n": 1,
+      "expected_top": ["PI"],
+      "note": "exact name match -- baseline regression"
+    },
+    {
+      "query": "emdir",
+      "top_n": 1,
+      "expected_top": ["EMDIR"],
+      "note": "exact name match in xmem pool"
+    },
+    {
+      "query": "zeitwert des geldes",
+      "top_n": 1,
+      "expected_top": ["TVM"],
+      "note": "exact DE alias match on TVM"
+    },
+    {
+      "query": "quadratwurzel",
+      "top_n": 1,
+      "expected_top": ["SQRT"],
+      "note": "exact DE alias on SQRT"
+    },
+    {
+      "query": "square root",
+      "top_n": 1,
+      "expected_top": ["SQRT"],
+      "note": "exact EN alias on SQRT"
+    },
+    {
+      "query": "financial solver",
+      "top_n": 1,
+      "expected_top": ["TVM"],
+      "note": "exact EN alias on TVM"
+    },
+    {
+      "query": "sqirt",
+      "top_n": 1,
+      "expected_top": ["SQRT"],
+      "note": "fuzzy match on SQRT display_name (1 typo)"
+    }
+  ]
+}
