@@ -75,11 +75,14 @@ Every new `CalcState` field carries `#[serde(default)]`. Transient fields also c
 
 ### JSON canonical data flow
 
-Five `docs/hp41-*-functions.json` files (~350 entries total) drive keybindings, `?` overlay, and right-panel. Loaded via `include_str!` + `OnceLock` in `help_data.rs`. Malformed JSON panics at first access.
+Six `docs/hp41*-functions.json` pools (~380 entries total — note the sixth, `docs/hp41cv-functions.json`, has no dash before `functions`) drive keybindings, `?` overlay, and right-panel. Loaded via `include_str!` + `OnceLock` in `help_data.rs`. Malformed JSON panics at first access.
 
 - `just docs-matrix` regenerates function-matrix docs; `just docs-matrix-check` CI drift-catch.
 - Op ↔ JSON parity: `function_matrix_parity.rs`; key coverage: `key_coverage.rs`.
 - Right-panel: `key_ref_entries()` excludes XROM functions (`entry.xrom.is_none()`).
+- **`search_aliases`** (v4.2) — an INVISIBLE match surface: an array of alternative spellings, abbreviations, and synonyms attached to each entry, NEVER rendered in any UI (`?` overlay, right-panel). Populated by the `just help-aliases` generator (Phase 60, dev-only — not a CI step), consumed solely by the tiered search matcher.
+- **DE in `search_aliases` is the one sanctioned exception** to the project's English-only rule (see "All project docs in English" / the English-only prose convention governing docs, ADRs, planning files, and UI strings): `search_aliases` is search *input* vocabulary, not documentation or rendered text, so German alias values (e.g. `"Zinseszins"`, `"Zeitwert des Geldes"`) are intentional and in-scope by design — they let German-speaking users find functions. This data field is the single place German lives in committed data.
+- **Tiered search matcher** (Phase 59, v4.2) — both frontends rank entries by descending match quality: exact > prefix > substring > fuzzy, scored across display_name / search_aliases / description / category. Non-empty query → relevance-ranked flat list; empty query → the existing category-grouped view, unchanged. Two guards: `docs/fixtures/help_search_parity.json` (CLI↔GUI top-1 drift guard; asserted by `phase61_help_search_aliases.rs` + the Phase 61 block in `help_data.test.ts`) and `just schema-aliases-check` (the `ci.yml` schema gate ensuring every `status:"implemented"` entry across all six pools carries ≥1 alias).
 
 ### CLI ↔ GUI parity (D-25.6)
 
