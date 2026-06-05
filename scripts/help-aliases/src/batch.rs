@@ -5,8 +5,9 @@
 //! - `build_prompt`: constructs the DE+EN alias generation prompt for a batch.
 //! - `validate_batch_response`: detects missing and extra `op_variant` keys.
 //!
-//! Large categories (Adv Mtrx ~51, Adv Math ~45) are split into ~17/~15-entry
-//! sub-batches to stay within practical context limits (RESEARCH Open Question 3/A4).
+//! Large categories (Adv Mtrx ~51, Adv Math ~45) are split into fixed-size
+//! sub-batches of at most `MAX_BATCH_SIZE` (20) entries — e.g. 51 → 20/20/11 —
+//! to stay within practical context limits (RESEARCH Open Question 3/A4).
 
 use serde_json::{Map, Value};
 
@@ -151,8 +152,16 @@ mod tests {
 
         let (missing, extra) = validate_batch_response(&expected, &response_map);
 
-        assert_eq!(missing, vec!["OpB".to_string()], "OpB must be reported as missing");
-        assert_eq!(extra, vec!["OpC".to_string()], "OpC must be reported as extra");
+        assert_eq!(
+            missing,
+            vec!["OpB".to_string()],
+            "OpB must be reported as missing"
+        );
+        assert_eq!(
+            extra,
+            vec!["OpC".to_string()],
+            "OpC must be reported as extra"
+        );
     }
 
     /// validate_batch_response must report empty missing and extra when keys match exactly.
@@ -166,8 +175,14 @@ mod tests {
 
         let (missing, extra) = validate_batch_response(&expected, &response_map);
 
-        assert!(missing.is_empty(), "no keys must be missing when all expected are present");
-        assert!(extra.is_empty(), "no extra keys when response matches expected exactly");
+        assert!(
+            missing.is_empty(),
+            "no keys must be missing when all expected are present"
+        );
+        assert!(
+            extra.is_empty(),
+            "no extra keys when response matches expected exactly"
+        );
     }
 
     /// group_by_category must split a large category into sub-batches.
@@ -191,9 +206,50 @@ mod tests {
 
         // Should be split into 2 sub-batches: one of 20, one of 5.
         assert_eq!(batches.len(), 2, "25 entries must split into 2 sub-batches");
-        assert!(batches[0].0.contains("1/2"), "first sub-batch must be labelled 1/2");
-        assert!(batches[1].0.contains("2/2"), "second sub-batch must be labelled 2/2");
-        assert_eq!(batches[0].1.len(), 20, "first sub-batch must have 20 entries");
-        assert_eq!(batches[1].1.len(), 5, "second sub-batch must have 5 entries");
+        assert!(
+            batches[0].0.contains("1/2"),
+            "first sub-batch must be labelled 1/2"
+        );
+        assert!(
+            batches[1].0.contains("2/2"),
+            "second sub-batch must be labelled 2/2"
+        );
+        assert_eq!(
+            batches[0].1.len(),
+            20,
+            "first sub-batch must have 20 entries"
+        );
+        assert_eq!(
+            batches[1].1.len(),
+            5,
+            "second sub-batch must have 5 entries"
+        );
+    }
+
+    /// Boundary: exactly `MAX_BATCH_SIZE` (20) stays one batch; 21 splits 20 + 1.
+    /// Guards the off-by-one in the `len() <= MAX_BATCH_SIZE` split condition.
+    #[test]
+    fn split_boundary_at_max_batch_size() {
+        let make = |n: usize| -> Vec<Value> {
+            (0..n)
+                .map(|i| json!({ "op_variant": format!("Op{i}"), "category": "Big" }))
+                .collect()
+        };
+
+        let twenty = make(20);
+        let refs: Vec<&Value> = twenty.iter().collect();
+        let groups = group_by_category(&refs);
+        assert_eq!(groups.len(), 1, "20 (== MAX_BATCH_SIZE) must NOT split");
+        assert_eq!(groups[0].0, "Big");
+        assert_eq!(groups[0].1.len(), 20);
+
+        let twenty_one = make(21);
+        let refs: Vec<&Value> = twenty_one.iter().collect();
+        let groups = group_by_category(&refs);
+        assert_eq!(groups.len(), 2, "21 must split into two sub-batches");
+        assert_eq!(groups[0].0, "Big (1/2)");
+        assert_eq!(groups[0].1.len(), 20);
+        assert_eq!(groups[1].0, "Big (2/2)");
+        assert_eq!(groups[1].1.len(), 1);
     }
 }

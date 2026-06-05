@@ -33,13 +33,18 @@ pub fn invoke_claude(prompt: &str) -> Result<Value, String> {
             Ok(v) => return Ok(v),
             Err(e) => {
                 if attempt < MAX_RETRIES - 1 {
-                    eprintln!("  [claude] attempt {}/{MAX_RETRIES} failed: {e}", attempt + 1);
+                    eprintln!(
+                        "  [claude] attempt {}/{MAX_RETRIES} failed: {e}",
+                        attempt + 1
+                    );
                 }
                 last_err = e;
             }
         }
     }
-    Err(format!("claude failed after {MAX_RETRIES} attempts: {last_err}"))
+    Err(format!(
+        "claude failed after {MAX_RETRIES} attempts: {last_err}"
+    ))
 }
 
 fn try_invoke(prompt: &str) -> Result<Value, String> {
@@ -83,8 +88,8 @@ fn try_invoke(prompt: &str) -> Result<Value, String> {
 /// This is a pure function that takes raw stdout bytes — no subprocess invocation.
 /// Tests target this helper directly.
 pub fn parse_envelope(stdout: &[u8]) -> Result<Value, String> {
-    let envelope: Value = serde_json::from_slice(stdout)
-        .map_err(|e| format!("envelope parse error: {e}"))?;
+    let envelope: Value =
+        serde_json::from_slice(stdout).map_err(|e| format!("envelope parse error: {e}"))?;
 
     let inner_text = envelope["result"]
         .as_str()
@@ -93,7 +98,11 @@ pub fn parse_envelope(stdout: &[u8]) -> Result<Value, String> {
     let inner_text = strip_fences(inner_text);
 
     serde_json::from_str(inner_text).map_err(|e| {
-        let preview = &inner_text[..inner_text.len().min(200)];
+        // Char-safe preview: this path exists for MALFORMED LLM output, which is
+        // umlaut/Σ-heavy German alias text. A byte slice at index 200 could land
+        // mid-codepoint and panic ("not a char boundary"), masking the real parse
+        // error this message is meant to surface (v4.2 review).
+        let preview: String = inner_text.chars().take(200).collect();
         format!("inner JSON parse error: {e}\nRaw: {preview}")
     })
 }
