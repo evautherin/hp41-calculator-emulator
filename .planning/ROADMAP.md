@@ -150,7 +150,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   3. Every `status: "implemented"` entry across all six JSON pools has at least one alias populated; the data is committed to the repository as static content
   4. The documentation for the script states clearly that it is re-run only when functions are added or their semantics change — not as a regenerate-and-diff CI check
 **Plans**: 2 plans
-  - [ ] 60-01-PLAN.md — Build the dev-only `scripts/help-aliases/` generator crate (minimal-diff pool I/O, fill-only merge, `claude -p` wrapper + per-category batching, unit tests, `just help-aliases` recipe, README)
+  - [x] 60-01-PLAN.md — Build the dev-only `scripts/help-aliases/` generator crate (minimal-diff pool I/O, fill-only merge, `claude -p` wrapper + per-category batching, unit tests, `just help-aliases` recipe, README)
   - [ ] 60-02-PLAN.md — Run the generator to populate DE+EN `search_aliases` across all six pools, human-review the alias diff, build-smoke both frontends, commit the static data
 
 ### Phase 61: Quality Gates
@@ -173,7 +173,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
 | 59. Runtime Matcher | 3/3 | Complete   | 2026-06-04 |
-| 60. Alias Authoring Pipeline | 0/2 | Not started | - |
+| 60. Alias Authoring Pipeline | 1/2 | In Progress|  |
 | 61. Quality Gates | 0/? | Not started | - |
 
 ---

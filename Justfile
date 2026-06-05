@@ -235,6 +235,26 @@ docs-matrix-check:
 		docs/hp41-xmem-functions.json /tmp/hp41-xmem-function-matrix-check.md
 	diff -u docs/hp41-xmem-function-matrix.md /tmp/hp41-xmem-function-matrix-check.md
 
+# Generate DE+EN search aliases for all six help JSON pools.
+# Re-run only when functions are added or their semantics change (not on every build).
+# LLM (claude) runs on the developer's machine only — NOT in CI and NOT in shipped binaries.
+# Fill-only: entries that already have search_aliases are left byte-for-byte untouched (D-60.2).
+# In-place: reads and writes the same pool file (single path argument per pool).
+[group('docs')]
+help-aliases:
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41cv-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-math1-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-stat1-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-time-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-advantage-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-xmem-functions.json
+
 # ─── iOS (Tauri v2 Mobile) ──────────────────────────────────────────────────
 #
 # iOS target triples (P-iOS-07 — keep device and simulator distinct; using the

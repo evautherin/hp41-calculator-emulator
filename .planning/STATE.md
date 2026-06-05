@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
-status: executing
-last_updated: "2026-06-05T07:54:30.690Z"
-last_activity: 2026-06-05 -- Phase 60 planning complete
+status: verifying
+last_updated: "2026-06-05T08:11:29.151Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 50
 ---
 
@@ -29,25 +29,25 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 ## Current Position
 
-Phase: 59 (runtime-matcher) — VERIFIED PASS ✓
-Plan: 3 of 3 complete
-Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 60 planning complete
+Phase: 60 (alias-authoring-pipeline) — Plan 01 complete
+Plan: 1 of 2 complete (Wave 1 done — Wave 2 is data run)
+Status: executing
+Last activity: 2026-06-05 — Phase 60 Plan 01 complete (help-aliases crate scaffold, 12 tests green)
 
 ## Progress Bar
 
 ```
 v4.2 Help Search Enrichment
 Phase 58 ██████████ 100%  Phase 59 ██████████ 100%
-Phase 60 ░░░░░░░░░░  0%   Phase 61 ░░░░░░░░░░  0%
-Overall  █████░░░░░  50%
+Phase 60 █████░░░░░  50%   Phase 61 ░░░░░░░░░░  0%
+Overall  ███████░░░  62%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
 | 58 | Data Model — `search_aliases` field on both help-entry mirrors | Complete ✓ |
 | 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Complete ✓ (UAT 2/2) |
-| 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Not started |
+| 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Plan 01 done — Wave 2 (data run) next |
 | 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Not started |
 
 ## Quick Tasks Completed
@@ -85,6 +85,7 @@ Overall  █████░░░░░  50%
 | Phase 59-runtime-matcher P01 | 5m | 3 tasks | 3 files |
 | Phase 59-runtime-matcher P02 | 10m | 2 tasks | 2 files |
 | Phase 59-runtime-matcher P03 | 12m | 2 tasks | 2 files |
+| Phase 60-alias-authoring P01 | 30m | 3 tasks | 10 files |
 
 ## Accumulated Context
 

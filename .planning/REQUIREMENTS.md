@@ -18,9 +18,9 @@ Requirements for the v4.2 milestone. Each maps to exactly one roadmap phase.
 
 ### Authoring Pipeline (HSGEN)
 
-- [ ] **HSGEN-01**: A dev-only script under `scripts/help-aliases/` (alongside `scripts/docs-matrix/`) reads each JSON entry's `display_name` / `description` / `notes` / `category` and writes generated DE + EN aliases back into the entry's `search_aliases`.
-- [ ] **HSGEN-02**: Alias generation calls a large LLM only on the developer's machine; no model, API call, or inference is present in any shipped binary or runs at runtime (the "AI" is authoring-time only).
-- [ ] **HSGEN-03**: Generated aliases are committed as static data (PR-reviewable like any content); the script is documented as re-run only when functions are added or their semantics change.
+- [x] **HSGEN-01**: A dev-only script under `scripts/help-aliases/` (alongside `scripts/docs-matrix/`) reads each JSON entry's `display_name` / `description` / `notes` / `category` and writes generated DE + EN aliases back into the entry's `search_aliases`.
+- [x] **HSGEN-02**: Alias generation calls a large LLM only on the developer's machine; no model, API call, or inference is present in any shipped binary or runs at runtime (the "AI" is authoring-time only).
+- [x] **HSGEN-03**: Generated aliases are committed as static data (PR-reviewable like any content); the script is documented as re-run only when functions are added or their semantics change.
 
 ### Runtime Matcher (HSMATCH)
 
@@ -74,9 +74,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HSDATA-02 | Phase 58 | Pending |
 | HSDATA-03 | Phase 60 | Pending |
 | HSDATA-04 | Phase 58 | Pending |
-| HSGEN-01 | Phase 60 | Pending |
-| HSGEN-02 | Phase 60 | Pending |
-| HSGEN-03 | Phase 60 | Pending |
+| HSGEN-01 | Phase 60 | Complete |
+| HSGEN-02 | Phase 60 | Complete |
+| HSGEN-03 | Phase 60 | Complete |
 | HSMATCH-01 | Phase 59 | Complete |
 | HSMATCH-02 | Phase 59 | Complete |
 | HSMATCH-03 | Phase 59 | Complete |
