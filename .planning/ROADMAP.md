@@ -103,7 +103,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 ### v4.2 Help Search Enrichment (Phases 58–61)
 
 - [x] **Phase 58: Data Model** — Add `search_aliases` field to both help-entry mirrors (Rust + TypeScript), backward-compat serde, no visual change ✅ verified PASS 6/6 (2026-06-04)
-- [x] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results (completed 2026-06-04)
+- [x] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results ✅ executed 2026-06-04, human UAT PASS 2/2 2026-06-05 (engine-level: four-tier + typo tolerance on current EN data; DE/alias acceptance deferred to Phase 60/61)
 - [ ] **Phase 60: Alias Authoring Pipeline** — `scripts/help-aliases/` scaffold + LLM runner + populated DE+EN aliases committed to all six JSON pools
 - [ ] **Phase 61: Quality Gates** — Unit tests, CLI-TS parity fixture, JSON schema CI gate, docs/CLAUDE.md update
 
@@ -176,4 +176,4 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 
 ---
 
-*Last updated: 2026-06-04 — Phase 59 (Runtime Matcher) planned: 3 plans in 2 waves (Wave 1 RED tests, Wave 2 parallel CLI+GUI scorers). Next: `/gsd-execute-phase 59`.*
+*Last updated: 2026-06-05 — Phase 59 (Runtime Matcher) human UAT PASS 2/2; phase complete. UAT re-scoped to engine-level (Phase-59 deliverable) since DE/alias queries depend on Phase-60 data. Next: `/gsd-plan-phase 60`.*

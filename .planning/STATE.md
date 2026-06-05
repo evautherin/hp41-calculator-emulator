@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
-status: verifying
-last_updated: "2026-06-04T19:59:13.056Z"
-last_activity: 2026-06-04
+status: planning
+last_updated: "2026-06-05T05:53:20.000Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 4
   completed_phases: 2
@@ -23,30 +23,30 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 59 — runtime-matcher
+**Current focus:** Phase 60 — alias-authoring-pipeline (next to plan)
 
 ---
 
 ## Current Position
 
-Phase: 59 (runtime-matcher) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-04
+Phase: 59 (runtime-matcher) — VERIFIED PASS ✓
+Plan: 3 of 3 complete
+Status: Human UAT 2/2 passed (2026-06-05, re-scoped to engine-level on current EN data; DE/alias queries deferred to Phase 60/61). Ready to plan Phase 60.
+Last activity: 2026-06-05
 
 ## Progress Bar
 
 ```
 v4.2 Help Search Enrichment
-Phase 58 ██████████ 100%  Phase 59 ░░░░░░░░░░  0%
+Phase 58 ██████████ 100%  Phase 59 ██████████ 100%
 Phase 60 ░░░░░░░░░░  0%   Phase 61 ░░░░░░░░░░  0%
-Overall  ██▌░░░░░░░  25%
+Overall  █████░░░░░  50%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
 | 58 | Data Model — `search_aliases` field on both help-entry mirrors | Complete ✓ |
-| 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Not started |
+| 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Complete ✓ (UAT 2/2) |
 | 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Not started |
 | 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Not started |
 
@@ -116,7 +116,7 @@ None.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 59` to plan Phase 59: Runtime Matcher (alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked)
+- Run `/gsd-plan-phase 60` to plan Phase 60: Alias Authoring Pipeline (`scripts/help-aliases/` scaffold + offline LLM runner + DE+EN aliases committed to all six JSON pools). This is what unlocks the deferred `Zineszins`/`Wurzel`/`compound interest` live search.
 
 ---
 
@@ -135,4 +135,4 @@ None.
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-04 — Phase 58 (Data Model) executed + verified PASS 6/6 (HSDATA-01/02/04). `search_aliases` field added to both help-entry mirrors with backward-compat tests; render projection untouched (D-58.5); six JSON pools byte-for-byte unchanged. Next: `/gsd-plan-phase 59`.*
+*Last updated: 2026-06-05 — Phase 59 (Runtime Matcher) human UAT PASSED 2/2. UAT was re-scoped: original criteria (`Zineszins`/`Wurzel`/`compound interest`) tested Phase-60 alias content against a Phase-59-only build (0 aliases populated in JSON → correct empty result, not a defect). Re-scoped to engine-level on current EN data — four-tier scoring (exact/prefix/substring/fuzzy incl. typo `squrt`→SQRT) + flat-ranked render branch on both CLI and GUI tabs confirmed. DE/alias acceptance deferred to Phase 60 (data) + Phase 61 (verification), per ROADMAP. Next: `/gsd-plan-phase 60`.*
