@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Help Search Enrichment
-status: verifying
-last_updated: "2026-06-05T08:11:29.151Z"
+status: executing
+last_updated: "2026-06-05T12:12:10Z"
 last_activity: 2026-06-05
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,31 +23,31 @@ See: .planning/PROJECT.md (updated 2026-05-29 for v4.1 iOS Foundation)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 60 — alias-authoring-pipeline (next to plan)
+**Current focus:** Phase 60 complete — Phase 61 (Schema Gate + Verification) next to plan
 
 ---
 
 ## Current Position
 
-Phase: 60 (alias-authoring-pipeline) — Plan 01 complete
-Plan: 1 of 2 complete (Wave 1 done — Wave 2 is data run)
-Status: executing
-Last activity: 2026-06-05 — Phase 60 Plan 01 complete (help-aliases crate scaffold, 12 tests green)
+Phase: 60 (alias-authoring-pipeline) — COMPLETE (2/2 plans)
+Plan: 2 of 2 complete (Wave 1 generator crate + Wave 2 data run)
+Status: phase complete — Phase 61 next to plan
+Last activity: 2026-06-05 — Phase 60 Plan 02 complete (364 implemented entries DE+EN-aliased across six pools; writeback corrected to byte-preserving splice; both frontends build)
 
 ## Progress Bar
 
 ```
 v4.2 Help Search Enrichment
 Phase 58 ██████████ 100%  Phase 59 ██████████ 100%
-Phase 60 █████░░░░░  50%   Phase 61 ░░░░░░░░░░  0%
-Overall  ███████░░░  62%
+Phase 60 ██████████ 100%  Phase 61 ░░░░░░░░░░  0%
+Overall  ████████░░  75%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
 | 58 | Data Model — `search_aliases` field on both help-entry mirrors | Complete ✓ |
 | 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Complete ✓ (UAT 2/2) |
-| 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Plan 01 done — Wave 2 (data run) next |
+| 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Complete ✓ — 364 entries DE+EN-aliased, alias-only diff, both frontends build |
 | 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Not started |
 
 ## Quick Tasks Completed
@@ -86,6 +86,7 @@ Overall  ███████░░░  62%
 | Phase 59-runtime-matcher P02 | 10m | 2 tasks | 2 files |
 | Phase 59-runtime-matcher P03 | 12m | 2 tasks | 2 files |
 | Phase 60-alias-authoring P01 | 30m | 3 tasks | 10 files |
+| Phase 60-alias-authoring P02 | ~75m | 3 tasks (2 checkpoints) | 6 pools + 3 crate files |
 
 ## Accumulated Context
 
@@ -117,7 +118,7 @@ None.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 60` to plan Phase 60: Alias Authoring Pipeline (`scripts/help-aliases/` scaffold + offline LLM runner + DE+EN aliases committed to all six JSON pools). This is what unlocks the deferred `Zineszins`/`Wurzel`/`compound interest` live search.
+- Run `/gsd-plan-phase 61` to plan Phase 61: Schema Gate + Verification — validate the alias JSON schema and confirm the deferred `Zinseszins`/`Wurzel`/`compound interest` queries resolve against the matcher + the now-committed alias data. (Phase 60 delivered the data; "Zinseszins" is not yet a literal TVM alias — candidate hand-add if Phase-61 UAT needs it.)
 
 ---
 
@@ -136,4 +137,4 @@ None.
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-05 — Phase 59 (Runtime Matcher) human UAT PASSED 2/2. UAT was re-scoped: original criteria (`Zineszins`/`Wurzel`/`compound interest`) tested Phase-60 alias content against a Phase-59-only build (0 aliases populated in JSON → correct empty result, not a defect). Re-scoped to engine-level on current EN data — four-tier scoring (exact/prefix/substring/fuzzy incl. typo `squrt`→SQRT) + flat-ranked render branch on both CLI and GUI tabs confirmed. DE/alias acceptance deferred to Phase 60 (data) + Phase 61 (verification), per ROADMAP. Next: `/gsd-plan-phase 60`.*
+*Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) COMPLETE. Wave 1: `scripts/help-aliases/` generator crate (12 tests). Wave 2: ran the generator live, populated DE+EN `search_aliases` for all 364 implemented entries across six pools (~3000 aliases). A Wave-2 human review caught that the PrettyFormatter writeback churned 227 entries' inline `xrom`/`divergences` (D-60.4 violation); replaced it with a byte-preserving text splice + `--apply-cache` re-apply (zero new LLM cost), 14 crate tests. Final diff is alias-only on every pool; `cargo check -p hp41-cli` + `just gui-ci` green; total 235 KB (max 81 KB). `--bare` dropped from claude flags (broke local OAuth). Next: `/gsd-plan-phase 61` (Schema Gate + Verification — also verify `Zinseszins`/`Wurzel`/`compound interest` resolve; "Zinseszins" not yet a literal TVM alias).*

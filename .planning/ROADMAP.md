@@ -104,7 +104,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 
 - [x] **Phase 58: Data Model** — Add `search_aliases` field to both help-entry mirrors (Rust + TypeScript), backward-compat serde, no visual change ✅ verified PASS 6/6 (2026-06-04)
 - [x] **Phase 59: Runtime Matcher** — Upgrade both mirrored matchers to alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked results ✅ executed 2026-06-04, human UAT PASS 2/2 2026-06-05 (engine-level: four-tier + typo tolerance on current EN data; DE/alias acceptance deferred to Phase 60/61)
-- [ ] **Phase 60: Alias Authoring Pipeline** — `scripts/help-aliases/` scaffold + LLM runner + populated DE+EN aliases committed to all six JSON pools
+- [x] **Phase 60: Alias Authoring Pipeline** — `scripts/help-aliases/` scaffold + LLM runner + populated DE+EN aliases committed to all six JSON pools ✅ executed 2026-06-05 (364 implemented entries aliased, alias-only diff, both frontends build)
 - [ ] **Phase 61: Quality Gates** — Unit tests, CLI-TS parity fixture, JSON schema CI gate, docs/CLAUDE.md update
 
 ---
@@ -151,7 +151,7 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
   4. The documentation for the script states clearly that it is re-run only when functions are added or their semantics change — not as a regenerate-and-diff CI check
 **Plans**: 2 plans
   - [x] 60-01-PLAN.md — Build the dev-only `scripts/help-aliases/` generator crate (minimal-diff pool I/O, fill-only merge, `claude -p` wrapper + per-category batching, unit tests, `just help-aliases` recipe, README)
-  - [ ] 60-02-PLAN.md — Run the generator to populate DE+EN `search_aliases` across all six pools, human-review the alias diff, build-smoke both frontends, commit the static data
+  - [x] 60-02-PLAN.md — Run the generator to populate DE+EN `search_aliases` across all six pools, human-review the alias diff, build-smoke both frontends, commit the static data ✅ 2026-06-05 (writeback corrected to byte-preserving splice mid-run; cache re-applied at zero LLM cost)
 
 ### Phase 61: Quality Gates
 **Goal**: The search enrichment is verified by automated tests and CI gates, and documented in CLAUDE.md so future contributors understand the alias convention and matcher contract
@@ -173,9 +173,9 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 |-------|----------------|--------|-----------|
 | 58. Data Model | 1/1 | Complete ✓ | 2026-06-04 |
 | 59. Runtime Matcher | 3/3 | Complete   | 2026-06-04 |
-| 60. Alias Authoring Pipeline | 1/2 | In Progress|  |
+| 60. Alias Authoring Pipeline | 2/2 | Complete |  |
 | 61. Quality Gates | 0/? | Not started | - |
 
 ---
 
-*Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) planned: 2 plans / 2 waves (W1 generator crate + tests, W2 data run + review + commit). Next: `/gsd-execute-phase 60`.*
+*Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) COMPLETE: generator crate + 364 DE+EN-aliased implemented entries across six pools (alias-only diff, both frontends build). Writeback corrected to a byte-preserving splice during Wave 2. Next: `/gsd-plan-phase 61` (Schema Gate + Verification).*
