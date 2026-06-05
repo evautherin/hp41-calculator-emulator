@@ -48,6 +48,18 @@
       "top_n": 1,
       "expected_top": ["SQRT"],
       "note": "fuzzy match on SQRT display_name (1 typo)"
+    },
+    {
+      "query": "zineszins",
+      "top_n": 1,
+      "expected_top": ["TVM"],
+      "note": "fuzzy match on the DE alias 'Zinseszins' (1 typo) -> TVM; headline DE-fuzzy feature, cross-runtime guard"
+    },
+    {
+      "query": "matrix",
+      "top_n": 2,
+      "expected_top": ["MATRIX", "C<>C"],
+      "note": "multi-result ORDER guard: MATRIX (exact name) then the tie-break winner C<>C (matches via category, lowest display_name in the tied group). Proves CLI and GUI order ties identically: score DESC, then display_name ASC (code-unit)."
     }
   ]
 }

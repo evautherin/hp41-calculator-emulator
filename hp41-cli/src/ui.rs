@@ -403,10 +403,12 @@ pub fn pending_prompt(
 /// Uses ratatui 0.30 Rect::centered() — no manual calculation needed.
 /// RESEARCH Pitfall 1: draw(&self) is immutable; RefCell<TableState> allows borrow_mut here.
 ///
-/// v3.0 (post-ship): the overlay gained an incremental substring-search bar
-/// at the top, mirroring hp41-gui's `HelpOverlay.tsx`. Layout splits the
-/// modal into a 3-line search bar + the remaining table area; the table is
-/// driven by `help_data::filter_help_rows(...)` over `app.help_search_query`.
+/// v3.0 (post-ship): the overlay gained an incremental search bar at the top,
+/// mirroring hp41-gui's `HelpOverlay.tsx`. Layout splits the modal into a
+/// 3-line search bar + the remaining table area. Phase 59: an empty (or
+/// whitespace-only) query is driven by `help_data::filter_help_rows(...)`
+/// (category-grouped); a non-empty query routes through the relevance scorer
+/// `help_data::ranked_help_entries(...)` (flat, ranked, no category headers).
 fn render_help_overlay(app: &App, frame: &mut Frame) {
     let overlay_area = frame
         .area()
@@ -439,18 +441,19 @@ fn render_help_overlay(app: &App, frame: &mut Frame) {
         Paragraph::new(search_display).block(Block::bordered().title_top(" Search "));
     frame.render_widget(search_paragraph, search_area);
 
-    // D-25.16 / D-25.18: rows derive from docs/hp41cv-functions.json via
-    // help_data::help_overlay_rows. Category headers are synthesised by the
-    // helper as "=== <category> ===" with empty key/op fields. The filter
-    // (post-v3.0 search) preserves category headers only when at least one
-    // child row matches the query.
+    // D-25.16 / D-25.18: for the empty (or whitespace-only) query, rows derive
+    // from docs/hp41cv-functions.json via help_data::help_overlay_rows, with
+    // category headers synthesised as "=== <category> ===" (empty key/op fields).
     //
-    // Phase 59: non-empty query → flat relevance-ranked list via
+    // Phase 59: a non-empty query → flat relevance-ranked list via
     // help_data::ranked_help_entries (no category headers, score DESC).
-    // Empty query → unchanged category-grouped path (SC-4 / HSMATCH-04).
+    // Empty/whitespace query → unchanged category-grouped path (SC-4 / HSMATCH-04).
     let display_rows: Vec<help_data::HelpRow>;
     let match_count: usize;
-    if app.help_search_query.is_empty() {
+    // Whitespace-only counts as empty (trim) so it shows the category-grouped
+    // view, matching the GUI (HelpOverlay trims before ranking). Avoids a
+    // CLI-only "0 matches" on a stray space (D-25.6 parity / HSMATCH-04).
+    if app.help_search_query.trim().is_empty() {
         // UNCHANGED PATH: category-grouped, header-interleaved.
         let overlay_rows = help_data::help_overlay_rows();
         let filtered = help_data::filter_help_rows(&overlay_rows, "");

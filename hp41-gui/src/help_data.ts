@@ -89,6 +89,13 @@ export interface HelpEntry {
      * free-text search recall without appearing in the `?` overlay layout.
      * Populated in Phase 60 (alias content); absent until then.
      * Mirrors `search_aliases: Vec<String>` in hp41-cli/src/help_data.rs (~line 87).
+     *
+     * Cardinality note: the Rust side uses `#[serde(default)]` → a total,
+     * always-present `Vec` (empty when absent). Here the field is intentionally
+     * OPTIONAL because it is loaded by raw static JSON import (no serde default),
+     * so older/un-aliased entries have no key. Every read MUST coalesce via
+     * `?? []` (the single guarded read is in `scoreEntry`) to stay behaviourally
+     * identical to Rust. Do not read `entry.search_aliases` without the fallback.
      */
     search_aliases?: string[];
 }
@@ -399,8 +406,9 @@ export function levenshteinBounded(a: string, b: string, maxDist: number): numbe
 
 /// Private tier scoring helper. Lowercases `field` and returns the best
 /// tier score for query `q`:
-///   exact == > prefix (starts_with or any word-start) > substring > fuzzy.
-/// Fuzzy only attempted when `q.length >= 2` (P-HS-02 guard).
+///   exact > prefix (starts_with or any word-start) > substring > fuzzy.
+/// Fuzzy only attempted when the query is >= 2 code points
+/// (`[...q].length >= 2`, NOT UTF-16 `.length`) (P-HS-02 guard).
 ///
 /// Mirrors `tier_score` in hp41-cli/src/help_data.rs exactly.
 function tierScore(

@@ -380,7 +380,8 @@ fn levenshtein_bounded(a: &str, b: &str, max_dist: usize) -> usize {
 ///
 /// `q` must already be lowercased by the caller (`score_entry` does this once).
 /// Tier order (highest wins): exact > word-prefix > substring > fuzzy.
-/// Fuzzy is only attempted when `q.len() >= 2` to prevent false-positives on
+/// Fuzzy is only attempted when the query is >= 2 code points
+/// (`q.chars().count() >= 2`, NOT byte length) to prevent false-positives on
 /// single-character queries (P-HS-02).
 fn tier_score(field: &str, q: &str, exact: u8, prefix: u8, substr: u8, fuzzy: u8) -> u8 {
     let f = field.to_lowercase();
@@ -467,6 +468,17 @@ pub fn score_entry(entry: &HelpEntry, q: &str) -> u8 {
     name_score.max(desc_score).max(cat_score).max(alias_score)
 }
 
+/// `op_variant`s deliberately HIDDEN from the relevance-ranked `?` search,
+/// mirroring `OVERLAY_HIDDEN_ALIASES` in hp41-gui/src/help_data.ts (Phase s17).
+///
+/// These stay `status: "implemented"` (truthful — they execute) and keep their
+/// resolver arm + `Op` variant for v1.0 save-file compatibility (Pitfall 8), but
+/// surfacing them in search would duplicate a real HP-41 function under a
+/// non-authentic legacy mnemonic. `AlphaClear` ("CLRALPHA") is the v1.0 legacy
+/// alias of `Cla` ("CLA"); CLA is the authentic mnemonic and is the one shown.
+/// Kept in sync with the GUI set so CLI and GUI search agree (D-25.6 / HSQUAL-02).
+const OVERLAY_HIDDEN_ALIASES: &[&str] = &["AlphaClear"];
+
 /// Return a flat, relevance-ranked list of help rows for a non-empty query.
 ///
 /// Scores every `status == "implemented"` entry from all six JSON pools via
@@ -495,6 +507,9 @@ pub fn ranked_help_entries(query: &str) -> Vec<HelpRow> {
     }
     let mut scored: Vec<(u8, &'static HelpEntry)> = help_entries_all()
         .filter(|e| e.status == "implemented")
+        // Mirror the GUI All-Functions exclusion so CLI search never surfaces a
+        // deliberately-hidden non-authentic alias (e.g. CLRALPHA) the GUI hides.
+        .filter(|e| !OVERLAY_HIDDEN_ALIASES.contains(&e.op_variant.as_str()))
         .filter_map(|e| {
             let s = score_entry(e, &q);
             if s > 0 {

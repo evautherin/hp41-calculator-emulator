@@ -408,33 +408,64 @@ describe('Phase 61 — help search quality gates (real six-pool data)', () => {
     });
 });
 
+// ── Phase 61 — deliberately-hidden aliases excluded from search (v4.2 review) ──
+//
+// Mirrors the Rust guard hidden_alias_clralpha_never_surfaces_in_ranked_search.
+// CLRALPHA (op_variant "AlphaClear") stays `implemented` for save-file compat but
+// must never appear in ranked search — it is a non-authentic v1.0 legacy alias of
+// CLA. The GUI excludes it via OVERLAY_HIDDEN_ALIASES; this pins that both the
+// pool builder AND ranked search keep it hidden, identical to the CLI (D-25.6).
+describe('Phase 61 — hidden aliases excluded from ranked search', () => {
+    it('CLRALPHA never appears in ranked search results', () => {
+        const pool = allFunctionsEntries();
+        for (const q of ['clralpha', 'CLRALPHA', 'clear alpha register']) {
+            const got = rankedEntries(pool, q).map((r) => r.display_name);
+            expect(got, `query "${q}" must not surface the hidden CLRALPHA alias`).not.toContain(
+                'CLRALPHA',
+            );
+        }
+    });
+
+    it('allFunctionsEntries() excludes OVERLAY_HIDDEN_ALIASES (AlphaClear)', () => {
+        const ops = allFunctionsEntries().map((e) => e.op_variant);
+        expect(ops).not.toContain('AlphaClear');
+    });
+});
+
 // ── Phase 61 Plan 61-03 — CLI↔GUI parity fixture loop (HSQUAL-02 drift guard) ──
 //
 // The canonical fixture docs/fixtures/help_search_parity.json drives BOTH the
 // Rust test (61-02, via include_str!) and this GUI test (via static JSON import).
-// For every fixture query, rankedEntries(allFunctionsEntries(), query)[0] must
-// equal expected_top[0] — identical to the Rust assertion. If a query's top-1
-// diverges, that is a real CLI↔GUI drift / data regression: report it as a
-// blocker — do NOT weaken the assertion or edit the frozen fixture/JSON data.
-describe('Phase 61 — CLI↔GUI parity fixture (top-1 drift guard, HSQUAL-02)', () => {
+// For every fixture query, the ORDERED top-N display_names from
+// rankedEntries(allFunctionsEntries(), query) must equal expected_top — identical
+// to the Rust assertion (full ordered prefix, not just top-1, so a tie-break or
+// pool-order drift fails loudly). If a query's ranking diverges, that is a real
+// CLI↔GUI drift / data regression: report it as a blocker — do NOT weaken the
+// assertion or edit the frozen fixture/JSON data.
+describe('Phase 61 — CLI↔GUI parity fixture (ordered drift guard, HSQUAL-02)', () => {
     const pool = allFunctionsEntries();
 
-    it('fixture has the expected canonical shape (top_n=1 queries)', () => {
+    it('fixture has the canonical shape (expected_top length === top_n)', () => {
         expect(Array.isArray(parityFixture.queries)).toBe(true);
         expect(parityFixture.queries.length).toBeGreaterThan(0);
         for (const c of parityFixture.queries) {
-            expect(c.top_n).toBe(1);
+            expect(c.top_n).toBeGreaterThanOrEqual(1);
             // Each query is already lowercased (canonical fixture invariant).
             expect(c.query).toBe(c.query.toLowerCase());
-            expect(c.expected_top.length).toBeGreaterThanOrEqual(1);
+            expect(c.expected_top.length).toBe(c.top_n);
         }
     });
 
     for (const c of parityFixture.queries) {
-        it(`parity: "${c.query}" → top-1 ${c.expected_top[0]} (${c.note})`, () => {
+        it(`parity: "${c.query}" → top-${c.top_n} [${c.expected_top.join(', ')}] (${c.note})`, () => {
             const results = rankedEntries(pool, c.query);
-            expect(results.length, `query "${c.query}" must return at least one result`).toBeGreaterThan(0);
-            expect(results[0].display_name, `query "${c.query}" top-1 must match Rust`).toBe(c.expected_top[0]);
+            expect(
+                results.length,
+                `query "${c.query}" must return >= ${c.top_n} results`,
+            ).toBeGreaterThanOrEqual(c.top_n);
+            // Full ordered top-N prefix, identical to the Rust assertion.
+            const got = results.slice(0, c.top_n).map((r) => r.display_name);
+            expect(got, `query "${c.query}" ranked order must match Rust`).toEqual(c.expected_top);
         });
     }
 });

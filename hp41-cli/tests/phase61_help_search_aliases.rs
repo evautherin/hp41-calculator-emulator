@@ -35,7 +35,6 @@ struct ParityFixture {
 #[derive(Debug, Deserialize)]
 struct ParityQuery {
     query: String,
-    #[allow(dead_code)]
     top_n: u8,
     expected_top: Vec<String>,
     #[allow(dead_code)]
@@ -152,6 +151,26 @@ fn fuzzy_typo_sqirt_resolves_sqrt() {
     assert_eq!(top1("sqirt").as_deref(), Some("SQRT"));
 }
 
+// ── 3b. Deliberately-hidden non-authentic aliases are excluded from search ────
+
+/// CLRALPHA (`op_variant` "AlphaClear", display_name "CLRALPHA") is a v1.0 legacy
+/// alias kept `implemented` for save-file compat but DELIBERATELY hidden from the
+/// `?` search overlay (mirrors the GUI's `OVERLAY_HIDDEN_ALIASES`). Searching its
+/// own mnemonic or a German alias must NOT surface it — otherwise CLI search
+/// diverges from the GUI (D-25.6 / HSQUAL-02). Regression guard for the v4.2
+/// code-review finding (CLI was missing the hidden-alias exclusion).
+#[test]
+fn hidden_alias_clralpha_never_surfaces_in_ranked_search() {
+    for q in ["clralpha", "CLRALPHA", "clear alpha register"] {
+        let rows = ranked_help_entries(q);
+        assert!(
+            rows.iter().all(|r| r.op != "CLRALPHA"),
+            "query {q:?} surfaced the hidden CLRALPHA alias in ranked search: {:?}",
+            rows.iter().map(|r| &r.op).collect::<Vec<_>>()
+        );
+    }
+}
+
 // ── 4. Whitespace-only query => no ranked results ─────────────────────────────
 
 /// LANDMINE: the literal empty string `""` trips a `debug_assert!` inside
@@ -183,18 +202,25 @@ fn parity_fixture_top1_matches_for_every_query() {
     );
 
     for q in &fixture.queries {
-        let expected = q
-            .expected_top
-            .first()
-            .expect("each parity query must declare at least one expected_top entry");
-        let got = top1(&q.query);
-        assert_eq!(
-            got.as_deref(),
-            Some(expected.as_str()),
-            "parity mismatch for query {:?}: expected top-1 {:?}, got {:?}",
+        let n = q.top_n as usize;
+        assert!(
+            n >= 1 && q.expected_top.len() == n,
+            "query {:?}: expected_top must list exactly top_n={} ordered display names, got {}",
             q.query,
-            expected,
-            got
+            n,
+            q.expected_top.len()
+        );
+        // Assert the full ordered top-N prefix (not just top-1), so a future
+        // tie-break or pool-order drift between CLI and GUI fails loudly.
+        let got: Vec<String> = ranked_help_entries(&q.query)
+            .iter()
+            .take(n)
+            .map(|r| r.op.clone())
+            .collect();
+        assert_eq!(
+            got, q.expected_top,
+            "parity mismatch for query {:?}: expected top-{} {:?}, got {:?}",
+            q.query, n, q.expected_top, got
         );
     }
 }
