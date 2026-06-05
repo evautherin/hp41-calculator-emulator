@@ -11,10 +11,10 @@ Requirements for the v4.2 milestone. Each maps to exactly one roadmap phase.
 
 ### Data Model (HSDATA)
 
-- [ ] **HSDATA-01**: The CLI `HelpEntry` (`hp41-cli/src/help_data.rs`) gains a `search_aliases: Vec<String>` field annotated `#[serde(default)]`, so existing and older `docs/hp41-*-functions.json` without the field still parse (purely additive).
-- [ ] **HSDATA-02**: The GUI `HelpEntry` TS type (`hp41-gui/src/help_data.ts`) gains an optional `search_aliases?: string[]` field mirroring the Rust field.
-- [ ] **HSDATA-03**: All six `docs/hp41-*-functions.json` pools populate `search_aliases` with DE + EN synonyms / paraphrases / natural-language phrasings for each `status: "implemented"` entry.
-- [ ] **HSDATA-04**: `search_aliases` is an invisible match surface only — it is never rendered in the `?` overlay and produces no layout or visual change.
+- [x] **HSDATA-01**: The CLI `HelpEntry` (`hp41-cli/src/help_data.rs`) gains a `search_aliases: Vec<String>` field annotated `#[serde(default)]`, so existing and older `docs/hp41-*-functions.json` without the field still parse (purely additive).
+- [x] **HSDATA-02**: The GUI `HelpEntry` TS type (`hp41-gui/src/help_data.ts`) gains an optional `search_aliases?: string[]` field mirroring the Rust field.
+- [x] **HSDATA-03**: All six `docs/hp41-*-functions.json` pools populate `search_aliases` with DE + EN synonyms / paraphrases / natural-language phrasings for each `status: "implemented"` entry.
+- [x] **HSDATA-04**: `search_aliases` is an invisible match surface only — it is never rendered in the `?` overlay and produces no layout or visual change.
 
 ### Authoring Pipeline (HSGEN)
 
@@ -37,10 +37,10 @@ Requirements for the v4.2 milestone. Each maps to exactly one roadmap phase.
 
 ### Quality / CI (HSQUAL)
 
-- [ ] **HSQUAL-01**: Unit tests in both frontends cover the scoring tiers (exact > prefix > substring > fuzzy), fuzzy hits, DE + EN alias resolution, and empty-query passthrough (unchanged behavior).
-- [ ] **HSQUAL-02**: A CLI↔GUI parity fixture asserts identical ranked results for a set of canonical queries, guarding the duplicated matcher against drift (same role as the `op_display_name` exhaustive-match invariant).
-- [ ] **HSQUAL-03**: A schema-only CI gate validates `search_aliases` across all six JSON pools — the field is present and correctly typed, and every `status: "implemented"` entry has ≥ 1 alias. **No** regenerate-and-diff gate (LLM output is non-deterministic).
-- [ ] **HSQUAL-04**: `CLAUDE.md`'s JSON-canonical-data-flow section documents the new `search_aliases` field, the German-in-search-input convention exception, and the upgraded matcher.
+- [x] **HSQUAL-01**: Unit tests in both frontends cover the scoring tiers (exact > prefix > substring > fuzzy), fuzzy hits, DE + EN alias resolution, and empty-query passthrough (unchanged behavior).
+- [x] **HSQUAL-02**: A CLI↔GUI parity fixture asserts identical ranked results for a set of canonical queries, guarding the duplicated matcher against drift (same role as the `op_display_name` exhaustive-match invariant).
+- [x] **HSQUAL-03**: A schema-only CI gate validates `search_aliases` across all six JSON pools — the field is present and correctly typed, and every `status: "implemented"` entry has ≥ 1 alias. **No** regenerate-and-diff gate (LLM output is non-deterministic).
+- [x] **HSQUAL-04**: `CLAUDE.md`'s JSON-canonical-data-flow section documents the new `search_aliases` field, the German-in-search-input convention exception, and the upgraded matcher.
 
 ## v2 Requirements
 
@@ -70,10 +70,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HSDATA-01 | Phase 58 | Pending |
-| HSDATA-02 | Phase 58 | Pending |
-| HSDATA-03 | Phase 60 | Pending |
-| HSDATA-04 | Phase 58 | Pending |
+| HSDATA-01 | Phase 58 | Complete |
+| HSDATA-02 | Phase 58 | Complete |
+| HSDATA-03 | Phase 60 | Complete |
+| HSDATA-04 | Phase 58 | Complete |
 | HSGEN-01 | Phase 60 | Complete |
 | HSGEN-02 | Phase 60 | Complete |
 | HSGEN-03 | Phase 60 | Complete |
@@ -84,10 +84,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HSMATCH-05 | Phase 59 | Complete |
 | HSUX-01 | Phase 59 | Complete |
 | HSUX-02 | Phase 59 | Complete |
-| HSQUAL-01 | Phase 61 | Pending |
-| HSQUAL-02 | Phase 61 | Pending |
-| HSQUAL-03 | Phase 61 | Pending |
-| HSQUAL-04 | Phase 61 | Pending |
+| HSQUAL-01 | Phase 61 | Complete |
+| HSQUAL-02 | Phase 61 | Complete |
+| HSQUAL-03 | Phase 61 | Complete |
+| HSQUAL-04 | Phase 61 | Complete |
 
 **Coverage:**
 - v1 requirements: 18 total
@@ -95,4 +95,4 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 ---
 *Requirements defined: 2026-06-04*
-*Last updated: 2026-06-04 — traceability table filled after roadmap creation*
+*Last updated: 2026-06-05 — all 18 v1 requirements satisfied at v4.2 milestone close (verified via phase VERIFICATIONs + Phase 61 gates + cross-phase integration audit). HSCOV-01 remains v2/deferred.*

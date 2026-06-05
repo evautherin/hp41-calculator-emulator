@@ -1,8 +1,9 @@
 ---
 phase: 59-runtime-matcher
 verified: 2026-06-04T22:20:00Z
-status: human_needed
+status: passed
 score: 7/7 must-haves verified
+human_verification_completed: 2026-06-05  # UAT 2/2 passed (live overlay: Zineszins→TVM, Wurzel→SQRT, empty-query restored view) — confirmed at v4.2 milestone close
 overrides_applied: 0
 re_verification: null
 gaps: []
