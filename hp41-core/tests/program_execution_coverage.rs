@@ -268,9 +268,10 @@ fn op_tone_in_run_program() {
 
 #[test]
 fn op_pse_in_run_program() {
-    // Catches: program-context divergence on Op::Pse + Pitfall-3 invariant
-    // (display_override + event_buffer "PAUSE 1000" both written; run_loop
-    // does NOT break). execute_op arm at program.rs.
+    // Phase 63 (PRGM-01 / D-04): run_loop now intercepts Op::Pse before execute_op.
+    // Behavior change: run_loop BREAKS at PSE and sets pending_yield instead of
+    // writing display_override + "PAUSE 1000" event. Subsequent ops do NOT execute
+    // until resume_program is called.
     let mut state = CalcState::new();
     push(&mut state, "42");
     state.program = vec![
@@ -280,17 +281,26 @@ fn op_pse_in_run_program() {
         Op::Rtn,
     ];
     run_program(&mut state, "T").unwrap();
-    // Pse writes display_override AND event_buffer; does not break run_loop.
+    // Phase 63: PSE breaks run_loop → display_override NOT written (D-04).
     assert!(
-        state.display_override.is_some(),
-        "PSE must set display_override"
+        state.display_override.is_none(),
+        "Phase 63: PSE must NOT write display_override during program execution (D-04)"
     );
+    // Phase 63: typed yield channel set instead of legacy "PAUSE 1000" event.
+    let py = state
+        .pending_yield
+        .as_ref()
+        .expect("Phase 63: PSE must set pending_yield");
     assert!(
-        state.event_buffer.iter().any(|e| e.contains("PAUSE 1000")),
-        "event_buffer must contain PAUSE 1000 marker"
+        matches!(py.kind, hp41_core::state::YieldKind::Pse),
+        "Phase 63: pending_yield kind must be Pse"
     );
-    // Subsequent op did execute (X = 99).
-    assert_eq!(state.stack.x.inner(), Decimal::from(99));
+    // Subsequent op did NOT execute (X still 42, not 99 — PSE broke the loop).
+    assert_eq!(
+        state.stack.x.inner(),
+        Decimal::from_str("42").unwrap(),
+        "Phase 63: step after PSE must not execute until resume_program"
+    );
 }
 
 #[test]
@@ -404,21 +414,50 @@ fn op_asn_in_run_program() {
 
 #[test]
 fn op_view_in_run_program() {
-    // Catches: program-context divergence on Op::View — execute_op arm at program.rs.
+    // Phase 63 (PRGM-02 / D-04): run_loop intercepts Op::View before execute_op.
+    // display_override is NOT written; pending_yield is set instead. run_loop breaks.
     let mut state = CalcState::new();
     state.regs[3] = HpNum::from(42i32).into();
     state.display_mode = hp41_core::DisplayMode::Fix(2);
     run_op_in_program(&mut state, Op::View(3)).unwrap();
-    assert!(state.display_override.is_some());
+    // Phase 63: VIEW breaks run_loop → display_override NOT written (D-04).
+    assert!(
+        state.display_override.is_none(),
+        "Phase 63: VIEW must NOT write display_override during program execution (D-04)"
+    );
+    // Phase 63: pending_yield must be set with kind=View.
+    let py = state
+        .pending_yield
+        .as_ref()
+        .expect("Phase 63: VIEW must set pending_yield");
+    assert!(
+        matches!(py.kind, hp41_core::state::YieldKind::View),
+        "Phase 63: pending_yield kind must be View"
+    );
 }
 
 #[test]
 fn op_aview_in_run_program() {
-    // Catches: program-context divergence on Op::AView — execute_op arm at program.rs.
+    // Phase 63 (PRGM-02 / D-04): run_loop intercepts Op::AView before execute_op.
+    // display_override is NOT written; pending_yield.text = alpha content.
     let mut state = CalcState::new();
     state.alpha_reg = "WORLD".to_string();
     run_op_in_program(&mut state, Op::AView).unwrap();
-    assert_eq!(state.display_override.as_deref(), Some("WORLD"));
+    // Phase 63: AVIEW breaks run_loop → display_override NOT written (D-04).
+    assert!(
+        state.display_override.is_none(),
+        "Phase 63: AVIEW must NOT write display_override during program execution (D-04)"
+    );
+    // Phase 63: pending_yield carries alpha content.
+    let py = state
+        .pending_yield
+        .as_ref()
+        .expect("Phase 63: AVIEW must set pending_yield");
+    assert_eq!(py.text, "WORLD", "Phase 63: pending_yield.text must be alpha content");
+    assert!(
+        matches!(py.kind, hp41_core::state::YieldKind::Aview),
+        "Phase 63: pending_yield kind must be Aview"
+    );
 }
 
 #[test]
