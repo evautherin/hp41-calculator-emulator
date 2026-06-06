@@ -280,6 +280,13 @@ impl App {
             if event::poll(Duration::from_millis(16))? {
                 if let Event::Key(key) = event::read()? {
                     self.handle_key(key);
+                    // PSE/VIEW/AVIEW yield drain (Phase 63-03, criteria 4–5 CLI half):
+                    // After run_program returns with pending_yield set, render the yield
+                    // text on the display, sleep resume_ms, then call resume_program to
+                    // continue the program at the next step. Loop for consecutive yields
+                    // (e.g. PSE then VIEW). Terminal is only available in run(), so the
+                    // loop lives here rather than in handle_key.
+                    self.drain_pending_yields(&mut terminal)?;
                 }
             }
             // PERS-02: 30-second auto-save via extracted method (D-05)
@@ -293,6 +300,60 @@ impl App {
         // D-05: save on graceful exit before ratatui::restore()
         if let Err(e) = persistence::save_state(&self.state_path, &self.state) {
             eprintln!("Warning: failed to save state on exit: {e}");
+        }
+        Ok(())
+    }
+
+    /// Drain any pending PSE/VIEW/AVIEW yields: render yield text, sleep, resume.
+    ///
+    /// Phase 63-03 (criteria 4–5, CLI half of D-25.6): after run_program yields mid-run,
+    /// the CLI must show the pause text for resume_ms before resuming execution.
+    ///
+    /// Yield text is surfaced via state.entry_buf (priority 3 in get_display_string),
+    /// which is always empty during program execution. It is cleared before each
+    /// resume_program call so the core sees a clean entry state. resume_program itself
+    /// clears pending_yield on entry and advances to the next step.
+    ///
+    /// Handles consecutive yields (e.g. PSE followed immediately by VIEW) by looping
+    /// until pending_yield is None after a resume.
+    ///
+    /// I-07 print discipline: drain_and_show_print_output is called after every
+    /// resume_program so alarm-handler PRX/PRA/PRSTK output is never stranded.
+    fn drain_pending_yields(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
+        while self.state.pending_yield.is_some() {
+            // Clone yield data before borrowing self mutably.
+            let (yield_text, resume_ms) = {
+                let y = self
+                    .state
+                    .pending_yield
+                    .as_ref()
+                    .expect("checked is_some above");
+                (y.text.clone(), y.resume_ms)
+            };
+            // Show the yield text on the main display for the pause duration.
+            // entry_buf has display priority 3 (above X register) and is empty
+            // during program execution — safe to borrow temporarily.
+            self.state.entry_buf = yield_text;
+            terminal.draw(|frame| self.draw(frame))?;
+            self.state.entry_buf.clear();
+
+            std::thread::sleep(Duration::from_millis(resume_ms));
+
+            // resume_program clears pending_yield on entry, then continues at
+            // the already-advanced pc. If the next step is also a yield op
+            // (PSE/VIEW/AVIEW), pending_yield will be set again and the loop
+            // iterates. If the program ends or errors, pending_yield stays None.
+            match hp41_core::resume_program(&mut self.state) {
+                Ok(()) => {
+                    self.message = None;
+                    let card_err = self.drain_pending_card_op();
+                    self.drain_and_show_print_output(card_err);
+                }
+                Err(e) => {
+                    self.message = Some(format!("{e}"));
+                    break;
+                }
+            }
         }
         Ok(())
     }
@@ -1771,10 +1832,14 @@ impl App {
     /// Drain all events from state.event_buffer and process them (D-39.6).
     ///
     /// Routing:
-    ///   "alarm:message:{text}"      → set self.message = Some(text)
-    ///   "alarm:xeq:{label}"         → call run_program(state, label); on error set self.message
-    ///   "alarm:interrupting:..."    → ignored (deferred per D-38.4)
-    ///   anything else               → ignored (BEEP, TONE, future events)
+    ///   "alarm:message:{text}"  → set self.message = Some(text)
+    ///   "alarm:xeq:{label}"     → call run_program(state, label); drain print/card; on error set self.message
+    ///   "alarm:missing:{label}" → set self.message (D-08: missing handler label; D-07: never swallow)
+    ///   anything else           → dropped (BEEP, TONE, future events)
+    ///
+    /// Phase 63-01 removed the old deferred-stub routing. Running interrupting alarms
+    /// execute inline inside run_loop; idle/demoted alarms arrive as "alarm:xeq:{label}";
+    /// missing handler labels produce "alarm:missing:{label}" from the run_loop boundary.
     fn drain_event_buffer(&mut self) {
         let events: Vec<String> = self.state.event_buffer.drain(..).collect();
         for event in events {
@@ -1793,8 +1858,12 @@ impl App {
                     }
                     Err(e) => self.message = Some(format!("Alarm XEQ {label}: {e}")),
                 }
+            } else if let Some(label) = event.strip_prefix("alarm:missing:") {
+                // D-08: missing interrupt handler label → surface on status line.
+                // D-07: never swallow errors — always show a visible diagnostic.
+                self.message = Some(format!("Alarm XEQ {label}: label not found"));
             }
-            // "alarm:interrupting:..." and other events are silently ignored.
+            // Other events (BEEP, TONE, future extensions) are dropped.
         }
     }
 
@@ -3312,6 +3381,31 @@ mod synthetic_modal_tests {
         assert!(
             app.state.pending_card_op.is_none(),
             "request must be cleared so user is not locked out of next card op",
+        );
+    }
+
+    /// Phase 63-03 Task 2: drain_event_buffer routes "alarm:missing:{label}" to self.message.
+    ///
+    /// D-08: a missing interrupt-handler label must surface visibly on the status line.
+    /// D-07: never silently swallow an unknown or error event — always show a diagnostic.
+    /// hp41-cli is NOT coverage-gated (VALIDATION §Manual-Only), so this targeted test
+    /// is the backstop for the alarm:missing arm.
+    #[test]
+    fn drain_event_alarm_missing_sets_message() {
+        let mut app = make_app();
+        app.state.event_buffer.push("alarm:missing:FOO".to_string());
+        app.message = None;
+
+        app.drain_event_buffer();
+
+        let msg = app.message.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("FOO"),
+            "alarm:missing arm must include the label name; got {msg:?}"
+        );
+        assert!(
+            msg.contains("label not found") || msg.contains("not found"),
+            "alarm:missing arm must indicate a missing label; got {msg:?}"
         );
     }
 }
