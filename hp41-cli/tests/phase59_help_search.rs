@@ -57,8 +57,7 @@ fn tier_order_exact_prefix_substring_fuzzy() {
     let exact_score = score_entry(&exact_entry, "tvm");
     assert_eq!(
         exact_score, 40,
-        "exact name match must score 40, got {}",
-        exact_score
+        "exact name match must score 40, got {exact_score}"
     );
 
     // Word-prefix name match: query "tv" is a prefix of "tvm"
@@ -66,8 +65,7 @@ fn tier_order_exact_prefix_substring_fuzzy() {
     let prefix_score = score_entry(&prefix_entry, "tv");
     assert_eq!(
         prefix_score, 32,
-        "word-prefix name match must score 32, got {}",
-        prefix_score
+        "word-prefix name match must score 32, got {prefix_score}"
     );
 
     // Substring name match: query "vm" is a substring (not prefix) of "tvm"
@@ -75,8 +73,7 @@ fn tier_order_exact_prefix_substring_fuzzy() {
     let substr_score = score_entry(&substr_entry, "vm");
     assert_eq!(
         substr_score, 24,
-        "substring name match must score 24, got {}",
-        substr_score
+        "substring name match must score 24, got {substr_score}"
     );
 
     // Fuzzy name match: query "tvm" vs display_name "tvm" is exact; use a 1-typo case:
@@ -85,28 +82,21 @@ fn tier_order_exact_prefix_substring_fuzzy() {
     let fuzzy_score = score_entry(&fuzzy_entry, "tvm");
     assert_eq!(
         fuzzy_score, 8,
-        "fuzzy name match (1 typo) must score 8, got {}",
-        fuzzy_score
+        "fuzzy name match (1 typo) must score 8, got {fuzzy_score}"
     );
 
     // Tier order is strictly descending
     assert!(
         exact_score > prefix_score,
-        "exact({}) must beat prefix({})",
-        exact_score,
-        prefix_score
+        "exact({exact_score}) must beat prefix({prefix_score})"
     );
     assert!(
         prefix_score > substr_score,
-        "prefix({}) must beat substr({})",
-        prefix_score,
-        substr_score
+        "prefix({prefix_score}) must beat substr({substr_score})"
     );
     assert!(
         substr_score > fuzzy_score,
-        "substr({}) must beat fuzzy({})",
-        substr_score,
-        fuzzy_score
+        "substr({substr_score}) must beat fuzzy({fuzzy_score})"
     );
     assert!(fuzzy_score > 0, "fuzzy match must be non-zero");
 }
@@ -130,8 +120,7 @@ fn fuzzy_typo_zineszins_resolves_tvm() {
     let score = score_entry(&tvm, "zineszins");
     assert!(
         score > 0,
-        "TVM with alias 'Zinseszins' must score > 0 for query 'zineszins' (1-typo fuzzy); got {}",
-        score
+        "TVM with alias 'Zinseszins' must score > 0 for query 'zineszins' (1-typo fuzzy); got {score}"
     );
 
     // Control: entry without the alias must score 0
@@ -139,8 +128,7 @@ fn fuzzy_typo_zineszins_resolves_tvm() {
     let control_score = score_entry(&control, "zineszins");
     assert_eq!(
         control_score, 0,
-        "SIN without alias must score 0 for 'zineszins', got {}",
-        control_score
+        "SIN without alias must score 0 for 'zineszins', got {control_score}"
     );
 }
 
@@ -154,8 +142,7 @@ fn fuzzy_wurzel_resolves_sqrt() {
     let score = score_entry(&sqrt, "wurzel");
     assert_eq!(
         score, 35,
-        "SQRT with alias 'Wurzel' must score 35 for exact alias query 'wurzel', got {}",
-        score
+        "SQRT with alias 'Wurzel' must score 35 for exact alias query 'wurzel', got {score}"
     );
 
     // In a pool, SQRT must be the max-scoring entry for "wurzel"
@@ -172,8 +159,7 @@ fn fuzzy_wurzel_resolves_sqrt() {
         .unwrap_or(0);
     assert_eq!(
         score, max_score,
-        "SQRT must be the highest-scoring entry for 'wurzel' in the pool; pool max = {}, sqrt score = {}",
-        max_score, score
+        "SQRT must be the highest-scoring entry for 'wurzel' in the pool; pool max = {max_score}, sqrt score = {score}"
     );
 }
 
@@ -193,15 +179,13 @@ fn alias_de_en_both_resolve() {
     let de_score = score_entry(&tvm, "zinseszins");
     assert!(
         de_score > 0,
-        "TVM with DE alias 'Zinseszins' must score > 0 for 'zinseszins', got {}",
-        de_score
+        "TVM with DE alias 'Zinseszins' must score > 0 for 'zinseszins', got {de_score}"
     );
 
     let en_score = score_entry(&tvm, "compound interest");
     assert!(
         en_score > 0,
-        "TVM with EN alias 'compound interest' must score > 0 for 'compound interest', got {}",
-        en_score
+        "TVM with EN alias 'compound interest' must score > 0 for 'compound interest', got {en_score}"
     );
 
     // Entry without any alias scores 0 for both queries
