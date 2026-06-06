@@ -119,7 +119,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 
 **Milestone Goal:** Close the remaining genuine behavioral gaps between the emulator and real HP-41CX hardware. Anchor: interrupting control-alarm execution (D-40-04) + audit-selected fidelity fixes. No new calculator functions or XROM modules.
 
-- [ ] **Phase 62: Alarm Semantics Spec** — Verify `>` / `>>` prefix semantics against OM; lock the behavioral contract that gates all alarm implementation
+- [x] **Phase 62: Alarm Semantics Spec** — Verify `>` / `>>` prefix semantics against OM; lock the behavioral contract that gates all alarm implementation (ADR v4.3-003; code CONFIRMED CORRECT; da26a98)
 - [ ] **Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW** — Build the synchronous pending-interrupt mechanism in `run_loop`; implement interrupting control alarm execution and PSE/VIEW-AVIEW mid-run display yields
 - [ ] **Phase 64: Interactive GETKEY** — Suspend program execution waiting for a keypress; push HP-41 row×col code to X and resume
 - [ ] **Phase 65: Standalone Fidelity Fixes** — CLI `display_override` visibility, CHS mantissa sign-flip, AON auto-display, FACT(27..69) range fix

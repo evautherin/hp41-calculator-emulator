@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-06T10:30:11.449Z"
-last_activity: 2026-06-06 -- Phase 62 planning complete
+last_updated: "2026-06-06T11:00:00.000Z"
+last_activity: 2026-06-06 -- Phase 62 Plan 01 complete (ADR v4.3-003 authored)
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,30 +23,30 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** v4.3 Hardware Fidelity — interrupting control alarms (D-40-04 anchor), run-loop yield/interrupt engine, PSE/VIEW/AVIEW mid-run, GETKEY, display + math fidelity fixes. Roadmap created 2026-06-06; 5 phases (62–66), 11 requirements.
+**Current focus:** Phase 62 — alarm-semantics-spec
 
 ---
 
 ## Current Position
 
-Phase: 62 — Alarm Semantics Spec (context gathered)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-06 -- Phase 62 planning complete
+Phase: 62 (alarm-semantics-spec) — COMPLETE
+Plan: 1 of 1 (all plans complete)
+Status: Phase 62 complete; advancing to Phase 63
+Last activity: 2026-06-06 -- Phase 62 Plan 01 complete (ADR v4.3-003 authored; da26a98)
 
 ## Progress Bar
 
 ```
 v4.3 Hardware Fidelity
-Phase 62 ░░░░░░░░░░   0%  Phase 63 ░░░░░░░░░░   0%
+Phase 62 ██████████ 100%  Phase 63 ░░░░░░░░░░   0%
 Phase 64 ░░░░░░░░░░   0%  Phase 65 ░░░░░░░░░░   0%
 Phase 66 ░░░░░░░░░░   0%
-Overall  ░░░░░░░░░░   0%
+Overall  ██░░░░░░░░  20%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 62 | Alarm Semantics Spec — verify `>` / `>>` prefix semantics against OM, lock behavioral contract | Not started |
+| 62 | Alarm Semantics Spec — verify `>` / `>>` prefix semantics against OM, lock behavioral contract | Complete ✓ (2026-06-06, da26a98) |
 | 63 | Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW — synchronous pending-interrupt mechanism, alarm execution mid-run, display yields | Not started |
 | 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Not started |
 | 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Not started |
@@ -76,7 +76,13 @@ Overall  ░░░░░░░░░░   0%
 
 ## Accumulated Context
 
-### Decisions (pre-resolved from research/audit)
+### Decisions (Phase 62 locked + pre-resolved from research/audit)
+
+- **ALARM-01 resolved — code CONFIRMED CORRECT:** `>>label` = Interrupting Control Alarm (interrupts a running program); `>label` = Conditional/Noninterrupting Alarm (fires only when idle/off). Confirmed by HP 82182A QRC 82182-90002 (1981) and HP-41CX QRG 00041-90475 (1983). Current `parse_alarm_type` (`>>` → `interrupting: true`) is correct. ADR: `docs/adr/v4.3-003-alarm-prefix-semantics.md`.
+- **D-05 not triggered:** Conditional correction plan does not apply (code not inverted). Flip-vs-rename delegated to Phase 63 planner. Three constraints documented in ADR for record.
+- **D-07 honored:** `docs/hp41-time-divergences.md §D-40-04` not updated in Phase 62. Phase 66 success criterion.
+
+### Pre-phase decisions
 
 - **Synchronous, single-threaded re-entrancy** — the run-loop interrupt mechanism reuses the existing call-stack / Xeq / PROMPT-resume machinery. No threads, no `Arc<Mutex>` rework, no new `Op` variants. A single transient `pending_interrupt: Option<String>` field on `CalcState` with `#[serde(default, skip)]` is the wire.
 - **ALARM-01 gates ALARM-02/03** — Phase 62 is a spec/clarify-only phase (no runtime code). No implementation of interrupting alarms begins until the `>`/`>>` prefix inversion question is resolved against the primary OM.
@@ -111,7 +117,7 @@ None. Phase 62 can start immediately.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 62` to plan Phase 62: Alarm Semantics Spec.
+- Run `/gsd-plan-phase 63` to plan Phase 63: Run-Loop Yield Engine + Interrupting Alarms.
 
 ---
 
