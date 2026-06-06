@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: planning
-last_updated: "2026-06-06T11:26:46.764Z"
+status: executing
+last_updated: "2026-06-06T15:15:42.566Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 7
+  completed_plans: 2
   percent: 20
 ---
 
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 63
-Plan: Planned — 6 plans across 4 waves (plan-checker PASS, 2026-06-06)
-Status: Ready to execute
+Plan: 63-01 COMPLETE (wave 1 of 4; plan 1 of 6) — Wave-0 scaffolds + CalcState fields + alarm routing
+Status: Executing — 63-02 next (run_loop interrupt arm + PSE/VIEW/AVIEW yield arms)
 Last activity: 2026-06-06
 
 ## Progress Bar
@@ -75,6 +75,12 @@ Overall  ██░░░░░░░░  20%
 ---
 
 ## Accumulated Context
+
+### Decisions (Phase 63-01 — 2026-06-06)
+
+- **63-01-D01:** `YieldKind/YieldState/PSE_RESUME_MS` named as RESEARCH recommended; all three yield kinds share 1000 ms (single knob, no perceptible gain from shorter "brief" constant).
+- **63-01-D02:** `pending_interrupt_depth: Option<usize>` declared in state.rs (63-01) not program.rs (63-02) to maintain wave-2 file isolation — 63-02 reads/writes it without touching state.rs.
+- **63-01-D03:** `dispatch_alarm_event` gains `defer_to_run_loop: bool`; `check_alarms` passes `true` (defers to run_loop); `op_almnow` passes `false` (owns synchronous ack — avoids double-ack/stale-index hazard).
 
 ### Decisions (Phase 62 locked + pre-resolved from research/audit)
 

@@ -14,13 +14,13 @@ Requirements for this milestone. Each maps to a roadmap phase.
 ### Control Alarms (anchor — D-40-04)
 
 - [x] **ALARM-01**: The control-alarm `>` / `>>` prefix semantics are verified against the primary OM (HP 00041-90035 §XYZALM) and the behavioral contract is locked, resolving which prefix interrupts a running program (the audit surfaced a possible inversion between the code's `interrupting` flag and the OM). *Gates ALARM-02/03.*
-- [ ] **ALARM-02**: A control alarm that comes due while a program is running interrupts it at the next instruction boundary, XEQs the alarm's stored label program (in the interrupted program's register environment), and resumes the interrupted program when the alarm program completes.
-- [ ] **ALARM-03**: An interrupting control alarm respects the 4-level subroutine call-stack limit (suppressed and left past-due at depth 4) and cannot re-interrupt itself; `is_running` and call-stack integrity are preserved on every path (including errors). Idle-fired control alarms continue to execute via the existing path, unchanged.
+- [x] **ALARM-02**: A control alarm that comes due while a program is running interrupts it at the next instruction boundary, XEQs the alarm's stored label program (in the interrupted program's register environment), and resumes the interrupted program when the alarm program completes.
+- [x] **ALARM-03**: An interrupting control alarm respects the 4-level subroutine call-stack limit (suppressed and left past-due at depth 4) and cannot re-interrupt itself; `is_running` and call-stack integrity are preserved on every path (including errors). Idle-fired control alarms continue to execute via the existing path, unchanged.
 
 ### Program-Execution Visibility (run-loop yield family)
 
-- [ ] **PRGM-01**: PSE during program execution pauses the display for ~1 second before continuing to the next step (CLI and GUI). *(FGAP-01)*
-- [ ] **PRGM-02**: VIEW and AVIEW during a running program display their value briefly (PSE-like) before the next step, rather than only after the program ends. *(FGAP-10)*
+- [x] **PRGM-01**: PSE during program execution pauses the display for ~1 second before continuing to the next step (CLI and GUI). *(FGAP-01)*
+- [x] **PRGM-02**: VIEW and AVIEW during a running program display their value briefly (PSE-like) before the next step, rather than only after the program ends. *(FGAP-10)*
 - [ ] **PRGM-03**: GETKEY inside a running program pauses execution, waits for the next key press, pushes that key's HP-41 row×col code to X, and resumes (returns the no-key sentinel only when appropriate). *(FGAP-04; subsumes FGAP-08)*
 
 ### Display & Entry Fidelity
@@ -71,10 +71,10 @@ Which phases cover which requirements.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ALARM-01 | Phase 62 | Complete |
-| ALARM-02 | Phase 63 | Pending |
-| ALARM-03 | Phase 63 | Pending |
-| PRGM-01 | Phase 63 | Pending |
-| PRGM-02 | Phase 63 | Pending |
+| ALARM-02 | Phase 63 | Complete |
+| ALARM-03 | Phase 63 | Complete |
+| PRGM-01 | Phase 63 | Complete |
+| PRGM-02 | Phase 63 | Complete |
 | PRGM-03 | Phase 64 | Pending |
 | DISP-01 | Phase 65 | Pending |
 | DISP-02 | Phase 65 | Pending |
