@@ -145,7 +145,10 @@ fn interrupting_alarm_halts_running_program_and_resumes() {
         "call_stack must be empty after handler RTN and MAIN RTN"
     );
     // is_running must be false
-    assert!(!state.is_running, "is_running must be false after run completes");
+    assert!(
+        !state.is_running,
+        "is_running must be false after run completes"
+    );
 }
 
 // ── Scenario 2: interrupt_preserves_stack_x_y_z_t_and_lift_state ────────────
@@ -230,7 +233,9 @@ fn interrupt_blocked_when_call_stack_at_4_level_cap() {
     state.is_running = true;
     state.call_stack = vec![10, 20, 30, 40]; // 4 levels
 
-    state.alarms.push(make_past_due_interrupting_alarm("HANDLER"));
+    state
+        .alarms
+        .push(make_past_due_interrupting_alarm("HANDLER"));
     check_alarms(&mut state);
 
     // With cap reached the alarm should set pending_interrupt (routing sets it when running+no-pending)
@@ -262,7 +267,9 @@ fn interrupt_nesting_blocked_when_already_in_alarm_program() {
     state.pending_interrupt = Some("FIRST".to_string());
 
     // Add a second interrupting alarm
-    state.alarms.push(make_past_due_interrupting_alarm("SECOND"));
+    state
+        .alarms
+        .push(make_past_due_interrupting_alarm("SECOND"));
     check_alarms(&mut state);
 
     // Second alarm must be demoted to event_buffer
@@ -296,12 +303,16 @@ fn interrupting_alarm_fires_when_no_program_running() {
     // is_running is false (default)
     assert!(!state.is_running);
 
-    state.alarms.push(make_past_due_interrupting_alarm("IDLE_HANDLER"));
+    state
+        .alarms
+        .push(make_past_due_interrupting_alarm("IDLE_HANDLER"));
     check_alarms(&mut state);
 
     // Must route to event_buffer as alarm:xeq (criterion 3 idle path)
     assert!(
-        state.event_buffer.contains(&"alarm:xeq:IDLE_HANDLER".to_string()),
+        state
+            .event_buffer
+            .contains(&"alarm:xeq:IDLE_HANDLER".to_string()),
         "idle interrupting alarm must queue as alarm:xeq:IDLE_HANDLER; got: {:?}",
         state.event_buffer
     );
@@ -328,7 +339,9 @@ fn non_interrupting_alarm_still_fires_as_event_not_inline() {
     // Even when running, non-interrupting goes to event_buffer
     state.is_running = true;
 
-    state.alarms.push(make_past_due_non_interrupting_alarm("NONINT"));
+    state
+        .alarms
+        .push(make_past_due_non_interrupting_alarm("NONINT"));
     check_alarms(&mut state);
 
     // Must be in event_buffer
@@ -357,11 +370,15 @@ fn message_alarm_still_fires_to_event_buffer_not_executed() {
     let mut state = CalcState::new();
     state.time_offset_secs = 0;
 
-    state.alarms.push(make_past_due_message_alarm("COFFEE BREAK"));
+    state
+        .alarms
+        .push(make_past_due_message_alarm("COFFEE BREAK"));
     check_alarms(&mut state);
 
     assert!(
-        state.event_buffer.contains(&"alarm:message:COFFEE BREAK".to_string()),
+        state
+            .event_buffer
+            .contains(&"alarm:message:COFFEE BREAK".to_string()),
         "message alarm must push alarm:message:COFFEE BREAK; got: {:?}",
         state.event_buffer
     );
@@ -392,11 +409,15 @@ fn interrupt_demoted_when_solver_or_modal_active() {
         state.is_running = true;
         state.integ_state = Some(hp41_core::ops::math1::integ::IntegState::default());
 
-        state.alarms.push(make_past_due_interrupting_alarm("INTEG_HANDLER"));
+        state
+            .alarms
+            .push(make_past_due_interrupting_alarm("INTEG_HANDLER"));
         check_alarms(&mut state);
 
         assert!(
-            state.event_buffer.contains(&"alarm:xeq:INTEG_HANDLER".to_string()),
+            state
+                .event_buffer
+                .contains(&"alarm:xeq:INTEG_HANDLER".to_string()),
             "with integ_state active, interrupt must demote to alarm:xeq; got: {:?}",
             state.event_buffer
         );
@@ -414,11 +435,15 @@ fn interrupt_demoted_when_solver_or_modal_active() {
         state.is_running = true;
         state.solve_state = Some(hp41_core::ops::math1::solve::SolveState::default());
 
-        state.alarms.push(make_past_due_interrupting_alarm("SOLVE_HANDLER"));
+        state
+            .alarms
+            .push(make_past_due_interrupting_alarm("SOLVE_HANDLER"));
         check_alarms(&mut state);
 
         assert!(
-            state.event_buffer.contains(&"alarm:xeq:SOLVE_HANDLER".to_string()),
+            state
+                .event_buffer
+                .contains(&"alarm:xeq:SOLVE_HANDLER".to_string()),
             "with solve_state active, interrupt must demote to alarm:xeq; got: {:?}",
             state.event_buffer
         );

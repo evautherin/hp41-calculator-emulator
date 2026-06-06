@@ -3475,11 +3475,7 @@ mod synthetic_modal_tests {
         //   LBL "ALRM"
         //   PSE         ← yields mid-program, sets state.pending_yield
         //   RTN
-        app.state.program = vec![
-            Op::Lbl("ALRM".to_string()),
-            Op::Pse,
-            Op::Rtn,
-        ];
+        app.state.program = vec![Op::Lbl("ALRM".to_string()), Op::Pse, Op::Rtn];
 
         // Simulate the event that fires when an idle/demoted control alarm targets "ALRM".
         app.state.event_buffer.push("alarm:xeq:ALRM".to_string());
@@ -3502,12 +3498,7 @@ mod synthetic_modal_tests {
 
         // Confirm no error was surfaced (i.e., run_program succeeded, not Err branch).
         assert!(
-            app.message.is_none()
-                || !app
-                    .message
-                    .as_deref()
-                    .unwrap_or("")
-                    .contains("Alarm XEQ"),
+            app.message.is_none() || !app.message.as_deref().unwrap_or("").contains("Alarm XEQ"),
             "drain_event_buffer must not set an error message for a successful alarm:xeq; \
              got: {:?}",
             app.message

@@ -139,9 +139,7 @@ fn alarm_latency_interrupting_control_fires_in_one_cycle() {
     // Phase 63 idle path (D-13): interrupting alarm with is_running=false routes
     // to alarm:xeq:{label} on event_buffer (not the old "alarm:interrupting:deferred" stub).
     assert!(
-        state
-            .event_buffer
-            .contains(&"alarm:xeq:IPROG".to_string()),
+        state.event_buffer.contains(&"alarm:xeq:IPROG".to_string()),
         "Phase 63: idle interrupting alarm must queue as alarm:xeq:IPROG; got: {:?}",
         state.event_buffer
     );

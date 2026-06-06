@@ -159,7 +159,10 @@ fn test_pse_writes_both_channels() {
         "Phase 63: 'PAUSE 1000' must NOT be in event_buffer (replaced by pending_yield)"
     );
     // Phase 63: pending_yield must be set with kind=Pse.
-    let py = state.pending_yield.as_ref().expect("pending_yield must be Some after PSE");
+    let py = state
+        .pending_yield
+        .as_ref()
+        .expect("pending_yield must be Some after PSE");
     assert!(
         matches!(py.kind, hp41_core::state::YieldKind::Pse),
         "pending_yield kind must be Pse"
@@ -169,7 +172,10 @@ fn test_pse_writes_both_channels() {
         &HpNum::rounded(Decimal::from_str("1.23").unwrap()),
         &DisplayMode::Fix(4),
     );
-    assert_eq!(py.text, expected, "pending_yield.text must be format_hpnum(X)");
+    assert_eq!(
+        py.text, expected,
+        "pending_yield.text must be format_hpnum(X)"
+    );
     assert_eq!(py.resume_ms, hp41_core::state::PSE_RESUME_MS);
 }
 

@@ -1274,9 +1274,7 @@ mod tests {
         assert!(state.alarms[0].past_due);
         // Idle path → alarm:xeq:{label} to event_buffer (D-13)
         assert!(
-            state
-                .event_buffer
-                .contains(&"alarm:xeq:IPROG".to_string()),
+            state.event_buffer.contains(&"alarm:xeq:IPROG".to_string()),
             "idle interrupting alarm must push alarm:xeq:IPROG; event_buffer: {:?}",
             state.event_buffer
         );

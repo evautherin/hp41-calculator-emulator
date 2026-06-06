@@ -453,7 +453,10 @@ fn op_aview_in_run_program() {
         .pending_yield
         .as_ref()
         .expect("Phase 63: AVIEW must set pending_yield");
-    assert_eq!(py.text, "WORLD", "Phase 63: pending_yield.text must be alpha content");
+    assert_eq!(
+        py.text, "WORLD",
+        "Phase 63: pending_yield.text must be alpha content"
+    );
     assert!(
         matches!(py.kind, hp41_core::state::YieldKind::Aview),
         "Phase 63: pending_yield kind must be Aview"

@@ -488,7 +488,6 @@ pub struct CalcState {
     pub xmem_active_file: Option<String>,
 
     // ── Phase 63 (v4.3): Run-loop yield engine + interrupting alarms ──────────
-
     /// Pending interrupting-alarm label awaiting injection at the next `run_loop`
     /// instruction boundary (D-12). Set by `check_alarms` (via `dispatch_alarm_event`)
     /// only when `is_running == true`, `pending_interrupt.is_none()`, and no

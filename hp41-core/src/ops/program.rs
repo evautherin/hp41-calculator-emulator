@@ -19,7 +19,7 @@ use crate::ops::math1::xrom::{XromModule, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1
 use crate::ops::time;
 use crate::ops::{Op, TestKind};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
-use crate::state::{CalcState, PSE_RESUME_MS, YieldKind, YieldState};
+use crate::state::{CalcState, YieldKind, YieldState, PSE_RESUME_MS};
 
 // ── Public op dispatch functions ─────────────────────────────────────────────
 // Called from dispatch() match arms (added in plan 03-06).
@@ -806,8 +806,7 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
                     .get(reg as usize)
                     .ok_or(HpError::InvalidOp)?
                     .clone();
-                let text =
-                    crate::format::format_hpnum(&val.numeric_or_zero(), &state.display_mode);
+                let text = crate::format::format_hpnum(&val.numeric_or_zero(), &state.display_mode);
                 apply_lift_effect(state, LiftEffect::Neutral);
                 state.pending_yield = Some(YieldState {
                     kind: YieldKind::View,

@@ -50,7 +50,7 @@ fn pse_mid_run_breaks_and_records_resume_ms() {
         &mut state,
         vec![
             Op::Lbl("P".to_string()),
-            Op::Pse, // <- yield point
+            Op::Pse,       // <- yield point
             Op::StoReg(0), // <- step AFTER PSE; should NOT have run yet
             Op::Rtn,
         ],
@@ -69,15 +69,9 @@ fn pse_mid_run_breaks_and_records_resume_ms() {
         py.resume_ms, PSE_RESUME_MS,
         "resume_ms must be PSE_RESUME_MS ({PSE_RESUME_MS})"
     );
-    assert!(
-        matches!(py.kind, YieldKind::Pse),
-        "yield kind must be Pse"
-    );
+    assert!(matches!(py.kind, YieldKind::Pse), "yield kind must be Pse");
     // text must be the formatted X value (format_hpnum(3.14, Fix(4)))
-    assert!(
-        !py.text.is_empty(),
-        "pending_yield.text must not be empty"
-    );
+    assert!(!py.text.is_empty(), "pending_yield.text must not be empty");
     assert!(
         py.text.contains("3.14") || py.text.contains("3.1400"),
         "pending_yield.text must contain the formatted X value; got: {:?}",
@@ -126,7 +120,10 @@ fn pse_resume_continues_to_next_step() {
 
     // First run — breaks at PSE
     hp41_core::ops::program::run_program(&mut state, "R").unwrap();
-    assert!(state.pending_yield.is_some(), "must have pending_yield after first run");
+    assert!(
+        state.pending_yield.is_some(),
+        "must have pending_yield after first run"
+    );
 
     // Resume — must continue from step after PSE
     hp41_core::ops::program::resume_program(&mut state).unwrap();
@@ -143,7 +140,10 @@ fn pse_resume_continues_to_next_step() {
         Decimal::from(42),
         "STO 3 must have run after resume (continuation from after-PSE step)"
     );
-    assert!(!state.is_running, "is_running must be false after completion");
+    assert!(
+        !state.is_running,
+        "is_running must be false after completion"
+    );
 }
 
 // ── Scenario: view_mid_run_captures_formatted_register_into_yield ────────────
@@ -166,8 +166,8 @@ fn view_mid_run_captures_formatted_register_into_yield() {
         &mut state,
         vec![
             Op::Lbl("V".to_string()),
-            Op::View(5), // VIEW reg 5 — yield point
-            Op::StoReg(0),  // must NOT run
+            Op::View(5),   // VIEW reg 5 — yield point
+            Op::StoReg(0), // must NOT run
             Op::Rtn,
         ],
     );
@@ -227,7 +227,7 @@ fn aview_mid_run_captures_alpha_into_yield() {
         &mut state,
         vec![
             Op::Lbl("AV".to_string()),
-            Op::AView, // yield point
+            Op::AView,     // yield point
             Op::StoReg(2), // must NOT run
             Op::Rtn,
         ],
