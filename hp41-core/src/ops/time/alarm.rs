@@ -338,7 +338,8 @@ pub fn op_almcat(state: &mut CalcState) -> Result<(), HpError> {
 /// If a past-due alarm exists, dispatch its event:
 ///   Message alarm → "alarm:message:{msg}" to event_buffer + msg to print_buffer
 ///   Non-interrupting control → "alarm:xeq:{label}" to event_buffer
-///   Interrupting control → "alarm:interrupting:deferred" to event_buffer (D-38.4)
+///   Interrupting control → "alarm:xeq:{label}" to event_buffer
+///     (defer_to_run_loop=false — ALMNOW owns its own synchronous ack; D-38.4 / Phase 63)
 ///
 /// After dispatch: if repeating, advance trigger_unix and reset past_due.
 /// If not repeating, remove from catalog.
@@ -361,7 +362,12 @@ pub fn op_almnow(state: &mut CalcState) -> Result<(), HpError> {
 
     // Trigger the alarm at idx.
     let alarm = state.alarms[idx].clone();
-    dispatch_alarm_event(state, &alarm);
+    // defer_to_run_loop=false: op_almnow owns its own synchronous ack (lines below).
+    // Passing true here would let dispatch_alarm_event set pending_interrupt when
+    // is_running==true, then run_loop's RTN-ack would try to ack an index that
+    // op_almnow has already removed or rescheduled — double-ack / stale-index hazard.
+    // ALMNOW is an explicit "fire now" command; its ack path is self-contained.
+    dispatch_alarm_event(state, &alarm, idx, false);
 
     // Acknowledge: reschedule or remove.
     if alarm.repeat_secs > 0 {
@@ -441,7 +447,9 @@ pub fn op_clralms(state: &mut CalcState) -> Result<(), HpError> {
 ///   Message alarm → `"alarm:message:{text}"` pushed to `event_buffer`
 ///                   + `text` pushed to `print_buffer`
 ///   Non-interrupting control → `"alarm:xeq:{label}"` to `event_buffer`
-///   Interrupting control → `"alarm:interrupting:deferred"` to `event_buffer` (D-38.4)
+///   Interrupting control (Phase 63):
+///     Running + no pending + no solver/modal → `pending_interrupt = Some(label)` (D-12)
+///     Idle / already-pending / solver-demoted → `"alarm:xeq:{label}"` to `event_buffer` (D-10/D-13)
 ///
 /// The alarm's `past_due` flag is set to true but the alarm is NOT removed
 /// (that happens on acknowledgment via `acknowledge_alarm`).
@@ -460,6 +468,8 @@ pub fn check_alarms(state: &mut CalcState) {
                     alarm_type,
                     past_due: true,
                 },
+                i,
+                true, // defer_to_run_loop: check_alarms defers interrupting alarms to run_loop
             );
         }
     }
@@ -490,9 +500,31 @@ pub fn acknowledge_alarm(state: &mut CalcState, index: usize) -> Result<(), HpEr
 /// Push the correct event string(s) for an alarm trigger.
 ///
 /// Called from both `check_alarms` and `op_almnow`.
-fn dispatch_alarm_event(state: &mut CalcState, alarm: &AlarmEntry) {
+///
+/// Parameters:
+/// - `alarm`: cloned `AlarmEntry` snapshot at trigger time.
+/// - `index`: index of this alarm in `state.alarms` (for `pending_interrupt_alarm_index`).
+/// - `defer_to_run_loop`: when `true`, an interrupting alarm that meets the injection
+///   criteria sets `pending_interrupt` and defers execution to `run_loop` (Phase 63).
+///   When `false` (op_almnow), the caller owns its own ack — falling through to the
+///   `alarm:xeq:{label}` event push avoids a double-ack / stale-index hazard.
+///
+/// Routing (Phase 63 — D-12 / D-10 / D-13 / DNT-05):
+///   Message alarm      → `"alarm:message:{msg}"` + print_buffer (unchanged).
+///   Non-interrupting   → `"alarm:xeq:{label}"` to event_buffer (DNT-05, unchanged).
+///   Interrupting + defer_to_run_loop=true + is_running + no pending + no solver/modal
+///                      → `pending_interrupt = Some(label)` + `pending_interrupt_alarm_index = Some(index)`.
+///   Interrupting otherwise (idle D-13, nested D-nesting, solver/modal D-10, defer=false)
+///                      → `"alarm:xeq:{label}"` to event_buffer (same as non-interrupting).
+fn dispatch_alarm_event(
+    state: &mut CalcState,
+    alarm: &AlarmEntry,
+    index: usize,
+    defer_to_run_loop: bool,
+) {
     match &alarm.alarm_type {
         AlarmType::Message(msg) => {
+            // DNT-05: message arm unchanged.
             state.event_buffer.push(format!("alarm:message:{msg}"));
             state.print_buffer.push(msg.clone());
         }
@@ -500,11 +532,28 @@ fn dispatch_alarm_event(state: &mut CalcState, alarm: &AlarmEntry) {
             label,
             interrupting,
         } => {
-            if *interrupting {
-                state
-                    .event_buffer
-                    .push("alarm:interrupting:deferred".to_string());
+            if *interrupting && defer_to_run_loop {
+                // D-13/D-10: only inject into run_loop when a program is running,
+                // no interrupt already pending, and no solver/modal is mid-execution.
+                // Otherwise demote to the proven non-interrupting event path:
+                //   - idle-fire (D-13): is_running == false → alarm:xeq:{label}
+                //   - nesting guard: pending_interrupt already Some → alarm:xeq:{label}
+                //   - solver/modal demotion (D-10): avoid corrupting re-entrancy state
+                let solver_active = state.integ_state.is_some()
+                    || state.solve_state.is_some()
+                    || state.difeq_state.is_some()
+                    || state.modal_program.is_some();
+                if state.is_running && state.pending_interrupt.is_none() && !solver_active {
+                    // D-12: set the pending interrupt; run_loop injects the synthetic frame.
+                    state.pending_interrupt = Some(label.clone());
+                    // D-06a: pair the alarm index so run_loop can ack the right one after RTN.
+                    state.pending_interrupt_alarm_index = Some(index);
+                } else {
+                    // Demote: idle, already-pending, or solver/modal active.
+                    state.event_buffer.push(format!("alarm:xeq:{label}"));
+                }
             } else {
+                // DNT-05: non-interrupting arm unchanged; or defer_to_run_loop=false (op_almnow).
                 state.event_buffer.push(format!("alarm:xeq:{label}"));
             }
         }
@@ -1204,8 +1253,14 @@ mod tests {
     }
 
     #[test]
-    fn check_alarms_interrupting_control_pushes_deferred_event() {
+    fn check_alarms_interrupting_control_idle_queues_xeq_event() {
+        // Phase 63 (v4.3) — replaces the old "alarm:interrupting:deferred" stub.
+        //
+        // When is_running == false (idle path, D-13), an interrupting alarm must
+        // route to event_buffer as "alarm:xeq:{label}" — same as a non-interrupting
+        // alarm. The run_loop injection path (pending_interrupt) requires is_running.
         let mut state = CalcState::new();
+        // is_running is false by default (idle path)
         state.alarms.push(AlarmEntry {
             trigger_unix: 500,
             repeat_secs: 0,
@@ -1217,18 +1272,64 @@ mod tests {
         });
         check_alarms(&mut state);
         assert!(state.alarms[0].past_due);
+        // Idle path → alarm:xeq:{label} to event_buffer (D-13)
         assert!(
             state
                 .event_buffer
-                .contains(&"alarm:interrupting:deferred".to_string()),
-            "event_buffer: {:?}",
+                .contains(&"alarm:xeq:IPROG".to_string()),
+            "idle interrupting alarm must push alarm:xeq:IPROG; event_buffer: {:?}",
             state.event_buffer
         );
-        // Interrupting control: no print_buffer entry.
+        // pending_interrupt must NOT be set (is_running was false)
+        assert!(
+            state.pending_interrupt.is_none(),
+            "pending_interrupt must stay None when is_running == false"
+        );
+        // No print_buffer entry for control alarms
         assert!(
             state.print_buffer.is_empty(),
             "print_buffer should be empty for interrupting control"
         );
+    }
+
+    #[test]
+    fn check_alarms_interrupting_control_running_sets_pending_interrupt() {
+        // Phase 63 (v4.3) — D-12 run-loop injection path.
+        //
+        // When is_running == true and no interrupt is pending and no solver/modal
+        // is active, an interrupting alarm sets pending_interrupt = Some(label)
+        // and pending_interrupt_alarm_index = Some(idx) for run_loop to consume.
+        let mut state = CalcState::new();
+        state.is_running = true; // simulate running program
+        state.alarms.push(AlarmEntry {
+            trigger_unix: 500,
+            repeat_secs: 0,
+            alarm_type: AlarmType::Control {
+                label: "HANDLER".to_string(),
+                interrupting: true,
+            },
+            past_due: false,
+        });
+        check_alarms(&mut state);
+        assert!(state.alarms[0].past_due);
+        // Running path → pending_interrupt = Some(label); NOT event_buffer
+        assert_eq!(
+            state.pending_interrupt.as_deref(),
+            Some("HANDLER"),
+            "pending_interrupt must be Some(HANDLER) when running"
+        );
+        assert_eq!(
+            state.pending_interrupt_alarm_index,
+            Some(0),
+            "pending_interrupt_alarm_index must be Some(0)"
+        );
+        // event_buffer must NOT have the old deferred stub or any alarm event
+        assert!(
+            !state.event_buffer.iter().any(|e| e.starts_with("alarm:")),
+            "event_buffer must be empty for run-loop injection path; got: {:?}",
+            state.event_buffer
+        );
+        state.is_running = false; // cleanup
     }
 
     #[test]
