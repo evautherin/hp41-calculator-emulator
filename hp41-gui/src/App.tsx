@@ -68,6 +68,10 @@ interface CalcStateView {
   clock_active: boolean;
   stopwatch_keyboard_mode: boolean;
   stopwatch_running: boolean;
+  // Phase 63 Plan 06: yield state from run_program/resume_program (63-04 YieldView projection).
+  // Non-null when the program halted at a PSE/VIEW/AVIEW yield point; null otherwise.
+  // kind: "pse" | "view" | "aview"; text: formatted display text; resume_ms: ms to wait before resuming.
+  pending_yield: { kind: string; text: string; resume_ms: number } | null;
 }
 
 // Tauri rejects with GuiError { message: string } — String(err) yields
@@ -96,6 +100,18 @@ function extractErrMessage(err: unknown): string {
 // - Magic-prefix route: `__submit_modal_with_label__<label>` → submit_modal_with_label
 // - R/S 3-way (D-31.1): modal_program_active → submit_modal; is_running → request_cancel
 //   + get_state; else → existing run_stop.
+//
+// Phase 63 Plan 06:
+// - R/S routing extended to 4-way (D-25.6 CLI↔GUI parity):
+//   1. modal_program_active → submit_modal (unchanged)
+//   2. is_running → request_cancel + get_state (cancel long-running op; unchanged)
+//   3. stopped, no modal → run_program({ label: 'A' }) to START the GUI run loop.
+//      The yield-and-resume driver (useEffect on pending_yield) continues from here.
+//      Label "A" mirrors the CLI F5 path: app.rs run_program("A") (D-16).
+//   Branch 2 already handles "R/S while a user-LBL program is running" via cancel:
+//   the driver halts because the resumed view will have is_running=false/pending_yield=null.
+//   NOTE: the previous branch 3 (run_stop toggle) is replaced by run_program; the
+//   run_stop command is no longer reached via R/S (run_program replaces that path).
 async function invokeForKey(
   effectiveId: string,
   state: CalcStateView | null,
@@ -109,10 +125,10 @@ async function invokeForKey(
   if (effectiveId === 'sst') return invoke<CalcStateView>('sst_step');
   if (effectiveId === 'bst') return invoke<CalcStateView>('bst_step');
   if (effectiveId === 'r_s') {
-    // D-31.1 R/S 3-way state-routed dispatch:
+    // D-31.1 / Phase-63-06 R/S 4-way state-routed dispatch:
     //   1. modal_program_active → submit_modal (advances the modal step)
-    //   2. is_running → request_cancel + get_state (cancels long-running op)
-    //   3. else → existing run_stop (R/S key toggle)
+    //   2. is_running → request_cancel + get_state (cancels long-running op or running program)
+    //   3. else (stopped, no modal) → run_program('A') — starts the GUI run loop.
     if (state?.modal_program_active) {
       return invoke<CalcStateView>('submit_modal');
     }
@@ -120,7 +136,11 @@ async function invokeForKey(
       await invoke<void>('request_cancel');
       return invoke<CalcStateView>('get_state');
     }
-    return invoke<CalcStateView>('run_stop');
+    // Branch 3: stopped, no modal → start the run loop.
+    // The yield-and-resume useEffect picks up the returned pending_yield (if any)
+    // and schedules resume_program after pending_yield.resume_ms — no polling (D-11).
+    // "A" mirrors CLI F5 path (app.rs run_program("A"), D-16).
+    return invoke<CalcStateView>('run_program', { label: 'A' });
   }
   return invoke<CalcStateView>('dispatch_op', { keyId: effectiveId });
 }
@@ -261,6 +281,10 @@ function App() {
   // From<HpError> ends up at console.error and the user sees stale state.
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const busyRef = useRef(false);
+  // Phase 63 Plan 06: single-flight guard for the yield-and-resume driver.
+  // Prevents double-scheduling when React re-renders while a setTimeout is pending.
+  // Set to true before scheduling resume_program; cleared in .finally().
+  const resumeScheduledRef = useRef(false);
   // Phase 41 D-41.2/D-41.8: live-display interval reference.
   // Holds the setInterval ID when clock_active || stopwatch_keyboard_mode is true.
   const liveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -549,6 +573,37 @@ function App() {
   useEffect(() => {
     needsTickRef.current = needsTick;
   }, [needsTick]);
+
+  // Phase 63 Plan 06: Yield-and-resume driver (D-11 no-polling, D-25.6 CLI↔GUI parity).
+  //
+  // Fires whenever calcState updates. If pending_yield is non-null and no resume is
+  // already scheduled (resumeScheduledRef guards double-scheduling), schedules a single
+  // invoke('resume_program') after pending_yield.resume_ms. The returned view is set
+  // via setCalcState, which re-renders and re-fires this effect — if the new view also
+  // has pending_yield the loop continues; it terminates when pending_yield is null.
+  //
+  // The loop is driven entirely by RETURN VALUES (run_program → pending_yield → timeout →
+  // resume_program → pending_yield → … → pending_yield null) — no get_state polling (D-11).
+  //
+  // Compute-loop alarm note: a no-yield program that triggers an interrupting alarm runs
+  // entirely server-side in one run_program call (Phase-C check_alarms fires inside
+  // run_loop, the interrupt handler executes, ack-after-RTN fires, program continues).
+  // run_program returns once with pending_yield=null, is_running=false — no TS branch needed.
+  useEffect(() => {
+    if (!calcState?.pending_yield) return;
+    if (resumeScheduledRef.current) return;
+    resumeScheduledRef.current = true;
+    const { resume_ms } = calcState.pending_yield;
+    setTimeout(() => {
+      invoke<CalcStateView>('resume_program')
+        .then(view => {
+          setCalcState(view);
+          setErrorMessage(null);
+        })
+        .catch(err => showToast(extractErrMessage(err)))
+        .finally(() => { resumeScheduledRef.current = false; });
+    }, resume_ms);
+  }, [calcState, showToast]);
 
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
@@ -1160,9 +1215,15 @@ function App() {
   // the projection contract; the event_buffer schema stays the same.
   //
   // Phase 41 D-41.6: extended to parse alarm event prefixes from hp41-core alarm.rs:
-  //   "alarm:message:{text}" → showToast with prefix stripped (shows only alarm text)
-  //   "alarm:xeq:{label}"   → invoke dispatch_op xeq_{label} (control alarm XEQ target)
-  //   other lines            → showToast as before (BEEP/TONE/etc.)
+  //   "alarm:message:{text}"  → showToast with prefix stripped (shows only alarm text)
+  //   "alarm:xeq:{label}"     → invoke dispatch_op xeq_{label} (control alarm XEQ target)
+  //   "alarm:missing:{label}" → showToast "Alarm XEQ {label}: label not found" (D-08/D-07)
+  //   other lines             → showToast as before (BEEP/TONE/etc.)
+  // Phase 63 Plan 06: the D-38.4 "interrupting alarms deferred" silent-ignore arm has
+  // been removed — interrupting control alarms now execute entirely server-side inside
+  // run_program/resume_program via Phase-C check_alarms + interrupt boundary; they no
+  // longer arrive as event_buffer lines.
+  // alarm:missing added: missing interrupt handler label surfaces as toast (D-07/D-08).
   useEffect(() => {
     if (calcState && calcState.event_buffer.length > 0) {
       for (const line of calcState.event_buffer) {
@@ -1177,8 +1238,9 @@ function App() {
             .then(view => { setCalcState(view); setErrorMessage(null); })
             .catch(err => showToast(extractErrMessage(err)))
             .finally(() => { busyRef.current = false; });
-        } else if (line.startsWith('alarm:interrupting:')) {
-          // D-38.4: interrupting control alarms deferred — silently ignore.
+        } else if (line.startsWith('alarm:missing:')) {
+          // D-07 never-discard / D-08: missing interrupt handler label → surface as toast.
+          showToast(`Alarm XEQ ${line.slice('alarm:missing:'.length)}: label not found`);
         } else {
           showToast(line);
         }
@@ -1262,10 +1324,13 @@ function App() {
   // and cleared by the next op) over `calcState.display_str`. Without this
   // the backend's display_override projection is wired through IPC but the
   // React render path drops it — AVIEW / PROMPT / VIEW produce no visible
-  // effect. Precedence order: modal preview > display_override > display_str.
+  // effect.
+  // Phase 63 Plan 06 D-04: pending_yield.text sits ABOVE display_str but BELOW
+  // modal preview; does NOT route through display_override (D-04 deferred).
+  // Precedence order: modal preview > pending_yield.text > display_override > display_str.
   const displayText: string = pendingInput
     ? renderModalLcd(pendingInput)
-    : (calcState.display_override ?? calcState.display_str);
+    : (calcState.pending_yield?.text ?? calcState.display_override ?? calcState.display_str);
 
   return (
     <div
