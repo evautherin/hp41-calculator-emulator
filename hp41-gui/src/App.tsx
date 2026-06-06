@@ -1216,7 +1216,9 @@ function App() {
   //
   // Phase 41 D-41.6: extended to parse alarm event prefixes from hp41-core alarm.rs:
   //   "alarm:message:{text}"  → showToast with prefix stripped (shows only alarm text)
-  //   "alarm:xeq:{label}"     → invoke dispatch_op xeq_{label} (control alarm XEQ target)
+  //   "alarm:xeq:{label}"     → invoke run_program({ label }) (SC-3 parity: executes user-LBL
+  //                              programs, not just builtins; returned pending_yield composes
+  //                              with the yield-and-resume useEffect above — D-11 no-polling)
   //   "alarm:missing:{label}" → showToast "Alarm XEQ {label}: label not found" (D-08/D-07)
   //   other lines             → showToast as before (BEEP/TONE/etc.)
   // Phase 63 Plan 06: the D-38.4 "interrupting alarms deferred" silent-ignore arm has
@@ -1224,6 +1226,10 @@ function App() {
   // run_program/resume_program via Phase-C check_alarms + interrupt boundary; they no
   // longer arrive as event_buffer lines.
   // alarm:missing added: missing interrupt handler label surfaces as toast (D-07/D-08).
+  // SC-3 / CR-01 (gap closure): alarm:xeq now uses run_program so that user-LBL targets
+  // execute correctly when the calculator is idle. The previous dispatch_op(xeq_…) call
+  // resolved only card-reader/XROM builtins and returned InvalidOp for user programs,
+  // producing a silent toast error — a D-25.6 parity gap vs. the CLI run_program path.
   useEffect(() => {
     if (calcState && calcState.event_buffer.length > 0) {
       for (const line of calcState.event_buffer) {
@@ -1234,7 +1240,12 @@ function App() {
           const label = line.slice('alarm:xeq:'.length);
           if (busyRef.current) continue;
           busyRef.current = true;
-          invoke<CalcStateView>('dispatch_op', { keyId: `xeq_${label}` })
+          // SC-3 fix: call run_program (not dispatch_op) so idle-fired control alarms
+          // whose label is a user LBL execute correctly — D-25.6 CLI↔GUI parity.
+          // The returned CalcStateView is applied via setCalcState; if pending_yield is
+          // non-null the existing yield-and-resume useEffect above picks it up and
+          // schedules resume_program — no duplicated scheduling, no polling (D-11).
+          invoke<CalcStateView>('run_program', { label })
             .then(view => { setCalcState(view); setErrorMessage(null); })
             .catch(err => showToast(extractErrMessage(err)))
             .finally(() => { busyRef.current = false; });

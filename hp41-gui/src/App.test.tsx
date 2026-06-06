@@ -387,19 +387,23 @@ describe('CR-04 — display_override and event_buffer are consumed by React', ()
     });
   });
 
-  // D5 verifies alarm:xeq routing — control alarm triggers dispatch_op with xeq_{label}.
-  it('D5: event_buffer "alarm:xeq:TESTLBL" dispatches dispatch_op with xeq_TESTLBL', async () => {
+  // D5 verifies alarm:xeq routing — SC-3 / CR-01 gap closure: control alarm triggers
+  // run_program({ label }) so idle-fired user-LBL alarms execute (not dispatch_op which
+  // only resolves builtins and returns InvalidOp for user programs — D-25.6 CLI parity).
+  it('D5: event_buffer "alarm:xeq:TESTLBL" invokes run_program({ label: "TESTLBL" }) (SC-3)', async () => {
     const { container } = await renderAppAndWait();
     // First call: dispatch_op for the key click, returns alarm event.
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({ event_buffer: ['alarm:xeq:TESTLBL'] }),
     );
-    // Second call: dispatch_op for the alarm:xeq dispatch (invoked by the useEffect).
+    // Second call: run_program for the alarm:xeq drain (invoked by the useEffect).
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
     await clickKey(container, '1');
     await waitFor(() => {
-      // The alarm:xeq useEffect must have dispatched dispatch_op with xeq_TESTLBL.
-      expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TESTLBL' });
+      // SC-3: the alarm:xeq useEffect must call run_program with the bare label.
+      expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'TESTLBL' });
+      // Regression guard: dispatch_op(xeq_…) must NOT be called (old broken path).
+      expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TESTLBL' });
     });
   });
 });
@@ -1021,5 +1025,50 @@ describe('P — Phase 63 Plan 06: GUI run-loop driver (yield + alarm:missing + R
     expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
     // run_stop must NOT be invoked (replaced by run_program in Phase 63).
     expect(mockInvoke).not.toHaveBeenCalledWith('run_stop', undefined);
+  });
+
+  // P4: SC-3 / CR-01 — alarm:xeq + yield composition (D-11 no-polling path).
+  // When run_program returns a pending_yield, the existing yield-and-resume useEffect
+  // picks it up and schedules resume_program — alarm:xeq composes with the yield driver
+  // without duplicating scheduling logic or polling get_state.
+  it('P4: alarm:xeq:FOO invokes run_program and pending_yield from result schedules resume_program', async () => {
+    // Uses shouldAdvanceTime:true so waitFor's internal polling still advances (same
+    // pattern as P1 — plain useFakeTimers() blocks waitFor's setInterval).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { container } = await renderAppAndWait();
+
+    // Second call: run_program for the alarm:xeq drain — returns a pending_yield
+    // so the yield-and-resume useEffect schedules resume_program after 500ms.
+    const yieldView = makeEmptyView({
+      display_str: '5.0000',
+      pending_yield: { kind: 'pse', text: '5.0000', resume_ms: 500 },
+    });
+    // Third call: resume_program — returns final clean state (no pending_yield).
+    const endView = makeEmptyView({ display_str: '5.0000', pending_yield: null });
+
+    // First call: dispatch_op for the key click, returns alarm:xeq:FOO event.
+    mockInvoke.mockResolvedValueOnce(
+      makeEmptyView({ event_buffer: ['alarm:xeq:FOO'] }),
+    );
+    mockInvoke.mockResolvedValueOnce(yieldView);  // run_program returns yieldView
+    mockInvoke.mockResolvedValueOnce(endView);    // resume_program returns endView
+
+    await clickKey(container, '1');
+
+    // run_program must have been called with the alarm label (SC-3).
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'FOO' });
+    });
+
+    // Advance fake timers by 500ms — the yield-driver setTimeout fires.
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // resume_program must be scheduled and called after the timeout (D-11).
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('resume_program', undefined);
+    });
   });
 });
