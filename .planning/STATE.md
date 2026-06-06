@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: verifying
-last_updated: "2026-06-06T16:50:32.329Z"
+last_updated: "2026-06-06T16:59:26.853Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 20
+  completed_plans: 7
+  percent: 40
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 63
-Plan: 63-04 COMPLETE (wave 3 of 4; plan 4 of 6) — GUI Rust: run_program/resume_program Tauri commands + pending_yield CalcStateView projection; 129 GUI Rust + 337 GUI TS tests pass
-Status: Phase complete — ready for verification
+Plan: 63-06 COMPLETE (wave 4 of 4; plan 6 of 6) — GUI TS: R/S 4-way routing + yield-and-resume driver + alarm:missing toast; 129 GUI Rust + 340 GUI TS tests pass. Phase 63 COMPLETE.
+Status: Phase 63 complete — ready for Phase 64 (GETKEY)
 Last activity: 2026-06-06
 
 ## Progress Bar
@@ -79,8 +79,16 @@ Overall  ██░░░░░░░░  25%
 | Phase 63 P04 | 30min | 3 tasks | 6 files |
 | Phase 63 P04 | 30 | 3 tasks | 6 files |
 | Phase 63 P05 | 4 | 2 tasks | 2 files |
+| Phase 63 P06 | 25 | 2 tasks | 2 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 63-06 — 2026-06-06)
+
+- **63-06-D01:** R/S branch 3 (stopped, no modal) calls `run_program('A')` replacing `run_stop`; mirrors CLI F5 path (D-16/D-25.6).
+- **63-06-D02:** yield-driver as `useEffect` on `calcState?.pending_yield`; `resumeScheduledRef` single-flight guard; no `get_state` polling (D-11).
+- **63-06-D03:** `alarm:interrupting` silent-ignore arm removed — interrupting alarms execute server-side via Phase-C/63-02; `alarm:missing` toast added (D-07/D-08).
+- **63-06-D04:** `vi.useFakeTimers({ shouldAdvanceTime: true })` in P1 test so `waitFor` polling still resolves while `advanceTimersByTime` controls yield-driver setTimeout.
 
 ### Decisions (Phase 63-04 — 2026-06-06)
 
@@ -174,8 +182,8 @@ The plan-checker discovered (verified against `develop`) that **the GUI has no c
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-06 — Phase 63 Plan 04 complete: GUI Rust run-loop backend — run_program/resume_program Tauri commands + pending_yield CalcStateView projection. 129 GUI Rust + 337 GUI TS tests pass. Next: 63-05 (docs, Wave 3) + 63-06 (GUI TS driver, Wave 4).*
+*Last updated: 2026-06-06 — Phase 63 COMPLETE: all 6 plans done (4 waves). GUI run-loop fully wired: run_program/resume_program Tauri commands + pending_yield projection (63-04) + TS yield-and-resume driver + R/S 4-way routing + alarm:missing toast (63-06). 129 GUI Rust + 340 GUI TS tests pass. Next: Phase 64 (GETKEY).*
 
 ## Operator Next Steps
 
-- Run `/gsd-execute-phase 63` to continue Phase 63 Plans 05-06 (Wave 3/4 remaining: docs ADR + GUI TS driver)
+- Run `/gsd-new-phase` or `/gsd-plan-phase 64` to start Phase 64 (Interactive GETKEY)

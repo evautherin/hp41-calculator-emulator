@@ -120,7 +120,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 **Milestone Goal:** Close the remaining genuine behavioral gaps between the emulator and real HP-41CX hardware. Anchor: interrupting control-alarm execution (D-40-04) + audit-selected fidelity fixes. No new calculator functions or XROM modules.
 
 - [x] **Phase 62: Alarm Semantics Spec** — Verify `>` / `>>` prefix semantics against OM; lock the behavioral contract that gates all alarm implementation (ADR v4.3-003; code CONFIRMED CORRECT; da26a98)
-- [ ] **Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW** — Build the synchronous pending-interrupt mechanism in `run_loop`; implement interrupting control alarm execution and PSE/VIEW-AVIEW mid-run display yields
+- [x] **Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW** — Build the synchronous pending-interrupt mechanism in `run_loop`; implement interrupting control alarm execution and PSE/VIEW-AVIEW mid-run display yields (completed 2026-06-06)
 - [ ] **Phase 64: Interactive GETKEY** — Suspend program execution waiting for a keypress; push HP-41 row×col code to X and resume
 - [ ] **Phase 65: Standalone Fidelity Fixes** — CLI `display_override` visibility, CHS mantissa sign-flip, AON auto-display, FACT(27..69) range fix
 - [ ] **Phase 66: Verification, Divergence-Doc Updates, Quality Gates** — Verify UNC-01/02/03 against OM; update `docs/hp41-time-divergences.md` (D-40-04 resolution); full quality gate green
@@ -155,7 +155,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   - [x] 63-03-PLAN.md — CLI wiring: yield render+sleep+resume loop + alarm:missing status line (app.rs)
   - [x] 63-04-PLAN.md — GUI-Rust: run_program/resume_program Tauri commands + pending_yield CalcStateView projection + handler/permission/capability registration (commands.rs, types.rs, lib.rs, permissions/, capabilities/)
   - [x] 63-05-PLAN.md — Docs (Phase G): ADR v4.3-001 + flip hp41-time-divergences §D-40-04 to implemented
-  - [ ] 63-06-PLAN.md — GUI-TS run-loop driver: R/S 4-way start/stop, yield render + scheduled resume, alarm:missing toast, interrupting silent-ignore removed (App.tsx, App.test.tsx)
+  - [x] 63-06-PLAN.md — GUI-TS run-loop driver: R/S 4-way start/stop, yield render + scheduled resume, alarm:missing toast, interrupting silent-ignore removed (App.tsx, App.test.tsx)
 
 ### Phase 64: Interactive GETKEY
 **Goal**: GETKEY inside a running program suspends execution, waits for the user's next key press, pushes that key's HP-41 row×col code to X, and resumes — matching real HP-41 keyboard-polling behavior.
@@ -213,7 +213,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 | 60. Alias Authoring Pipeline | v4.2 | — | Complete | 2026-06-05 |
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
-| 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 5/6 | In Progress|  |
+| 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete   | 2026-06-06 |
 | 64. Interactive GETKEY | v4.3 | 0/TBD | Not started | - |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
