@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: ready_to_plan
-last_updated: 2026-06-06T10:44:32.747Z
-last_activity: 2026-06-06 -- Phase 62 Plan 01 complete (ADR v4.3-003 authored)
+status: planning
+last_updated: "2026-06-06T11:26:46.764Z"
+last_activity: 2026-06-06
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 1
   completed_plans: 1
   percent: 20
-stopped_at: Phase 62 complete (1/1) — ready to discuss Phase 63
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -31,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 63
-Plan: Not started
-Status: Ready to plan
+Plan: Planned — 6 plans across 4 waves (plan-checker PASS, 2026-06-06)
+Status: Ready to execute
 Last activity: 2026-06-06
 
 ## Progress Bar
@@ -48,7 +47,7 @@ Overall  ██░░░░░░░░  20%
 | Phase | Goal | Status |
 |-------|------|--------|
 | 62 | Alarm Semantics Spec — verify `>` / `>>` prefix semantics against OM, lock behavioral contract | Complete ✓ (2026-06-06, da26a98) |
-| 63 | Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW — synchronous pending-interrupt mechanism, alarm execution mid-run, display yields | Not started |
+| 63 | Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW — synchronous pending-interrupt mechanism, alarm execution mid-run, display yields | Planned ✓ (6 plans / 4 waves; +GUI run loop) |
 | 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Not started |
 | 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Not started |
 | 66 | Verification, Divergence-Doc Updates, Quality Gates — UNC-01/02/03 verified; D-40-04 closed; all gates green | Not started |
@@ -118,7 +117,11 @@ None. Phase 62 can start immediately.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 63` to plan Phase 63: Run-Loop Yield Engine + Interrupting Alarms.
+- Run `/gsd-execute-phase 63` to execute Phase 63 (6 plans, 4 waves; plan-checker PASS).
+
+### Phase 63 planning note — GUI run-loop scope expansion (2026-06-06)
+
+The plan-checker discovered (verified against `develop`) that **the GUI has no continuous program run loop**: `handle_run_stop` only toggles `is_running`; there is zero `run_program`/`run_loop`/`resume_program` call in `hp41-gui/src-tauri/src/`. The GUI runs single ops, SST/BST steps, and the long math-pac ops (INTG/SOLVE/DIFEQ) that loop inside one `dispatch_op` — it never continuously runs a user-LBL program. So the yield engine (PSE/VIEW/AVIEW arms + interrupt check + Phase-C), which lives inside `run_loop`, was unreachable from the GUI → criteria 1/4/5 unmet GUI-side. **User decision: build the GUI run loop in Phase 63** (not defer, not a separate phase). Plans split the GUI work into **63-04 (GUI-Rust: thin `run_program`/`resume_program` Tauri commands + `pending_yield` projection, SC-4 glue-only)** and **63-06 (GUI-TS: App.tsx yield-and-resume R/S run-loop driver, D-11 no-polling)**. Phase 63 now also delivers GUI continuous program execution — a capability the GUI never had. This is downstream-relevant for Phase 64 (GETKEY) which builds on the same suspend/resume infrastructure.
 
 ---
 
@@ -138,8 +141,8 @@ None. Phase 62 can start immediately.
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-06 — Roadmap created for v4.3 Hardware Fidelity. 5 phases (62–66), 11 requirements mapped. Next: `/gsd-plan-phase 62`.*
+*Last updated: 2026-06-06 — Phase 63 planned (6 plans / 4 waves; GUI run-loop scope added; plan-checker PASS). Next: `/gsd-execute-phase 63`.*
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 62` to plan Phase 62: Alarm Semantics Spec
+- Run `/gsd-execute-phase 63` to execute Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW (6 plans, 4 waves)
