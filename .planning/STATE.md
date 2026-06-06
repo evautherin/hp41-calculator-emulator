@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: verifying
-last_updated: "2026-06-06T17:12:00.000Z"
+last_updated: "2026-06-06T16:30:13.855Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
   completed_plans: 4
-  percent: 25
+  percent: 20
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 63
-Plan: 63-02 COMPLETE (wave 1 of 4; plan 2 of 6) — run_loop yield engine: interrupt boundary + ack-after-RTN + PSE/VIEW/AVIEW yields; all 16 core VALIDATION scenarios GREEN
-Status: In progress — Wave 1 complete; Wave 2 (GUI Rust) next
+Plan: 63-03 COMPLETE (wave 3 of 4; plan 3 of 6) — CLI yield render+sleep+resume loop (drain_pending_yields + alarm:missing status line surface); 489 hp41-cli tests pass
+Status: In progress — Wave 3 partial; 63-04 (GUI Rust) parallel plan also in Wave 3
 Last activity: 2026-06-06
 
 ## Progress Bar
@@ -74,8 +74,16 @@ Overall  ██░░░░░░░░  25%
 
 ---
 | Phase 63 P02 | 75 | 3 tasks | 7 files |
+| Phase 63 P03 | 20 | 2 tasks | 1 file |
+| Phase 63 P03 | 20min | 2 tasks | 1 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 63-03 — 2026-06-06)
+
+- **63-03-D01:** Yield loop in `run()` not `handle_key` — `terminal: DefaultTerminal` borrow only available in `run()`; `handle_key` carries no terminal reference.
+- **63-03-D02:** `entry_buf` as temporary display carrier during yield: priority 3 in `get_display_string`, always empty during program execution; avoids `ui.rs` modification (wave-3 file isolation).
+- **63-03-D03:** Single commit for Tasks 1+2 — both target `app.rs`; splitting requires staged-hunk surgery with no correctness benefit.
 
 ### Decisions (Phase 63-02 — 2026-06-06)
 
@@ -155,8 +163,8 @@ The plan-checker discovered (verified against `develop`) that **the GUI has no c
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-06 — Phase 63 Plan 02 complete: run_loop yield engine (interrupt boundary + ack-after-RTN + PSE/VIEW/AVIEW yields). All 16 core VALIDATION scenarios GREEN. Next: 63-03 (CLI run-loop driver) or 63-04 (GUI Rust commands).*
+*Last updated: 2026-06-06 — Phase 63 Plan 03 complete: CLI yield render+sleep+resume loop (drain_pending_yields) + alarm:missing status-line surface. 489 hp41-cli tests pass. Next: 63-04 (GUI Rust commands) — parallel Wave 3 plan.*
 
 ## Operator Next Steps
 
-- Run `/gsd-execute-phase 63` to execute Phase 63 Plans 03-06 (Wave 1-3 remaining: CLI driver + GUI Rust + test integration + GUI TS driver)
+- Run `/gsd-execute-phase 63` to continue Phase 63 Plans 04-06 (Wave 3 remaining: GUI Rust + test integration + GUI TS driver)
