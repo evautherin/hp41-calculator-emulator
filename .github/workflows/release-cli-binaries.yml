@@ -68,6 +68,35 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      - name: Verify versions match the release tag
+        shell: bash
+        env:
+          RESOLVED_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Drift guard (v4.2 incident): every user-visible version surface must
+          # match the tag, else the release ships mislabeled artifacts —
+          #   tauri.conf.json  → GUI installer / bundle version
+          #   root Cargo.toml  → hp41 --version (hp41-core / hp41-cli)
+          #   src-tauri Cargo  → GUI window title + macOS tray About
+          # Compares major.minor: tag vX.Y(.Z) → versions X.Y.*.
+          want="$(printf '%s' "${RESOLVED_TAG#v}" | cut -d- -f1 | cut -d. -f1-2)"
+          extract() { grep -m1 "$2" "$1" | sed -E 's/[^0-9]*([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/'; }
+          tauri="$(extract hp41-gui/src-tauri/tauri.conf.json '"version"')"
+          ws="$(extract Cargo.toml '^version')"
+          gui="$(extract hp41-gui/src-tauri/Cargo.toml '^version')"
+          rc=0
+          for pair in "tauri.conf.json=$tauri" "workspace-Cargo=$ws" "src-tauri-Cargo=$gui"; do
+            name="${pair%%=*}"; ver="${pair#*=}"; mm="$(printf '%s' "$ver" | cut -d. -f1-2)"
+            if [ "$mm" != "$want" ]; then
+              echo "::error::$name version '$ver' does not match tag '$RESOLVED_TAG' (expected ${want}.x). Bump it before tagging."
+              rc=1
+            else
+              echo "ok: $name = $ver matches tag $RESOLVED_TAG"
+            fi
+          done
+          exit $rc
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
