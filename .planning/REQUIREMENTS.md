@@ -13,7 +13,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Control Alarms (anchor — D-40-04)
 
-- [ ] **ALARM-01**: The control-alarm `>` / `>>` prefix semantics are verified against the primary OM (HP 00041-90035 §XYZALM) and the behavioral contract is locked, resolving which prefix interrupts a running program (the audit surfaced a possible inversion between the code's `interrupting` flag and the OM). *Gates ALARM-02/03.*
+- [x] **ALARM-01**: The control-alarm `>` / `>>` prefix semantics are verified against the primary OM (HP 00041-90035 §XYZALM) and the behavioral contract is locked, resolving which prefix interrupts a running program (the audit surfaced a possible inversion between the code's `interrupting` flag and the OM). *Gates ALARM-02/03.*
 - [ ] **ALARM-02**: A control alarm that comes due while a program is running interrupts it at the next instruction boundary, XEQs the alarm's stored label program (in the interrupted program's register environment), and resumes the interrupted program when the alarm program completes.
 - [ ] **ALARM-03**: An interrupting control alarm respects the 4-level subroutine call-stack limit (suppressed and left past-due at depth 4) and cannot re-interrupt itself; `is_running` and call-stack integrity are preserved on every path (including errors). Idle-fired control alarms continue to execute via the existing path, unchanged.
 
@@ -70,7 +70,7 @@ Which phases cover which requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ALARM-01 | Phase 62 | Pending |
+| ALARM-01 | Phase 62 | Complete |
 | ALARM-02 | Phase 63 | Pending |
 | ALARM-03 | Phase 63 | Pending |
 | PRGM-01 | Phase 63 | Pending |

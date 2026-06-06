@@ -137,7 +137,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   3. The contract also covers edge-case behavior: 4-level call-stack cap (alarm suppressed at depth 4), idle-fire behavior (alarm fires when no program is running), and the non-interrupting path (existing `alarm:xeq:` event routing stays unchanged).
   4. `just ci` remains green (this phase touches documentation/research only, zero runtime code changes).
 **Plans**: 1 plan
-  - [ ] 62-01-PLAN.md — Author ADR v4.3-003 locking the `>`/`>>` control-alarm prefix semantics (OM-confirmed; docs-only)
+  - [x] 62-01-PLAN.md — Author ADR v4.3-003 locking the `>`/`>>` control-alarm prefix semantics (OM-confirmed; docs-only)
 
 ### Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW
 **Goal**: Users running programs on the emulator experience interrupting control alarms (alarm program executes mid-run and original program resumes), PSE pauses the display for ~1 second during execution, and VIEW/AVIEW show their value mid-run — because `run_loop` now has a synchronous yield/interrupt point between instructions.
@@ -206,7 +206,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 | 59. Runtime Matcher | v4.2 | — | Complete | 2026-06-05 |
 | 60. Alias Authoring Pipeline | v4.2 | — | Complete | 2026-06-05 |
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
-| 62. Alarm Semantics Spec | v4.3 | 0/TBD | Not started | - |
+| 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 0/TBD | Not started | - |
 | 64. Interactive GETKEY | v4.3 | 0/TBD | Not started | - |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
