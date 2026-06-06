@@ -136,7 +136,8 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   2. The existing code's `interrupting: bool` flag and `parse_alarm_type` logic are audited; if the current assignment is inverted relative to the OM, a correction plan is noted in the contract before any implementation starts.
   3. The contract also covers edge-case behavior: 4-level call-stack cap (alarm suppressed at depth 4), idle-fire behavior (alarm fires when no program is running), and the non-interrupting path (existing `alarm:xeq:` event routing stays unchanged).
   4. `just ci` remains green (this phase touches documentation/research only, zero runtime code changes).
-**Plans**: TBD
+**Plans**: 1 plan
+  - [ ] 62-01-PLAN.md — Author ADR v4.3-003 locking the `>`/`>>` control-alarm prefix semantics (OM-confirmed; docs-only)
 
 ### Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW
 **Goal**: Users running programs on the emulator experience interrupting control alarms (alarm program executes mid-run and original program resumes), PSE pauses the display for ~1 second during execution, and VIEW/AVIEW show their value mid-run — because `run_loop` now has a synchronous yield/interrupt point between instructions.
