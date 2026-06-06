@@ -68,6 +68,8 @@ interface CalcStateView {
   clock_active: boolean;
   stopwatch_keyboard_mode: boolean;
   stopwatch_running: boolean;
+  // Phase 63 Plan 06: yield state from run_program/resume_program
+  pending_yield: { kind: string; text: string; resume_ms: number } | null;
 }
 
 function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
@@ -102,6 +104,8 @@ function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
     clock_active: false,
     stopwatch_keyboard_mode: false,
     stopwatch_running: false,
+    // Phase 63 Plan 06: yield state default (null = program not yielded)
+    pending_yield: null,
     ...overrides,
   };
 }
@@ -623,14 +627,18 @@ describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade 
     expect(runStopCalls.length).toBe(0);
   });
 
-  it('H3: R/S with neither flag calls run_stop (existing baseline)', async () => {
-    // Default state: no modal, not running.
+  it('H3: R/S with neither flag calls run_program("A") — Phase-63-06 4-way routing', async () => {
+    // Default state: no modal, not running → branch 3 now starts the run loop.
+    // run_program replaces the old run_stop call (D-25.6 CLI↔GUI parity, D-16).
     const { container } = await renderAppAndWait();
 
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
     await clickKey(container, 'r_s');
 
-    expect(mockInvoke).toHaveBeenCalledWith('run_stop', undefined);
+    expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
+    // run_stop must NOT be called — it is replaced by run_program in branch 3.
+    const runStopCalls = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'run_stop');
+    expect(runStopCalls.length).toBe(0);
   });
 
   it('H4: Esc with modal_program_active calls cancel_modal', async () => {
@@ -926,5 +934,92 @@ describe('quick-task 260603-o2e — authentic PRGM step in main display', () => 
     }));
     const { container } = await renderAppAndWait();
     expect(getDisplayText(container)).toBe('001 XEQ CLRG');
+  });
+});
+
+// =====================================================================
+// Group P — Phase 63 Plan 06: GUI run-loop driver
+//   P1: pending_yield renders text on display + auto-resume after resume_ms
+//   P2: alarm:missing:FOO event shows "Alarm XEQ FOO: label not found" toast
+//   P3: R/S on stopped program invokes run_program('A')
+// =====================================================================
+
+describe('P — Phase 63 Plan 06: GUI run-loop driver (yield + alarm:missing + R/S start)', () => {
+  // Restore real timers after each test in this group (P1 uses fake timers).
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('P1: pending_yield renders yield text on display and schedules resume_program after resume_ms', async () => {
+    // This test uses vi.useFakeTimers() to verify the setTimeout-based yield driver.
+    // Fake timers are installed BEFORE renderAppAndWait so that all timer interactions
+    // (including waitFor's polling) use the mocked clock.
+    //
+    // Strategy: install fake timers with shouldAdvanceTime:true so real-time promises
+    // (waitFor polling via setInterval) still run, but our explicit advanceTimersByTime
+    // controls the yield-driver setTimeout.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { container } = await renderAppAndWait();
+
+    // Provide the run_program response: pending_yield with 1000ms resume.
+    // The yield-driver useEffect will schedule resume_program after 1000ms.
+    const yieldView = makeEmptyView({
+      display_str: '0.0000',
+      pending_yield: { kind: 'pse', text: '1.0000', resume_ms: 1000 },
+      is_running: false,
+    });
+    // Provide the resume_program response: program ended (no pending_yield).
+    const endView = makeEmptyView({ display_str: '1.0000', pending_yield: null });
+
+    // Simulate R/S click → triggers run_program (branch 3).
+    mockInvoke.mockResolvedValueOnce(yieldView);  // run_program returns yieldView
+    mockInvoke.mockResolvedValueOnce(endView);    // resume_program returns endView
+
+    await clickKey(container, 'r_s');
+
+    // After run_program returns yieldView, the display should show pending_yield.text.
+    await waitFor(() => {
+      expect(getDisplayText(container)).toBe('1.0000');
+    });
+
+    // Advance fake timers by 1000ms — the yield-driver setTimeout fires.
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // resume_program must have been called after the timeout.
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('resume_program', undefined);
+    });
+  });
+
+  it('P2: alarm:missing:FOO event in event_buffer shows "Alarm XEQ FOO: label not found" toast', async () => {
+    const { container } = await renderAppAndWait();
+
+    // Trigger a dispatch that returns a view containing alarm:missing:FOO.
+    mockInvoke.mockResolvedValueOnce(
+      makeEmptyView({ event_buffer: ['alarm:missing:FOO'] }),
+    );
+    await clickKey(container, '1');
+
+    await waitFor(() => {
+      const toast = container.querySelector('.toast');
+      expect(toast).not.toBeNull();
+      expect(toast?.textContent).toContain('Alarm XEQ FOO: label not found');
+    });
+  });
+
+  it('P3: R/S on stopped program (no modal, not running) invokes run_program with label A', async () => {
+    // Default state: stopped, no modal.
+    const { container } = await renderAppAndWait();
+
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(container, 'r_s');
+
+    // Branch 3 of the 4-way R/S routing: run_program('A').
+    expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
+    // run_stop must NOT be invoked (replaced by run_program in Phase 63).
+    expect(mockInvoke).not.toHaveBeenCalledWith('run_stop', undefined);
   });
 });
