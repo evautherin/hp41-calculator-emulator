@@ -149,7 +149,12 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   3. An idle-fired interrupting alarm (no program running) executes the alarm label program via the existing `run_program` path without any resume logic.
   4. PSE during a running program pauses the display for approximately 1 second (visible to the user in both CLI and GUI) before the next program step executes.
   5. VIEW and AVIEW during a running program display their register/ALPHA value briefly (PSE-like) before the program continues to the next step — not only after the program ends.
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 63-01-PLAN.md — Phase A: CalcState yield/interrupt fields + dispatch_alarm_event routing + Wave-0 test scaffolds (state.rs, time/alarm.rs, 2 test files)
+  - [ ] 63-02-PLAN.md — Phase B/C/D + yield arms: run_loop interrupt boundary, Phase-C check, ack-after-RTN, PSE/VIEW/AVIEW yields, clear-on-entry (program.rs)
+  - [ ] 63-03-PLAN.md — CLI wiring: yield render+sleep+resume loop + alarm:missing status line (app.rs)
+  - [ ] 63-04-PLAN.md — GUI wiring: pending_yield CalcStateView projection + TS render/scheduled-resume + alarm:missing toast (types.rs, commands.rs, App.tsx)
+  - [ ] 63-05-PLAN.md — Docs (Phase G): ADR v4.3-001 + flip hp41-time-divergences §D-40-04 to implemented
 
 ### Phase 64: Interactive GETKEY
 **Goal**: GETKEY inside a running program suspends execution, waits for the user's next key press, pushes that key's HP-41 row×col code to X, and resumes — matching real HP-41 keyboard-polling behavior.
