@@ -8,7 +8,9 @@
 
 **Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
 
-**Active milestone: v4.3 Hardware Fidelity** — in planning. Closing the remaining *genuine* behavioral gaps vs. real HP-41CX hardware, anchored on interrupting control-alarm execution (program-engine re-entrancy, D-40-04), plus an audit-selected set of further divergences. First substantive `hp41-core` engine work since the v3.x module era.
+**Active milestone: v4.3 Hardware Fidelity** — in progress. Closing the remaining *genuine* behavioral gaps vs. real HP-41CX hardware, anchored on interrupting control-alarm execution (program-engine re-entrancy, D-40-04), plus an audit-selected set of further divergences. First substantive `hp41-core` engine work since the v3.x module era.
+
+**Phase 63 complete (2026-06-06): Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW.** Built the synchronous pending-interrupt mechanism in `run_loop` (synthetic XEQ frame at the next instruction boundary, periodic Phase-C `check_alarms`, ack-after-RTN reschedule, 4-level cap honored) and mid-run display yields (PSE/VIEW/AVIEW render-and-resume), wired across CLI and GUI — the GUI gained its first continuous program run loop (`run_program`/`resume_program` Tauri commands + a no-poll TS yield driver, D-11). ALARM-02/03 + PRGM-01/02 satisfied; verification 5/5 (3 visual UAT items pending). Two parity gaps surfaced by review were fixed in-cycle (CLI alarm-launched yield drain; GUI idle alarm → `run_program`).
 
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
@@ -330,7 +332,7 @@ _Carried-over deferred items: `PrivacyInfo.xcprivacy` bundle wiring before any p
 - iPhone (iOS) — now IN SCOPE for v4.1 iOS Foundation (desktop-stable precondition met at v4.0); iPad and Android remain deferred
 - Binary releases (signed cross-platform CLI + GUI installers via cargo-dist + tauri-action) — deferred post-v3.3
 - X-MEM / Extended Memory file model — post-v3.x scope
-- Interrupting control alarm execution — data model ready (D-38.4), requires re-entrancy against 4-level call stack
+- ~~Interrupting control alarm execution — data model ready (D-38.4), requires re-entrancy against 4-level call stack~~ → ✓ **Implemented in v4.3 Phase 63** (synchronous pending-interrupt at the run_loop boundary; ADR v4.3-004)
 - Cycle-accurate Nut CPU simulation — high effort, low user value vs. behavioral emulation
 - HP-copyrighted ROM image redistribution — legal risk, excluded permanently
 - HP-IL peripheral emulation — niche, complex
