@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: executing
-last_updated: "2026-06-06T15:15:42.566Z"
+status: verifying
+last_updated: "2026-06-06T17:12:00.000Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 2
-  percent: 20
+  completed_plans: 4
+  percent: 25
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,18 +30,18 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 63
-Plan: 63-01 COMPLETE (wave 1 of 4; plan 1 of 6) — Wave-0 scaffolds + CalcState fields + alarm routing
-Status: Executing — 63-02 next (run_loop interrupt arm + PSE/VIEW/AVIEW yield arms)
+Plan: 63-02 COMPLETE (wave 1 of 4; plan 2 of 6) — run_loop yield engine: interrupt boundary + ack-after-RTN + PSE/VIEW/AVIEW yields; all 16 core VALIDATION scenarios GREEN
+Status: In progress — Wave 1 complete; Wave 2 (GUI Rust) next
 Last activity: 2026-06-06
 
 ## Progress Bar
 
 ```
 v4.3 Hardware Fidelity
-Phase 62 ██████████ 100%  Phase 63 ░░░░░░░░░░   0%
+Phase 62 ██████████ 100%  Phase 63 ██░░░░░░░░  25%
 Phase 64 ░░░░░░░░░░   0%  Phase 65 ░░░░░░░░░░   0%
 Phase 66 ░░░░░░░░░░   0%
-Overall  ██░░░░░░░░  20%
+Overall  ██░░░░░░░░  25%
 ```
 
 | Phase | Goal | Status |
@@ -73,8 +73,16 @@ Overall  ██░░░░░░░░  20%
 | Tests passing | — | 3371+ (v4.2 baseline) |
 
 ---
+| Phase 63 P02 | 75 | 3 tasks | 7 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 63-02 — 2026-06-06)
+
+- **63-02-D01:** Phase-C cadence: `steps==1 || steps.is_multiple_of(1000)` — first-step fires to convert pre-existing past-due alarms while `is_running=true`; then every 1000 steps for long-running programs.
+- **63-02-D02:** PSE/VIEW/AVIEW in `run_loop` set `pending_yield + break` without writing `display_override` (D-04/DISP-01 deferred to v4.4); interactive dispatch path in `execute_op` unchanged.
+- **63-02-D03:** `ack-after-RTN` gate: `pending_interrupt_depth` (call_stack.len() at injection) compared on `Op::Rtn` after pop — correctly identifies handler-fully-returned even across nested XEQs in handler; cap-drop/missing-label paths pre-clear `alarm_index`, so `is_some()` naturally skips ack.
+- **63-02-D04:** Scenario 2 test redesigned to be timing-independent — pre-loaded stack before `run_program`, `StoReg`-only handler (no push) proves interrupt fired and stored correct X without depending on specific interrupt step number.
 
 ### Decisions (Phase 63-01 — 2026-06-06)
 
@@ -147,8 +155,8 @@ The plan-checker discovered (verified against `develop`) that **the GUI has no c
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-06 — Phase 63 planned (6 plans / 4 waves; GUI run-loop scope added; plan-checker PASS). Next: `/gsd-execute-phase 63`.*
+*Last updated: 2026-06-06 — Phase 63 Plan 02 complete: run_loop yield engine (interrupt boundary + ack-after-RTN + PSE/VIEW/AVIEW yields). All 16 core VALIDATION scenarios GREEN. Next: 63-03 (CLI run-loop driver) or 63-04 (GUI Rust commands).*
 
 ## Operator Next Steps
 
-- Run `/gsd-execute-phase 63` to execute Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW (6 plans, 4 waves)
+- Run `/gsd-execute-phase 63` to execute Phase 63 Plans 03-06 (Wave 1-3 remaining: CLI driver + GUI Rust + test integration + GUI TS driver)

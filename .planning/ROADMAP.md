@@ -151,7 +151,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   5. VIEW and AVIEW during a running program display their register/ALPHA value briefly (PSE-like) before the program continues to the next step — not only after the program ends.
 **Plans**: 6 plans
   - [x] 63-01-PLAN.md — Phase A: Wave-0 test scaffolds (authored first) + CalcState yield/interrupt fields (incl. pending_interrupt_depth) + dispatch_alarm_event routing (state.rs, time/alarm.rs, 2 test files)
-  - [ ] 63-02-PLAN.md — Phase B/C/D + yield arms: run_loop interrupt boundary, Phase-C check, ack-after-RTN, PSE/VIEW/AVIEW yields, clear-on-entry (program.rs)
+  - [x] 63-02-PLAN.md — Phase B/C/D + yield arms: run_loop interrupt boundary, Phase-C check, ack-after-RTN, PSE/VIEW/AVIEW yields, clear-on-entry (program.rs)
   - [ ] 63-03-PLAN.md — CLI wiring: yield render+sleep+resume loop + alarm:missing status line (app.rs)
   - [ ] 63-04-PLAN.md — GUI-Rust: run_program/resume_program Tauri commands + pending_yield CalcStateView projection + handler/permission/capability registration (commands.rs, types.rs, lib.rs, permissions/, capabilities/)
   - [ ] 63-05-PLAN.md — Docs (Phase G): ADR v4.3-001 + flip hp41-time-divergences §D-40-04 to implemented
@@ -213,7 +213,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 | 60. Alias Authoring Pipeline | v4.2 | — | Complete | 2026-06-05 |
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
-| 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 1/6 | In Progress|  |
+| 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 2/6 | In Progress|  |
 | 64. Interactive GETKEY | v4.3 | 0/TBD | Not started | - |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
