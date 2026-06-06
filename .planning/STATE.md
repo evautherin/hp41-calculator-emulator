@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.2
-milestone_name: Help Search Enrichment
-status: Awaiting next milestone
-last_updated: "2026-06-05T18:50:04.363Z"
-last_activity: 2026-06-05 — Milestone v4.2 completed and archived
+milestone: v4.3
+milestone_name: Hardware Fidelity
+status: planning
+last_updated: "2026-06-06T08:14:03.791Z"
+last_activity: 2026-06-06
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 ## Current Position
 
-Phase: Milestone v4.2 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-05 — Milestone v4.2 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-06 — Milestone v4.3 started
 
 ## Progress Bar
 

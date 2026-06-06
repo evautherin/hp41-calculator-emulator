@@ -8,7 +8,7 @@
 
 **Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
 
-**No active milestone** — planning the next one (`/gsd-new-milestone`).
+**Active milestone: v4.3 Hardware Fidelity** — in planning. Closing the remaining *genuine* behavioral gaps vs. real HP-41CX hardware, anchored on interrupting control-alarm execution (program-engine re-entrancy, D-40-04), plus an audit-selected set of further divergences. First substantive `hp41-core` engine work since the v3.x module era.
 
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
@@ -81,6 +81,21 @@
 **Delivered:** 5 phases (28–32), 33 plans (26 original + 7 gap-closure), ~40 new Op variants, XROM resolver chain, modal-workflow state machine, user-callback re-entrancy, complex stack overlay, hyperbolics, triangle solvers, coordinate transforms, Fourier series, full CLI + GUI integration, 95.39% line / 94.26% region coverage, 763-case numerical accuracy at 99.3%.
 
 </details>
+
+---
+
+## Current Milestone: v4.3 Hardware Fidelity
+
+**Goal:** Close the remaining genuine behavioral gaps between the emulator and real HP-41CX hardware — anchored on interrupting control-alarm execution.
+
+**Target work:**
+- **Interrupting Control Alarms (D-40-04)** — make program execution re-entrant against the 4-level call stack so a fired control alarm can interrupt the calculator (including a running program), execute its designated program, and return cleanly. The data model already exists (D-38.4); only execution is missing.
+- **Fidelity audit** — an early audit phase inventories *real* remaining divergences (real-hardware behavior vs. emulator) and produces a prioritized list; an audit-selected handful are closed this milestone.
+- Deliberately-accepted divergences (emulator extensions, host-clock policy, oracle corrections) stay untouched by design.
+
+**Out of scope:** iOS App Store submission (handled externally). Android (parked as `SEED-001`).
+
+**Active requirements:** defined in `.planning/REQUIREMENTS.md` for this milestone.
 
 ---
 
@@ -409,4 +424,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-06-05 after v4.2 milestone — Help Search Enrichment shipped + archived (Phases 58–61, 18 v1 requirements, audit `tech_debt`/no functional gaps). Intent-aware `?` overlay with DE+EN aliases, hand-rolled fuzzy, CI-gated coverage; `hp41-core` untouched, zero new deps. PR #23 open (develop→main). Next: `/gsd-new-milestone`.*
+*Last updated: 2026-06-06 — Milestone v4.3 Hardware Fidelity started. Anchor: interrupting control-alarm execution (program-engine re-entrancy, D-40-04) + an audit-selected set of remaining fidelity gaps. iOS App Store handled externally (out of scope); Android parked as SEED-001. Next: fidelity audit → requirements → roadmap.*
