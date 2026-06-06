@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: planning
-last_updated: "2026-06-06"
-last_activity: 2026-06-06
+status: Roadmap created; awaiting `/gsd-plan-phase 62`
+last_updated: "2026-06-06T10:04:24.950Z"
+last_activity: 2026-06-06 — Roadmap created (Phases 62–66)
 progress:
   total_phases: 5
   completed_phases: 0
