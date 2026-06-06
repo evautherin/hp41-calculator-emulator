@@ -24,22 +24,22 @@ result: [pending]
 expected: Program pauses at an instruction boundary, the alarm handler executes (e.g. stores a value), the program resumes from the exact halted step, and a repeating alarm reschedules for its next fire.
 result: [pending]
 
-### 4. Idle interrupting alarm — CLI vs GUI parity (DECISION)
-expected: CLI calls `run_program` for the label (app.rs:1850 path) and the program executes. GUI calls `dispatch_op` (existing path) — a user-LBL program silently fails with an InvalidOp toast.
-result: [pending]
-note: SC-3 (ROADMAP "existing run_program path") conflicts with ALARM-03 ("existing path, unchanged"). Developer must decide whether the pre-existing GUI limitation is acceptable for phase pass, or whether App.tsx:1237 should be rewired to `run_program({ label })`.
+### 4. Idle interrupting alarm — CLI vs GUI parity (RESOLVED)
+expected: Both CLI and GUI execute an idle-fired control alarm whose label is a user-LBL program.
+result: pass (fixed in code + automated test)
+note: SC-3 decision = "fix for full CLI parity." App.tsx:1248 now calls `invoke('run_program', { label })` (was `dispatch_op(xeq_…)`); the returned pending_yield composes with the yield-and-resume useEffect (D-11). Covered by App.test.tsx D5 (asserts run_program, guards old path gone) + P4 (yield composition). Commit abb46ef.
 
-### 5. CLI idle alarm launching a PSE program (WR-04, DECISION)
-expected: The `alarm:xeq:` CLI path calls `run_program` then `drain_pending_yields`; the PSE pause renders.
-result: [pending]
-note: WR-04 — `drain_event_buffer` does not call `drain_pending_yields` after the `alarm:xeq:` `run_program`, so alarm-launched CLI programs containing PSE/VIEW/AVIEW have their yield stranded until the next keypress. Plan 63-03 specified wiring "any other site that runs a program to completion." Developer decides: in-scope fix now vs. follow-up.
+### 5. CLI idle alarm launching a PSE program (WR-04, RESOLVED)
+expected: The `alarm:xeq:` CLI path runs the program then drains pending yields; the PSE pause renders.
+result: pass (fixed in code + automated test)
+note: WR-04 decision = "fix now." app.rs:308 now calls `drain_pending_yields(&mut terminal)` after `drain_event_buffer()` on each run() tick (symmetric with the post-handle_key drain) — yields no longer stranded until next keypress. Regression test `drain_event_alarm_xeq_pse_sets_pending_yield`. Commit b62eff5.
 
 ## Summary
 
 total: 5
-passed: 0
+passed: 2
 issues: 0
-pending: 5
+pending: 3
 skipped: 0
 blocked: 0
 
