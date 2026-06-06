@@ -296,6 +296,16 @@ impl App {
             // in real-time without user interaction.
             hp41_core::ops::time::alarm::check_alarms(&mut self.state);
             self.drain_event_buffer();
+            // WR-04 (Phase 63 review): drain any PSE/VIEW/AVIEW yield that an
+            // alarm-triggered program (via alarm:xeq) may have set on pending_yield.
+            // Without this, the yield would sit stranded until the next keypress
+            // triggers the handle_key-path drain (line ~289), causing pause text to
+            // never render and the program to stall.  Placed here (after every
+            // check_alarms + drain_event_buffer tick) so the drain fires on the same
+            // 16 ms frame as the alarm:xeq run_program, with no extra keypress needed.
+            // Mirrors the after-handle_key drain invariant ("wire ALL run_program
+            // call sites" — CLAUDE.md / I-07 parity).
+            self.drain_pending_yields(&mut terminal)?;
         }
         // D-05: save on graceful exit before ratatui::restore()
         if let Err(e) = persistence::save_state(&self.state_path, &self.state) {
@@ -1840,6 +1850,14 @@ impl App {
     /// Phase 63-01 removed the old deferred-stub routing. Running interrupting alarms
     /// execute inline inside run_loop; idle/demoted alarms arrive as "alarm:xeq:{label}";
     /// missing handler labels produce "alarm:missing:{label}" from the run_loop boundary.
+    ///
+    /// WR-04 (Phase 63 review): PSE/VIEW/AVIEW yield drain is NOT performed here.
+    /// The run() loop calls `drain_pending_yields(&mut terminal)` unconditionally after
+    /// every `drain_event_buffer()` invocation, so an alarm:xeq program that sets
+    /// `pending_yield` will be drained on the same 16 ms tick — without waiting for
+    /// the next keypress.  Yield drain requires a terminal handle that is only available
+    /// in the run() loop, not in the single-op dispatch paths (call_dispatch) that also
+    /// call this function.
     fn drain_event_buffer(&mut self) {
         let events: Vec<String> = self.state.event_buffer.drain(..).collect();
         for event in events {
@@ -1855,6 +1873,10 @@ impl App {
                         // would otherwise be stranded in their buffers.
                         let card_err = self.drain_pending_card_op();
                         self.drain_and_show_print_output(card_err);
+                        // Yield drain (PSE/VIEW/AVIEW) is handled by the run() loop
+                        // which calls drain_pending_yields(&mut terminal) immediately
+                        // after drain_event_buffer() on every tick — see WR-04 comment
+                        // above and the run() loop drain at line ~298.
                     }
                     Err(e) => self.message = Some(format!("Alarm XEQ {label}: {e}")),
                 }
@@ -1995,6 +2017,10 @@ impl App {
         // when modal needs alpha label.
         self.maybe_auto_open_collect_for_modal();
         // D-39.6: process any alarm events triggered by this dispatch.
+        // D-39.6: process any alarm events triggered by this dispatch.
+        // Pending yields (if any alarm:xeq runs a program with PSE) are caught on
+        // the next run() tick — drain_pending_yields is called there after every
+        // drain_event_buffer() call (WR-04 fix).
         self.drain_event_buffer();
     }
 
@@ -2037,6 +2063,7 @@ impl App {
         // when modal needs alpha label.
         self.maybe_auto_open_collect_for_modal();
         // D-39.6: process any alarm events triggered by this dispatch.
+        // See sister comment in call_dispatch for yield-drain note (WR-04).
         self.drain_event_buffer();
     }
 
@@ -3406,6 +3433,84 @@ mod synthetic_modal_tests {
         assert!(
             msg.contains("label not found") || msg.contains("not found"),
             "alarm:missing arm must indicate a missing label; got {msg:?}"
+        );
+    }
+
+    /// WR-04 regression: alarm:xeq launching a program that contains PSE must result in
+    /// `pending_yield` being set (not silently lost) so the run() loop can drain it.
+    ///
+    /// ## What this tests
+    ///
+    /// Before the WR-04 fix, `drain_event_buffer` had no yield-drain path at all for the
+    /// alarm:xeq arm — `pending_yield` would be set by `run_program` and then sit stranded
+    /// until the next keypress triggered `drain_pending_yields`.  The fix moves the drain
+    /// to the run() loop: after every `check_alarms + drain_event_buffer` cycle, the loop
+    /// calls `drain_pending_yields(&mut terminal)`.
+    ///
+    /// This state-level test verifies the first half of the contract:
+    /// 1. `drain_event_buffer` correctly runs the alarm-target program via `run_program`.
+    /// 2. `run_program` on a PSE-containing program sets `state.pending_yield = Some(...)`.
+    ///
+    /// The second half — that the run() loop drains the yield on the same 16 ms tick — is
+    /// proven by the run() code path itself: `drain_pending_yields` is called unconditionally
+    /// after `drain_event_buffer()` in `run()`, so any stranded yield is drained within the
+    /// same iteration (not on the next keypress).  Full terminal rendering cannot be asserted
+    /// without a real TTY, but the state invariant `pending_yield = Some` → `drain` is the
+    /// load-bearing contract.
+    ///
+    /// ## Before fix
+    ///
+    /// drain_event_buffer only drained print/card output; pending_yield was left set forever
+    /// (or until the next keypress happened to trigger the handle_key path).
+    ///
+    /// ## After fix
+    ///
+    /// The run() loop drains pending_yield on the same 16 ms tick via the second call to
+    /// `drain_pending_yields(&mut terminal)` placed after `drain_event_buffer()`.
+    #[test]
+    fn drain_event_alarm_xeq_pse_sets_pending_yield() {
+        let mut app = make_app();
+
+        // Build a minimal program under label "ALRM":
+        //   LBL "ALRM"
+        //   PSE         ← yields mid-program, sets state.pending_yield
+        //   RTN
+        app.state.program = vec![
+            Op::Lbl("ALRM".to_string()),
+            Op::Pse,
+            Op::Rtn,
+        ];
+
+        // Simulate the event that fires when an idle/demoted control alarm targets "ALRM".
+        app.state.event_buffer.push("alarm:xeq:ALRM".to_string());
+
+        // Before fix: drain_event_buffer had no yield-drain path; pending_yield stayed set.
+        // After fix:  run() drains pending_yield on the same tick (not tested here — needs
+        //             a real terminal).  What we CAN assert at the state level:
+        app.drain_event_buffer();
+
+        // drain_event_buffer MUST have executed run_program (not returned early / not errored).
+        // If run_program set pending_yield, the program ran to the PSE step correctly.
+        // If pending_yield is None it means run_program somehow consumed the yield (wrong)
+        // or never ran (also wrong).
+        assert!(
+            app.state.pending_yield.is_some(),
+            "alarm:xeq of a PSE-containing program must leave pending_yield = Some after \
+             drain_event_buffer; got None — likely run_program was not called or the \
+             program did not reach the PSE step"
+        );
+
+        // Confirm no error was surfaced (i.e., run_program succeeded, not Err branch).
+        assert!(
+            app.message.is_none()
+                || !app
+                    .message
+                    .as_deref()
+                    .unwrap_or("")
+                    .contains("Alarm XEQ"),
+            "drain_event_buffer must not set an error message for a successful alarm:xeq; \
+             got: {:?}",
+            app.message
         );
     }
 }
