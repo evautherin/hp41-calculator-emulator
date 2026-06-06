@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 ## Current Position
 
-Phase: 62 — Alarm Semantics Spec (not started)
+Phase: 62 — Alarm Semantics Spec (context gathered)
 Plan: —
-Status: Roadmap created; awaiting `/gsd-plan-phase 62`
-Last activity: 2026-06-06 — Roadmap created (Phases 62–66)
+Status: CONTEXT.md captured (4 decisions); awaiting `/gsd-plan-phase 62`
+Last activity: 2026-06-06 — Phase 62 context gathered (prefix resolution deferred to OM verification; new ADR v4.3-003)
 
 ## Progress Bar
 
