@@ -16,9 +16,10 @@ use std::str::FromStr;
 use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::math1::xrom::{XromModule, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE};
+use crate::ops::time;
 use crate::ops::{Op, TestKind};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
-use crate::state::CalcState;
+use crate::state::{CalcState, PSE_RESUME_MS, YieldKind, YieldState};
 
 // ── Public op dispatch functions ─────────────────────────────────────────────
 // Called from dispatch() match arms (added in plan 03-06).
@@ -443,6 +444,12 @@ pub fn run_program(state: &mut CalcState, entry_label: &str) -> Result<(), HpErr
 
     state.pc = start + 1; // execute step AFTER the Lbl marker (Pitfall 4)
     state.call_stack.clear();
+    // D-12: clear all transient interrupt/yield state on fresh run_program entry so
+    // stale interrupts never fire into a new execution.
+    state.pending_interrupt = None;
+    state.pending_interrupt_alarm_index = None;
+    state.pending_interrupt_depth = None;
+    state.pending_yield = None;
     state.is_running = true;
 
     let result = run_loop(state, &program);
@@ -470,6 +477,12 @@ pub fn resume_program(state: &mut CalcState) -> Result<(), HpError> {
         return Err(HpError::InvalidOp); // nothing to resume
     }
     let program = state.program.clone();
+    // D-09: clear transient interrupt/yield state before re-entering run_loop so an
+    // interrupt set just before Op::Stop is dropped on resume (not redirected to handler).
+    state.pending_interrupt = None;
+    state.pending_interrupt_alarm_index = None;
+    state.pending_interrupt_depth = None;
+    state.pending_yield = None;
     state.is_running = true;
     let result = run_loop(state, &program);
     state.is_running = false; // ALWAYS reset, even on Err (Pitfall 2)
@@ -489,6 +502,48 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             return Err(HpError::Overflow); // infinite-loop guard (CR-01)
         }
         steps += 1;
+
+        // ── Phase 63 Phase-C: periodic alarm scan (D-05) ─────────────────────
+        // The GUI holds the Mutex for the whole run_loop invocation, so
+        // `tick_time`'s check_alarms cannot fire mid-program. Scan on the FIRST
+        // step (to catch alarms that were already past-due when run_program was
+        // called, converting them to pending_interrupt while is_running=true) and
+        // then every ~1000 steps (to detect new alarms that become past-due during
+        // long-running programs). Sub-millisecond at real execution speed.
+        if steps == 1 || steps.is_multiple_of(1000) {
+            time::alarm::check_alarms(state);
+        }
+
+        // ── Phase 63 Phase-B: interrupt injection boundary (D-12 / D-07) ────
+        // pending_interrupt is set by check_alarms/dispatch_alarm_event when
+        // is_running=true and no solver/modal is active (63-01 routing).
+        if let Some(label) = state.pending_interrupt.take() {
+            if state.call_stack.len() >= 4 {
+                // D-07: 4-level cap → SILENTLY suppress. Never push a 5th frame,
+                // never return Err(CallDepth). The alarm stays past_due for manual ack.
+                state.pending_interrupt_alarm_index = None;
+                state.pending_interrupt_depth = None;
+                // label already taken/dropped; continue the loop at current pc.
+            } else {
+                match find_in_program(program, &label) {
+                    Ok(target) => {
+                        // Record the call_stack depth AT injection time so Op::Rtn
+                        // can identify when the handler pops back to the interrupted pc.
+                        state.pending_interrupt_depth = Some(state.call_stack.len());
+                        state.call_stack.push(state.pc);
+                        state.pc = target + 1;
+                        // pending_interrupt_alarm_index stays set for Task 2 ack-after-RTN.
+                    }
+                    Err(_) => {
+                        // D-08: missing handler label → surface event, no ack.
+                        state.event_buffer.push(format!("alarm:missing:{label}"));
+                        state.pending_interrupt_alarm_index = None;
+                        state.pending_interrupt_depth = None;
+                    }
+                }
+            }
+        }
+
         if state.pc >= program.len() {
             // Ran off end of program = implicit top-level RTN
             break;
@@ -499,7 +554,27 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
         match op {
             Op::Rtn => {
                 match state.call_stack.pop() {
-                    Some(return_pc) => state.pc = return_pc,
+                    Some(return_pc) => {
+                        state.pc = return_pc;
+                        // ── Phase 63 D-06: ack-after-RTN ────────────────────────────
+                        // When this pop returns call_stack to the exact depth it had at
+                        // interrupt injection, the handler has fully returned — ack the
+                        // alarm so repeating alarms reschedule (D-06 / ALARM-03).
+                        // The guard is `pending_interrupt_alarm_index.is_some()` AND
+                        // `Some(call_stack.len()) == pending_interrupt_depth`.
+                        // Cap-drop / missing-label already cleared both fields in the
+                        // interrupt boundary above, so this guard naturally skips them.
+                        if state.pending_interrupt_alarm_index.is_some()
+                            && Some(state.call_stack.len()) == state.pending_interrupt_depth
+                        {
+                            if let Some(idx) = state.pending_interrupt_alarm_index.take() {
+                                // Ignore ack errors — out-of-bounds means the alarm was
+                                // already removed (one-shot acked elsewhere); not a bug.
+                                let _ = time::alarm::acknowledge_alarm(state, idx);
+                            }
+                            state.pending_interrupt_depth = None;
+                        }
+                    }
                     None => break, // top-level RTN = normal termination
                 }
             }
@@ -704,6 +779,56 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             Op::AdvFdifeqRunLoop => {
                 crate::ops::advantage::solvers::op_adv_fdifeq_run_loop(state, program)?;
             }
+            // ── Phase 63: PSE yield arm (PRGM-01 / D-04 / D-01) ─────────────
+            // Replaces the execute_op path that writes display_override + pushes
+            // "PAUSE 1000". Instead: set typed yield channel and break.
+            // display_override is NOT written (DISP-01 stays deferred to v4.4).
+            // LiftEffect::Neutral — no stack change (mirrors old execute_op arm).
+            // `pc` already advanced past PSE, so resume_program continues correctly.
+            // Op::ViewInd deliberately excluded from this yield arm (PRGM-02 scope is
+            // literal VIEW/AVIEW; VIEW IND keeps the execute_op path for now).
+            Op::Pse => {
+                let text = crate::format::format_hpnum(&state.stack.x, &state.display_mode);
+                apply_lift_effect(state, LiftEffect::Neutral);
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::Pse,
+                    text,
+                    resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
+            // ── Phase 63: VIEW yield arm (PRGM-02 / D-04) ────────────────────
+            // Captures format_hpnum(regs[reg]) into the typed yield channel.
+            // display_override NOT written. Breaks run_loop for frontend render+resume.
+            Op::View(reg) => {
+                let val = state
+                    .regs
+                    .get(reg as usize)
+                    .ok_or(HpError::InvalidOp)?
+                    .clone();
+                let text =
+                    crate::format::format_hpnum(&val.numeric_or_zero(), &state.display_mode);
+                apply_lift_effect(state, LiftEffect::Neutral);
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::View,
+                    text,
+                    resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
+            // ── Phase 63: AVIEW yield arm (PRGM-02 / D-04) ───────────────────
+            // Captures alpha_reg[..24] into the typed yield channel.
+            // display_override NOT written. Breaks run_loop for frontend render+resume.
+            Op::AView => {
+                let text = state.alpha_reg.chars().take(24).collect::<String>();
+                apply_lift_effect(state, LiftEffect::Neutral);
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::Aview,
+                    text,
+                    resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
             other => {
                 // All other ops execute without flush_entry_buf (no digit entry mid-program)
                 // and without prgm_mode check (RESEARCH Pitfall 2)
@@ -889,16 +1014,14 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 21: Sound ───────────────────────────────────────────────────
         Op::Beep => super::sound::op_beep(state),
         Op::Tone(n) => super::sound::op_tone(state, n),
-        // ── Phase 22: PSE — pause display (D-22.4, FN-PROG-02, Pitfall 3) ────
-        // Writes both channels: display_override (visible value) + event_buffer
-        // ("PAUSE 1000" marker for frontend timing). run_loop does NOT break;
-        // execution continues to the next step. display_override survives
-        // subsequent run_loop iterations because run_loop calls execute_op
-        // directly (NOT dispatch), so the dispatch-top clear at mod.rs:410
-        // does not fire between iterations. The NEXT interactive dispatch
-        // clears it — matches HP-41 "value visible until next key" semantic.
-        // Pitfall 10: do NOT add flush_entry_buf here — dispatch already
-        // called it; execute_op inside run_loop never sees stale entry_buf.
+        // ── Phase 22: PSE — pause display (D-22.4, FN-PROG-02) ──────────────
+        // INTERACTIVE path only: writes display_override + "PAUSE 1000" event.
+        // Phase 63: during program execution, run_loop intercepts Op::Pse BEFORE
+        // the `other =>` catch-all reaches execute_op — it sets pending_yield and
+        // breaks instead (D-04 / PRGM-01). This body only fires for an interactive
+        // PSE keystroke (no program running), keeping the "value visible until
+        // next key" semantic for that case.
+        // Pitfall 10: do NOT add flush_entry_buf here — dispatch already called it.
         Op::Pse => {
             let formatted = crate::format::format_hpnum(&state.stack.x, &state.display_mode);
             state.display_override = Some(formatted);
