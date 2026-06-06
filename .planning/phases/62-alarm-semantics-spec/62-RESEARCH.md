@@ -478,7 +478,7 @@ correction plan (save-file migration) from D-05 is not triggered.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 None — all questions raised in D-01 through D-07 are resolved by this research.
 
