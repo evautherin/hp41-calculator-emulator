@@ -18,6 +18,7 @@
 - ✅ **v4.0 Platform Maturity** — Phases 48–52, visual themes, onboarding, GUI keyboard parity, `.raw` file I/O, Extended Memory — SHIPPED 2026-05-28 · [Archive](milestones/v4.0-ROADMAP.md)
 - ✅ **v4.1 iOS Foundation** — Phases 53–57, touch-first iPhone build to TestFlight (manual-signing CI pipeline; signed IPA on TestFlight + on-device) — SHIPPED 2026-06-04 · [Archive](milestones/v4.1-ROADMAP.md)
 - ✅ **v4.2 Help Search Enrichment** — Phases 58–61, intent-aware `?` overlay (DE+EN aliases, hand-rolled fuzzy matching, relevance ranking) — SHIPPED 2026-06-05 · [Archive](milestones/v4.2-ROADMAP.md)
+- 🚧 **v4.3 Hardware Fidelity** — IN PROGRESS (opened 2026-06-06). Quick-task landed ahead of formal phases: desktop menu-bar single-instance guard + configurable macOS global hotkey (ADR-v4.3-001/002) · see MILESTONES.md
 
 ---
 
