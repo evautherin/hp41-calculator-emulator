@@ -154,7 +154,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   - [x] 63-02-PLAN.md — Phase B/C/D + yield arms: run_loop interrupt boundary, Phase-C check, ack-after-RTN, PSE/VIEW/AVIEW yields, clear-on-entry (program.rs)
   - [x] 63-03-PLAN.md — CLI wiring: yield render+sleep+resume loop + alarm:missing status line (app.rs)
   - [x] 63-04-PLAN.md — GUI-Rust: run_program/resume_program Tauri commands + pending_yield CalcStateView projection + handler/permission/capability registration (commands.rs, types.rs, lib.rs, permissions/, capabilities/)
-  - [ ] 63-05-PLAN.md — Docs (Phase G): ADR v4.3-001 + flip hp41-time-divergences §D-40-04 to implemented
+  - [x] 63-05-PLAN.md — Docs (Phase G): ADR v4.3-001 + flip hp41-time-divergences §D-40-04 to implemented
   - [ ] 63-06-PLAN.md — GUI-TS run-loop driver: R/S 4-way start/stop, yield render + scheduled resume, alarm:missing toast, interrupting silent-ignore removed (App.tsx, App.test.tsx)
 
 ### Phase 64: Interactive GETKEY
@@ -213,7 +213,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 | 60. Alias Authoring Pipeline | v4.2 | — | Complete | 2026-06-05 |
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
-| 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 4/6 | In Progress|  |
+| 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 5/6 | In Progress|  |
 | 64. Interactive GETKEY | v4.3 | 0/TBD | Not started | - |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
