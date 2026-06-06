@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: planning
-last_updated: "2026-06-06T08:14:03.791Z"
+last_updated: "2026-06-06"
 last_activity: 2026-06-06
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,102 +23,95 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** v4.2 Help Search Enrichment shipped + archived (PR #23 open, develop→main). No active milestone — run `/gsd-new-milestone`. Pending: merge PR #23 with `--merge` (never squash) so the `v4.2` tag stays reachable and `release.yml` auto-publishes.
+**Current focus:** v4.3 Hardware Fidelity — interrupting control alarms (D-40-04 anchor), run-loop yield/interrupt engine, PSE/VIEW/AVIEW mid-run, GETKEY, display + math fidelity fixes. Roadmap created 2026-06-06; 5 phases (62–66), 11 requirements.
 
 ---
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 62 — Alarm Semantics Spec (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-06 — Milestone v4.3 started
+Status: Roadmap created; awaiting `/gsd-plan-phase 62`
+Last activity: 2026-06-06 — Roadmap created (Phases 62–66)
 
 ## Progress Bar
 
 ```
-v4.2 Help Search Enrichment
-Phase 58 ██████████ 100%  Phase 59 ██████████ 100%
-Phase 60 ██████████ 100%  Phase 61 ██████████ 100%
-Overall  ██████████ 100%
+v4.3 Hardware Fidelity
+Phase 62 ░░░░░░░░░░   0%  Phase 63 ░░░░░░░░░░   0%
+Phase 64 ░░░░░░░░░░   0%  Phase 65 ░░░░░░░░░░   0%
+Phase 66 ░░░░░░░░░░   0%
+Overall  ░░░░░░░░░░   0%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
-| 58 | Data Model — `search_aliases` field on both help-entry mirrors | Complete ✓ |
-| 59 | Runtime Matcher — alias-aware, tiered scoring, hand-rolled fuzzy, relevance-ranked | Complete ✓ (UAT 2/2) |
-| 60 | Alias Authoring Pipeline — `scripts/help-aliases/` + LLM runner + all 6 JSON pools populated | Complete ✓ — 364 entries DE+EN-aliased, alias-only diff, both frontends build |
-| 61 | Quality Gates — unit tests, parity fixture, schema CI gate, CLAUDE.md docs | Complete ✓ — Rust 10 + TS 36 tests, 6-pool schema gate (ci.yml), CLAUDE.md updated |
+| 62 | Alarm Semantics Spec — verify `>` / `>>` prefix semantics against OM, lock behavioral contract | Not started |
+| 63 | Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW — synchronous pending-interrupt mechanism, alarm execution mid-run, display yields | Not started |
+| 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Not started |
+| 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Not started |
+| 66 | Verification, Divergence-Doc Updates, Quality Gates — UNC-01/02/03 verified; D-40-04 closed; all gates green | Not started |
 
-## Quick Tasks Completed
+## Quick Tasks Completed (v4.3)
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
-| 260602-kw4 | Eliminate whitespace around the calculator — scale GUI to fill viewport (macOS + iPhone) | 2026-06-02 | dd71fb2 | Complete ✓ | [260602-kw4-eliminate-whitespace-around-the-calculat](./quick/260602-kw4-eliminate-whitespace-around-the-calculat/) |
-| 260603-e4e | Allow entering '.1' as '0.1' (leading-zero number entry, real HP-41CV behavior) | 2026-06-03 | d127e97 | Complete ✓ | [260603-e4e-allow-entering-1-as-0-1-leading-zero-num](./quick/260603-e4e-allow-entering-1-as-0-1-leading-zero-num/) |
-| 260603-klp | Fix help-overlay search field rendering off-screen at iPhone top edge (safe-area inset) so input and close X are reachable | 2026-06-03 | 8d0fd00 | Complete ✓ | [260603-klp-fix-help-overlay-search-field-rendering-](./quick/260603-klp-fix-help-overlay-search-field-rendering-/) |
-| 260603-laz | iOS touch polish — re-fit calculator scale on help/settings overlay close + lock pinch-zoom (surfaced verifying 260603-klp) | 2026-06-03 | 1e485ff | Complete ✓ | [260603-laz-ios-touch-polish-re-fit-calculator-on-ov](./quick/260603-laz-ios-touch-polish-re-fit-calculator-on-ov/) |
-| 260603-mxg | iOS PRGM-mode layout — safe-area handled OUTSIDE the CSS-transform (top display no longer clipped under Dynamic Island), via stylesheet class not inline env() (WKWebView drops inline env). Bottom-sheet occlusion later mooted by 260603-o2e | 2026-06-03 | 6fc9d6c | Complete ✓ | [260603-mxg-fix-ios-prgm-mode-layout-program-source-](./quick/260603-mxg-fix-ios-prgm-mode-layout-program-source-/) |
-| 260603-o2e | Authentic single-step PRGM view — main display shows current step (SST/BST navigate); removed inauthentic program listing (iOS sheet + desktop panel); restored CLI↔GUI parity D-25.6 | 2026-06-03 | 1eeba7e | Complete ✓ | [260603-o2e-authentic-hp-41-prgm-view-single-program](./quick/260603-o2e-authentic-hp-41-prgm-view-single-program/) |
-| 260603-lu0 | Help-overlay function index — A: CLREG→CLRG fidelity; B: tabbed overlay ("Keyboard Shortcuts" \| "All Functions") exposing all 74 keyless built-ins, tap-to-run (XEQ-by-name / insert-step in PRGM), HP-41-styled; C: Vitest+Rust coverage guardrails | 2026-06-03 | 652b4b1 | Complete ✓ | [260603-lu0-help-overlay-function-index-clrg-fidelit](./quick/260603-lu0-help-overlay-function-index-clrg-fidelit/) |
-| 260603-s17 | Mnemonic fidelity — CL SIGMA→CLΣ (glyph; data-only, resolver/mirrors already had it); hide CLRALPHA legacy alias from All Functions index via OVERLAY_HIDDEN_ALIASES (Op kept for v1.0 save compat, Pitfall 8) | 2026-06-03 | 8a8e6de | Complete ✓ | [260603-s17-mnemonic-fidelity-cl-sigma-clsigma-glyph](./quick/260603-s17-mnemonic-fidelity-cl-sigma-clsigma-glyph/) |
-| 260603-scc | CLI `?` overlay completeness — keyless built-ins now show `XEQ "NAME"`, deferred-v3 filtered out, C1-analog guardrail added (CLI↔GUI parity for function discovery) | 2026-06-03 | b47f921 | Complete ✓ | [260603-scc-cli-help-overlay-completeness-xeq-hint-f](./quick/260603-scc-cli-help-overlay-completeness-xeq-hint-f/) |
-| 260603-sef | Portal iOS print sheet + ALPHA bar out of the scale transform (position:fixed was trapped by the transform → glued to the calculator edge). Print sheet now sits correctly; ALPHA-bar refinements superseded by 260603-u6t | 2026-06-03 | 7e27da4 | Complete ✓ | [260603-sef-portal-ios-print-bottomsheet-alphatouchi](./quick/260603-sef-portal-ios-print-bottomsheet-alphatouchi/) |
-| 260603-u6t | Native keys-only ALPHA entry on iOS — on-screen blue keys only (no iOS keyboard, even FUNCTION NAME?); ← + physical Backspace delete last alpha char; iOS touch targets sized to actual key (fixes wide-ENTER 'N') | 2026-06-03 | 65e7a3a | Complete ✓ | [260603-u6t-ios-alpha-entry-native-hp-41-keys-only-o](./quick/260603-u6t-ios-alpha-entry-native-hp-41-keys-only-o/) |
-| 260603-uzh | Documentation pass — 4 ADRs (v4.1-003 keys-only ALPHA, -004 help-overlay index, -005 iOS scale/safe-area, -006 single-step PRGM) + new docs/hp41cv-divergences.md + CLAUDE.md GUI-specifics + architecture-history v4.1 section | 2026-06-03 | (pending) | Complete ✓ | [260603-uzh-documentation-pass-adrs-claude-md-divergen](./quick/260603-uzh-documentation-pass-adrs-claude-md-divergen/) |
+| (pre-phase) | Desktop menu-bar single-instance guard + configurable macOS global hotkey (ADR-v4.3-001/002) | 2026-06-06 | 37dfd5f | Complete ✓ | — |
 
-## Performance Metrics (v4.0 ship baseline)
+## Performance Metrics (v4.2 ship baseline)
 
-| Metric | Target | Last measured (v4.0) |
+| Metric | Target | Last measured (v4.2) |
 |--------|--------|----------------------|
 | Cold-start latency | <= 0.5 s | 2.2 ms (M1) |
 | Key-press latency | <= 50 ms | ~65 ns/op |
-| `hp41-core` line coverage | >= 95 % | ~93 % (denominator dilution) |
-| `hp41-core` region coverage | >= 93 % | ~95 % |
+| `hp41-core` line coverage | >= 95 % | >= 95 % |
+| `hp41-core` region coverage | >= 93 % | >= 93 % |
 | Numerical accuracy | >= 98 % | 98.86 % (843 cases) |
 | Panics in `hp41-core` | 0 | 0 |
 | Free42 contamination | 0 | 0 (18-token guard) |
 | CI platforms | Win/macOS/Ubuntu | All green |
-| Tests passing | — | 3371 (v4.0 baseline) |
+| Tests passing | — | 3371+ (v4.2 baseline) |
 
 ---
-| Phase 59-runtime-matcher P01 | 5m | 3 tasks | 3 files |
-| Phase 59-runtime-matcher P02 | 10m | 2 tasks | 2 files |
-| Phase 59-runtime-matcher P03 | 12m | 2 tasks | 2 files |
-| Phase 60-alias-authoring P01 | 30m | 3 tasks | 10 files |
-| Phase 60-alias-authoring P02 | ~75m | 3 tasks (2 checkpoints) | 6 pools + 3 crate files |
 
 ## Accumulated Context
 
-### Decisions (pre-resolved from design spec)
+### Decisions (pre-resolved from research/audit)
 
-- **`hp41-core` is untouched** — this is a UI/help-only milestone. Zero changes to `hp41-core/`. Frozen Invariant holds.
-- **No new runtime dependency** — fuzzy distance is hand-rolled (~30-40 LOC Rust + TS mirror), honoring *Zero new runtime deps since v3.0*.
-- **No save-file / `CalcState` impact** — `search_aliases` is documentation data, not state. No migration, no `#[serde(default)]` needed on `CalcState`.
-- **Mirrored matcher pattern** — CLI `filter_help_rows` (Rust) and GUI `HelpOverlay.tsx` filter (TS) are upgraded in parallel, following the same duplication discipline as `op_display_name` / `filter_help_rows`. The parity fixture (HSQUAL-02) is the drift guard.
-- **DE aliases are intentional** — the project's English-only doc rule applies to docs/ADRs/planning. `search_aliases` is search *input*, not documentation, so German aliases are in-scope (noted in spec and CLAUDE.md update HSQUAL-04).
-- **No regenerate-and-diff CI gate** — LLM alias output is non-deterministic. CI gate is schema-only (HSQUAL-03): validates field presence and type, checks every `status: "implemented"` entry has >= 1 alias.
-- **`scripts/help-aliases/` scaffold** — follows the `scripts/docs-matrix/` sibling pattern. Dev-only; no production binary footprint.
-- **Phase dependency order** — 58 (field) → 59 (matcher, can use the field without aliases yet) → 60 (populates aliases) → 61 (tests + CI gate require both matcher and alias data).
-- **Ranking: non-empty query = relevance-ranked flat list** — empty query preserves existing category-grouped view unchanged (HSMATCH-04 / HSUX-01).
+- **Synchronous, single-threaded re-entrancy** — the run-loop interrupt mechanism reuses the existing call-stack / Xeq / PROMPT-resume machinery. No threads, no `Arc<Mutex>` rework, no new `Op` variants. A single transient `pending_interrupt: Option<String>` field on `CalcState` with `#[serde(default, skip)]` is the wire.
+- **ALARM-01 gates ALARM-02/03** — Phase 62 is a spec/clarify-only phase (no runtime code). No implementation of interrupting alarms begins until the `>`/`>>` prefix inversion question is resolved against the primary OM.
+- **PRGM-01 + PRGM-02 share the engine with ALARM-02/03** — PSE timing (FGAP-01) and VIEW/AVIEW mid-run (FGAP-10) use the same yield primitive as the interrupt mechanism. They live in Phase 63.
+- **PRGM-03 (GETKEY) is its own phase** — heavier (L-effort); requires suspending execution and awaiting frontend input, building on PROMPT suspend/resume. Depends on Phase 63 infrastructure being in place.
+- **DISP-01/02/03 + MATH-01 are independent** — no engine dependency; can be started after Phase 62 spec is locked (do not require Phase 63 to be complete). Grouped as Phase 65.
+- **VERIFY-01 is the final gate phase** — fold UNC-01/02/03 verification-and-fix-if-confirmed plus divergence doc updates and all quality gates into Phase 66.
+- **math1/ freeze holds** — all alarm/interrupt code touches `time/alarm.rs`, `ops/program.rs`, `state.rs` — none of which are inside the frozen `math1/` directory.
+- **Zero new runtime deps** — no new crates in `hp41-core/Cargo.toml`.
+- **serde discipline** — transient fields (interrupt state, pending key) carry both `#[serde(default)]` and `#[serde(skip)]`; any persistent interrupt-related field follows the `rand_seed` two-annotation pattern with explicit inline documentation.
+- **Deterministic-clock testing** — `trigger_unix = 0` (always past-due) and `time_offset_secs = 0`; never call `SystemTime::now()` in assertions.
+- **CLI-GUI parity (D-25.6)** — both CLI (`drain_event_buffer` at app.rs:1797) and GUI (`tick_time` in commands.rs) must handle the new interrupting alarm event in the same phase (Phase 63).
 
 ### Pitfalls to watch
 
 | ID | Description | Phase |
 |----|-------------|-------|
-| P-HS-01 | `filter_help_rows` currently works on `HelpRow` (a slimmed projection); if `search_aliases` is not passed through to the row, the matcher cannot see aliases — extend `HelpRow` or score directly over `HelpEntry` | 59 |
-| P-HS-02 | Fuzzy match can produce false positives with short queries (e.g. "x" fuzzy-matching many entries) — apply a minimum edit-distance threshold relative to query length | 59 |
-| P-HS-03 | The parity fixture (HSQUAL-02) must use a fixed snapshot of alias data, otherwise a future alias edit would silently break the fixture | 61 |
-| P-HS-04 | `just schema-check` recipe must not call the LLM script — it validates existing JSON content only | 61 |
-| P-HS-05 | JSON size growth (~90KB today) — verify `include_str!` / TS import at CI still compiles inside bundle-size limits | 60 |
+| P-43-01 | `>` / `>>` prefix inversion — audit code's `interrupting: true` flag against OM before any implementation | 62 |
+| P-43-02 | `run_loop` regression surface — 3300+ tests exercise the engine; any change to `run_loop` / `run_program` can silently break ISG/DSE, call-stack, or XROM dispatch | 63 |
+| P-43-03 | `is_running` + 4-level cap integrity — interrupt frame must never push to a 5th level; `is_running` must reset on all paths including errors | 63 |
+| P-43-04 | `lift_enabled` preservation — interrupted program's stack-lift state must be exactly restored on resume | 63 |
+| P-43-05 | Print emulation — any alarm label program output (PRX/PRA/PRSTK) routes through `state.print_buffer`; `drain_and_show_print_output()` must be called after alarm execution | 63 |
+| P-43-06 | MSRV 1.88 clippy divergence — run `cargo +1.88 clippy --workspace --all-targets --all-features -- -D warnings` before tagging; check `gh pr checks` | 66 |
+| P-43-07 | GUI clippy ungated — manually run `cd hp41-gui/src-tauri && cargo clippy --all-targets -- -D warnings` after any GUI Rust changes | 63/66 |
+| P-43-08 | `#[cfg(mobile)]` blind spot — after any change to `commands.rs` alarm handling, run `cargo check --target aarch64-apple-ios --manifest-path hp41-gui/src-tauri/Cargo.toml` | 63 |
+| P-43-09 | DNT-05 regression — non-interrupting `>label` path must remain on the event_buffer / `drain_event_buffer` path unchanged | 63 |
+| P-43-10 | CHS during EEX entry vs. mantissa entry — only fix mantissa-entry sign-flip; CHS during EEX flushes (hardware behavior, accepted) | 65 |
 
 ### Blockers
 
-None.
+None. Phase 62 can start immediately.
 
 ### Pending Todos
 
-- Run `/gsd-plan-phase 61` to plan Phase 61: Schema Gate + Verification — validate the alias JSON schema and confirm the deferred `Zinseszins`/`Wurzel`/`compound interest` queries resolve against the matcher + the now-committed alias data. (Phase 60 delivered the data; "Zinseszins" is not yet a literal TVM alias — candidate hand-add if Phase-61 UAT needs it.)
+- Run `/gsd-plan-phase 62` to plan Phase 62: Alarm Semantics Spec.
 
 ---
 
@@ -126,19 +119,20 @@ None.
 
 | Category | Item | Status |
 |----------|------|--------|
-| Deferred | Interrupting control alarm execution | Still deferred; data model ready (D-38.4); requires call-stack re-entrancy |
-| Deferred | App Store submission (STORE-01, STORE-02) | v4.2+ milestone |
-| Deferred | iPad universal layout (IPAD-01) | v4.2+ milestone |
-| Deferred | Landscape orientation (LAND-01) | v4.2+ milestone |
-| Deferred | Android (ANDROID-01) | v4.2+ milestone |
-| Deferred | .raw file picker on iOS (RAW-IOS-01) | v4.2+ (no native iOS picker in tauri-plugin-dialog) |
-| Deferred | HSCOV-01 missed-query log (zero-result queries) | v4.3+ (accepted gap for v4.2; see REQUIREMENTS.md v2 section) |
+| Deferred to v4.4 | CATSCROLL-01: Interactive CATALOG 1 scroll (FGAP-06) | L-effort; same run_loop-yield family; keeps v4.3 focused |
+| Deferred to v4.4 | XMEMFILE-01: PURFL/CLFL + DUP FL + bbb.eee (FGAP-09) | L-effort structural; DNT-06/07 accepted for v4.3 |
+| Deferred | App Store submission (STORE-01, STORE-02) | Handled externally by Daniel |
+| Deferred | iPad universal layout (IPAD-01) | v4.4+ milestone |
+| Deferred | Landscape orientation (LAND-01) | v4.4+ milestone |
+| Deferred | Android (ANDROID-01) | Parked as SEED-001 |
+| Deferred | .raw file picker on iOS (RAW-IOS-01) | v4.4+ (no native iOS picker in tauri-plugin-dialog) |
+| Deferred | HSCOV-01 missed-query log (zero-result queries) | v2/deferred, out of v4.3 scope |
 
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-05 — Phase 60 (Alias Authoring Pipeline) COMPLETE. Wave 1: `scripts/help-aliases/` generator crate (12 tests). Wave 2: ran the generator live, populated DE+EN `search_aliases` for all 364 implemented entries across six pools (~3000 aliases). A Wave-2 human review caught that the PrettyFormatter writeback churned 227 entries' inline `xrom`/`divergences` (D-60.4 violation); replaced it with a byte-preserving text splice + `--apply-cache` re-apply (zero new LLM cost), 14 crate tests. Final diff is alias-only on every pool; `cargo check -p hp41-cli` + `just gui-ci` green; total 235 KB (max 81 KB). `--bare` dropped from claude flags (broke local OAuth). Next: `/gsd-plan-phase 61` (Schema Gate + Verification — also verify `Zinseszins`/`Wurzel`/`compound interest` resolve; "Zinseszins" not yet a literal TVM alias).*
+*Last updated: 2026-06-06 — Roadmap created for v4.3 Hardware Fidelity. 5 phases (62–66), 11 requirements mapped. Next: `/gsd-plan-phase 62`.*
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 62` to plan Phase 62: Alarm Semantics Spec
