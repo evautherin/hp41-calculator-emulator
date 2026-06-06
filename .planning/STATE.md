@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: verifying
-last_updated: "2026-06-06T16:30:13.855Z"
+last_updated: "2026-06-06T16:42:42.792Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 20
 ---
 
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 63
-Plan: 63-03 COMPLETE (wave 3 of 4; plan 3 of 6) — CLI yield render+sleep+resume loop (drain_pending_yields + alarm:missing status line surface); 489 hp41-cli tests pass
-Status: In progress — Wave 3 partial; 63-04 (GUI Rust) parallel plan also in Wave 3
+Plan: 63-04 COMPLETE (wave 3 of 4; plan 4 of 6) — GUI Rust: run_program/resume_program Tauri commands + pending_yield CalcStateView projection; 129 GUI Rust + 337 GUI TS tests pass
+Status: In progress — Wave 3 complete (63-03 CLI + 63-04 GUI Rust done); next: 63-05 (docs) + 63-06 (GUI TS driver, Wave 4)
 Last activity: 2026-06-06
 
 ## Progress Bar
@@ -76,8 +76,18 @@ Overall  ██░░░░░░░░  25%
 | Phase 63 P02 | 75 | 3 tasks | 7 files |
 | Phase 63 P03 | 20 | 2 tasks | 1 file |
 | Phase 63 P03 | 20min | 2 tasks | 1 files |
+| Phase 63 P04 | 30min | 3 tasks | 6 files |
+| Phase 63 P04 | 30 | 3 tasks | 6 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 63-04 — 2026-06-06)
+
+- **63-04-D01:** Use full core path `hp41_core::ops::program::run_program` (not re-export `hp41_core::run_program`) to avoid name-shadow with `commands::run_stop`.
+- **63-04-D02:** Drain pattern mirrors `handle_sst` (not `handle_get_state`) so print+event lines from a run reach the view.
+- **63-04-D03:** Mutex held for full run_loop segment (T-63-09 accepted tradeoff) — identical to INTG/SOLVE/DIFEQ today; Phase-C check_alarms fires server-side.
+- **63-04-D04:** `YieldView.kind` as lowercase string (`"pse"/"view"/"aview"`) so the TS layer needs no Rust enum knowledge.
+- **63-04-D05:** `display_override` projection in `from_state` left completely untouched (D-04 / DISP-01 deferred).
 
 ### Decisions (Phase 63-03 — 2026-06-06)
 
@@ -163,8 +173,8 @@ The plan-checker discovered (verified against `develop`) that **the GUI has no c
 ---
 
 *State initialized: 2026-05-06*
-*Last updated: 2026-06-06 — Phase 63 Plan 03 complete: CLI yield render+sleep+resume loop (drain_pending_yields) + alarm:missing status-line surface. 489 hp41-cli tests pass. Next: 63-04 (GUI Rust commands) — parallel Wave 3 plan.*
+*Last updated: 2026-06-06 — Phase 63 Plan 04 complete: GUI Rust run-loop backend — run_program/resume_program Tauri commands + pending_yield CalcStateView projection. 129 GUI Rust + 337 GUI TS tests pass. Next: 63-05 (docs, Wave 3) + 63-06 (GUI TS driver, Wave 4).*
 
 ## Operator Next Steps
 
-- Run `/gsd-execute-phase 63` to continue Phase 63 Plans 04-06 (Wave 3 remaining: GUI Rust + test integration + GUI TS driver)
+- Run `/gsd-execute-phase 63` to continue Phase 63 Plans 05-06 (Wave 3/4 remaining: docs ADR + GUI TS driver)
