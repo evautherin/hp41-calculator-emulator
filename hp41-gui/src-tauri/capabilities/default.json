@@ -25,6 +25,8 @@
     "allow-import-data-dialog",
     "allow-export-data-dialog",
     "allow-import-selected-programs",
+    "allow-run-program",
+    "allow-resume-program",
     "dialog:allow-open",
     "dialog:allow-save",
     "autostart:default"

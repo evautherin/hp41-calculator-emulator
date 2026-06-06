@@ -258,6 +258,9 @@ pub fn run() {
             commands::import_data_dialog,
             commands::export_data_dialog,
             commands::import_selected_programs,
+            // Phase 63 — GUI continuous program run loop (run_program + resume_program)
+            commands::run_program,
+            commands::resume_program,
         ])
         .on_window_event(|window, event| {
             #[cfg(target_os = "macos")]
