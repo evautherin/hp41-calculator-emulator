@@ -376,6 +376,52 @@ pub fn run_stop(state: State<'_, AppState>) -> Result<CalcStateView, GuiError> {
     handle_run_stop(&mut calc)
 }
 
+/// Tauri command: run a user-LBL program to the next yield / stop / end.
+///
+/// SC-4 thin-glue (Phase 63 D-01 / PRGM-01): this command is a ~5-line wrapper
+/// around `hp41_core::ops::program::run_program` — NO calculator logic lives here.
+///
+/// The `label` parameter is the XEQ-by-name program label (e.g. "A", "MYPROG").
+/// Tauri v2 convention: custom param `label` precedes the State extractor.
+///
+/// **Mutex tradeoff (T-63-09):** A long no-yield program holds the AppState Mutex
+/// for the duration of one `run_program` call — identical to today's INTG/SOLVE/DIFEQ.
+/// `request_cancel` uses a separate `CancelFlag` state (unaffected). Phase-C
+/// `check_alarms` inside `run_loop` still fires the interrupt server-side within
+/// that single call, so no TS branching is needed for the compute-loop alarm case.
+/// This is the accepted tradeoff per D-01/D-11 (Mutex released between returns).
+///
+/// On a PSE/VIEW/AVIEW yield, the returned `CalcStateView.pending_yield` is Some;
+/// the TS driver renders the display and schedules `resume_program` after `resume_ms` ms.
+#[tauri::command]
+pub fn run_program(
+    label: String,
+    state: State<'_, AppState>,
+) -> Result<CalcStateView, GuiError> {
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    hp41_core::ops::program::run_program(&mut calc, &label).map_err(GuiError::from)?;
+    let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+    let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+    Ok(CalcStateView::from_state(&calc, print_lines, event_lines))
+}
+
+/// Tauri command: continue a halted program to the next yield / stop / end.
+///
+/// SC-4 thin-glue (Phase 63 D-01 / PRGM-02): ~4-line wrapper around
+/// `hp41_core::ops::program::resume_program`. Called by the TS driver after
+/// `run_program` (or a prior `resume_program`) returned `pending_yield: Some(...)`.
+///
+/// Like `run_program`, holds the AppState Mutex for the duration of one run_loop
+/// break-segment (T-63-09 accepted tradeoff). Mutex is released on return.
+#[tauri::command]
+pub fn resume_program(state: State<'_, AppState>) -> Result<CalcStateView, GuiError> {
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    hp41_core::ops::program::resume_program(&mut calc).map_err(GuiError::from)?;
+    let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+    let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+    Ok(CalcStateView::from_state(&calc, print_lines, event_lines))
+}
+
 /// Tauri command: flip the cancellation flag for long-running Math Pac I ops.
 ///
 /// ## CRITICAL — no AppState lock (Pitfall 1 / deadlock avoidance)
@@ -1316,6 +1362,84 @@ mod tests {
             view.clock_active,
             "view.clock_active must mirror CalcState.clock_active (true)"
         );
+    }
+
+    /// Phase 63 D-04 / PRGM-01: from_state must project pending_yield into CalcStateView
+    /// as a serializable triple (kind lowercase string / text / resume_ms) when the core
+    /// run_loop broke at a PSE/VIEW/AVIEW yield.
+    ///
+    /// Also asserts that display_override projection is UNAFFECTED by pending_yield (D-04).
+    #[test]
+    fn from_state_projects_pending_yield_when_set() {
+        use hp41_core::state::{YieldKind, YieldState};
+        let mut calc = CalcState::new();
+        // Simulate a PSE yield from the run_loop: core sets pending_yield.
+        calc.pending_yield = Some(YieldState {
+            kind: YieldKind::Pse,
+            text: "1.0000000000".to_string(),
+            resume_ms: 1000,
+        });
+
+        // display_override must pass through independently of pending_yield (D-04).
+        calc.display_override = Some("VIEW 01".to_string());
+
+        let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+        let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+        let view = CalcStateView::from_state(&calc, print_lines, event_lines);
+
+        // pending_yield projected correctly.
+        let py = view.pending_yield.expect("pending_yield must be Some when calc has a yield");
+        assert_eq!(py.kind, "pse", "YieldKind::Pse must map to \"pse\"");
+        assert_eq!(py.text, "1.0000000000");
+        assert_eq!(py.resume_ms, 1000);
+
+        // display_override untouched (D-04).
+        assert_eq!(
+            view.display_override,
+            Some("VIEW 01".to_string()),
+            "display_override must not be disturbed by pending_yield projection"
+        );
+    }
+
+    /// Phase 63 D-04: pending_yield is None in the view when CalcState.pending_yield is None.
+    #[test]
+    fn from_state_pending_yield_none_when_not_set() {
+        let mut calc = CalcState::new();
+        assert!(calc.pending_yield.is_none(), "fresh state has no pending_yield");
+        let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+        let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+        let view = CalcStateView::from_state(&calc, print_lines, event_lines);
+        assert!(
+            view.pending_yield.is_none(),
+            "view.pending_yield must be None when CalcState has no pending_yield"
+        );
+    }
+
+    /// Phase 63 D-04: YieldKind::View and YieldKind::Aview map to correct kind strings.
+    #[test]
+    fn from_state_projects_yield_view_and_aview_kinds() {
+        use hp41_core::state::{YieldKind, YieldState};
+        let mut calc = CalcState::new();
+
+        // Test View kind.
+        calc.pending_yield = Some(YieldState {
+            kind: YieldKind::View,
+            text: "42.000".to_string(),
+            resume_ms: 1000,
+        });
+        let view = CalcStateView::from_state(&calc, vec![], vec![]);
+        let py = view.pending_yield.unwrap();
+        assert_eq!(py.kind, "view", "YieldKind::View must map to \"view\"");
+
+        // Test Aview kind.
+        calc.pending_yield = Some(YieldState {
+            kind: YieldKind::Aview,
+            text: "HELLO".to_string(),
+            resume_ms: 1000,
+        });
+        let view = CalcStateView::from_state(&calc, vec![], vec![]);
+        let py = view.pending_yield.unwrap();
+        assert_eq!(py.kind, "aview", "YieldKind::Aview must map to \"aview\"");
     }
 
     #[test]

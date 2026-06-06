@@ -47,8 +47,39 @@ fn truncate_with_continuation(s: &str) -> String {
 use crate::prgm_display;
 use hp41_core::ops::time::clock::get_clock_display_str;
 use hp41_core::ops::time::stopwatch::get_stopwatch_display_str;
+use hp41_core::state::{YieldKind, YieldState};
 use hp41_core::{format_alpha, format_hpnum, AngleMode, CalcState, HpError};
 use serde::Serialize;
+
+/// Serializable snapshot of `YieldState` sent to the TS layer when the core
+/// run_loop breaks at a PSE / VIEW / AVIEW yield.
+///
+/// `kind` is a lowercase string so the TS layer needs no Rust enum knowledge:
+/// `"pse"` / `"view"` / `"aview"`.
+/// `resume_ms` is the milliseconds the frontend must wait before calling
+/// `resume_program` (single-source-of-truth: `hp41_core::state::PSE_RESUME_MS`).
+#[derive(Debug, Serialize)]
+pub struct YieldView {
+    pub kind: String,
+    pub text: String,
+    pub resume_ms: u64,
+}
+
+impl YieldView {
+    fn from_yield_state(y: &YieldState) -> Self {
+        let kind = match y.kind {
+            YieldKind::Pse => "pse",
+            YieldKind::View => "view",
+            YieldKind::Aview => "aview",
+        }
+        .to_string();
+        YieldView {
+            kind,
+            text: y.text.clone(),
+            resume_ms: y.resume_ms,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct Annunciators {
@@ -113,6 +144,12 @@ pub struct CalcStateView {
     // stopwatch_running: true when stopwatch_mode == Running; frontend uses this to
     // decide Space → RUNSW (start) vs STOPSW (stop) in stopwatch keyboard mode.
     pub stopwatch_running: bool,
+    // Phase 63 D-04 / PRGM-01/PRGM-02: yield channel from the run_loop.
+    // Some when run_loop broke at a PSE/VIEW/AVIEW yield; None on normal stop/end/error.
+    // Carries kind (lowercase "pse"/"view"/"aview"), pre-formatted text, and resume_ms
+    // so the TS driver can render the yield display and schedule resume_program.
+    // display_override is NOT written by yield paths (D-04 / DISP-01 deferred).
+    pub pending_yield: Option<YieldView>,
 }
 
 impl CalcStateView {
@@ -222,6 +259,15 @@ impl CalcStateView {
         let stopwatch_running =
             state.stopwatch_mode == hp41_core::ops::time::stopwatch::StopwatchMode::Running;
 
+        // Phase 63 D-04 / PRGM-01/PRGM-02: project pending_yield from the run_loop yield channel.
+        // None when the program ended normally / stopped / errored — the TS driver only auto-resumes
+        // when Some (schedules resume_program via setInterval after resume_ms ms).
+        // display_override is NOT touched here per D-04 (DISP-01 deferred).
+        let pending_yield = state
+            .pending_yield
+            .as_ref()
+            .map(YieldView::from_yield_state);
+
         CalcStateView {
             display_str,
             x_str,
@@ -245,6 +291,7 @@ impl CalcStateView {
             clock_active,
             stopwatch_keyboard_mode,
             stopwatch_running,
+            pending_yield,
         }
     }
 }
@@ -287,10 +334,11 @@ mod tests {
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured baseline: 337 bytes. Phase 31 adds ~100 bytes for modal fields.
         // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
-        // Combined budget: <= 525 bytes (headroom maintained).
+        // Phase 63 adds ~20 bytes for pending_yield: null (JSON null, small budget impact).
+        // Combined budget: <= 560 bytes (headroom maintained).
         assert!(
-            json.len() <= 525,
-            "CalcStateView JSON (empty program + empty assignments + no flags) must be ≤500 bytes, got {} bytes: {}",
+            json.len() <= 560,
+            "CalcStateView JSON (empty program + empty assignments + no flags) must be ≤560 bytes, got {} bytes: {}",
             json.len(),
             json
         );
@@ -315,10 +363,11 @@ mod tests {
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured load: 401 bytes; Phase 31 adds ~103 bytes → ~504 bytes.
         // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
-        // Budget set to 625 bytes with headroom for future fields.
+        // Phase 63 adds ~20 bytes for pending_yield: null.
+        // Budget set to 650 bytes with headroom for future fields.
         assert!(
-            json.len() <= 625,
-            "CalcStateView JSON (realistic ASN+flag load) must be ≤600 bytes, got {} bytes: {}",
+            json.len() <= 650,
+            "CalcStateView JSON (realistic ASN+flag load) must be ≤650 bytes, got {} bytes: {}",
             json.len(),
             json
         );
