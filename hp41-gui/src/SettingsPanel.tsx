@@ -15,6 +15,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { formatAccel } from './ShortcutRecorder';
 
 export type SettingsPanelProps = {
     open: boolean;
@@ -25,6 +26,9 @@ export type SettingsPanelProps = {
     isMacos: boolean;
     currentLaunchMode: string;            // "menu-bar" | "window"
     onLaunchModeChange: (mode: string) => void;
+    // macOS global-hotkey config (optional so existing call sites/tests need no change).
+    globalShortcut?: string;              // accelerator, e.g. "Control+Alt+Command+H"
+    onRecordShortcut?: () => void;        // open the ShortcutRecorder overlay
 };
 
 const THEMES = [
@@ -42,6 +46,7 @@ const LAUNCH_MODES = [
 export function SettingsPanel({
     open, onClose, currentTheme, onThemeChange, onShowOnboarding,
     isMacos, currentLaunchMode, onLaunchModeChange,
+    globalShortcut, onRecordShortcut,
 }: SettingsPanelProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     // Resets to false on each open: the component unmounts (returns null) when open=false.
@@ -124,6 +129,19 @@ export function SettingsPanel({
                                 </button>
                             </div>
                         )}
+                    </section>
+                    <hr className="settings-section-divider" />
+                    <section className="settings-section">
+                        <h3 className="settings-section-heading">Global Shortcut (macOS)</h3>
+                        {/* Opens the ShortcutRecorder overlay (rendered by App.tsx). The
+                            backend validates + registers the captured combo, so only an
+                            accepted accelerator is reflected back into `globalShortcut`. */}
+                        <button
+                            className="settings-action-btn"
+                            onClick={() => onRecordShortcut?.()}
+                        >
+                            Show/Hide window: {formatAccel(globalShortcut ?? '') || 'Set shortcut'}
+                        </button>
                     </section>
                 </>
             )}

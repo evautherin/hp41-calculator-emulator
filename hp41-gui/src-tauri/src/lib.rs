@@ -12,6 +12,8 @@ mod prgm_display; // Phase 18 D-03
 mod tray_helpers; // pure geometry/debounce helpers for the macOS menu-bar popover
 #[cfg(target_os = "macos")]
 mod tray; // macOS menu-bar mode (tray icon + popover + Accessory policy)
+#[cfg(target_os = "macos")]
+mod shortcut; // macOS global hotkey to toggle the menu-bar popover
 pub mod types; // pub so integration tests (lcd_alternation_modal_prompt.rs) can access CalcStateView::from_state
 
 pub type AppState = Mutex<hp41_core::CalcState>;
@@ -34,10 +36,48 @@ pub type PrefsState = Mutex<prefs::GuiPrefs>;
 /// `request_cancel` writes it via `cancel_flag.store(true, Relaxed)`.
 pub type CancelFlag = std::sync::Arc<std::sync::atomic::AtomicBool>;
 
+/// Bring the already-running instance to the foreground when a second launch is
+/// attempted (single-instance plugin callback). On macOS in menu-bar mode this
+/// surfaces the popover (under the tray icon if it has been clicked before, else a
+/// top-right fallback); otherwise it shows and focuses the main window. Desktop-only,
+/// matching the single-instance plugin's availability.
+#[cfg(desktop)]
+fn focus_existing_instance(app: &tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(state) = app.try_state::<crate::tray::PopoverState>() {
+            if state
+                .menu_bar_active
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
+                crate::tray::surface_popover(app);
+                return;
+            }
+        }
+    }
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init()); // Phase 50 — file dialog plugin for .raw/.card.json import/export
+    // tauri-plugin-single-instance MUST be the first plugin registered so it runs
+    // before any other plugin can interfere (plugin docs). Desktop-only crate. When
+    // a second launch is attempted, the ALREADY-running instance receives this
+    // callback and surfaces itself; the second process exits immediately (plugin
+    // behavior), so no duplicate tray icon is ever created.
+    #[cfg(desktop)]
+    let builder = tauri::Builder::default().plugin(tauri_plugin_single_instance::init(
+        |app, _args, _cwd| {
+            focus_existing_instance(app);
+        },
+    ));
+    #[cfg(not(desktop))]
+    let builder = tauri::Builder::default();
+
+    let builder = builder.plugin(tauri_plugin_dialog::init()); // Phase 50 — file dialog plugin for .raw/.card.json import/export
 
     // tauri-plugin-autostart is desktop-only: its `init`/`MacosLauncher` symbols do
     // not exist on the iOS/Android mobile targets, so registering it unconditionally
@@ -48,6 +88,24 @@ pub fn run() {
         tauri_plugin_autostart::MacosLauncher::LaunchAgent,
         None,
     ));
+
+    // macOS-only: global hotkey plugin for the menu-bar popover toggle. Only one
+    // hotkey is ever registered (the actual accelerator is set in setup() from
+    // prefs via shortcut::install), so the handler toggles unconditionally on
+    // ShortcutState::Pressed without matching a specific Shortcut.
+    #[cfg(target_os = "macos")]
+    let builder = {
+        use tauri_plugin_global_shortcut::ShortcutState;
+        builder.plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        crate::tray::toggle_popover(app);
+                    }
+                })
+                .build(),
+        )
+    };
 
     // tauri-plugin-haptics is mobile-only: iOS UIImpactFeedbackGenerator symbols
     // do not exist on desktop targets. Gating with #[cfg(mobile)] mirrors the
@@ -74,6 +132,10 @@ pub fn run() {
             // managed Mutex — used by the macOS setup branch below. Unused on non-macOS.
             #[cfg(target_os = "macos")]
             let macos_launch_mode = initial_prefs.macos_launch_mode.clone();
+            // Capture the global hotkey accelerator before initial_prefs is moved —
+            // registered at the end of the macOS setup branch. Unused on non-macOS.
+            #[cfg(target_os = "macos")]
+            let macos_global_shortcut = initial_prefs.global_shortcut.clone();
             app.manage(Mutex::new(initial_prefs));
 
             let save_path = persistence::state_path_for_app(app.handle());
@@ -157,6 +219,9 @@ pub fn run() {
                         }
                     }
                 }
+                // Register the global hotkey last — it summons the popover in
+                // menu-bar mode and the window in "window" mode alike.
+                crate::shortcut::install(app.handle(), &macos_global_shortcut);
             }
             // Non-macOS: the window stays a normal decorated window. Because the
             // bundle config will start hidden (visible:false, a later task),

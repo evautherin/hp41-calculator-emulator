@@ -500,6 +500,8 @@ pub fn get_prefs(prefs: State<'_, PrefsState>) -> GuiPrefs {
 /// # Supported keys
 /// - `"theme"`: one of `"dark"` | `"light"` | `"classic-beige"` | `"high-contrast"`.
 /// - `"macos_launch_mode"`: one of `"menu-bar"` | `"window"` (macOS-only effect).
+/// - `"global_shortcut"`: a hotkey accelerator string (macOS-only effect); on macOS
+///   it is validated + registered live, and an unparseable value is rejected.
 ///
 /// Returns `Err(String)` for unknown keys or invalid theme values (T-48-01 threat mitigation).
 /// Persists immediately to `~/.hp41/prefs.json` via `save_prefs` after updating in-memory state.
@@ -531,6 +533,16 @@ pub fn set_pref(
                 return Err(format!("unknown launch mode: {value}"));
             }
             p.macos_launch_mode = value;
+        }
+        "global_shortcut" => {
+            // On macOS, validate by attempting a live re-register FIRST so an
+            // invalid/unparseable accelerator is rejected (Err) without being
+            // persisted, and a valid one takes effect immediately. On other
+            // platforms the hotkey is inert — just persist the string.
+            #[cfg(target_os = "macos")]
+            crate::shortcut::reregister(&app, &value)
+                .map_err(|e| format!("invalid shortcut: {e}"))?;
+            p.global_shortcut = value;
         }
         _ => return Err(format!("unknown pref key: {key}")),
     }

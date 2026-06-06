@@ -7,6 +7,7 @@ import { triggerHaptic, maybeFireErrorHaptic, ensureAudioResumed } from './hapti
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
+import ShortcutRecorder from './ShortcutRecorder';
 import OnboardingWizard from './OnboardingWizard';
 import RawPickerOverlay from './RawPickerOverlay';
 import BottomSheet from './BottomSheet';
@@ -297,6 +298,9 @@ function App() {
   // macOS launch mode — overridden by get_prefs on mount; only meaningful on macOS.
   const [macosLaunchMode, setMacosLaunchMode] = useState<string>('menu-bar');
   const [isMacos, setIsMacos] = useState(false);
+  // macOS global hotkey accelerator (overridden by get_prefs on mount) + recorder visibility.
+  const [globalShortcut, setGlobalShortcut] = useState<string>('Control+Alt+Command+H');
+  const [recorderOpen, setRecorderOpen] = useState(false);
   const [isIos, setIsIos] = useState(false); // D-55.1 — gates touch behaviors on iOS
   // Phase 55 Plan 05 — iOS collapsible stack panel (TOUCH-10).
   // Default collapsed on iOS to give the keypad more vertical room.
@@ -362,6 +366,23 @@ function App() {
       // Persistence failure is non-fatal — the choice is re-applied on next change.
     });
   }, []);
+
+  // macOS global hotkey — open the recorder overlay from Settings.
+  const handleRecordShortcut = useCallback(() => {
+    setSettingsOpen(false);
+    setRecorderOpen(true);
+  }, []);
+
+  // Persist + register the captured accelerator. The backend is the validator: it
+  // parses and registers the hotkey, so the displayed value only updates on success.
+  // An accelerator the Rust parser rejects (or that the OS won't register) leaves the
+  // current hotkey unchanged and surfaces a toast.
+  const handleShortcutConfirm = useCallback((accel: string) => {
+    setRecorderOpen(false);
+    invoke('set_pref', { key: 'global_shortcut', value: accel })
+      .then(() => setGlobalShortcut(accel))
+      .catch(() => showToast('Shortcut not available'));
+  }, [showToast]);
 
   // Phase 49 ONBOARD-01/ONBOARD-05 — close handler for the onboarding wizard.
   // Marks onboarding_done=true via fire-and-forget IPC (D-48.13 pattern).
@@ -575,11 +596,12 @@ function App() {
   // NEVER in autosave.json). Silently falls back to 'dark' and opens wizard if prefs.json
   // is missing (first-run fallback — D-49.4 / RESEARCH Pitfall 3).
   useEffect(() => {
-    invoke<{ theme: string; onboarding_done: boolean; macos_launch_mode: string }>('get_prefs')
+    invoke<{ theme: string; onboarding_done: boolean; macos_launch_mode: string; global_shortcut: string }>('get_prefs')
       .then(prefs => {
         setTheme(prefs.theme);
         document.body.dataset.theme = prefs.theme;
         setMacosLaunchMode(prefs.macos_launch_mode);
+        setGlobalShortcut(prefs.global_shortcut);
         if (!prefs.onboarding_done) {
           // First launch: auto-open wizard in first-run mode (Esc blocked per D-49.9).
           setIsFirstRun(true);
@@ -1280,7 +1302,16 @@ function App() {
           isMacos={isMacos}
           currentLaunchMode={macosLaunchMode}
           onLaunchModeChange={handleLaunchModeChange}
+          globalShortcut={globalShortcut}
+          onRecordShortcut={handleRecordShortcut}
         />
+        {isMacos && recorderOpen && (
+          <ShortcutRecorder
+            current={globalShortcut}
+            onConfirm={handleShortcutConfirm}
+            onCancel={() => setRecorderOpen(false)}
+          />
+        )}
       </div>
       <div className="annunciators">
         {annunciatorNames.map(name => (

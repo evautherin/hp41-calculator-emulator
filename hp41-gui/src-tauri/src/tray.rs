@@ -17,7 +17,9 @@ use tauri::{App, AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewWindo
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 
-use crate::tray_helpers::{compute_popover_position, fit_inner_height, should_show_after_hide};
+use crate::tray_helpers::{
+    compute_fallback_position, compute_popover_position, fit_inner_height, should_show_after_hide,
+};
 
 /// Shared state for the popover toggle. Managed via `app.manage`.
 /// - `last_hidden`: when the window was last hidden (flicker-guard, see tray_helpers).
@@ -26,11 +28,16 @@ use crate::tray_helpers::{compute_popover_position, fit_inner_height, should_sho
 /// - `menu_bar_active`: true only when the app actually entered menu-bar (popover)
 ///   mode at startup. The blur handler auto-hides the window ONLY when this is set,
 ///   so the "window" launch mode keeps a normal window that stays visible on blur.
+/// - `last_tray_rect`: the tray icon's physical rect (icon_x, icon_w, icon_bottom)
+///   captured on the most recent tray click. The global hotkey and single-instance
+///   re-launch reuse it to position the popover under the icon; before the first
+///   click it is `None` and callers fall back to a top-right anchor.
 #[derive(Default)]
 pub struct PopoverState {
     pub last_hidden: Mutex<Option<Instant>>,
     pub suppress_hide: AtomicBool,
     pub menu_bar_active: AtomicBool,
+    pub last_tray_rect: Mutex<Option<(i32, i32, i32)>>,
 }
 
 const DEBOUNCE: Duration = Duration::from_millis(250);
@@ -41,6 +48,9 @@ const DEBOUNCE: Duration = Duration::from_millis(250);
 const DESIGN_HEIGHT: f64 = 1020.0;
 const DESIGN_WIDTH: f64 = 440.0;
 const MAX_SCREEN_FRACTION: f64 = 0.92;
+/// Approximate macOS menu-bar height (logical px) used only for the fallback
+/// popover anchor when no real tray-icon rect has been captured yet.
+const MENU_BAR_LOGICAL: f64 = 24.0;
 
 /// Resize the popover to fit the current monitor height, position it centered
 /// under the tray icon, then show + focus it.
@@ -78,6 +88,74 @@ fn hide_popover(app: &AppHandle, window: &WebviewWindow) {
         if let Ok(mut g) = state.last_hidden.lock() {
             *g = Some(Instant::now());
         }
+    }
+}
+
+/// Show the popover using the last captured tray-icon rect, or — if the tray has
+/// never been clicked this session — a top-right fallback anchor near the menu bar.
+/// Shared by the tray click, the global hotkey, and single-instance re-launch.
+fn show_popover_at_last_rect(app: &AppHandle, window: &WebviewWindow) {
+    let last_rect = app
+        .try_state::<PopoverState>()
+        .and_then(|s| s.last_tray_rect.lock().ok().map(|g| *g))
+        .flatten();
+
+    if let Some((icon_x, icon_w, icon_bottom)) = last_rect {
+        show_popover(window, icon_x, icon_w, icon_bottom);
+        return;
+    }
+
+    // No tray rect yet: resize to fit, then pin to the top-right corner.
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let scale = monitor.scale_factor();
+        let screen_h_logical = monitor.size().height as f64 / scale;
+        let h = fit_inner_height(DESIGN_HEIGHT, screen_h_logical, MAX_SCREEN_FRACTION);
+        let _ = window.set_size(LogicalSize::new(DESIGN_WIDTH, h));
+
+        let win_w = window
+            .outer_size()
+            .map(|s| s.width as i32)
+            .unwrap_or(DESIGN_WIDTH as i32);
+        let menu_bar_h = (MENU_BAR_LOGICAL * scale).round() as i32;
+        let pos = compute_fallback_position(monitor.size().width as i32, win_w, menu_bar_h);
+        let _ = window.set_position(PhysicalPosition::new(pos.x, pos.y));
+    }
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+/// Toggle the popover: hide it if visible, otherwise show it (flicker-guarded).
+/// Entry point for the global hotkey and the tray left-click.
+pub fn toggle_popover(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    if window.is_visible().unwrap_or(false) {
+        hide_popover(app, &window);
+        return;
+    }
+    let last_hidden = app
+        .try_state::<PopoverState>()
+        .and_then(|s| s.last_hidden.lock().ok().map(|g| *g))
+        .flatten();
+    if !should_show_after_hide(last_hidden, Instant::now(), DEBOUNCE) {
+        return; // this trigger is the one that just closed the popover
+    }
+    show_popover_at_last_rect(app, &window);
+}
+
+/// Bring the running instance to the foreground without toggling it off — used by
+/// the single-instance plugin when a second launch is attempted. If already
+/// visible, just refocus; otherwise show it (no flicker debounce: an explicit
+/// re-launch should always surface the window).
+pub fn surface_popover(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    if window.is_visible().unwrap_or(false) {
+        let _ = window.set_focus();
+    } else {
+        show_popover_at_last_rect(app, &window);
     }
 }
 
@@ -148,32 +226,24 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
             } = event
             {
                 let app = tray.app_handle();
-                let Some(window) = app.get_webview_window("main") else {
-                    return;
-                };
-                let visible = window.is_visible().unwrap_or(false);
-                if visible {
-                    hide_popover(app, &window);
-                    return;
-                }
-                // Hidden: apply flicker-guard before re-showing.
-                let last_hidden = app
-                    .try_state::<PopoverState>()
-                    .and_then(|s| s.last_hidden.lock().ok().map(|g| *g))
-                    .flatten();
-                if !should_show_after_hide(last_hidden, Instant::now(), DEBOUNCE) {
-                    return; // this click is the one that just closed the popover
-                }
-                // `rect.position` / `rect.size` are `dpi::Position` / `dpi::Size`
-                // enums in 2.11. Convert to physical pixels using the window's
-                // scale factor, then feed plain integers to the pure helpers.
-                let scale = window.scale_factor().unwrap_or(1.0);
+                // Capture the icon rect (physical px) so the global hotkey and a
+                // single-instance re-launch can position the popover under the icon.
+                // `rect.position` / `rect.size` are `dpi` enums in 2.11; convert via
+                // the window scale factor before storing plain integers.
+                let scale = app
+                    .get_webview_window("main")
+                    .and_then(|w| w.scale_factor().ok())
+                    .unwrap_or(1.0);
                 let pos_phys = rect.position.to_physical::<i32>(scale);
                 let size_phys = rect.size.to_physical::<i32>(scale);
-                let icon_x = pos_phys.x;
-                let icon_w = size_phys.width;
                 let icon_bottom = pos_phys.y + size_phys.height;
-                show_popover(&window, icon_x, icon_w, icon_bottom);
+                if let Some(state) = app.try_state::<PopoverState>() {
+                    if let Ok(mut g) = state.last_tray_rect.lock() {
+                        *g = Some((pos_phys.x, size_phys.width, icon_bottom));
+                    }
+                }
+                // Single shared toggle path (hide if visible, else flicker-guarded show).
+                toggle_popover(app);
             }
         })
         .build(app)?;

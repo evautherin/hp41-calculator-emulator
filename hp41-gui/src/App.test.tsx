@@ -165,7 +165,7 @@ function getDisplayText(container: HTMLElement): string {
 // Default mock prefs (Phase 49 Plan 04): onboarding_done=true so the wizard
 // does NOT open during tests (which would block keyboard dispatch).
 // Tests that specifically need to test first-run behavior can override.
-const DEFAULT_PREFS = { theme: 'dark', onboarding_done: true };
+const DEFAULT_PREFS = { theme: 'dark', onboarding_done: true, macos_launch_mode: 'menu-bar', global_shortcut: 'Control+Alt+Command+H' };
 
 beforeEach(() => {
   mockInvoke.mockReset();

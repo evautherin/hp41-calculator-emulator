@@ -28,6 +28,17 @@ dirs = "6"
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
 tauri-plugin-haptics = "2.3.2"
 
+# Desktop-only: a single-instance guard so a second launch surfaces the running
+# app instead of spawning a duplicate tray icon (the crate is desktop-only).
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+# macOS-only: global hotkey to toggle the menu-bar popover. Uses Carbon
+# RegisterEventHotKey under the hood, so no Accessibility permission is required.
+# The feature is macOS-only (menu-bar mode is macOS-only — ADR-v4.1-001).
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri-plugin-global-shortcut = "2"
+
 [dev-dependencies]
 rust_decimal = "1.42"
 tempfile = "3"

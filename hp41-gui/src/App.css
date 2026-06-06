@@ -1118,3 +1118,61 @@
   color: var(--display-text);
   border: 1px solid var(--display-text);
 }
+
+/* ── Global-shortcut recorder overlay (macOS hotkey config) ──────────────── */
+/* Portaled to document.body; z-index above the settings popover (70) and overlays (60). */
+.shortcut-recorder-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.shortcut-recorder {
+  min-width: 260px;
+  max-width: 320px;
+  padding: 20px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.shortcut-recorder-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.shortcut-recorder-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.shortcut-recorder-preview {
+  margin: 0 0 18px;
+  padding: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--display-text);
+  background: var(--display-bg, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  min-height: 28px;
+}
+
+.shortcut-recorder-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.shortcut-recorder-actions .settings-action-btn {
+  text-align: center;
+}
