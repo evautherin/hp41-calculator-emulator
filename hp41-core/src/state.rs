@@ -47,6 +47,52 @@ pub enum DisplayMode {
     Eng(u8),
 }
 
+// ── Phase 63 (v4.3): Run-loop yield engine types ─────────────────────────────
+
+/// Discriminant for `YieldState::kind` — identifies which mid-program display
+/// operation triggered the yield break (D-04, PRGM-01/PRGM-02).
+///
+/// All three yield kinds share the same PSE_RESUME_MS duration per RESEARCH
+/// recommendation (one knob, no perceptible gain from a shorter "brief" constant).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum YieldKind {
+    /// Op::Pse — display X register value for PSE_RESUME_MS then resume.
+    Pse,
+    /// Op::View(reg) — display a named register value for PSE_RESUME_MS then resume.
+    View,
+    /// Op::AView — display the ALPHA register content for PSE_RESUME_MS then resume.
+    Aview,
+}
+
+/// Typed yield channel: carries the formatted display string, yield kind, and
+/// auto-resume duration for PSE/VIEW/AVIEW yields (D-04).
+///
+/// Set by `run_loop` when it breaks for a display yield; cleared by
+/// `resume_program` before re-entering `run_loop`. Read by both frontends:
+/// - CLI: renders `text` on the display, sleeps `resume_ms`, then calls `resume_program`.
+/// - GUI: renders `text`, schedules `resume_program` via `setInterval` after `resume_ms`
+///   (Mutex is released between yields, so the GUI stays responsive per D-11).
+///
+/// `display_override` is NOT written by these yield paths (D-04 / DISP-01 deferred).
+/// Transient — never persisted (`#[serde(default, skip)]` on the field in `CalcState`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct YieldState {
+    /// Which display op triggered this yield.
+    pub kind: YieldKind,
+    /// Pre-formatted display string the frontend must render (format_hpnum or alpha[..24]).
+    pub text: String,
+    /// Milliseconds to wait before calling `resume_program` (single source of truth: PSE_RESUME_MS).
+    pub resume_ms: u64,
+}
+
+/// Duration (ms) for all PSE / VIEW / AVIEW mid-run display yields.
+///
+/// All three yield kinds share this constant — one knob; the HP-41 "brief glance"
+/// is the same ~1 s cadence as PSE for an emulator (per RESEARCH recommendation).
+/// Used by `run_loop` (63-02) when building `YieldState`, asserted by tests as DATA
+/// — never slept inside `hp41-core`.
+pub const PSE_RESUME_MS: u64 = 1000;
+
 /// The complete, mutable state of the HP-41 calculator.
 ///
 /// All operations take `&mut CalcState`. No global mutable state anywhere.
@@ -440,6 +486,49 @@ pub struct CalcState {
     /// Persistent — `#[serde(default)]`.
     #[serde(default)]
     pub xmem_active_file: Option<String>,
+
+    // ── Phase 63 (v4.3): Run-loop yield engine + interrupting alarms ──────────
+
+    /// Pending interrupting-alarm label awaiting injection at the next `run_loop`
+    /// instruction boundary (D-12). Set by `check_alarms` (via `dispatch_alarm_event`)
+    /// only when `is_running == true`, `pending_interrupt.is_none()`, and no
+    /// solver/modal is active (D-10). Cleared at `run_program` / `resume_program`
+    /// entry (D-09 — drop interrupt set just before STOP).
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_interrupt: Option<String>,
+
+    /// Paired index into `state.alarms` identifying WHICH past-due alarm set
+    /// `pending_interrupt`, so `run_loop` can call `acknowledge_alarm(state, index)`
+    /// after the synthetic handler RTNs (D-06a, D-06). Lean toward the paired field
+    /// over scanning `state.alarms` to disambiguate two alarms sharing a fire time.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_interrupt_alarm_index: Option<usize>,
+
+    /// `call_stack` depth captured at synthetic-frame injection point (D-06).
+    ///
+    /// When `run_loop` injects the alarm handler frame, it records
+    /// `state.call_stack.len()` BEFORE the push here. On `Op::Rtn`, the ack
+    /// gate compares `state.call_stack.len()` (AFTER pop) against this value
+    /// to ack ONLY when the handler (which may itself XEQ deeper subroutines)
+    /// has fully returned to the injection depth — not on intermediate RTNs
+    /// inside the handler.
+    ///
+    /// Declared here in 63-01 (wave 1, owns state.rs) so that 63-02 (wave 2,
+    /// program.rs-only) can read/write it without touching state.rs and breaking
+    /// wave-2 file isolation.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_interrupt_depth: Option<usize>,
+
+    /// Yield channel carrying the formatted display string + kind + resume duration
+    /// for PSE/VIEW/AVIEW yields (D-04). Set by `run_loop` when it breaks for a
+    /// display yield; cleared by `resume_program` before re-entering `run_loop`.
+    /// Leaves `display_override` untouched (DISP-01 stays deferred to v4.4).
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_yield: Option<YieldState>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
@@ -533,6 +622,11 @@ impl CalcState {
             // Phase 51 (v4.0): X-MEM fields
             xmem_files: Vec::new(),
             xmem_active_file: None,
+            // Phase 63 (v4.3): run-loop yield engine + interrupting alarms
+            pending_interrupt: None,
+            pending_interrupt_alarm_index: None,
+            pending_interrupt_depth: None,
+            pending_yield: None,
         }
     }
 }
@@ -722,6 +816,19 @@ mod tests {
             !json.contains("cancel_requested"),
             "cancel_requested must be serde(skip)"
         );
+        // Phase 63 (v4.3): all four new transient fields must be serde(skip)
+        assert!(
+            !json.contains("pending_interrupt"),
+            "pending_interrupt must be serde(skip) — must not appear in serialized JSON"
+        );
+        assert!(
+            !json.contains("pending_interrupt_depth"),
+            "pending_interrupt_depth must be serde(skip)"
+        );
+        assert!(
+            !json.contains("pending_yield"),
+            "pending_yield must be serde(skip)"
+        );
 
         // Persistent fields must appear in serialized output
         assert!(
@@ -752,6 +859,23 @@ mod tests {
         assert!(
             !restored.cancel_requested.load(Ordering::Relaxed),
             "cancel_requested must reset to false after deserialization"
+        );
+        // Phase 63 (v4.3): new transient fields must reset to None after round-trip
+        assert!(
+            restored.pending_interrupt.is_none(),
+            "pending_interrupt must reset to None after deserialization"
+        );
+        assert!(
+            restored.pending_interrupt_alarm_index.is_none(),
+            "pending_interrupt_alarm_index must reset to None after deserialization"
+        );
+        assert!(
+            restored.pending_interrupt_depth.is_none(),
+            "pending_interrupt_depth must reset to None after deserialization"
+        );
+        assert!(
+            restored.pending_yield.is_none(),
+            "pending_yield must reset to None after deserialization"
         );
     }
 

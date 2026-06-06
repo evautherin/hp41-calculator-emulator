@@ -51,7 +51,7 @@ fn pse_mid_run_breaks_and_records_resume_ms() {
         vec![
             Op::Lbl("P".to_string()),
             Op::Pse, // <- yield point
-            Op::Sto(0), // <- step AFTER PSE; should NOT have run yet
+            Op::StoReg(0), // <- step AFTER PSE; should NOT have run yet
             Op::Rtn,
         ],
     );
@@ -119,7 +119,7 @@ fn pse_resume_continues_to_next_step() {
             Op::Lbl("R".to_string()),
             Op::Pse, // yield here
             Op::PushNum(HpNum::rounded(Decimal::from(42))),
-            Op::Sto(3), // proves continuation ran
+            Op::StoReg(3), // proves continuation ran
             Op::Rtn,
         ],
     );
@@ -160,14 +160,14 @@ fn view_mid_run_captures_formatted_register_into_yield() {
 
     // Set reg[5] = 12.5 directly
     let val = Decimal::from_str("12.5").unwrap();
-    state.regs[5] = hp41_core::num::HpValue::Numeric(HpNum::rounded(val));
+    state.regs[5] = HpValue::Numeric(HpNum::rounded(val));
 
     load_program(
         &mut state,
         vec![
             Op::Lbl("V".to_string()),
             Op::View(5), // VIEW reg 5 — yield point
-            Op::Sto(0),  // must NOT run
+            Op::StoReg(0),  // must NOT run
             Op::Rtn,
         ],
     );
@@ -228,7 +228,7 @@ fn aview_mid_run_captures_alpha_into_yield() {
         vec![
             Op::Lbl("AV".to_string()),
             Op::AView, // yield point
-            Op::Sto(2), // must NOT run
+            Op::StoReg(2), // must NOT run
             Op::Rtn,
         ],
     );

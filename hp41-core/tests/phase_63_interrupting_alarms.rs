@@ -12,14 +12,11 @@
 //! (plan 63-02, program.rs) and will fail RED until that plan executes.
 #![allow(clippy::unwrap_used)]
 
-use hp41_core::ops::time::alarm::{
-    acknowledge_alarm, check_alarms, AlarmEntry, AlarmType,
-};
-use hp41_core::ops::{dispatch, Op};
-use hp41_core::state::{CalcState, YieldKind};
+use hp41_core::ops::time::alarm::{check_alarms, AlarmEntry, AlarmType};
+use hp41_core::ops::Op;
+use hp41_core::state::CalcState;
 use hp41_core::HpNum;
 use rust_decimal::Decimal;
-use std::str::FromStr;
 
 // ── Deterministic helpers ────────────────────────────────────────────────────
 
@@ -78,13 +75,6 @@ fn load_program(state: &mut CalcState, ops: Vec<Op>) {
     state.program = ops;
 }
 
-/// Push a numeric value directly onto X (bypasses entry_buf; for test setup only).
-fn push_x(state: &mut CalcState, val: i64) {
-    let d = Decimal::from(val);
-    state.stack.x = HpNum::rounded(d);
-    state.stack.lift_enabled = true;
-}
-
 // ── Scenario 1: interrupting_alarm_halts_running_program_and_resumes ────────
 //
 // GREEN after 63-02 — requires run_loop interrupt arm in program.rs.
@@ -112,15 +102,15 @@ fn interrupting_alarm_halts_running_program_and_resumes() {
         vec![
             Op::Lbl("MAIN".to_string()),
             Op::PushNum(HpNum::rounded(Decimal::from(1))),
-            Op::Sto(10),
+            Op::StoReg(10),
             Op::PushNum(HpNum::rounded(Decimal::from(2))),
             // Alarm fires between STO 10 and STO 11 at any step boundary
-            Op::Sto(11),
+            Op::StoReg(11),
             Op::Rtn,
             // Handler label
             Op::Lbl("HND".to_string()),
             Op::PushNum(HpNum::rounded(Decimal::from(99))),
-            Op::Sto(12),
+            Op::StoReg(12),
             Op::Rtn,
         ],
     );
@@ -180,11 +170,11 @@ fn interrupt_preserves_stack_x_y_z_t_and_lift_state() {
             Op::PushNum(HpNum::rounded(Decimal::from(10))), // X=10
             Op::PushNum(HpNum::rounded(Decimal::from(20))), // lifts: X=20,Y=10
             // Handler fires here — must preserve stack
-            Op::Sto(5), // STO 5 writes X (20), does NOT change stack layout visible to resuming program
+            Op::StoReg(5), // STO 5 writes X (20), does NOT change stack layout visible to resuming program
             Op::Rtn,
             // Handler: no stack ops
             Op::Lbl("NHND".to_string()),
-            Op::Sto(6), // store X into reg 6 (proves handler ran; does not affect X after RCL)
+            Op::StoReg(6), // store X into reg 6 (proves handler ran; does not affect X after RCL)
             Op::Rtn,
         ],
     );
@@ -449,7 +439,7 @@ fn missing_handler_label_surfaces_event() {
         vec![
             Op::Lbl("PROG".to_string()),
             Op::PushNum(HpNum::rounded(Decimal::from(1))),
-            Op::Sto(0),
+            Op::StoReg(0),
             Op::Rtn,
         ],
     );
@@ -493,11 +483,11 @@ fn pending_interrupt_cleared_on_resume_after_stop() {
             Op::PushNum(HpNum::rounded(Decimal::from(42))),
             Op::Stop,
             Op::PushNum(HpNum::rounded(Decimal::from(99))),
-            Op::Sto(0),
+            Op::StoReg(0),
             Op::Rtn,
             Op::Lbl("STOPHND".to_string()),
             Op::PushNum(HpNum::rounded(Decimal::from(77))),
-            Op::Sto(1),
+            Op::StoReg(1),
             Op::Rtn,
         ],
     );
@@ -578,7 +568,7 @@ fn v4_3_interrupt_backward_compat() {
         "modal_prompt": null,
         "time_offset_secs": 0,
         "clock_12h": false,
-        "clock_display_mode": "HhMmSs",
+        "clock_display_mode": "Off",
         "accuracy_factor": "0",
         "alarms": [],
         "stopwatch_mode": "Idle",
@@ -633,11 +623,11 @@ fn repeating_interrupting_alarm_reschedules_after_handler() {
         vec![
             Op::Lbl("MAIN".to_string()),
             Op::PushNum(HpNum::rounded(Decimal::from(1))),
-            Op::Sto(0),
+            Op::StoReg(0),
             Op::Rtn,
             Op::Lbl("REP_HANDLER".to_string()),
             Op::PushNum(HpNum::rounded(Decimal::from(55))),
-            Op::Sto(1),
+            Op::StoReg(1),
             Op::Rtn,
         ],
     );
