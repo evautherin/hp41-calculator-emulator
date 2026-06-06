@@ -9,7 +9,16 @@
         "description": "Hyperbolic sine: X <- sinh(X)",
         "example": "XEQ SINH (X=1) -> 1.175201194",
         "notes": "Enter value in X, then XEQ \"SINH\". Result replaces X. Stack lift enabled.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 1 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 1 },
+        "search_aliases": [
+            "hyperbolischer Sinus",
+            "sinus hyperbolicus",
+            "sinh berechnen",
+            "sinh x",
+            "hyperbolic sine",
+            "sinh Funktion",
+            "Hyperbelfunktion Sinus"
+        ]
     },
     {
         "op_variant": "Cosh",
@@ -21,7 +30,16 @@
         "description": "Hyperbolic cosine: X <- cosh(X)",
         "example": "XEQ COSH (X=0) -> 1.0000",
         "notes": "cosh(0) = 1. Symmetric around x=0. Stack lift enabled.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 2 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 2 },
+        "search_aliases": [
+            "hyperbolischer Kosinus",
+            "cosinus hyperbolicus",
+            "cosh berechnen",
+            "cosh x",
+            "hyperbolic cosine",
+            "cosh Funktion",
+            "Hyperbelfunktion Kosinus"
+        ]
     },
     {
         "op_variant": "Tanh",
@@ -33,7 +51,16 @@
         "description": "Hyperbolic tangent: X <- tanh(X)",
         "example": "XEQ TANH (X=1) -> 0.7615941560",
         "notes": "Result always in (-1, 1). Inverse: ATANH. Stack lift enabled.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 3 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 3 },
+        "search_aliases": [
+            "hyperbolischer Tangens",
+            "tangens hyperbolicus",
+            "tanh berechnen",
+            "tanh x",
+            "hyperbolic tangent",
+            "tanh Funktion",
+            "Hyperbelfunktion Tangens"
+        ]
     },
     {
         "op_variant": "Asinh",
@@ -43,7 +70,16 @@
         "phase": "28",
         "key_path": "XEQ \"ASINH\"",
         "description": "Inverse hyperbolic sine: X <- asinh(X)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 4 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 4 },
+        "search_aliases": [
+            "area sinus hyperbolicus",
+            "inverser hyperbolischer Sinus",
+            "arcsinh",
+            "arsinh",
+            "inverse hyperbolic sine",
+            "umkehrfunktion sinh",
+            "asinh berechnen"
+        ]
     },
     {
         "op_variant": "Acosh",
@@ -53,7 +89,16 @@
         "phase": "28",
         "key_path": "XEQ \"ACOSH\"",
         "description": "Inverse hyperbolic cosine: X <- acosh(X)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 5 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 5 },
+        "search_aliases": [
+            "area cosinus hyperbolicus",
+            "inverser hyperbolischer Kosinus",
+            "arccosh",
+            "arcosh",
+            "inverse hyperbolic cosine",
+            "umkehrfunktion cosh",
+            "acosh berechnen"
+        ]
     },
     {
         "op_variant": "Atanh",
@@ -63,7 +108,16 @@
         "phase": "28",
         "key_path": "XEQ \"ATANH\"",
         "description": "Inverse hyperbolic tangent: X <- atanh(X)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 6 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 6 },
+        "search_aliases": [
+            "area tangens hyperbolicus",
+            "inverser hyperbolischer Tangens",
+            "arctanh",
+            "artanh",
+            "inverse hyperbolic tangent",
+            "umkehrfunktion tanh",
+            "atanh berechnen"
+        ]
     },
     {
         "op_variant": "CPlus",
@@ -73,7 +127,17 @@
         "phase": "28",
         "key_path": "XEQ \"C+\"",
         "description": "Complex add: (Yre+iYim) + (Xre+iXim) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 7 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 7 },
+        "search_aliases": [
+            "komplexe Addition",
+            "komplexe Zahl addieren",
+            "Komplexaddition",
+            "imaginäre Addition",
+            "complex add",
+            "complex addition",
+            "add complex numbers",
+            "imaginary add"
+        ]
     },
     {
         "op_variant": "CMinus",
@@ -83,7 +147,17 @@
         "phase": "28",
         "key_path": "XEQ \"C-\"",
         "description": "Complex subtract: (Yre+iYim) - (Xre+iXim) -> stack",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 8 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 8 },
+        "search_aliases": [
+            "komplexe Subtraktion",
+            "komplexe Zahl subtrahieren",
+            "Komplexsubtraktion",
+            "imaginäre Subtraktion",
+            "complex subtract",
+            "complex subtraction",
+            "complex minus",
+            "imaginary subtract"
+        ]
     },
     {
         "op_variant": "CTimes",
@@ -93,7 +167,17 @@
         "phase": "28",
         "key_path": "XEQ \"C×\"",
         "description": "Complex multiply: (Yre+iYim) * (Xre+iXim) -> stack",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 9 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 9 },
+        "search_aliases": [
+            "komplexe Multiplikation",
+            "komplexe Zahl multiplizieren",
+            "Komplexmultiplikation",
+            "imaginäre Multiplikation",
+            "complex multiply",
+            "complex multiplication",
+            "complex product",
+            "imaginary multiply"
+        ]
     },
     {
         "op_variant": "CDiv",
@@ -103,7 +187,17 @@
         "phase": "28",
         "key_path": "XEQ \"C÷\"",
         "description": "Complex divide: (Yre+iYim) / (Xre+iXim) -> stack",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 10 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 10 },
+        "search_aliases": [
+            "komplexe Division",
+            "komplexe Zahl dividieren",
+            "Komplexdivision",
+            "imaginäre Division",
+            "complex divide",
+            "complex division",
+            "complex quotient",
+            "imaginary divide"
+        ]
     },
     {
         "op_variant": "Real",
@@ -113,7 +207,17 @@
         "phase": "28",
         "key_path": "XEQ \"REAL\"",
         "description": "Convert complex: real part in X, imaginary part in Y",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 11 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 11 },
+        "search_aliases": [
+            "Realteil",
+            "Realteil extrahieren",
+            "reeller Anteil",
+            "Real- und Imaginärteil",
+            "real part",
+            "extract real part",
+            "complex to real",
+            "real component"
+        ]
     },
     {
         "op_variant": "Magz",
@@ -123,7 +227,17 @@
         "phase": "28",
         "key_path": "XEQ \"MAGZ\"",
         "description": "Complex magnitude: |z| = sqrt(re^2+im^2), re in Y, im in X",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 12 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 12 },
+        "search_aliases": [
+            "complex magnitude",
+            "absolute value complex",
+            "modulus complex number",
+            "|z| calculator",
+            "komplexer Betrag",
+            "Absolutwert komplex",
+            "Modulus komplexe Zahl",
+            "Betrag Imaginärteil"
+        ]
     },
     {
         "op_variant": "Cinv",
@@ -133,7 +247,17 @@
         "phase": "28",
         "key_path": "XEQ \"CINV\"",
         "description": "Complex reciprocal: 1/(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 13 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 13 },
+        "search_aliases": [
+            "complex reciprocal",
+            "inverse complex number",
+            "1 over z complex",
+            "complex 1/z",
+            "komplexer Kehrwert",
+            "Kehrwert komplex",
+            "komplexe Inverse",
+            "1 durch z komplex"
+        ]
     },
     {
         "op_variant": "ZpowN",
@@ -143,7 +267,17 @@
         "phase": "28",
         "key_path": "XEQ \"Z↑N\"",
         "description": "Complex power: (Yre+iZre)^N -> stack, N in X (integer exponent)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 14 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 14 },
+        "search_aliases": [
+            "complex power integer",
+            "z to the n",
+            "complex exponentiation integer",
+            "raise complex to power n",
+            "komplexe Potenz ganzzahlig",
+            "z hoch n komplex",
+            "komplexe Hochzahl",
+            "ganzzahlige komplexe Potenz"
+        ]
     },
     {
         "op_variant": "Zpow1N",
@@ -153,7 +287,17 @@
         "phase": "28",
         "key_path": "XEQ \"Z↑1/N\"",
         "description": "Complex Nth root: (Yre+iZre)^(1/N) -> stack, N in X",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 15 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 15 },
+        "search_aliases": [
+            "complex nth root",
+            "complex radical",
+            "z to 1 over n",
+            "nth root complex number",
+            "komplexe n-te Wurzel",
+            "Wurzel komplex",
+            "n-te Wurzel komplexe Zahl",
+            "komplexe Wurzelberechnung"
+        ]
     },
     {
         "op_variant": "ExpZ",
@@ -163,7 +307,17 @@
         "phase": "28",
         "key_path": "XEQ \"E↑Z\"",
         "description": "Complex exponential: e^(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 16 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 16 },
+        "search_aliases": [
+            "complex exponential",
+            "e to the z",
+            "exp complex number",
+            "complex e power",
+            "komplexe Exponentialfunktion",
+            "e hoch z komplex",
+            "komplexes Exponential",
+            "Exponentialfunktion komplex"
+        ]
     },
     {
         "op_variant": "LnZ",
@@ -173,7 +327,17 @@
         "phase": "28",
         "key_path": "XEQ \"LNZ\"",
         "description": "Complex natural log: ln(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 17 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 17 },
+        "search_aliases": [
+            "complex natural log",
+            "complex ln",
+            "natural logarithm complex",
+            "log complex number",
+            "komplexer natürlicher Logarithmus",
+            "komplexes ln",
+            "natürlicher Logarithmus komplex",
+            "ln komplex"
+        ]
     },
     {
         "op_variant": "SinZ",
@@ -183,7 +347,17 @@
         "phase": "28",
         "key_path": "XEQ \"SINZ\"",
         "description": "Complex sine: sin(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 18 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 18 },
+        "search_aliases": [
+            "complex sine",
+            "sine complex number",
+            "sin of complex",
+            "trig function complex",
+            "komplexer Sinus",
+            "Sinus komplex",
+            "trigonometrisch komplex Sinus",
+            "komplexe Sinusfunktion"
+        ]
     },
     {
         "op_variant": "CosZ",
@@ -193,7 +367,17 @@
         "phase": "28",
         "key_path": "XEQ \"COSZ\"",
         "description": "Complex cosine: cos(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 19 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 19 },
+        "search_aliases": [
+            "complex cosine",
+            "cosine complex number",
+            "cos of complex",
+            "complex trig cosine",
+            "komplexer Kosinus",
+            "Kosinus komplex",
+            "komplexe Kosinusfunktion",
+            "trigonometrisch komplex Kosinus"
+        ]
     },
     {
         "op_variant": "TanZ",
@@ -203,7 +387,17 @@
         "phase": "28",
         "key_path": "XEQ \"TANZ\"",
         "description": "Complex tangent: tan(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 20 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 20 },
+        "search_aliases": [
+            "complex tangent",
+            "tangent complex number",
+            "tan of complex",
+            "complex trig tangent",
+            "komplexer Tangens",
+            "Tangens komplex",
+            "komplexe Tangensfunktion",
+            "trigonometrisch komplex Tangens"
+        ]
     },
     {
         "op_variant": "ApowZ",
@@ -213,7 +407,17 @@
         "phase": "28",
         "key_path": "XEQ \"A↑Z\"",
         "description": "Complex power A^Z: a^(Yre+iXre) with real base a in Z-register",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 21 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 21 },
+        "search_aliases": [
+            "real base complex exponent",
+            "a to the z complex",
+            "power real base complex",
+            "constant to complex power",
+            "reelle Basis komplexer Exponent",
+            "a hoch z komplex",
+            "Potenz reelle Basis komplex",
+            "reelle Zahl hoch komplex"
+        ]
     },
     {
         "op_variant": "LogZ",
@@ -223,7 +427,17 @@
         "phase": "28",
         "key_path": "XEQ \"LOGZ\"",
         "description": "Complex base-10 log: log10(Yre+iXre) -> stack (Y=re, X=im)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 22 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 22 },
+        "search_aliases": [
+            "complex log base 10",
+            "complex common logarithm",
+            "log10 complex number",
+            "decadic log complex",
+            "komplexer Zehnerlogarithmus",
+            "dekadischer Logarithmus komplex",
+            "log10 komplex",
+            "gemeiner Logarithmus komplex"
+        ]
     },
     {
         "op_variant": "ZpowW",
@@ -233,7 +447,17 @@
         "phase": "28",
         "key_path": "XEQ \"Z↑W\"",
         "description": "Complex power Z^W: (Yre+iXre)^(Wre+iWim) -> stack",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 23 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 23 },
+        "search_aliases": [
+            "complex to complex power",
+            "z to the w",
+            "general complex power",
+            "both complex exponentiation",
+            "komplex hoch komplex",
+            "z hoch w komplex",
+            "allgemeine komplexe Potenz",
+            "komplexe Basis komplexer Exponent"
+        ]
     },
     {
         "op_variant": "PolyWorkflow",
@@ -245,7 +469,17 @@
         "description": "Polynomial evaluation/root solver workflow (prompts for degree N)",
         "example": "XEQ POLY -> DEGREE=? prompt; enter N, then coefficients",
         "notes": "Enter N coefficients a_N..a_0 when prompted. Then XEQ ROOTS to find roots.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 24 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 24 },
+        "search_aliases": [
+            "Polynom auswerten",
+            "Polynomgrad eingeben",
+            "Koeffizienten eingeben",
+            "Polynomrechnung Grad",
+            "polynomial evaluation",
+            "polynomial degree",
+            "coefficient entry",
+            "poly workflow solver"
+        ]
     },
     {
         "op_variant": "Roots",
@@ -257,7 +491,17 @@
         "description": "Find polynomial roots after POLY workflow completes coefficient entry",
         "example": "XEQ ROOTS -> displays U=re V=im pairs for each root",
         "notes": "Run after POLY coefficient entry. Complex roots displayed as U=real, V=imaginary pairs.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 25 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 25 },
+        "search_aliases": [
+            "Nullstellen finden",
+            "Polynomwurzeln",
+            "komplexe Nullstellen",
+            "Wurzeln Polynom",
+            "find polynomial roots",
+            "complex roots",
+            "U real V imaginary",
+            "zero finding polynomial"
+        ]
     },
     {
         "op_variant": "MatrixWorkflow",
@@ -269,7 +513,18 @@
         "description": "Matrix workflow opener: prompts for ORDER=? (rows x cols)",
         "example": "XEQ MATRIX -> ORDER=? (enter rows, then cols)",
         "notes": "Max ORDER=14. Elements stored column-major from R15. Sets R14 = order.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 26 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 26 },
+        "search_aliases": [
+            "Matrix erstellen",
+            "Matrixgröße eingeben",
+            "Matrix Ordnung",
+            "Matrix Workflow",
+            "neue Matrix",
+            "create matrix",
+            "matrix order setup",
+            "matrix workflow opener",
+            "matrix rows cols setup"
+        ]
     },
     {
         "op_variant": "MatSize",
@@ -279,7 +534,17 @@
         "phase": "28",
         "key_path": "XEQ \"SIZE\"",
         "description": "Set matrix dimensions: SIZE rows x cols from X (packed: rows*100+cols)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 27 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 27 },
+        "search_aliases": [
+            "Matrixgröße setzen",
+            "Dimensionen Matrix",
+            "Zeilen Spalten setzen",
+            "Matrix Dimensionen",
+            "set matrix size",
+            "matrix dimensions",
+            "rows cols matrix",
+            "resize matrix"
+        ]
     },
     {
         "op_variant": "MatVmat",
@@ -289,7 +554,17 @@
         "phase": "28",
         "key_path": "XEQ \"VMAT\"",
         "description": "View matrix: display all elements of the active matrix",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 28 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 28 },
+        "search_aliases": [
+            "Matrix anzeigen",
+            "Matrixelemente anzeigen",
+            "Matrix ausgeben",
+            "view matrix",
+            "display matrix",
+            "show matrix elements",
+            "matrix view all",
+            "Matrixinhalt anzeigen"
+        ]
     },
     {
         "op_variant": "MatEdit",
@@ -299,7 +574,17 @@
         "phase": "28",
         "key_path": "XEQ \"EDIT\"",
         "description": "Edit matrix element A(i,j): prompts for row/col, enter new value",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 29 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 29 },
+        "search_aliases": [
+            "Matrixelement bearbeiten",
+            "Element ändern",
+            "Matrix editieren",
+            "Eintrag ändern",
+            "edit matrix element",
+            "modify matrix entry",
+            "matrix cell edit",
+            "enter matrix value"
+        ]
     },
     {
         "op_variant": "MatDet",
@@ -311,7 +596,17 @@
         "description": "Matrix determinant: det(A) -> X register",
         "example": "XEQ DET -> det(A) in X",
         "notes": "Requires square matrix set up via MATRIX workflow. Stack lift enabled after.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 30 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 30 },
+        "search_aliases": [
+            "Determinante berechnen",
+            "Matrix Determinante",
+            "Determinante",
+            "det Matrix",
+            "calculate determinant",
+            "matrix determinant",
+            "det square matrix",
+            "Determinante quadratische Matrix"
+        ]
     },
     {
         "op_variant": "MatInv",
@@ -323,7 +618,18 @@
         "description": "Matrix inverse: A^-1 in place (non-singular square matrix required)",
         "example": "XEQ INV -> overwrites A with A^-1",
         "notes": "Gauss-Jordan method. NO SOLUTION if singular. Modifies matrix in place (registers).",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 31 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 31 },
+        "search_aliases": [
+            "Matrix invertieren",
+            "inverse Matrix",
+            "Matrixinverse",
+            "Matrix Kehrmatrix",
+            "invert matrix",
+            "matrix inverse",
+            "Gauss-Jordan",
+            "inverse square matrix",
+            "non-singular inverse"
+        ]
     },
     {
         "op_variant": "MatSimeq",
@@ -333,7 +639,17 @@
         "phase": "28",
         "key_path": "XEQ \"SIMEQ\"",
         "description": "Solve simultaneous linear equations: Ax=b, solution in x-vector",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 32 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 32 },
+        "search_aliases": [
+            "Gleichungssystem lösen",
+            "lineare Gleichungen lösen",
+            "simultane Gleichungen",
+            "Ax=b lösen",
+            "solve linear equations",
+            "simultaneous equations",
+            "linear system solver",
+            "matrix equation solve"
+        ]
     },
     {
         "op_variant": "MatVcol",
@@ -343,7 +659,17 @@
         "phase": "28",
         "key_path": "XEQ \"VCOL\"",
         "description": "View matrix column: display all elements in the selected column",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 33 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 33 },
+        "search_aliases": [
+            "Matrixspalte anzeigen",
+            "Spalte anzeigen",
+            "Spaltenelemente Matrix",
+            "Spaltenansicht",
+            "view matrix column",
+            "display column",
+            "matrix column elements",
+            "show column"
+        ]
     },
     {
         "op_variant": "Integ",
@@ -355,7 +681,23 @@
         "description": "Numerical integration: prompts for function name, lower/upper bounds",
         "example": "XEQ INTG -> FN NAME? a=? b=? (Gaussian quadrature)",
         "notes": "Calls user program LBL for each sample point; max 4-deep call stack. Accuracy scales with FIX setting.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 34 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 34 },
+        "search_aliases": [
+            "numerische Integration",
+            "numerical integration",
+            "INTG",
+            "Integral berechnen",
+            "Fläche unter Kurve",
+            "definites Integral",
+            "definite integral",
+            "Integralrechnung",
+            "integrate function",
+            "area under curve",
+            "Funktionsintegral",
+            "Romberg integration",
+            "Schleifenintegral",
+            "numerical quadrature"
+        ]
     },
     {
         "op_variant": "Solve",
@@ -367,7 +709,19 @@
         "description": "Root-find workflow: prompts for function name and two initial guesses",
         "example": "XEQ SOLVE -> FN NAME? X1=? X2=? prompts; root -> X",
         "notes": "Requires two initial guesses bracketing the root. Calls user program. Max 4-deep call stack.",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 35 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 35 },
+        "search_aliases": [
+            "root find equation",
+            "find zero function",
+            "equation solver",
+            "solve for root",
+            "Nullstelle suchen",
+            "Gleichung lösen iterativ",
+            "Nullstellensuche Startwerte",
+            "Nullstelle berechnen",
+            "initial guess bracketing",
+            "Wurzel einer Funktion"
+        ]
     },
     {
         "op_variant": "Sol",
@@ -377,7 +731,17 @@
         "phase": "28",
         "key_path": "XEQ \"SOL\"",
         "description": "Resume root-finding iteration (continue after SOLVE setup)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 36 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 36 },
+        "search_aliases": [
+            "continue solve",
+            "resume root finding",
+            "next solver iteration",
+            "Iteration fortsetzen",
+            "Solver weiterführen",
+            "weiter iterieren",
+            "Nullsuche fortsetzen",
+            "resume SOLVE"
+        ]
     },
     {
         "op_variant": "Difeq",
@@ -387,7 +751,17 @@
         "phase": "28",
         "key_path": "XEQ \"DIFEQ\"",
         "description": "Differential equation solver: prompts for function name and step h",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 37 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 37 },
+        "search_aliases": [
+            "Differentialgleichung lösen",
+            "DGL Löser",
+            "numerische DGL",
+            "Schrittweite h",
+            "differential equation solver",
+            "solve ODE",
+            "numerical ODE step",
+            "Runge Kutta method"
+        ]
     },
     {
         "op_variant": "Four",
@@ -397,7 +771,17 @@
         "phase": "28",
         "key_path": "XEQ \"FOUR\"",
         "description": "Discrete Fourier transform (DFT) workflow on stored data vectors",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 38 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 38 },
+        "search_aliases": [
+            "Fourier-Transformation",
+            "diskrete Fourier-Analyse",
+            "DFT Berechnung",
+            "Spektralanalyse",
+            "discrete Fourier transform",
+            "DFT calculation",
+            "frequency analysis",
+            "signal spectrum"
+        ]
     },
     {
         "op_variant": "TriSss",
@@ -407,7 +791,17 @@
         "phase": "28",
         "key_path": "XEQ \"SSS\"",
         "description": "Triangle solver: side-side-side — computes all angles from 3 sides",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 39 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 39 },
+        "search_aliases": [
+            "drei Seiten Dreieck",
+            "SSS Dreieck",
+            "Winkel aus Seiten berechnen",
+            "three sides triangle",
+            "angles from three sides",
+            "side side side",
+            "Kosinussatz",
+            "law of cosines"
+        ]
     },
     {
         "op_variant": "TriAsa",
@@ -417,7 +811,17 @@
         "phase": "28",
         "key_path": "XEQ \"ASA\"",
         "description": "Triangle solver: angle-side-angle — computes remaining sides and angle",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 40 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 40 },
+        "search_aliases": [
+            "Winkel Seite Winkel",
+            "angle side angle",
+            "ASA Dreieck",
+            "zwei Winkel eine Seite",
+            "two angles one side",
+            "Sinussatz ASA",
+            "law of sines ASA",
+            "eingeschlossene Seite"
+        ]
     },
     {
         "op_variant": "TriSaa",
@@ -427,7 +831,17 @@
         "phase": "28",
         "key_path": "XEQ \"SAA\"",
         "description": "Triangle solver: side-angle-angle — computes remaining sides and angle",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 41 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 41 },
+        "search_aliases": [
+            "Seite zwei Winkel",
+            "side two angles",
+            "SAA Dreieck",
+            "eine Seite zwei Winkel",
+            "one side two angles",
+            "Sinussatz SAA",
+            "AAS Dreieck",
+            "angle angle side"
+        ]
     },
     {
         "op_variant": "TriSas",
@@ -437,7 +851,17 @@
         "phase": "28",
         "key_path": "XEQ \"SAS\"",
         "description": "Triangle solver: side-angle-side — computes remaining sides and angles",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 42 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 42 },
+        "search_aliases": [
+            "zwei Seiten Winkel",
+            "side angle side",
+            "SAS Dreieck",
+            "eingeschlossener Winkel",
+            "two sides included angle",
+            "Kosinussatz SAS",
+            "law of cosines SAS",
+            "Seite Winkel Seite"
+        ]
     },
     {
         "op_variant": "TriSsa",
@@ -447,7 +871,17 @@
         "phase": "28",
         "key_path": "XEQ \"SSA\"",
         "description": "Triangle solver: side-side-angle — ambiguous case handled (two solutions)",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 43 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 43 },
+        "search_aliases": [
+            "zwei Seiten ein Winkel",
+            "side side angle",
+            "SSA Dreieck",
+            "mehrdeutiger Fall",
+            "ambiguous case triangle",
+            "zwei Lösungen Dreieck",
+            "SSA ambiguous",
+            "Seite Seite Winkel"
+        ]
     },
     {
         "op_variant": "Trans2d",
@@ -457,7 +891,17 @@
         "phase": "28",
         "key_path": "XEQ \"TRANS\"",
         "description": "2D coordinate transformation: rotate/translate point (x,y) by angle/offset",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 44 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 44 },
+        "search_aliases": [
+            "2D Koordinatentransformation",
+            "Punkt rotieren verschieben",
+            "2D transform rotate",
+            "Koordinaten drehen",
+            "rotate translate point",
+            "2D Drehung Verschiebung",
+            "xy transformation",
+            "Punkt 2D transformieren"
+        ]
     },
     {
         "op_variant": "Trans3d",
@@ -467,6 +911,16 @@
         "phase": "28",
         "key_path": "XEQ \"T3D\"",
         "description": "3D coordinate transformation: rotate/translate point (x,y,z) in 3-space",
-        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 45 }
+        "xrom": { "module": "Math 1", "module_id": 7, "function_id": 45 },
+        "search_aliases": [
+            "3D Koordinatentransformation",
+            "räumliche Transformation",
+            "3D transform rotate",
+            "Punkt im Raum drehen",
+            "3D rotation translation",
+            "3D Drehung Verschiebung",
+            "xyz transformation",
+            "dreidimensionale Koordinaten"
+        ]
     }
 ]

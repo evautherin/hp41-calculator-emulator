@@ -2,8 +2,9 @@
 /target/
 **/*.rs.bk
 
-# Standalone dev-tooling crate (Plan 25-04 docs pipeline) — not in workspace
+# Standalone dev-tooling crates — not in workspace
 scripts/docs-matrix/target/
+scripts/help-aliases/target/
 
 # Coverage (cargo-llvm-cov, tarpaulin)
 lcov.info

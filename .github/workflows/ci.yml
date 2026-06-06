@@ -106,3 +106,22 @@ jobs:
         with:
           tool: just
       - run: just license-audit
+
+  # Phase 61 Plan 61-04 / HSQUAL-03. search_aliases schema gate.
+  # Lives HERE in ci.yml (NOT ci-gui.yml) on purpose: ci-gui.yml carries a
+  # `paths:` filter that excludes docs/*.json, so an alias-schema gate placed
+  # there would NEVER fire on alias edits. ci.yml has no path filter, so every
+  # push/PR to main|develop — including docs/*.json-only edits — triggers it.
+  # Runs in parallel with lint / test / coverage / msrv / license-audit (no
+  # needs:) so the schema check is independently visible in the PR checks panel.
+  # ubuntu-latest ships jq preinstalled; just is fetched from a pinned taiki-e
+  # action. No untrusted input reaches any run: step — injection surface is zero.
+  schema-aliases:
+    name: Schema gate (search_aliases)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just schema-aliases-check

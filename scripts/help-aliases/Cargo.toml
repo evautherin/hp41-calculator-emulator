@@ -1,0 +1,17 @@
+[workspace]
+# Empty stanza — excludes this crate from the root workspace per CLAUDE.md
+# "Root Cargo.toml members stays ["hp41-core", "hp41-cli"]" invariant.
+
+[package]
+name = "help-aliases"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "help-aliases"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }

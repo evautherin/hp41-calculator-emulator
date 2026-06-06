@@ -2,11 +2,13 @@
 
 ## Current State
 
+**v4.2 Help Search Enrichment — SHIPPED 2026-06-05.** The `?` help overlay is now an intent-aware function finder: an invisible `search_aliases` match surface (DE+EN) on all six help pools, a hand-rolled tiered+fuzzy matcher (exact > prefix > substring > fuzzy, zero new deps) mirrored CLI↔GUI, 364 implemented entries aliased, plus a CI schema gate + CLI↔GUI parity fixture locking it in. All 18 v1 requirements satisfied; milestone audit `tech_debt` (no functional gaps — cross-phase integration verified end-to-end). `hp41-core` untouched. Shipped as PR #23 (develop→main).
+
 **v4.1 iOS Foundation — SHIPPED 2026-06-04.** The HP-41 runs on iPhone (Tauri v2 + React, shared `hp41-core`): iOS sandbox persistence, touch-first UI, app lifecycle/clock, and a **manual-signing `ci-ios` pipeline** that delivers a signed IPA to TestFlight (installed + verified on a physical device). All 25 requirements satisfied; milestone audit PASSED. Desktop/macOS behavior unchanged (iOS paths `isIos`/`#[cfg(mobile)]`-gated).
 
 **Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
 
-**No active milestone** — run `/gsd:new-milestone` to start the next.
+**No active milestone** — planning the next one (`/gsd-new-milestone`).
 
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
@@ -79,6 +81,12 @@
 **Delivered:** 5 phases (28–32), 33 plans (26 original + 7 gap-closure), ~40 new Op variants, XROM resolver chain, modal-workflow state machine, user-callback re-entrancy, complex stack overlay, hyperbolics, triangle solvers, coordinate transforms, Fourier series, full CLI + GUI integration, 95.39% line / 94.26% region coverage, 763-case numerical accuracy at 99.3%.
 
 </details>
+
+---
+
+## Last Shipped Milestone: v4.2 Help Search Enrichment (2026-06-05)
+
+Shipped — full detail in `.planning/MILESTONES.md` (v4.2 entry) and `milestones/v4.2-ROADMAP.md`; audit at `milestones/v4.2-MILESTONE-AUDIT.md`. Design spec: `docs/superpowers/specs/2026-06-03-help-search-enrichment-design.md`. No active milestone — run `/gsd-new-milestone` to start the next.
 
 ---
 
@@ -286,9 +294,19 @@ Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, disp
 - ✓ **XMEM-01..07**: Extended Memory core — `XmemFile` model, 8 ops (EMDIR/EMROOM/SAVEP/GETP/SAVED/GETD/EMREG/SAVERX) in `hp41-core`, 4-way exhaustive-match wiring, backward-compat serde — Phase 51
 - ✓ **XMEM-08..10**: X-MEM production hardening — XEQ-by-name via `builtin_card_op` (CLI+GUI, no `keys.rs`/`key_map.rs` changes per D-52.4), v3.3 backward-compat + isolation tests, 6th help pool ("Extended Memory" `?` section), op↔JSON parity + per-op test-count meta-gates, 3 ADRs + divergences doc — Phase 52
 
+### Validated (v4.2 — Help Search Enrichment, shipped 2026-06-05)
+
+- ✓ **HSDATA-01/02/03/04**: invisible `search_aliases` field on both help-entry mirrors (Rust `Vec<String>` + TS `string[]`), serde-default back-compat, populated across all six pools — Phases 58, 60
+- ✓ **HSGEN-01/02/03**: offline `scripts/help-aliases/` generator + LLM runner; alias-only diff; all six pools populated (364 implemented entries) — Phase 60
+- ✓ **HSMATCH-01..05**: alias-aware tiered scorer (exact > prefix > substring > fuzzy) over name+desc+category+aliases, hand-rolled bounded Levenshtein (zero deps), empty-query passthrough, DE+EN resolution — Phase 59
+- ✓ **HSUX-01/02**: reuses the existing `?` overlay input; no new view — Phase 59
+- ✓ **HSQUAL-01/02/03/04**: Rust + TS real-data unit tests, CLI↔GUI parity fixture (drift guard), six-pool schema CI gate (`ci.yml`), CLAUDE.md docs — Phase 61
+
 ### Active
 
-_v4.1 iOS Foundation in progress (started 2026-05-29) — requirements being defined. Goal: touch-first iPhone build distributed via TestFlight; build approach (Tauri v2 Mobile vs. native SwiftUI + Rust FFI) to be chosen in research._
+_No active milestone. v4.2 Help Search Enrichment shipped 2026-06-05 (PR #23, develop→main). Run `/gsd-new-milestone` to define the next._
+
+_Carried-over deferred items: `PrivacyInfo.xcprivacy` bundle wiring before any public iOS App Store release (from v4.1, pending todo); HSCOV-01 (zero-result / missed-query logging) remains v2/deferred._
 
 ### Out of Scope
 
@@ -391,4 +409,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-05-29 — v4.1 iOS Foundation milestone started. Goal: touch-first iPhone build to TestFlight; build approach chosen in research. v4.0 Platform Maturity shipped + archived 2026-05-28.*
+*Last updated: 2026-06-05 after v4.2 milestone — Help Search Enrichment shipped + archived (Phases 58–61, 18 v1 requirements, audit `tech_debt`/no functional gaps). Intent-aware `?` overlay with DE+EN aliases, hand-rolled fuzzy, CI-gated coverage; `hp41-core` untouched, zero new deps. PR #23 open (develop→main). Next: `/gsd-new-milestone`.*

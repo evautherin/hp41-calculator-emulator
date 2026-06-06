@@ -81,6 +81,16 @@ coverage:
 license-audit:
 	bash scripts/check-free42-contamination.sh
 
+# Phase 61 Plan 61-04 (HSQUAL-03). Validates the `search_aliases` field across
+# all SIX help-data JSON pools: where present it must be an array of strings, and
+# every status:"implemented" entry must carry >=1 alias. The matching CI job in
+# ci.yml is named "Schema gate (search_aliases)" — keep script invocation in sync
+# if the path ever changes. Lives in ci.yml (NOT ci-gui.yml) because ci-gui.yml's
+# paths: filter excludes docs/*.json, so an alias-schema gate there would never fire.
+[group('ci')]
+schema-aliases-check:
+	bash scripts/check-aliases-schema.sh
+
 # Full CI gate: lint → test → coverage → license-audit (Phase 32 D-32.8 belt+suspenders)
 [group('ci')]
 ci: lint test coverage license-audit
@@ -234,6 +244,26 @@ docs-matrix-check:
 	cargo run --quiet --manifest-path scripts/docs-matrix/Cargo.toml -- \
 		docs/hp41-xmem-functions.json /tmp/hp41-xmem-function-matrix-check.md
 	diff -u docs/hp41-xmem-function-matrix.md /tmp/hp41-xmem-function-matrix-check.md
+
+# Generate DE+EN search aliases for all six help JSON pools.
+# Re-run only when functions are added or their semantics change (not on every build).
+# LLM (claude) runs on the developer's machine only — NOT in CI and NOT in shipped binaries.
+# Fill-only: entries that already have search_aliases are left byte-for-byte untouched (D-60.2).
+# In-place: reads and writes the same pool file (single path argument per pool).
+[group('docs')]
+help-aliases:
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41cv-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-math1-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-stat1-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-time-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-advantage-functions.json
+	cargo run --quiet --manifest-path scripts/help-aliases/Cargo.toml -- \
+		docs/hp41-xmem-functions.json
 
 # ─── iOS (Tauri v2 Mobile) ──────────────────────────────────────────────────
 #

@@ -17,6 +17,7 @@
 - ✅ **v3.3 Advantage Pac Emulation** — Phases 43–47, fourth XROM application module (XROM 22 + XROM 24, 114 XEQ entry points: bitwise/base conversion, named-matrix operations, advanced math/complex/solver/curve-fit, TVM) — SHIPPED 2026-05-26 · [Archive](milestones/v3.3-ROADMAP.md)
 - ✅ **v4.0 Platform Maturity** — Phases 48–52, visual themes, onboarding, GUI keyboard parity, `.raw` file I/O, Extended Memory — SHIPPED 2026-05-28 · [Archive](milestones/v4.0-ROADMAP.md)
 - ✅ **v4.1 iOS Foundation** — Phases 53–57, touch-first iPhone build to TestFlight (manual-signing CI pipeline; signed IPA on TestFlight + on-device) — SHIPPED 2026-06-04 · [Archive](milestones/v4.1-ROADMAP.md)
+- ✅ **v4.2 Help Search Enrichment** — Phases 58–61, intent-aware `?` overlay (DE+EN aliases, hand-rolled fuzzy matching, relevance ranking) — SHIPPED 2026-06-05 · [Archive](milestones/v4.2-ROADMAP.md)
 
 ---
 
@@ -99,6 +100,18 @@ See [milestones/v4.1-ROADMAP.md](milestones/v4.1-ROADMAP.md) for full phase deta
 
 </details>
 
+<details>
+<summary>✅ v4.2 Help Search Enrichment (Phases 58–61) — SHIPPED 2026-06-05</summary>
+
+See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase detail.
+
+- [x] Phase 58: Data Model — `search_aliases` field on both help-entry mirrors
+- [x] Phase 59: Runtime Matcher — alias-aware tiered scoring + hand-rolled fuzzy
+- [x] Phase 60: Alias Authoring Pipeline — 364 implemented entries DE+EN-aliased across 6 pools
+- [x] Phase 61: Quality Gates — Rust 10 + TS 36 tests, 6-pool schema gate (ci.yml), CLAUDE.md docs
+
+</details>
+
 ---
 
-*Last updated: 2026-06-04 — v4.1 iOS Foundation SHIPPED (Phases 53–57; 25/25 requirements; milestone audit PASSED). Signed IPA on TestFlight + on-device. Next: new milestone.*
+*Last updated: 2026-06-05 — v4.2 Help Search Enrichment SHIPPED (Phases 58–61, 11 plans). Milestone archived; PR #23 (develop→main) open — merge with `--merge`. Next: `/gsd-new-milestone`.*
