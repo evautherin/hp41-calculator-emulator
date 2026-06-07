@@ -851,8 +851,15 @@ fn decimal_pow10_f64(exp: i32) -> Decimal {
         decimal_pow10_small(exp as u32)
     } else {
         // 10^(-|exp|): build as string for precision.
+        // WR-04: make the `abs_exp - 1` precondition explicit. The negative
+        // branch is only reached for exp < 0 (exp == 0 returns above), so
+        // abs_exp >= 1 and the subtraction cannot underflow. Guard it so a
+        // future refactor that routes exp == 0 here cannot underflow usize and
+        // panic in this panic-free core crate.
+        debug_assert!(exp != 0, "decimal_pow10_f64 negative branch requires exp != 0");
         let abs_exp = (-exp) as usize;
-        let s = "0.".to_string() + &"0".repeat(abs_exp - 1) + "1";
+        let zeros = abs_exp.saturating_sub(1);
+        let s = "0.".to_string() + &"0".repeat(zeros) + "1";
         Decimal::from_str(&s).expect("decimal_pow10_f64: valid negative-exp string")
     }
 }

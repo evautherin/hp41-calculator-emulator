@@ -320,8 +320,14 @@ fn decimal_pow10(exp: i32) -> Decimal {
     let s = if exp > 0 {
         "1".to_string() + &"0".repeat(exp as usize)
     } else {
+        // WR-04: make the `abs_exp - 1` precondition explicit. This branch is only
+        // reached for exp < 0 (exp == 0 returns above), so abs_exp >= 1. Guard with
+        // a debug_assert + saturating_sub so a future refactor cannot underflow
+        // usize and panic in this panic-free core crate.
+        debug_assert!(exp != 0, "decimal_pow10 negative branch requires exp != 0");
         let abs_exp = (-exp) as usize;
-        "0.".to_string() + &"0".repeat(abs_exp - 1) + "1"
+        let zeros = abs_exp.saturating_sub(1);
+        "0.".to_string() + &"0".repeat(zeros) + "1"
     };
     Decimal::from_str(&s).expect("string built from known-valid exp always parses")
 }
