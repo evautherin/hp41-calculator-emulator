@@ -477,9 +477,12 @@ impl HpNum {
             return (Decimal::ZERO, 0);
         }
         // exponent == 0: mantissa IS the full value. Normalize to [1,10) form.
-        let abs_m = self.mantissa.abs();
-        let f = abs_m.to_f64().expect("exponent-0 mantissa must be representable as f64");
-        let exp = if f >= 1.0 { f.log10().floor() as i32 } else if f > 0.0 { -((-f.log10()).ceil() as i32) } else { 0 };
+        // WR-02: derive floor(log10(|value|)) exactly from the Decimal string
+        // representation — NEVER via f64 `log10().floor()` (Frozen Invariant:
+        // extract integer/fraction structure by string-splitting, never
+        // floor()/fmod()). f64 log10 is imprecise at exact powers of ten
+        // (log10(1000.0) can come back as 2.9999…, flooring to 2 → 10×-wrong).
+        let exp = decimal_floor_log10(&self.mantissa.abs());
         let scale = decimal_pow10_f64(exp);
         let normalized = self.mantissa.checked_div(scale)
             .unwrap_or(self.mantissa); // safe: scale is always nonzero
@@ -804,8 +807,42 @@ fn decimal_pow10_small(exp: u32) -> Decimal {
     }
 }
 
-/// Compute `10^exp` as a Decimal via f64, for arbitrary integer exp.
-/// Used for to_sci() normalization (log10-based).
+/// Compute `floor(log10(|value|))` for a positive non-zero Decimal, EXACTLY,
+/// from its string representation (WR-02).
+///
+/// The Frozen Invariant forbids `floor()`/`fmod()` on f64 for structure
+/// extraction precisely because f64 `log10` is imprecise at powers of ten.
+/// This derives the base-10 exponent by counting digit positions in the
+/// `normalize()`d decimal string, so `1e3`, `1e15`, `1e-3`, etc. are exact.
+///
+/// `d` must be positive and non-zero (callers guard `is_zero()` and pass `abs()`).
+fn decimal_floor_log10(d: &Decimal) -> i32 {
+    debug_assert!(!d.is_zero(), "decimal_floor_log10 requires a non-zero value");
+    debug_assert!(!d.is_sign_negative(), "decimal_floor_log10 requires |value|");
+    // normalize() strips trailing zeros so the string is canonical.
+    let s = d.normalize().to_string();
+    // Split into integer / fractional parts at the decimal point (never fmod).
+    let (int_part, frac_part) = match s.split_once('.') {
+        Some((i, f)) => (i, f),
+        None => (s.as_str(), ""),
+    };
+    // Strip a leading sign if any (should not occur given the abs() precondition).
+    let int_digits = int_part.trim_start_matches('-');
+    // Count significant integer digits (strip leading zeros, e.g. "0" → "").
+    let int_significant = int_digits.trim_start_matches('0');
+    if !int_significant.is_empty() {
+        // value >= 1: exponent = (number of integer digits) - 1.
+        (int_significant.len() as i32) - 1
+    } else {
+        // value < 1: exponent = -(position of first non-zero fractional digit).
+        // e.g. 0.001 → frac "001" → first non-zero at index 2 → exp = -3.
+        let leading_zeros = frac_part.len() - frac_part.trim_start_matches('0').len();
+        -(leading_zeros as i32) - 1
+    }
+}
+
+/// Compute `10^exp` as a Decimal, for arbitrary integer exp.
+/// Used for to_sci() normalization.
 fn decimal_pow10_f64(exp: i32) -> Decimal {
     if exp == 0 {
         return Decimal::ONE;
