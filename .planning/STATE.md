@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-07T12:33:02.509Z"
-last_activity: 2026-06-07 -- Phase 65 planning complete
+last_updated: "2026-06-07T15:02:42.104Z"
+last_activity: 2026-06-07
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
   percent: 60
 ---
 
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 65 — standalone fidelity fixes
+**Current focus:** Phase 65 — standalone-fidelity-fixes
 
 ---
 
 ## Current Position
 
-Phase: 65
-Plan: Not started
+Phase: 65 (standalone-fidelity-fixes) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-07 -- Phase 65 planning complete
+Last activity: 2026-06-07
 
 ## Progress Bar
 
@@ -94,6 +94,13 @@ Overall  ██░░░░░░░░  25%
 - **64-04-D02:** Esc WaitForKey cancel branch placed BEFORE `is_running` branch — `is_running` is `false` during WaitForKey suspend; the guard detects via `pending_yield.kind === 'wait_for_key'`.
 - **64-04-D03:** Physical keyboard WaitForKey guard always `return`s — prevents fall-through to `dispatchKeyId` for no-keyCode keys (hardware faithful: HP-41 only captures calculator keys).
 - **64-04-D04:** `invokeForKey` no-keyCode path returns `Promise.resolve(state)` — callers chain `.then`/`.catch` and must not receive undefined; keeps `busyRef` clean.
+
+### Decisions (Phase 65-01 — 2026-06-07)
+
+- **65-01-D01:** Two-tier `HpNum { mantissa: Decimal, exponent: i8 }` — common case `exponent==0` is fully backward-compat with `inner()`; large-exponent case for values above ~7.92E28. ADR v4.3-005.
+- **65-01-D02:** `normalize()` in Display only — preserves trailing zeros internally for HMS/date string parsing; compact display via normalize on render.
+- **65-01-D03:** `from_f64` fast path — try `Decimal::from_f64` first; only use sci-notation decomposition for large values above Decimal ceiling.
+- **65-01-D04:** `resolve_indirect_decimal` normalizes return value — `42.000000000.normalize() = 42` so label lookup `"42"` works correctly.
 
 ### Decisions (Phase 64-05 — 2026-06-07)
 
