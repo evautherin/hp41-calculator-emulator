@@ -13,7 +13,7 @@ pub mod state;
 
 // Convenience re-exports for consumers
 pub use error::HpError;
-pub use format::{format_alpha, format_hpnum};
+pub use format::{format_alpha, format_hpnum, format_hpnum_lcd};
 pub use num::{HpNum, HpValue};
 pub use ops::program::{resume_program, resume_program_with_key, run_program};
 pub use ops::{StoArithKind, TestKind};
