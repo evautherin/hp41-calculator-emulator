@@ -319,8 +319,14 @@ mod tests {
     #[test]
     fn round_sci3_carry_9_9995_is_10() {
         // SCI(3): keep 4 sig digits — 9.9995 → 10 (mantissa carry at the digit-4 boundary).
+        // After ADR v4.3-005: HpNum(10) normalizes to { mantissa: 1.0, exponent: 1 }.
+        // Verify via to_f64() which returns the full value.
         let out = round_to_display_precision(&hp("9.9995"), &DisplayMode::Sci(3));
-        assert_eq!(out.inner(), Decimal::from(10));
+        let full_val = out.to_f64().expect("to_f64 must succeed");
+        assert!(
+            (full_val - 10.0).abs() < 1e-9,
+            "9.9995 rounded in SCI(3) must equal 10.0, got {full_val}"
+        );
     }
 
     #[test]

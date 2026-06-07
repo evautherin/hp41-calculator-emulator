@@ -628,7 +628,7 @@ mod num_scalar_math_tests {
         // (1 / 1_000_000_000) × 100 = 1e−7 = 0.0000001
         let y = HpNum::from(1_000_000_000i32);
         let x = HpNum::from(1_000_000_001i32);
-        let expected = HpNum(Decimal::from_str("0.0000001").unwrap());
+        let expected = HpNum::from_decimal(Decimal::from_str("0.0000001").unwrap());
         assert_eq!(y.checked_pct_change(&x).unwrap(), expected);
     }
 
@@ -641,20 +641,24 @@ mod num_scalar_math_tests {
 
     #[test]
     fn checked_pct_change_overflow_at_times_100() {
-        // Y=1, X=1e27 → ratio = (1e27 − 1) rounded to 10 sig digits = 1e27
-        // 1e27 × 100 = 1e29 → exceeds rust_decimal max (~7.9e28) → Overflow
+        // Y=1, X=1e98 → ratio = (1e98 − 1) ≈ 1e98
+        // 1e98 × 100 = 1e100 → exceeds HP-41 max (exp > 99) → Overflow.
+        // (Before ADR v4.3-005 this tested 1e27→1e29 overflow at the rust_decimal
+        // ceiling ~7.9e28; now the ceiling is exp=99.)
         let y = HpNum::from(1i32);
-        let x = HpNum(Decimal::from_str("1000000000000000000000000000").unwrap());
+        let x = HpNum::from_f64(1e98).expect("1e98 must construct");
         assert_eq!(y.checked_pct_change(&x), Err(HpError::Overflow));
     }
 
     #[test]
     fn checked_pct_change_overflow_at_subtract() {
         // X − Y overflows BEFORE the divide step.
-        // Y = -Decimal::MAX, X = +Decimal::MAX  →  X − Y = 2·MAX  →  Overflow at checked_sub.
-        // Confirms the error path surfaces as Overflow (not DivideByZero or any other variant).
-        let y = HpNum(-Decimal::MAX);
-        let x = HpNum(Decimal::MAX);
+        // Y = -9.999999999e99 (HP-41 max negative), X = +9.999999999e99
+        // X − Y = 2 × 9.999999999e99 = 1.9999e100 → exp > 99 → Overflow at checked_sub.
+        // (Before ADR v4.3-005 this tested Y=-Decimal::MAX, X=+Decimal::MAX;
+        // now Decimal::MAX cannot directly construct HpNum via tuple syntax.)
+        let y = HpNum::from_f64(-9.999999999e99).expect("max-negative must construct");
+        let x = HpNum::from_f64(9.999999999e99).expect("max-positive must construct");
         assert_eq!(y.checked_pct_change(&x), Err(HpError::Overflow));
     }
 }

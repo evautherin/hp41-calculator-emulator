@@ -626,10 +626,11 @@ mod tests {
         state.stack.x = hp41_core::HpNum::from(30);
         let result = hp41_core::ops::dispatch(&mut state, Op::Sin);
         assert!(result.is_ok(), "Op::Sin must not error on valid input");
-        assert_eq!(
-            format!("{}", state.stack.x),
-            "0.5000000000",
-            "sin(30 DEG) must equal 0.5 (10 significant digits)"
+        // Display normalize removes trailing zeros; check that sin(30 DEG) ~ 0.5.
+        let sin_30 = state.stack.x.to_f64().expect("sin(30 DEG) must be numeric");
+        assert!(
+            (sin_30 - 0.5_f64).abs() < 1e-9_f64,
+            "sin(30 DEG) must equal 0.5, got {sin_30}"
         );
     }
 

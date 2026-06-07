@@ -47,7 +47,9 @@ pub(crate) fn resolve_indirect_decimal(state: &CalcState, reg: u8) -> Result<Dec
     if int_part != pointer {
         return Err(HpError::InvalidOp);
     }
-    Ok(int_part.inner())
+    // Normalize removes trailing zeros added by round_sf(10) so that integer
+    // pointers (e.g. 42.000000000) serialize as "42", matching LBL name strings.
+    Ok(int_part.inner().normalize())
 }
 
 /// Resolve register `reg`'s integer-part contents into a `u8` register address.
@@ -240,6 +242,8 @@ mod tests {
         let mut state = CalcState::new();
         state.regs[5] = HpNum::from(-3i32).into();
         let d = resolve_indirect_decimal(&state, 5).unwrap();
-        assert_eq!(d.to_string(), "-3");
+        // Value equality, not string equality: round_sf(10) may produce "-3.000000000"
+        // which is numerically identical to -3.
+        assert_eq!(d, rust_decimal::Decimal::from(-3i32));
     }
 }

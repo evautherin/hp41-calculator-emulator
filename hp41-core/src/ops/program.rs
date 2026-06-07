@@ -1782,7 +1782,7 @@ mod program_tests {
 
     #[test]
     fn test_parse_counter_canonical_phase3_example() {
-        let n = HpNum(Decimal::from_str("1.005").unwrap());
+        let n = HpNum::from_decimal(Decimal::from_str("1.005").unwrap());
         let (current, final_val, step, frac_padded) = parse_counter(&n).unwrap();
         assert_eq!(current, 1);
         assert_eq!(final_val, 5);
@@ -1794,7 +1794,7 @@ mod program_tests {
     fn test_parse_counter_integer_only_register() {
         // A register with no decimal part (e.g. initialised to 5 without ISG setup):
         // frac = "" → padded = "00000" → final=0, step 00 → 1
-        let n = HpNum(Decimal::from_str("5").unwrap());
+        let n = HpNum::from_decimal(Decimal::from_str("5").unwrap());
         let (current, final_val, step, frac_padded) = parse_counter(&n).unwrap();
         assert_eq!(current, 5);
         assert_eq!(final_val, 0, "no decimal → final=0");
@@ -1805,7 +1805,7 @@ mod program_tests {
     #[test]
     fn test_parse_counter_step_99_max_step() {
         // counter = 1.00099 → current=1, final=000=0, step=99
-        let n = HpNum(Decimal::from_str("1.00099").unwrap());
+        let n = HpNum::from_decimal(Decimal::from_str("1.00099").unwrap());
         let (current, final_val, step, frac_padded) = parse_counter(&n).unwrap();
         assert_eq!(current, 1);
         assert_eq!(final_val, 0);
@@ -1816,7 +1816,7 @@ mod program_tests {
     #[test]
     fn test_isg_increments_and_then_skips() {
         let mut state = CalcState::default();
-        state.regs[0] = HpNum(Decimal::from_str("4.005").unwrap()).into();
+        state.regs[0] = HpNum::from_decimal(Decimal::from_str("4.005").unwrap()).into();
         let result1 = op_isg(&mut state, 0).unwrap();
         assert!(
             !result1,
@@ -1841,42 +1841,42 @@ mod program_tests {
     fn test_program_arithmetic_add() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("3").unwrap())),
-            Op::PushNum(HpNum(Decimal::from_str("4").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("4").unwrap())),
             Op::Add,
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("7").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("7").unwrap()));
     }
 
     #[test]
     fn test_program_sub_mul_div() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("10").unwrap())),
-            Op::PushNum(HpNum(Decimal::from_str("2").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("10").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("2").unwrap())),
             Op::Sub,
-            Op::PushNum(HpNum(Decimal::from_str("3").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3").unwrap())),
             Op::Mul,
-            Op::PushNum(HpNum(Decimal::from_str("4").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("4").unwrap())),
             Op::Div,
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("6").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("6").unwrap()));
     }
 
     #[test]
     fn test_program_stack_ops() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("5").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("5").unwrap())),
             Op::Enter,
             Op::Clx,
-            Op::PushNum(HpNum(Decimal::from_str("3").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3").unwrap())),
             Op::Chs,
-            Op::PushNum(HpNum(Decimal::from_str("7").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("7").unwrap())),
             Op::XySwap,
             Op::Rdn,
             Op::Lastx,
@@ -1889,7 +1889,7 @@ mod program_tests {
     fn test_program_sto_rcl_clreg() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("42").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("42").unwrap())),
             Op::StoReg(5),
             Op::Clreg,
             Op::RclReg(5),
@@ -1933,7 +1933,7 @@ mod program_tests {
     fn test_program_math_ops() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("4").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("4").unwrap())),
             Op::Sqrt,
             Op::Sq,
             Op::Int,
@@ -1941,14 +1941,14 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("0.25").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("0.25").unwrap()));
     }
 
     #[test]
     fn test_program_runs_off_end() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("1").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("1").unwrap())),
         ];
         let mut state = state_with_program(program);
         let result = crate::ops::program::run_program(&mut state, "A");
@@ -1961,38 +1961,38 @@ mod program_tests {
         let program = vec![
             Op::Lbl("A".to_string()),
             Op::Lbl("B".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("9").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("9").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("9").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("9").unwrap()));
     }
 
     #[test]
     fn test_program_test_op_skip() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("0").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("0").unwrap())),
             Op::Test(TestKind::XNeZero),
-            Op::PushNum(HpNum(Decimal::from_str("99").unwrap())),
-            Op::PushNum(HpNum(Decimal::from_str("7").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("99").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("7").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("7").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("7").unwrap()));
     }
 
     #[test]
     fn test_program_test_op_no_skip() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("0").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("0").unwrap())),
             Op::Test(TestKind::XEqZero),
-            Op::PushNum(HpNum(Decimal::from_str("42").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("42").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("42").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("42").unwrap()));
     }
 
     #[test]
@@ -2009,15 +2009,15 @@ mod program_tests {
         // counter 0.00103 → current=0, final=1, step=3; 0+3=3 > 1 → skip
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("0.00103").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("0.00103").unwrap())),
             Op::StoReg(0),
             Op::Isg(0),
             Op::Gto("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("5").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("5").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("5").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("5").unwrap()));
     }
 
     #[test]
@@ -2025,39 +2025,39 @@ mod program_tests {
         // counter 3.00103 → current=3, final=1, step=3; 3-3=0 <= 1 → skip
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("3.00103").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3.00103").unwrap())),
             Op::StoReg(0),
             Op::Dse(0),
             Op::Gto("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("8").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("8").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("8").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("8").unwrap()));
     }
 
     #[test]
     fn test_program_xeq_subroutine_returns() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("1").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("1").unwrap())),
             Op::Xeq("B".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("2").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("2").unwrap())),
             Op::Rtn,
             Op::Lbl("B".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("10").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("10").unwrap())),
             Op::Rtn,
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("2").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("2").unwrap()));
     }
 
     #[test]
     fn test_evaluate_test_relational_variants() {
         let mut state = CalcState::default();
-        state.stack.x = HpNum(Decimal::from_str("-3").unwrap());
-        state.stack.y = HpNum(Decimal::from_str("5").unwrap());
+        state.stack.x = HpNum::from_decimal(Decimal::from_str("-3").unwrap());
+        state.stack.y = HpNum::from_decimal(Decimal::from_str("5").unwrap());
 
         assert!(evaluate_test(&state, &TestKind::XLtZero));
         assert!(!evaluate_test(&state, &TestKind::XGtZero));
@@ -2097,16 +2097,16 @@ mod program_tests {
         //       Op::SetDeg, Op::SetRad, Op::SetGrad
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("1").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("1").unwrap())),
             Op::Exp,
             Op::Ln,
             Op::SetRad,
             Op::SetGrad,
             Op::SetDeg,
-            Op::PushNum(HpNum(Decimal::from_str("100").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("100").unwrap())),
             Op::Log,
             Op::TenPow,
-            Op::PushNum(HpNum(Decimal::from_str("2").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("2").unwrap())),
             Op::YPow,
         ];
         let mut state = state_with_program(program);
@@ -2118,13 +2118,13 @@ mod program_tests {
         // Cover Op::Sin, Op::Cos, Op::Tan, Op::Asin, Op::Acos, Op::Atan
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("30").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("30").unwrap())),
             Op::Sin,
             Op::Asin,
-            Op::PushNum(HpNum(Decimal::from_str("60").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("60").unwrap())),
             Op::Cos,
             Op::Acos,
-            Op::PushNum(HpNum(Decimal::from_str("45").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("45").unwrap())),
             Op::Tan,
             Op::Atan,
         ];
@@ -2166,9 +2166,9 @@ mod program_tests {
         use crate::ops::StoArithKind;
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("10").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("10").unwrap())),
             Op::StoReg(0),
-            Op::PushNum(HpNum(Decimal::from_str("5").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("5").unwrap())),
             Op::StoArith {
                 reg: 0,
                 kind: StoArithKind::Add,
@@ -2177,7 +2177,7 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("15").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("15").unwrap()));
     }
 
     #[test]
@@ -2328,8 +2328,8 @@ mod phase25_builtin_card_op_tests {
             Op::Rtn,
         ];
         let mut state = state_with_program(program);
-        state.stack.y = HpNum(Decimal::from_str("5").unwrap());
-        state.stack.x = HpNum(Decimal::from_str("7").unwrap());
+        state.stack.y = HpNum::from_decimal(Decimal::from_str("5").unwrap());
+        state.stack.x = HpNum::from_decimal(Decimal::from_str("7").unwrap());
 
         let result = super::run_program(&mut state, "TEST");
         assert!(
@@ -2340,8 +2340,8 @@ mod phase25_builtin_card_op_tests {
         assert!(!state.is_running);
         // Stack is read-only for Op::Test (LiftEffect::Neutral) — values
         // preserved.
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("7").unwrap()));
-        assert_eq!(state.stack.y, HpNum(Decimal::from_str("5").unwrap()));
+        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("7").unwrap()));
+        assert_eq!(state.stack.y, HpNum::from_decimal(Decimal::from_str("5").unwrap()));
     }
 
     // ── Phase 28 / Task 6: resolver chain extension tests ──────────────────────

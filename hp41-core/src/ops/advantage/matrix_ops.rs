@@ -673,7 +673,7 @@ pub fn op_adv_sumab(state: &mut CalcState) -> Result<(), HpError> {
     let mat = find_matrix(&state.adv_matrices, &name)?;
     let mut acc = HpNum::zero();
     for elem in &mat.data {
-        let abs_val = HpNum(elem.inner().abs());
+        let abs_val = HpNum::from_decimal(elem.inner().abs());
         acc = acc.checked_add(&abs_val)?;
     }
     apply_lift_effect(state, LiftEffect::Enable);

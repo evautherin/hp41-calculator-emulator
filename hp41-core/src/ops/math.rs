@@ -22,13 +22,18 @@ use crate::state::{AngleMode, CalcState};
 // We use HpNum(raw_decimal) (pub(crate) inner field) to bypass pre-rounding.
 // The multiplication result is still rounded to 10 sig digits via checked_mul.
 fn pi_over_180() -> HpNum {
-    HpNum(
+    // Use from_decimal (not rounded) to preserve full precision of the constant.
+    // from_decimal calls normalize which round_sf(10) — but these constants are
+    // 20 sig digits and will be rounded at normalize time. The multiplication
+    // result is then rounded again via checked_mul to 10 sig digits. This matches
+    // the previous behavior where HpNum(Decimal) stored the full Decimal value.
+    HpNum::from_decimal(
         Decimal::from_str("0.01745329251994329576")
             .expect("pi/180 angle constant must parse as valid Decimal"),
     )
 }
 fn pi_over_200() -> HpNum {
-    HpNum(
+    HpNum::from_decimal(
         Decimal::from_str("0.01570796326794896558")
             .expect("pi/200 angle constant must parse as valid Decimal"),
     )
