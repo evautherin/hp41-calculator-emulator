@@ -1072,3 +1072,109 @@ describe('P — Phase 63 Plan 06: GUI run-loop driver (yield + alarm:missing + R
     });
   });
 });
+
+// =====================================================================
+// Group Q — Phase 64 Plan 04: Interactive GETKEY GUI driver (PRGM-03)
+//   PRGM-03-k: yield-driver guard — wait_for_key does NOT schedule resume_program
+//   PRGM-03-l: on-screen key tap during WaitForKey routes to resume_program_with_key
+//              with correct keycode; no-keyCode key is ignored (hardware faithful)
+// =====================================================================
+
+describe('Q — Phase 64 Plan 04: Interactive GETKEY GUI driver (PRGM-03)', () => {
+  // Restore real timers after each test (PRGM-03-k uses fake timers).
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // PRGM-03-k: yield-driver useEffect guard.
+  //
+  // When pending_yield.kind === 'wait_for_key', the yield-and-resume useEffect MUST
+  // return early WITHOUT scheduling a setTimeout → resume_program call. This is the
+  // D-11 no-poll invariant: event-driven yields must never auto-resume via a timer;
+  // only a key event (invokeForKey / handleKey) can resume them.
+  //
+  // Strategy: install fake timers, trigger a wait_for_key pending_yield, advance time
+  // well past any conceivable resume_ms, and assert resume_program was NOT called.
+  it('PRGM-03-k: wait_for_key pending_yield does NOT trigger setTimeout resume_program (D-11 guard)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { container } = await renderAppAndWait();
+
+    // Provide a pending_yield with kind 'wait_for_key' (resume_ms=0, text='').
+    const waitView = makeEmptyView({
+      pending_yield: { kind: 'wait_for_key', text: '', resume_ms: 0 },
+    });
+    // This mockResolvedValueOnce seeds the next invoke() call (the key click below).
+    mockInvoke.mockResolvedValueOnce(waitView);
+
+    // Click a key that dispatches via invokeForKey — but since pending_yield is null
+    // at click time (the guard only fires AFTER the view is set), we click first,
+    // the view updates to waitView (with wait_for_key), and the useEffect fires.
+    await clickKey(container, '1');
+
+    // Now calcState has pending_yield.kind === 'wait_for_key'.
+    // Advance timers well past resume_ms=0 and any default timer duration.
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // resume_program must NOT have been scheduled or called — the guard short-circuits
+    // before reaching the setTimeout path.
+    expect(mockInvoke).not.toHaveBeenCalledWith('resume_program', undefined);
+    expect(mockInvoke).not.toHaveBeenCalledWith('resume_program', expect.anything());
+
+    // Verify no resume_program_with_key was called either (no key event fired).
+    expect(mockInvoke).not.toHaveBeenCalledWith('resume_program_with_key', expect.anything());
+  });
+
+  // PRGM-03-l: on-screen tap routing during WaitForKey.
+  //
+  // When pending_yield.kind === 'wait_for_key', clicking an on-screen key with a
+  // keyCode MUST invoke resume_program_with_key with { keycode: <hp41Code> }.
+  // Clicking a key without a keyCode (e.g. xge_y / CHS) must be a no-op — the
+  // wait continues without invoking any Tauri command (hardware faithful: HP-41
+  // only captures physical calculator keys with HP-41 hardware codes).
+  it('PRGM-03-l: on-screen key tap during wait_for_key routes to resume_program_with_key with keycode; no-keyCode key is ignored', async () => {
+    const { container } = await renderAppAndWait();
+
+    // Set calcState to a wait_for_key pending_yield by making the initial get_state
+    // response carry it. Re-render with a fresh waitView via a key click.
+    const waitView = makeEmptyView({
+      pending_yield: { kind: 'wait_for_key', text: '', resume_ms: 0 },
+    });
+    // Seed: first click returns waitView (with wait_for_key).
+    mockInvoke.mockResolvedValueOnce(waitView);
+    // Click '1' key to transition to waitView state.
+    await clickKey(container, '1');
+
+    // Now calcState.pending_yield.kind === 'wait_for_key'.
+    // Seed: clicking sigma_plus (keyCode=11) during WaitForKey triggers resume_program_with_key.
+    const resumedView = makeEmptyView({ display_str: '11.0000', pending_yield: null });
+    mockInvoke.mockResolvedValueOnce(resumedView);
+
+    // Click sigma_plus — keyCode=11 per Keyboard.tsx.
+    await clickKey(container, 'sigma_plus');
+
+    // resume_program_with_key must have been called with keycode: 11.
+    expect(mockInvoke).toHaveBeenCalledWith('resume_program_with_key', { keycode: 11 });
+    // dispatch_op must NOT have been called for sigma_plus during the WaitForKey suspend.
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'sigma_plus' });
+
+    // Now verify that a no-keyCode key (xge_y — keyCode=undefined) is a no-op.
+    // Reset the view back to wait_for_key.
+    mockInvoke.mockResolvedValueOnce(waitView);
+    await clickKey(container, '1'); // transition to waitView again
+
+    const callCountBefore = mockInvoke.mock.calls.length;
+
+    // Click xge_y (no keyCode) — must be a no-op: no resume_program_with_key, no dispatch_op.
+    await clickKey(container, 'xge_y');
+
+    // No new Tauri command calls should have been made for the xge_y click.
+    const newCalls = mockInvoke.mock.calls.slice(callCountBefore);
+    const tauriCalls = newCalls.filter(([cmd]) =>
+      cmd === 'resume_program_with_key' || cmd === 'dispatch_op'
+    );
+    expect(tauriCalls).toHaveLength(0);
+  });
+});
