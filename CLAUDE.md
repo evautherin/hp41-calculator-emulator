@@ -40,7 +40,7 @@ These are final. **Do not revisit without strong justification.**
 
 ### Core engine
 
-- **BCD/f64:** `rust_decimal` 1.42 with 10-significant-digit rounding. `HpNum` in `hp41-core/src/num.rs`. Custom BCD was evaluated and rejected.
+- **BCD/f64:** `rust_decimal` 1.42 with 10-significant-digit rounding. `HpNum` in `hp41-core/src/num.rs` is a **two-tier struct `{ mantissa: Decimal, exponent: i8 }`** (ADR v4.3-005): common case `exponent==0` holds the full Decimal value (backward-compat with `inner()`); large-exponent case `exponent!=0` holds mantissa ∈ [1,10) for values above ~7.92E28 (the Decimal ceiling). Use `to_f64()` for large-exponent values; `inner()` is only the full value when `exponent==0`. `op_fact` post-compute wall extended to `X ≤ 68` via `HpNum::from_f64` (was `Decimal::from_f64` wall at `X ≤ 26`). Custom BCD was evaluated and rejected.
 - **Stack-lift:** every op declares `LiftEffect::Enable / Disable / Neutral`. The most commonly mis-implemented HP-41 feature — always check.
 - **ISG/DSE counter:** extract fields by string-splitting at the decimal point — **never** `floor()`/`fmod()`. Same discipline applies to Time Pac date decimal parsing.
 - **No async, no panics:** `#![deny(clippy::unwrap_used)]` at crate root. Production: `.expect("reason")` or `?`. Tests: `#[allow(clippy::unwrap_used)]`. GUI mutex: `.unwrap_or_else(|e| e.into_inner())`.
