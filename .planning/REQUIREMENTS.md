@@ -25,7 +25,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Display & Entry Fidelity
 
-- [ ] **DISP-01**: The CLI shows VIEW / AVIEW / PROMPT register and ALPHA values on the display (it currently never reads `display_override`). *(FGAP-02)*
+- [x] **DISP-01**: The CLI shows VIEW / AVIEW / PROMPT register and ALPHA values on the display (it currently never reads `display_override`). *(FGAP-02)*
 - [ ] **DISP-02**: CHS during active number entry (mantissa, no EEX) toggles the sign of the entry buffer in place, without flushing the entry to the stack or lifting it. *(FGAP-05)*
 - [ ] **DISP-03**: AON causes the ALPHA register to display automatically after every operation while active; AOFF disables it. *(FGAP-07)*
 
@@ -76,7 +76,7 @@ Which phases cover which requirements.
 | PRGM-01 | Phase 63 | Complete |
 | PRGM-02 | Phase 63 | Complete |
 | PRGM-03 | Phase 64 | Complete |
-| DISP-01 | Phase 65 | Pending |
+| DISP-01 | Phase 65 | Complete |
 | DISP-02 | Phase 65 | Pending |
 | DISP-03 | Phase 65 | Pending |
 | MATH-01 | Phase 65 | Pending |
