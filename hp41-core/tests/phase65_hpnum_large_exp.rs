@@ -91,7 +91,9 @@ fn div_underflow_to_zero() {
     // 1e-99 / 1e80 = 1e-179 — exponent -179 < -99 → underflow to zero.
     let a = HpNum::from_f64(1e-99).unwrap();
     let b = HpNum::from_f64(1e80).unwrap();
-    let result = a.checked_div(&b).expect("underflow must be Ok(zero), not Err");
+    let result = a
+        .checked_div(&b)
+        .expect("underflow must be Ok(zero), not Err");
     assert!(
         result.is_zero(),
         "1e-99 / 1e80 (true 1e-179) must underflow to zero, got {result}"
@@ -104,7 +106,9 @@ fn div_underflow_to_zero() {
 fn mul_1e40_times_1e40_is_1e80() {
     let a = HpNum::from_f64(1e40).unwrap();
     let b = HpNum::from_f64(1e40).unwrap();
-    let result = a.checked_mul(&b).expect("1e40 * 1e40 must succeed (in range)");
+    let result = a
+        .checked_mul(&b)
+        .expect("1e40 * 1e40 must succeed (in range)");
     let full = result.to_f64().expect("result must be f64-representable");
     assert!(
         (full / 1e80 - 1.0).abs() < 1e-9,
@@ -117,7 +121,9 @@ fn mul_at_exact_exp_99_succeeds() {
     // 1e50 * 1e49 = 1e99 — exactly at the ceiling, must succeed.
     let a = HpNum::from_f64(1e50).unwrap();
     let b = HpNum::from_f64(1e49).unwrap();
-    let result = a.checked_mul(&b).expect("1e50 * 1e49 = 1e99 must succeed at the ceiling");
+    let result = a
+        .checked_mul(&b)
+        .expect("1e50 * 1e49 = 1e99 must succeed at the ceiling");
     let full = result.to_f64().expect("result must be f64-representable");
     assert!(
         (full / 1e99 - 1.0).abs() < 1e-9,
@@ -148,7 +154,7 @@ fn assert_pow10_roundtrip(in_range: f64, large: HpNum, expected_ratio_to: f64) {
 #[test]
 fn to_sci_exact_powers_of_ten() {
     let large = HpNum::from_f64(1e50).unwrap(); // exponent != 0 forces the sci path
-    // 1e-1 * 1e50 = 1e49
+                                                // 1e-1 * 1e50 = 1e49
     assert_pow10_roundtrip(1e-1, large.clone(), 1e49);
     // 1 * 1e50 = 1e50
     assert_pow10_roundtrip(1.0, large.clone(), 1e50);

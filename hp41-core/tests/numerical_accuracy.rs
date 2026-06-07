@@ -2867,49 +2867,91 @@ fn test_numerical_accuracy_suite() {
         push(&mut s, "27");
         dispatch(&mut s, Op::Fact).unwrap();
         // 27! ≈ 1.088886945E28 (10-sig-digit HP-41-faithful result)
-        case!("fact", "FACT(27) ~ 1.088886945E28", 1.088_886_945e28_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(27) ~ 1.088886945E28",
+            1.088_886_945e28_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         let mut s = CalcState::new();
         push(&mut s, "30");
         dispatch(&mut s, Op::Fact).unwrap();
         // 30! ≈ 2.652528598E32
-        case!("fact", "FACT(30) ~ 2.652528598E32", 2.652_528_598e32_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(30) ~ 2.652528598E32",
+            2.652_528_598e32_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         let mut s = CalcState::new();
         push(&mut s, "40");
         dispatch(&mut s, Op::Fact).unwrap();
         // 40! ≈ 8.159152832E47
-        case!("fact", "FACT(40) ~ 8.159152832E47", 8.159_152_832e47_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(40) ~ 8.159152832E47",
+            8.159_152_832e47_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         let mut s = CalcState::new();
         push(&mut s, "50");
         dispatch(&mut s, Op::Fact).unwrap();
         // 50! ≈ 3.041409320E64
-        case!("fact", "FACT(50) ~ 3.041409320E64", 3.041_409_320e64_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(50) ~ 3.041409320E64",
+            3.041_409_320e64_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         let mut s = CalcState::new();
         push(&mut s, "60");
         dispatch(&mut s, Op::Fact).unwrap();
         // 60! ≈ 8.320987113E81
-        case!("fact", "FACT(60) ~ 8.320987113E81", 8.320_987_113e81_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(60) ~ 8.320987113E81",
+            8.320_987_113e81_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         let mut s = CalcState::new();
         push(&mut s, "68");
         dispatch(&mut s, Op::Fact).unwrap();
         // 68! ≈ 2.480035542E96 (last representable; FACT(69) is OutOfRange)
-        case!("fact", "FACT(68) ~ 2.480035542E96", 2.480_035_542e96_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(68) ~ 2.480035542E96",
+            2.480_035_542e96_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         let mut s = CalcState::new();
         push(&mut s, "69");
         dispatch(&mut s, Op::Fact).unwrap();
         // 69! ≈ 1.711224524e98 (ADR v4.3-005: last representable factorial)
-        case!("fact", "FACT(69) ~ 1.711224524E98", 1.711_224_524e98_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(69) ~ 1.711224524E98",
+            1.711_224_524e98_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         // FACT(70) is OutOfRange (HP-41 Owner's Manual p.234: X > 69 → OutOfRange).
@@ -7685,14 +7727,26 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         push(&mut s, "28");
         dispatch(&mut s, Op::Fact).unwrap();
-        case!("fact", "FACT(28) ~ 3.048883446E29 (WR-03 renorm)", 3.048_883_446e29_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(28) ~ 3.048883446E29 (WR-03 renorm)",
+            3.048_883_446e29_f64,
+            get_x(&s),
+            wide
+        );
     }
     {
         // 32! ≈ 2.631308369E35 — another power-of-ten-adjacent large factorial.
         let mut s = CalcState::new();
         push(&mut s, "32");
         dispatch(&mut s, Op::Fact).unwrap();
-        case!("fact", "FACT(32) ~ 2.631308369E35 (WR-03 renorm)", 2.631_308_369e35_f64, get_x(&s), wide);
+        case!(
+            "fact",
+            "FACT(32) ~ 2.631308369E35 (WR-03 renorm)",
+            2.631_308_369e35_f64,
+            get_x(&s),
+            wide
+        );
     }
 
     // ── Gate: count passes, print failures, assert ────────────────────────────
@@ -7829,7 +7883,10 @@ fn fact_28_now_representable_adr_v43_005() {
     let mut s = CalcState::new();
     push(&mut s, "28");
     let r = dispatch(&mut s, Op::Fact);
-    assert!(r.is_ok(), "FACT(28) must succeed after ADR v4.3-005; got {r:?}");
+    assert!(
+        r.is_ok(),
+        "FACT(28) must succeed after ADR v4.3-005; got {r:?}"
+    );
     let actual = s.stack.x.to_f64().expect("FACT(28) must be representable");
     assert!(
         passes_with_tol(actual, 3.048_883_447e29_f64, WIDE_TOL),
@@ -7846,7 +7903,10 @@ fn fact_69_now_representable_adr_v43_005() {
     let mut s = CalcState::new();
     push(&mut s, "69");
     let r = dispatch(&mut s, Op::Fact);
-    assert!(r.is_ok(), "FACT(69) must succeed after ADR v4.3-005 (69 ≤ 69); got {r:?}");
+    assert!(
+        r.is_ok(),
+        "FACT(69) must succeed after ADR v4.3-005 (69 ≤ 69); got {r:?}"
+    );
     let actual = s.stack.x.to_f64().expect("FACT(69) must be representable");
     assert!(
         passes_with_tol(actual, 1.711_224_524e98_f64, WIDE_TOL),

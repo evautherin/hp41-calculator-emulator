@@ -2812,7 +2812,10 @@ mod disp02_chs_mantissa_toggle_tests {
         app.handle_key(make_key(KeyCode::Char('2')));
         assert_eq!(app.state.entry_buf, "1e2");
         app.handle_key(make_key(KeyCode::Char('n')));
-        assert_eq!(app.state.entry_buf, "1e-2", "EEX-CHS must still toggle exponent sign");
+        assert_eq!(
+            app.state.entry_buf, "1e-2",
+            "EEX-CHS must still toggle exponent sign"
+        );
     }
 
     // ── Regression: empty-buffer CHS still dispatches Op::Chs ─────────────
@@ -2823,16 +2826,13 @@ mod disp02_chs_mantissa_toggle_tests {
         let mut app = make_app();
         assert!(app.state.entry_buf.is_empty(), "entry_buf must start empty");
         // Push a known value to X
-        app.call_dispatch(hp41_core::ops::Op::PushNum(
-            hp41_core::HpNum::from(42i32),
-        ));
+        app.call_dispatch(hp41_core::ops::Op::PushNum(hp41_core::HpNum::from(42i32)));
         app.handle_key(make_key(KeyCode::Char('n'))); // CHS on empty buffer → Op::Chs
         assert!(
             app.state.entry_buf.is_empty(),
             "entry_buf must remain empty after Op::Chs dispatch"
         );
-        let formatted =
-            hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        let formatted = hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
         assert_eq!(formatted, "-42.0000", "empty-buffer CHS must negate X");
     }
 }

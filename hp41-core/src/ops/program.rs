@@ -1848,7 +1848,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("7").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("7").unwrap())
+        );
     }
 
     #[test]
@@ -1865,7 +1868,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("6").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("6").unwrap())
+        );
     }
 
     #[test]
@@ -1942,7 +1948,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("0.25").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("0.25").unwrap())
+        );
     }
 
     #[test]
@@ -1966,7 +1975,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("9").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("9").unwrap())
+        );
     }
 
     #[test]
@@ -1980,7 +1992,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("7").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("7").unwrap())
+        );
     }
 
     #[test]
@@ -1993,7 +2008,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("42").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("42").unwrap())
+        );
     }
 
     #[test]
@@ -2018,7 +2036,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("5").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("5").unwrap())
+        );
     }
 
     #[test]
@@ -2034,7 +2055,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("8").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("8").unwrap())
+        );
     }
 
     #[test]
@@ -2051,7 +2075,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("2").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("2").unwrap())
+        );
     }
 
     #[test]
@@ -2178,7 +2205,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("15").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("15").unwrap())
+        );
     }
 
     #[test]
@@ -2341,8 +2371,14 @@ mod phase25_builtin_card_op_tests {
         assert!(!state.is_running);
         // Stack is read-only for Op::Test (LiftEffect::Neutral) — values
         // preserved.
-        assert_eq!(state.stack.x, HpNum::from_decimal(Decimal::from_str("7").unwrap()));
-        assert_eq!(state.stack.y, HpNum::from_decimal(Decimal::from_str("5").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("7").unwrap())
+        );
+        assert_eq!(
+            state.stack.y,
+            HpNum::from_decimal(Decimal::from_str("5").unwrap())
+        );
     }
 
     // ── Phase 28 / Task 6: resolver chain extension tests ──────────────────────

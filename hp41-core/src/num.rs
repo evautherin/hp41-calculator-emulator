@@ -191,8 +191,7 @@ impl<'de> Deserialize<'de> for HpNum {
                 // a hand-edited / corrupted save with an out-of-range exponent or a
                 // denormalized mantissa is rejected / normalized rather than stored
                 // in a state that violates the struct invariants.
-                let mantissa =
-                    Decimal::from_str(&m).map_err(serde::de::Error::custom)?;
+                let mantissa = Decimal::from_str(&m).map_err(serde::de::Error::custom)?;
                 if e == 0 {
                     // Common case: mantissa IS the full Decimal value (the serializer
                     // emits the full value with e == 0). Preserve full-mantissa
@@ -201,8 +200,7 @@ impl<'de> Deserialize<'de> for HpNum {
                 } else {
                     // Large-exponent case: re-apply rounding/carry/range/normalization
                     // and reject an out-of-range exponent (|e| > 99).
-                    HpNum::from_sci(mantissa, e as i32)
-                        .map_err(serde::de::Error::custom)
+                    HpNum::from_sci(mantissa, e as i32).map_err(serde::de::Error::custom)
                 }
             }
             HpNumWire::Legacy(s) => {
@@ -294,9 +292,7 @@ impl HpNum {
         let one = Decimal::ONE;
         // Borrow down while |m| < 1.
         while work_mantissa.abs() < one {
-            work_mantissa = work_mantissa
-                .checked_mul(ten)
-                .ok_or(HpError::Overflow)?;
+            work_mantissa = work_mantissa.checked_mul(ten).ok_or(HpError::Overflow)?;
             work_exp -= 1;
             if work_exp < -99 {
                 return Ok(HpNum::zero()); // underflow
@@ -304,9 +300,7 @@ impl HpNum {
         }
         // Carry up while |m| >= 10.
         while work_mantissa.abs() >= ten {
-            work_mantissa = work_mantissa
-                .checked_div(ten)
-                .ok_or(HpError::Overflow)?;
+            work_mantissa = work_mantissa.checked_div(ten).ok_or(HpError::Overflow)?;
             work_exp += 1;
             if work_exp > 99 {
                 return Err(HpError::Overflow);
@@ -414,7 +408,8 @@ impl HpNum {
     pub fn checked_add(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
         // Common case: both exponents are 0 → delegate to Decimal arithmetic.
         if self.exponent == 0 && rhs.exponent == 0 {
-            return self.mantissa
+            return self
+                .mantissa
                 .checked_add(rhs.mantissa)
                 .map(HpNum::rounded)
                 .ok_or(HpError::Overflow);
@@ -484,8 +479,7 @@ impl HpNum {
         // (log10(1000.0) can come back as 2.9999…, flooring to 2 → 10×-wrong).
         let exp = decimal_floor_log10(&self.mantissa.abs());
         let scale = decimal_pow10_f64(exp);
-        let normalized = self.mantissa.checked_div(scale)
-            .unwrap_or(self.mantissa); // safe: scale is always nonzero
+        let normalized = self.mantissa.checked_div(scale).unwrap_or(self.mantissa); // safe: scale is always nonzero
         (normalized, exp)
     }
 
@@ -496,7 +490,8 @@ impl HpNum {
     pub fn checked_mul(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
         // Common case: both exponents are 0 → delegate to Decimal arithmetic.
         if self.exponent == 0 && rhs.exponent == 0 {
-            return self.mantissa
+            return self
+                .mantissa
                 .checked_mul(rhs.mantissa)
                 .map(HpNum::rounded)
                 .ok_or(HpError::Overflow);
@@ -522,7 +517,8 @@ impl HpNum {
         }
         // Common case: both exponents are 0 → delegate to Decimal arithmetic.
         if self.exponent == 0 && rhs.exponent == 0 {
-            return self.mantissa
+            return self
+                .mantissa
                 .checked_div(rhs.mantissa)
                 .map(HpNum::rounded)
                 .ok_or(HpError::Overflow);
@@ -560,7 +556,11 @@ impl HpNum {
         }
         if self.exponent == 0 {
             // rust_decimal MathematicalOps provides sqrt() returning Option<Decimal>
-            return self.mantissa.sqrt().map(HpNum::rounded).ok_or(HpError::Overflow);
+            return self
+                .mantissa
+                .sqrt()
+                .map(HpNum::rounded)
+                .ok_or(HpError::Overflow);
         }
         // Large-exponent path: use f64 bridge.
         let full_val = self.to_f64().ok_or(HpError::Overflow)?;
@@ -580,7 +580,8 @@ impl HpNum {
             return Err(HpError::Domain);
         }
         if self.exponent == 0 {
-            return self.mantissa
+            return self
+                .mantissa
                 .checked_ln()
                 .map(HpNum::rounded)
                 .ok_or(HpError::Overflow);
@@ -588,8 +589,7 @@ impl HpNum {
         // LN(m × 10^e) = LN(m) + e × LN(10).
         let ln_m = self.mantissa.checked_ln().ok_or(HpError::Overflow)?;
         // ln(10) = 2.302585093 (10 sig digits)
-        let ln_10 = Decimal::from_str("2.302585093")
-            .expect("ln(10) literal must parse");
+        let ln_10 = Decimal::from_str("2.302585093").expect("ln(10) literal must parse");
         let e_term = Decimal::from(self.exponent)
             .checked_mul(ln_10)
             .ok_or(HpError::Overflow)?;
@@ -604,7 +604,8 @@ impl HpNum {
             return Err(HpError::Domain);
         }
         if self.exponent == 0 {
-            return self.mantissa
+            return self
+                .mantissa
                 .checked_log10()
                 .map(HpNum::rounded)
                 .ok_or(HpError::Overflow);
@@ -651,7 +652,8 @@ impl HpNum {
         }
         // For in-range values (both exponents == 0), delegate to Decimal MathematicalOps.
         if self.exponent == 0 && exp.exponent == 0 {
-            return self.mantissa
+            return self
+                .mantissa
                 .checked_powd(exp.mantissa)
                 .map(HpNum::rounded)
                 .ok_or(HpError::Domain);
@@ -777,7 +779,9 @@ impl HpNum {
         // For exponent in [1,9]: reconstruct, truncate, re-normalize.
         // Value = mantissa × 10^exp where mantissa in [1,10), exp in [1,9].
         // Full value < 10^10 — within Decimal range.
-        let v = self.to_f64().expect("large-exponent value in [1..10^10] must be f64-representable");
+        let v = self
+            .to_f64()
+            .expect("large-exponent value in [1..10^10] must be f64-representable");
         HpNum::from_decimal(Decimal::from_f64(v.trunc()).unwrap_or(Decimal::ZERO))
     }
 }
@@ -800,7 +804,9 @@ fn decimal_pow10_small(exp: u32) -> Decimal {
             let mut result = Decimal::ONE;
             let ten = Decimal::from(10u32);
             for _ in 0..exp {
-                result = result.checked_mul(ten).expect("decimal_pow10_small: bounded");
+                result = result
+                    .checked_mul(ten)
+                    .expect("decimal_pow10_small: bounded");
             }
             result
         }
@@ -817,8 +823,14 @@ fn decimal_pow10_small(exp: u32) -> Decimal {
 ///
 /// `d` must be positive and non-zero (callers guard `is_zero()` and pass `abs()`).
 fn decimal_floor_log10(d: &Decimal) -> i32 {
-    debug_assert!(!d.is_zero(), "decimal_floor_log10 requires a non-zero value");
-    debug_assert!(!d.is_sign_negative(), "decimal_floor_log10 requires |value|");
+    debug_assert!(
+        !d.is_zero(),
+        "decimal_floor_log10 requires a non-zero value"
+    );
+    debug_assert!(
+        !d.is_sign_negative(),
+        "decimal_floor_log10 requires |value|"
+    );
     // normalize() strips trailing zeros so the string is canonical.
     let s = d.normalize().to_string();
     // Split into integer / fractional parts at the decimal point (never fmod).
@@ -856,7 +868,10 @@ fn decimal_pow10_f64(exp: i32) -> Decimal {
         // abs_exp >= 1 and the subtraction cannot underflow. Guard it so a
         // future refactor that routes exp == 0 here cannot underflow usize and
         // panic in this panic-free core crate.
-        debug_assert!(exp != 0, "decimal_pow10_f64 negative branch requires exp != 0");
+        debug_assert!(
+            exp != 0,
+            "decimal_pow10_f64 negative branch requires exp != 0"
+        );
         let abs_exp = (-exp) as usize;
         let zeros = abs_exp.saturating_sub(1);
         let s = "0.".to_string() + &"0".repeat(zeros) + "1";
@@ -913,9 +928,7 @@ mod tests {
         // Legacy backward-compat: a bare Decimal string from v1.0–v4.2 loads correctly.
         let legacy_json = r#""3.1415926536""#;
         let from_legacy: HpNum = serde_json::from_str(legacy_json).unwrap();
-        let expected = HpNum::from(
-            rust_decimal::Decimal::from_str("3.1415926536").unwrap(),
-        );
+        let expected = HpNum::from(rust_decimal::Decimal::from_str("3.1415926536").unwrap());
         assert_eq!(
             from_legacy, expected,
             "legacy bare Decimal string must deserialize correctly"
@@ -986,10 +999,18 @@ mod tests {
     fn test_hpnum_zero_normalize_no_panic() {
         // Pitfall 1: from_sci(Decimal::ZERO, anything) must return zero, never panic.
         let result = HpNum::from_sci(Decimal::ZERO, 50);
-        assert_eq!(result.unwrap(), HpNum::zero(), "zero mantissa must normalize to zero");
+        assert_eq!(
+            result.unwrap(),
+            HpNum::zero(),
+            "zero mantissa must normalize to zero"
+        );
 
         let result2 = HpNum::from_sci(Decimal::ZERO, -50);
-        assert_eq!(result2.unwrap(), HpNum::zero(), "zero mantissa with negative exp must also be zero");
+        assert_eq!(
+            result2.unwrap(),
+            HpNum::zero(),
+            "zero mantissa with negative exp must also be zero"
+        );
     }
 
     #[test]

@@ -600,7 +600,10 @@ mod tests {
         assert!(result > 0, "NOT(0) must yield a nonzero complement value");
         // The stored value should be close to ADV_WORD_MASK (within 10 sig digit rounding).
         let diff = result.abs_diff(ADV_WORD_MASK);
-        assert!(diff <= 100, "NOT(0) result {result} should be within 100 of ADV_WORD_MASK={ADV_WORD_MASK}");
+        assert!(
+            diff <= 100,
+            "NOT(0) result {result} should be within 100 of ADV_WORD_MASK={ADV_WORD_MASK}"
+        );
     }
 
     // Catches: NOT(0xAAA) produces the 10-sig-digit rounded complement.
@@ -637,14 +640,16 @@ mod tests {
         let intermediate = get_x_f64(&state);
         // Exact: 10-sig rounding of 68,719,476,693 → 68,719,476,690.
         assert_eq!(
-            intermediate,
-            68_719_476_690.0_f64,
+            intermediate, 68_719_476_690.0_f64,
             "NOT(42) intermediate should be 68,719,476,690 (10-sig rounded)"
         );
         op_adv_not(&mut state).unwrap();
         // NOT(68,719,476,690) = 68,719,476,735 - 68,719,476,690 = 45 (HP-41-faithful).
         let result = get_x_f64(&state);
-        assert_eq!(result, 45.0, "NOT(NOT(42)) = 45 under 10-sig precision (HP-41-faithful)");
+        assert_eq!(
+            result, 45.0,
+            "NOT(NOT(42)) = 45 under 10-sig precision (HP-41-faithful)"
+        );
     }
 
     // ── AND ───────────────────────────────────────────────────────────────────

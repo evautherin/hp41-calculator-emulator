@@ -625,7 +625,10 @@ mod tests {
         app.state.alpha_reg = "HP41".to_string();
         let s = super::get_display_string(&app);
         let expected = hp41_core::format_alpha(&app.state.alpha_reg);
-        assert_eq!(s, expected, "AON (flag 48 set): display must show alpha_reg");
+        assert_eq!(
+            s, expected,
+            "AON (flag 48 set): display must show alpha_reg"
+        );
     }
 
     /// DISP-03 (Phase 65): AOFF (flag 48 cleared) reverts CLI display to X register.
@@ -639,7 +642,10 @@ mod tests {
         app.state.alpha_reg = "HP41".to_string();
         let s = super::get_display_string(&app);
         let expected = hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
-        assert_eq!(s, expected, "AOFF (flag 48 cleared): display must show X register");
+        assert_eq!(
+            s, expected,
+            "AOFF (flag 48 cleared): display must show X register"
+        );
     }
 
     /// DISP-03 (Phase 65): display_override takes precedence over AON (D-06 / D-10).
