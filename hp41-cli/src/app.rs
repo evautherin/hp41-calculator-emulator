@@ -3092,8 +3092,9 @@ mod synthetic_modal_tests {
 
     #[test]
     fn test_getkey_end_to_end_keypress_to_x() {
-        // UAT-1: keyboard press → last_key_code → GETKEY in program via run_program → X
-        // Tests the execute_op path (Op::GetKey arm in program.rs), not just dispatch.
+        // Phase 64 (PRGM-03): GETKEY in a running program yields (WaitForKey) and
+        // resumes with the captured key code via resume_program_with_key.
+        // Tests the run_loop yield arm + op_getkey inline call in resume path.
         let mut app = make_app();
         // Press '5' — keycode_to_hp41_code maps it to 62 (row 6 × 10 + col 2)
         app.handle_key(press(KeyCode::Char('5')));
@@ -3102,17 +3103,27 @@ mod synthetic_modal_tests {
             "pressing '5' must record HP-41 code 62"
         );
 
-        // Load program [LBL A, GetKey] and run via run_program — exercises execute_op
+        // Load program [LBL A, GetKey] and run via run_program
+        // Phase 64: run_program breaks at GETKEY with WaitForKey yield
         app.state.program = vec![
             hp41_core::ops::Op::Lbl("A".to_string()),
             hp41_core::ops::Op::GetKey,
         ];
         hp41_core::run_program(&mut app.state, "A").unwrap();
 
+        // Verify the program is suspended on WaitForKey
+        assert!(
+            app.state.pending_yield.is_some(),
+            "GETKEY in program must yield WaitForKey (Phase 64)"
+        );
+
+        // Resume with keycode 62 (the key that was pressed) — mirrors CLI drain path
+        hp41_core::resume_program_with_key(&mut app.state, 62).unwrap();
+
         assert_eq!(
             app.state.stack.x,
             hp41_core::HpNum::from(62i32),
-            "GETKEY in program must push last_key_code (62) into X"
+            "GETKEY in program must push the resumed key code (62) into X"
         );
     }
 
