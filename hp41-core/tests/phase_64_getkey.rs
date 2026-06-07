@@ -373,3 +373,57 @@ fn getkey_captured_code_cleared_on_error() {
         "is_running must be reset even when resume_program_with_key returns Err"
     );
 }
+
+// ── CR-01 (Phase 64 code review): resume_with_key rejects spurious calls ──────
+//
+// resume_program_with_key must act ONLY when the program is suspended on a
+// WaitForKey yield. A call when not waiting (no yield, or an unrelated PSE/VIEW
+// yield) must return Err(InvalidOp) WITHOUT mutating the stack, the captured-code
+// field, or clobbering the unrelated pending yield. Guards against a GUI
+// double-tap race re-entering run_loop at the wrong pc (D-07 never-discard).
+#[test]
+fn resume_with_key_rejected_when_not_waiting_for_key() {
+    // Case A — no pending yield at all.
+    let mut state = CalcState::new();
+    state.stack.x = HpNum::rounded(Decimal::from(7));
+    let x_before = state.stack.x.clone();
+    assert!(state.pending_yield.is_none());
+
+    let r = resume_program_with_key(&mut state, 31);
+    assert!(r.is_err(), "resume with no pending yield must Err");
+    assert_eq!(state.stack.x, x_before, "stack X must be unchanged on reject");
+    assert!(
+        state.getkey_captured_code.is_none(),
+        "captured code must not be set on reject"
+    );
+
+    // Case B — suspended on a PSE yield (not WaitForKey): must NOT be consumed,
+    // and the live PSE yield must survive untouched.
+    let mut state = CalcState::new();
+    state.stack.x = HpNum::rounded(Decimal::from(7));
+    load_program(&mut state, vec![Op::Lbl("P".to_string()), Op::Pse, Op::Rtn]);
+    run_program(&mut state, "P").unwrap();
+    assert!(
+        matches!(
+            state.pending_yield.as_ref().map(|y| &y.kind),
+            Some(YieldKind::Pse)
+        ),
+        "program should be suspended on a PSE yield"
+    );
+    let x_before = state.stack.x.clone();
+
+    let r = resume_program_with_key(&mut state, 31);
+    assert!(r.is_err(), "resume_with_key on a PSE yield must Err");
+    assert!(
+        matches!(
+            state.pending_yield.as_ref().map(|y| &y.kind),
+            Some(YieldKind::Pse)
+        ),
+        "PSE yield must be preserved after a rejected resume_with_key"
+    );
+    assert_eq!(state.stack.x, x_before, "stack X must be unchanged on reject");
+    assert!(
+        state.getkey_captured_code.is_none(),
+        "captured code must not be set on reject"
+    );
+}

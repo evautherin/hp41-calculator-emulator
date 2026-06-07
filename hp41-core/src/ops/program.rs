@@ -512,6 +512,20 @@ pub fn resume_program(state: &mut CalcState) -> Result<(), HpError> {
 ///
 /// Phase 64 (v4.3, PRGM-03 / D-05).
 pub fn resume_program_with_key(state: &mut CalcState, keycode: u8) -> Result<(), HpError> {
+    // CR-01 (Phase 64 code review): refuse spurious resumes. Only a program actually
+    // suspended on a WaitForKey yield may be resumed with a key. Without this guard a
+    // racing/duplicate caller (e.g. a GUI double-tap before pending_yield clears) would
+    // clobber a live PSE/VIEW yield, push a bogus keycode to X, and re-enter run_loop at
+    // the wrong pc. Mirrors resume_program's defensive bounds check (D-07 never-discard).
+    if !matches!(
+        state.pending_yield,
+        Some(YieldState {
+            kind: YieldKind::WaitForKey,
+            ..
+        })
+    ) {
+        return Err(HpError::InvalidOp);
+    }
     // Note: pc may equal program.len() if GETKEY was the last op in the program —
     // that is valid; op_getkey must still run to push keycode to X.
     let program = state.program.clone();
