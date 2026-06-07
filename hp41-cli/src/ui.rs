@@ -129,7 +129,7 @@ fn render_display(app: &App, frame: &mut Frame, area: Rect) {
 }
 
 /// Get the string to show in the HP-41 display area.
-/// Priority: clock_active > stopwatch_keyboard_mode > entry_buf > prgm step > alpha > formatted X.
+/// Priority: clock_active > stopwatch_keyboard_mode > entry_buf > prgm step > display_override > alpha > formatted X.
 fn get_display_string(app: &App) -> String {
     let st = &app.state;
     // D-39.1: clock and stopwatch displays take priority over all other display modes.
@@ -151,6 +151,11 @@ fn get_display_string(app: &App) -> String {
     } else if st.prgm_mode {
         // D-14: PRGM mode shows step number + op name.
         prgm_display::format_step(st)
+    } else if let Some(ref s) = st.display_override {
+        // DISP-01 (Phase 65): VIEW/AVIEW/PROMPT writes a pre-formatted string here.
+        // CLI reads it at this priority slot, between prgm and alpha (D-06).
+        // Dismissal is core-governed (CLD / next overwrite / start of entry) — D-05.
+        s.clone()
     } else if st.alpha_mode {
         // ALPHA mode: show the ALPHA register (12-char max per format_alpha).
         format_alpha(&st.alpha_reg)
