@@ -422,6 +422,30 @@ pub fn resume_program(state: State<'_, AppState>) -> Result<CalcStateView, GuiEr
     Ok(CalcStateView::from_state(&calc, print_lines, event_lines))
 }
 
+/// Tauri command: resume a GETKEY-suspended program with the captured key code.
+///
+/// SC-4 thin-glue (Phase 64 D-05 / PRGM-03): ~5-line wrapper around
+/// `hp41_core::ops::program::resume_program_with_key`. Called by the TS driver
+/// when a key event fires during a WaitForKey yield (instead of dispatch_op).
+///
+/// `keycode` parameter: HP-41 hardware key code (row×10+col, 1-indexed).
+/// 0 = sentinel (cancel path via Esc/ON equivalent per D-02).
+///
+/// Parameter ordering: custom params first, State extractor last (Tauri v2 convention).
+/// Same SC-4 / Mutex pattern as resume_program — holds AppState for one run_loop segment.
+#[tauri::command]
+pub fn resume_program_with_key(
+    keycode: u8,
+    state: State<'_, AppState>,
+) -> Result<CalcStateView, GuiError> {
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    hp41_core::ops::program::resume_program_with_key(&mut calc, keycode)
+        .map_err(GuiError::from)?;
+    let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+    let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+    Ok(CalcStateView::from_state(&calc, print_lines, event_lines))
+}
+
 /// Tauri command: flip the cancellation flag for long-running Math Pac I ops.
 ///
 /// ## CRITICAL — no AppState lock (Pitfall 1 / deadlock avoidance)

@@ -261,6 +261,8 @@ pub fn run() {
             // Phase 63 — GUI continuous program run loop (run_program + resume_program)
             commands::run_program,
             commands::resume_program,
+            // Phase 64 — interactive GETKEY: event-driven resume with captured keycode
+            commands::resume_program_with_key,
         ])
         .on_window_event(|window, event| {
             #[cfg(target_os = "macos")]
