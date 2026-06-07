@@ -172,7 +172,7 @@ Plans:
 - [x] 64-02-PLAN.md — CLI: drain_pending_yields WaitForKey poll/redraw/resume loop (R/S=31, Esc=cancel→0, Ctrl+C=quit) + handle_key guard (app.rs)
 - [x] 64-03-PLAN.md — GUI-Rust: WaitForKey→"wait_for_key" projection + resume_program_with_key Tauri command + permission/capability/registration (PRGM-03-j)
 - [ ] 64-04-PLAN.md — GUI-TS: yield-driver wait_for_key skip + key-event resume guard (on-screen+physical) + cancel→0 + Group Q tests (PRGM-03-k/l)
-- [ ] 64-05-PLAN.md — Docs: flip FGAP-04/SYNT-06 to implemented v4.3 + record D-02 84→31 R/S correction (hp41cv-divergences.md)
+- [x] 64-05-PLAN.md — Docs: flip FGAP-04/SYNT-06 to implemented v4.3 + record D-02 84→31 R/S correction (hp41cv-divergences.md)
 
 ### Phase 65: Standalone Fidelity Fixes
 **Goal**: Four independent hardware-fidelity gaps are closed: the CLI renders VIEW/AVIEW/PROMPT values on the display, CHS correctly flips the sign of the entry buffer in place, AON causes the ALPHA register to auto-display after every operation, and FACT(X) returns correct scientific-notation results for X in 27..=69.
@@ -220,7 +220,7 @@ Plans:
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
-| 64. Interactive GETKEY | v4.3 | 3/5 | In Progress|  |
+| 64. Interactive GETKEY | v4.3 | 4/5 | In Progress|  |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
 

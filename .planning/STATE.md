@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-07T08:35:54.286Z"
+last_updated: "2026-06-07T08:40:37.835Z"
 last_activity: 2026-06-07
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 40
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 64 (interactive-getkey) — EXECUTING
-Plan: 4 of 5 (Plans 01-03 complete)
-Status: Executing Phase 64
-Last activity: 2026-06-07 -- Plan 03 complete: GUI Tauri WaitForKey projection + resume_program_with_key command + permissions (280dc73)
+Plan: 5 of 5 (Plans 01-03, 05 complete; 64-04 GUI TS pending)
+Status: Ready to execute next phase
+Last activity: 2026-06-07
 
 ## Progress Bar
 
@@ -83,8 +83,14 @@ Overall  ██░░░░░░░░  25%
 | Phase 64 P01 | 35 | 4 tasks | 7 files |
 | Phase 64 P02 | 20 | 2 tasks | 1 file |
 | Phase 64 P03 | 6 | 3 tasks | 5 files |
+| Phase 64 P05 | 8 | 1 task | 1 file |
 
 ## Accumulated Context
+
+### Decisions (Phase 64-05 — 2026-06-07)
+
+- **64-05-D01:** D-CV-05 placed in `docs/hp41cv-divergences.md` — GETKEY is a HP-41CX OS built-in (not a module pac); CV doc is the correct home (same as X-MEM placement; PATTERNS.md confirms).
+- **64-05-D02:** R/S keycode is 31 (row 3 col 1); CONTEXT.md D-02 value of "84" was a documentation error. 84 is the ENTER key's position (row 8, col 4). Corrected per Phase 64 research Pitfall 4 and orchestrator decision.
 
 ### Decisions (Phase 64-03 — 2026-06-07)
 
