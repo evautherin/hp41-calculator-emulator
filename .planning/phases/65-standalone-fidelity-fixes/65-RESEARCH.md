@@ -58,7 +58,7 @@ The core finding of this research is the **representation recommendation for MAT
 
 The three display fixes are straightforward: DISP-01 inserts one branch into `get_display_string` in `ui.rs`; DISP-02 mirrors the existing EEX-CHS toggle (app.rs:848-860) for the mantissa case; DISP-03 inserts a flag-48 read into both `get_display_string` (CLI) and the `CalcStateView::from_state` display_str chain (Rust/GUI side).
 
-**Primary recommendation:** Implement HpNum as `struct HpNum { mantissa: Decimal, exponent: i8 }` (normalized), replacing the bare `HpNum(Decimal)` tuple struct. Name the ADR `v4.3-003-hpnum-range-extension.md`.
+**Primary recommendation:** Implement HpNum as `struct HpNum { mantissa: Decimal, exponent: i8 }` (normalized), replacing the bare `HpNum(Decimal)` tuple struct. Name the ADR `v4.3-005-hpnum-range-extension.md`.
 
 ---
 
@@ -185,13 +185,13 @@ impl<'de> Deserialize<'de> for HpNum {
 
 ### ADR Decision and Wording
 
-**Filename:** `docs/adr/v4.3-003-hpnum-range-extension.md`
+**Filename:** `docs/adr/v4.3-005-hpnum-range-extension.md` *(next free number — v4.3-003 = alarm-prefix, v4.3-004 = interrupt-alarm-pending-field already exist)*
 
 **Decision:** Replace `HpNum(Decimal)` with `HpNum { mantissa: Decimal, exponent: i8 }` (normalized, mantissa in `[1, 10)` for nonzero values, 10 sig digits via `HpNum::rounded_mantissa()`). This preserves full decimal fidelity across the entire HP-41 range ±9.999999999E±99.
 
 **Frozen Invariant amendment wording for CLAUDE.md** (replaces the current "BCD/f64:" bullet):
 
-> **BCD/f64:** `rust_decimal` 1.42 with 10-significant-digit rounding. `HpNum` in `hp41-core/src/num.rs` stores a normalized `(mantissa: Decimal, exponent: i8)` pair covering the full HP-41 range ±9.999999999E±99 (ADR v4.3-003). Custom BCD was evaluated and rejected (v3.0). f64 is used only as an intermediate for transcendental computations (asin/acos/atan/factorial accumulator) — never as a stored representation. The 10-sig-digit decimal invariant holds for all representable values.
+> **BCD/f64:** `rust_decimal` 1.42 with 10-significant-digit rounding. `HpNum` in `hp41-core/src/num.rs` stores a normalized `(mantissa: Decimal, exponent: i8)` pair covering the full HP-41 range ±9.999999999E±99 (ADR v4.3-005). Custom BCD was evaluated and rejected (v3.0). f64 is used only as an intermediate for transcendental computations (asin/acos/atan/factorial accumulator) — never as a stored representation. The 10-sig-digit decimal invariant holds for all representable values.
 
 ---
 
@@ -434,7 +434,7 @@ hp41-gui/src-tauri/src/
 ├── types.rs            # from_state display_str chain (DISP-03)
 hp41-core/src/state.rs  # stale comment removal (D-11)
 docs/adr/
-└── v4.3-003-hpnum-range-extension.md  # MATH-01 ADR
+└── v4.3-005-hpnum-range-extension.md  # MATH-01 ADR
 ```
 
 ---
@@ -531,17 +531,17 @@ This phase is purely code/config changes within the existing Rust workspace and 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **format_hpnum location and duplication**
    - What we know: `format_alpha` is imported from `hp41_core` in `ui.rs` (line 20). The CLI stack panel calls `format_hpnum` from `hp41_core` as well.
    - What's unclear: Does `format_hpnum` need updating to handle the new `HpNum` struct with separate exponent, or does `HpNum::Display` handle it?
-   - Recommendation: Planner should read `hp41-core/src/format.rs` (or wherever `format_hpnum` is defined) to confirm the call signature before writing the MATH-01 plan. If `format_hpnum` takes `&HpNum` and calls `self.inner()`, it must be updated to handle the new struct.
+   - **RESOLVED:** `format_hpnum` lives in `hp41-core/src/format.rs` (lines 18-25), takes `&HpNum`, and calls `n.inner()` (confirmed by PATTERNS.md and Plan 01 `<interfaces>`). After the struct change `inner()` returns the mantissa only, so `format_hpnum` MUST be updated. Plan 01 Task 1 owns this update (reconstruct `mantissa × 10^exponent` for small |exponent|, route large-exponent values to `format_sci`); `format_hpnum` is in Plan 01 `files_modified`.
 
 2. **Exact key binding for CHS in app.rs**
    - What we know: EEX is triggered by `'e'` character. CHS maps to `Op::Chs` somewhere in the dispatch chain.
    - What's unclear: The exact `KeyCode` and whether there's a dedicated CHS path or it goes through the generic `key_to_op` resolver.
-   - Recommendation: Planner reads `hp41-cli/src/keys.rs` for the CHS binding before writing DISP-02 task.
+   - **RESOLVED:** The EEX-CHS in-buffer block at `app.rs` ~848-864 is keyed on `c == 'n'` (the CHS character), mirroring the EEX `c == 'e'` guard. Plan 03 Task 1 `read_first` directs the executor to confirm the exact binding in `hp41-cli/src/keys.rs` / `key_to_op` before writing the mantissa-toggle condition, and mirrors the existing `c == 'n'` shape. Resolved at plan time; the executor verifies against `keys.rs`.
 
 ---
 
