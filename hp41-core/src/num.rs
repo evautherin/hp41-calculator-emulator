@@ -239,17 +239,29 @@ impl HpNum {
 
     /// Construct a large-exponent `HpNum` from a scientific-notation decomposition.
     ///
-    /// `mantissa` should be in [1, 10) for nonzero values.
+    /// `mantissa` should be in [1, 10) for nonzero values, but a denormalized
+    /// mantissa (`|m| < 1` or `|m| >= 10`) is renormalized into [1, 10) with a
+    /// compensating exponent adjustment (borrow-down / carry-up).
+    ///
+    /// **The `exponent` is taken as `i32` and range-checked BEFORE narrowing to
+    /// `i8` (CR-01).** Callers (`checked_mul` / `checked_div`) compute the result
+    /// exponent as a sum/difference that can reach ±198, which does NOT fit in
+    /// `i8` (−128..=127). Narrowing with `as i8` before the range check silently
+    /// wrapped (`198 as i8 == -58`) and returned a wildly wrong in-range value
+    /// instead of `Err(HpError::Overflow)`. Centralizing the range check here
+    /// protects every call site.
+    ///
     /// This is for large values (above the Decimal ceiling ~7.92E28) only.
     ///
     /// - mantissa.is_zero() → `HpNum::zero()` (Pitfall 1: guard before round_sf).
     /// - Rounds mantissa to 10 significant digits.
     /// - exponent > 99  → `Err(HpError::Overflow)`.
     /// - exponent < -99 → `Ok(HpNum::zero())` (underflow to zero — hardware-faithful).
-    pub(crate) fn from_sci(mantissa: Decimal, exponent: i8) -> Result<HpNum, HpError> {
+    pub(crate) fn from_sci(mantissa: Decimal, exponent: i32) -> Result<HpNum, HpError> {
         if mantissa.is_zero() {
             return Ok(HpNum::zero());
         }
+        // Range-check the FULL i32 exponent BEFORE any `as i8` narrowing (CR-01).
         if exponent > 99 {
             return Err(HpError::Overflow);
         }
@@ -257,8 +269,37 @@ impl HpNum {
             return Ok(HpNum::zero()); // underflow
         }
 
+        // Renormalize a denormalized mantissa into [1, 10) (WR-03 borrow-down /
+        // carry-up). A mantissa derived from an f64 power-of-ten boundary can land
+        // just below 1.0 (e.g. 0.9999999999) or at/above 10.0; fold the excess
+        // into the exponent so the stored value is always normalized.
+        let mut work_mantissa = mantissa;
+        let mut work_exp = exponent;
+        let ten = Decimal::from(10);
+        let one = Decimal::ONE;
+        // Borrow down while |m| < 1.
+        while work_mantissa.abs() < one {
+            work_mantissa = work_mantissa
+                .checked_mul(ten)
+                .ok_or(HpError::Overflow)?;
+            work_exp -= 1;
+            if work_exp < -99 {
+                return Ok(HpNum::zero()); // underflow
+            }
+        }
+        // Carry up while |m| >= 10.
+        while work_mantissa.abs() >= ten {
+            work_mantissa = work_mantissa
+                .checked_div(ten)
+                .ok_or(HpError::Overflow)?;
+            work_exp += 1;
+            if work_exp > 99 {
+                return Err(HpError::Overflow);
+            }
+        }
+
         // Round to 10 significant digits.
-        let rounded = mantissa
+        let rounded = work_mantissa
             .round_sf_with_strategy(10, RoundingStrategy::MidpointAwayFromZero)
             .expect("round_sf_with_strategy(10) must succeed for valid finite Decimal");
 
@@ -268,24 +309,29 @@ impl HpNum {
 
         // Handle carry: if rounding pushed mantissa to 10.0 or higher, increment exponent.
         let abs_rounded = rounded.abs();
-        if abs_rounded >= Decimal::from(10) {
-            let new_exp = (exponent as i32) + 1;
+        if abs_rounded >= ten {
+            let new_exp = work_exp + 1;
             if new_exp > 99 {
                 return Err(HpError::Overflow);
             }
             let carried = rounded
-                .checked_div(Decimal::from(10))
+                .checked_div(ten)
                 .expect("division by 10 cannot fail");
             let carried_final = carried
                 .round_sf_with_strategy(10, RoundingStrategy::MidpointAwayFromZero)
                 .expect("round_sf(10) after carry must succeed");
             return Ok(HpNum {
                 mantissa: carried_final,
+                // Safe: new_exp is range-checked to -99..=99 above.
                 exponent: new_exp as i8,
             });
         }
 
-        Ok(HpNum { mantissa: rounded, exponent })
+        Ok(HpNum {
+            mantissa: rounded,
+            // Safe: work_exp is range-checked to -99..=99 above.
+            exponent: work_exp as i8,
+        })
     }
 
     /// Construct an `HpNum` from an `f64` value (factorial / transcendental bridge).
@@ -320,7 +366,9 @@ impl HpNum {
         let exp = exp_f as i32;
         let mantissa_f = acc / 10f64.powi(exp);
         let mantissa = Decimal::from_f64(mantissa_f)?;
-        HpNum::from_sci(mantissa, exp as i8).ok()
+        // Pass the i32 exponent directly (CR-01) and let from_sci renormalize a
+        // mantissa that landed below 1.0 or at/above 10.0 (WR-03 borrow-down).
+        HpNum::from_sci(mantissa, exp).ok()
     }
 
     pub fn zero() -> Self {
@@ -379,11 +427,11 @@ impl HpNum {
         // hardware-faithful underflow (sum ≈ the larger operand).
         if exp_diff >= 10 {
             let (lm, le) = if e_l >= e_r { (m_l, e_l) } else { (m_r, e_r) };
-            return HpNum::from_sci(lm, le as i8);
+            return HpNum::from_sci(lm, le);
         }
         if exp_diff <= -10 {
             let (lm, le) = if e_r >= e_l { (m_r, e_r) } else { (m_l, e_l) };
-            return HpNum::from_sci(lm, le as i8);
+            return HpNum::from_sci(lm, le);
         }
 
         // Align to the same exponent for addition.
@@ -401,7 +449,7 @@ impl HpNum {
         };
 
         let sum = aligned_l.checked_add(aligned_r).ok_or(HpError::Overflow)?;
-        HpNum::from_sci(sum, base_exp as i8)
+        HpNum::from_sci(sum, base_exp)
     }
 
     /// Convert self to (mantissa, exponent) in proper [1,10) scientific form.
@@ -443,8 +491,11 @@ impl HpNum {
         let (m_r, e_r) = rhs.to_sci();
         // Mantissas in [1, 10): product in [1, 100) — always Decimal-representable.
         let product = m_l.checked_mul(m_r).ok_or(HpError::Overflow)?;
+        // new_exp can range to ±198 — pass the i32 directly so from_sci range-checks
+        // it BEFORE narrowing to i8 (CR-01). Previously `new_exp as i8` wrapped
+        // (e.g. 198 → -58), silently returning a wrong in-range value.
         let new_exp = e_l + e_r;
-        HpNum::from_sci(product, new_exp as i8)
+        HpNum::from_sci(product, new_exp)
     }
 
     pub fn checked_div(&self, rhs: &HpNum) -> Result<HpNum, HpError> {
@@ -464,8 +515,11 @@ impl HpNum {
         let (m_l, e_l) = self.to_sci();
         let (m_r, e_r) = rhs.to_sci();
         let quotient = m_l.checked_div(m_r).ok_or(HpError::Overflow)?;
+        // new_exp can range to ±198 — pass the i32 directly so from_sci range-checks
+        // it BEFORE narrowing to i8 (CR-01). Previously `new_exp as i8` wrapped
+        // (e.g. 99 - (-99) = 198 → -58), silently returning a wrong in-range value.
         let new_exp = e_l - e_r;
-        HpNum::from_sci(quotient, new_exp as i8)
+        HpNum::from_sci(quotient, new_exp)
     }
 
     // ── Scalar math methods ───────────────────────────────────────────────────
@@ -861,7 +915,7 @@ mod tests {
     #[test]
     fn test_hpnum_underflow_to_zero() {
         // Underflow: exponent < -99 should produce zero.
-        let result = HpNum::from_sci(Decimal::from_str("1.0").unwrap(), -100i8);
+        let result = HpNum::from_sci(Decimal::from_str("1.0").unwrap(), -100i32);
         assert_eq!(
             result.unwrap(),
             HpNum::zero(),
