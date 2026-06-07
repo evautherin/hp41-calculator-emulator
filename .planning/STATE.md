@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-07T09:00:00.000Z"
-last_activity: 2026-06-07 -- Phase 64 Plan 02 complete (CLI GETKEY WaitForKey wiring)
+last_updated: "2026-06-07T08:35:54.286Z"
+last_activity: 2026-06-07
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 8
+  completed_plans: 10
   percent: 40
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 64 (interactive-getkey) — EXECUTING
-Plan: 3 of 5 (Plans 01-02 complete)
+Plan: 4 of 5 (Plans 01-03 complete)
 Status: Executing Phase 64
-Last activity: 2026-06-07 -- Plan 02 complete: CLI WaitForKey drain + handle_key guard + 3 tests (d19f326)
+Last activity: 2026-06-07 -- Plan 03 complete: GUI Tauri WaitForKey projection + resume_program_with_key command + permissions (280dc73)
 
 ## Progress Bar
 
@@ -82,8 +82,15 @@ Overall  ██░░░░░░░░  25%
 | Phase 63 P06 | 25 | 2 tasks | 2 files |
 | Phase 64 P01 | 35 | 4 tasks | 7 files |
 | Phase 64 P02 | 20 | 2 tasks | 1 file |
+| Phase 64 P03 | 6 | 3 tasks | 5 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 64-03 — 2026-06-07)
+
+- **64-03-D01:** Permission TOML filename must be `<kebab-case>.toml` without `allow-` prefix — `check-tauri-permissions.sh` CI gate maps command `snake_case` → `kebab-case` filename; all existing permission files follow this naming (e.g. `resume-program.toml`, not `allow-resume-program.toml`).
+- **64-03-D02:** Tauri v2 param ordering — `keycode: u8` (custom param) first, `State<'_, AppState>` last; required by Tauri v2 command macro; mirrors all other commands with custom params.
+- **64-03-D03:** SC-4 invariant maintained — `resume_program_with_key` is exactly 5 lines: lock → core function call → drain print_buffer → drain event_buffer → `from_state`. No calculator logic in the GUI crate.
 
 ### Decisions (Phase 64-02 — 2026-06-07)
 
