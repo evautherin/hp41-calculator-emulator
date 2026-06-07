@@ -23,7 +23,12 @@ fn fact27_large_exp_fits_exactly_12_cells() {
     // 27! = 1.088886945E28 — the value the UAT screenshot showed truncated.
     let n = HpNum::from_f64(1.088_886_945e28).expect("FACT(27) magnitude is representable");
     let s = format_hpnum_lcd(&n, &DisplayMode::Fix(4));
-    assert_eq!(cell_count(&s), 12, "expected 12 cells, got [{s}] ({} cells)", cell_count(&s));
+    assert_eq!(
+        cell_count(&s),
+        12,
+        "expected 12 cells, got [{s}] ({} cells)",
+        cell_count(&s)
+    );
     assert_eq!(s, "1.08888694528");
 }
 
@@ -32,7 +37,12 @@ fn fact69_large_exp_fits_exactly_12_cells() {
     // 69! = 1.711224524E98 — matches the HP-41 Owner's Manual factorial table.
     let n = HpNum::from_f64(1.711_224_524e98).expect("FACT(69) magnitude is representable");
     let s = format_hpnum_lcd(&n, &DisplayMode::Fix(4));
-    assert_eq!(cell_count(&s), 12, "expected 12 cells, got [{s}] ({} cells)", cell_count(&s));
+    assert_eq!(
+        cell_count(&s),
+        12,
+        "expected 12 cells, got [{s}] ({} cells)",
+        cell_count(&s)
+    );
     assert_eq!(s, "1.71122452498");
 }
 
@@ -48,7 +58,10 @@ fn large_exp_output_has_no_e_character() {
 fn large_exp_exponent_is_right_justified() {
     let n = HpNum::from_f64(1.088_886_945e28).expect("representable");
     let s = format_hpnum_lcd(&n, &DisplayMode::Fix(4));
-    assert!(s.ends_with("28"), "exponent right-justified at the end: [{s}]");
+    assert!(
+        s.ends_with("28"),
+        "exponent right-justified at the end: [{s}]"
+    );
 }
 
 #[test]
@@ -58,7 +71,12 @@ fn negative_exponent_reserves_sign_cell_and_fits_12() {
     // to make room for the sign).
     let n = HpNum::from_f64(1.23e-5).expect("representable");
     let s = format_hpnum_lcd(&n, &DisplayMode::Sci(9));
-    assert_eq!(cell_count(&s), 12, "expected 12 cells, got [{s}] ({} cells)", cell_count(&s));
+    assert_eq!(
+        cell_count(&s),
+        12,
+        "expected 12 cells, got [{s}] ({} cells)",
+        cell_count(&s)
+    );
     assert!(!s.contains('E'), "no 'E': [{s}]");
     assert!(s.ends_with("-05"), "signed exponent right-justified: [{s}]");
 }
