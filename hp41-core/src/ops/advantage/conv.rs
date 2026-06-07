@@ -599,7 +599,7 @@ mod tests {
         let result = get_x_u64(&state);
         assert!(result > 0, "NOT(0) must yield a nonzero complement value");
         // The stored value should be close to ADV_WORD_MASK (within 10 sig digit rounding).
-        let diff = if result > ADV_WORD_MASK { result - ADV_WORD_MASK } else { ADV_WORD_MASK - result };
+        let diff = result.abs_diff(ADV_WORD_MASK);
         assert!(diff <= 100, "NOT(0) result {result} should be within 100 of ADV_WORD_MASK={ADV_WORD_MASK}");
     }
 
@@ -760,7 +760,7 @@ mod tests {
         let result = get_x_u64(&state);
         // After 10-sig rounding, result may differ from exact by at most the rounding error.
         // Accept any result within 100 of the exact bit-shifted value.
-        let diff = if result > exact { result - exact } else { exact - result };
+        let diff = result.abs_diff(exact);
         assert!(
             diff <= 100,
             "rotate right 1: expected ~{exact} (2^35), got {result}, diff={diff}"

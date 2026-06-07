@@ -117,7 +117,7 @@ pub fn round_to_display_precision(n: &HpNum, mode: &DisplayMode) -> HpNum {
         } else {
             (m_rounded, base_exp)
         };
-        return HpNum::from_sci(final_m, final_exp).unwrap_or(HpNum::zero());
+        return HpNum::from_sci(final_m, final_exp).unwrap_or_else(|_| HpNum::zero());
     }
 
     let d = n.inner();

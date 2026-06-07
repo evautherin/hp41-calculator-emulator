@@ -375,7 +375,7 @@ impl HpNum {
         // Large value (above ~7.92E28): use scientific notation decomposition.
         let abs_acc = acc.abs();
         let exp_f = abs_acc.log10().floor();
-        if exp_f > 99.0 || exp_f < -99.0 {
+        if !(-99.0..=99.0).contains(&exp_f) {
             return None;
         }
         let exp = exp_f as i32;

@@ -575,7 +575,7 @@ fn render_right_panel(_app: &App, frame: &mut Frame, area: Rect) {
 
 #[cfg(test)]
 mod tests {
-    #[allow(clippy::unwrap_used)]
+    #![allow(clippy::unwrap_used)]
     use hp41_core::CalcState;
     use std::path::PathBuf;
 
