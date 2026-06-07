@@ -31,7 +31,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Calculation Fidelity
 
-- [ ] **MATH-01**: FACT(X) for X in 27..=69 returns the correct factorial value in scientific notation (clipped to 10 significant digits) instead of an Overflow error. *(FGAP-03; `hp41-core/src/ops/math.rs` — outside the frozen `math1/`)*
+- [x] **MATH-01**: FACT(X) for X in 27..=69 returns the correct factorial value in scientific notation (clipped to 10 significant digits) instead of an Overflow error. *(FGAP-03; `hp41-core/src/ops/math.rs` — outside the frozen `math1/`)*
 
 ### Verification (fix-if-confirmed)
 
@@ -79,7 +79,7 @@ Which phases cover which requirements.
 | DISP-01 | Phase 65 | Complete |
 | DISP-02 | Phase 65 | Complete |
 | DISP-03 | Phase 65 | Complete |
-| MATH-01 | Phase 65 | Pending |
+| MATH-01 | Phase 65 | Complete |
 | VERIFY-01 | Phase 66 | Pending |
 
 **Coverage:**
