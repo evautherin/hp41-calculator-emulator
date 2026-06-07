@@ -451,18 +451,18 @@ pub fn op_sign(state: &mut CalcState) -> Result<(), HpError> {
 /// 3. Integer check (D-07): non-integer X → `Domain`.
 /// 4. Sign check (D-07): negative X → `Domain`.
 /// 5. Iterative f64 product (D-04); convert via
-///    `Decimal::from_f64(...).map(HpNum::rounded).ok_or(HpError::Overflow)`
-///    — practical magnitude wall is `X ≤ 26` (Phase 27 proptest calibration);
-///    `27..=69` returns `Overflow` from the conversion side.
+///    `HpNum::from_f64(acc).ok_or(HpError::Overflow)` — post-compute wall
+///    extended to `X ≤ 68` (FACT(69) ≈ 1.711E98, within the ±9.999E±99 range).
+///    ADR v4.3-005 extends `HpNum` to cover this range; the pre-compute OutOfRange
+///    guard (`X > 69`) remains unchanged (D-06, SC-3).
 ///
 /// LiftEffect: Enable (via `unary_result`).
 pub fn op_fact(state: &mut CalcState) -> Result<(), HpError> {
     let v = state
         .stack
         .x
-        .inner()
         .to_f64()
-        .expect("HpNum is always within f64 range");
+        .expect("HpNum for fact input is always within f64 range (X ≤ 69)");
     // Step 2: hardware-spec OutOfRange pre-flight (D-06, SC-3).
     if v > 69.0 {
         return Err(HpError::OutOfRange);
@@ -482,9 +482,9 @@ pub fn op_fact(state: &mut CalcState) -> Result<(), HpError> {
     for k in 1..=n {
         acc *= k as f64;
     }
-    let result = Decimal::from_f64(acc)
-        .map(HpNum::rounded)
-        .ok_or(HpError::Overflow)?;
+    // ADR v4.3-005: HpNum::from_f64 covers the full ±9.999E±99 range, so FACT(27..=69)
+    // no longer overflows here. The pre-compute OutOfRange guard (v > 69.0) is unchanged.
+    let result = HpNum::from_f64(acc).ok_or(HpError::Overflow)?;
     unary_result(state, result);
     Ok(())
 }

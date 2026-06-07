@@ -15,13 +15,56 @@ use crate::state::DisplayMode;
 
 /// Format an HpNum according to the current display mode.
 /// Returns the HP-41-style display string.
+///
+/// For large-exponent values (HpNum::exponent != 0, above ~7.92E28):
+/// all three display modes fall through to SCI 9 since such values always exceed
+/// the FIX/ENG overflow threshold. We call `format_sci_large` directly with the
+/// stored mantissa and exponent, bypassing the Decimal-only path in `format_sci`.
 pub fn format_hpnum(n: &HpNum, mode: &DisplayMode) -> String {
+    if n.exponent != 0 {
+        // Large-exponent value: mantissa is in [1, 10), stored exponent is the
+        // base-10 exponent. All three display modes overflow to SCI 9 for such values
+        // (the value far exceeds 10^10, the FIX/ENG overflow threshold).
+        let digits = match mode {
+            DisplayMode::Fix(_) => 9_usize, // FIX always overflows to SCI 9
+            DisplayMode::Sci(d) => *d as usize,
+            DisplayMode::Eng(d) => *d as usize, // ENG similarly overflows
+        };
+        return format_sci_large(n.inner(), n.exponent as i32, digits);
+    }
     let d = n.inner();
     match mode {
         DisplayMode::Fix(digits) => format_fix(d, *digits as usize),
         DisplayMode::Sci(digits) => format_sci(d, *digits as usize),
         DisplayMode::Eng(digits) => format_eng(d, *digits as usize),
     }
+}
+
+/// Format a large-exponent value (mantissa in [1,10), explicit base-10 exponent)
+/// in SCI notation to `digits` decimal places.
+///
+/// Used by `format_hpnum` when `HpNum::exponent != 0`. The mantissa and exponent
+/// are already in normalized SCI form; this just rounds the mantissa to `digits`
+/// decimal places (with carry), then assembles the HP-41 display string.
+fn format_sci_large(mantissa: Decimal, base_exp: i32, digits: usize) -> String {
+    let is_negative = mantissa.is_sign_negative();
+    let abs_mantissa = mantissa.abs();
+
+    // Round mantissa to `digits` decimal places.
+    let mut m_rounded =
+        abs_mantissa.round_dp_with_strategy(digits as u32, RoundingStrategy::MidpointAwayFromZero);
+
+    // Carry: 9.9995 rounded to 1 decimal place → 10.0 → re-normalize.
+    let mut exp = base_exp;
+    if m_rounded >= Decimal::from(10) {
+        m_rounded /= Decimal::from(10);
+        exp += 1;
+    }
+
+    let mantissa_str = format!("{m_rounded:.digits$}");
+    let mantissa_with_point = ensure_decimal_point(mantissa_str);
+    let sign = if is_negative { "-" } else { "" };
+    assemble_sci(&format!("{sign}{mantissa_with_point}"), exp)
 }
 
 /// Round an `HpNum` to the precision of the current `DisplayMode` (D-01/D-02/D-03).
@@ -49,6 +92,34 @@ pub fn round_to_display_precision(n: &HpNum, mode: &DisplayMode) -> HpNum {
     if n.is_zero() {
         return HpNum::zero();
     }
+
+    // Large-exponent path: value exceeds Decimal range (~7.92E28).
+    // Mantissa is already in [1,10); round it to display precision and reassemble.
+    if n.exponent != 0 {
+        let digits = match mode {
+            DisplayMode::Fix(_) => 9_usize, // FIX overflows → SCI 9 precision
+            DisplayMode::Sci(d) => *d as usize,
+            DisplayMode::Eng(d) => *d as usize,
+        };
+        let m = n.inner(); // mantissa ∈ [1, 10)
+        let m_rounded = m
+            .round_sf_with_strategy((digits as u32) + 1, RoundingStrategy::MidpointAwayFromZero)
+            .expect("round_sf_with_strategy(<= 10) cannot fail for valid mantissa");
+        // Carry check: rounding could push mantissa to 10.
+        let base_exp = n.exponent as i32;
+        let (final_m, final_exp) = if m_rounded.abs() >= Decimal::from(10) {
+            (
+                m_rounded
+                    .checked_div(Decimal::from(10))
+                    .expect("division by 10 cannot fail"),
+                base_exp + 1,
+            )
+        } else {
+            (m_rounded, base_exp)
+        };
+        return HpNum::from_sci(final_m, final_exp as i8).unwrap_or(HpNum::zero());
+    }
+
     let d = n.inner();
     let rounded = match mode {
         DisplayMode::Fix(digits) => {

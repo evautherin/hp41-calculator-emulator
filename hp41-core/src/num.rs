@@ -303,6 +303,15 @@ impl HpNum {
         if !acc.is_finite() {
             return None;
         }
+
+        // Fast path: if the value fits in Decimal range (~7.92E28), use from_decimal.
+        // This preserves exponent == 0 for in-range values and backward compatibility
+        // with inner() returning the full value.
+        if let Some(d) = Decimal::from_f64(acc) {
+            return Some(HpNum::from_decimal(d));
+        }
+
+        // Large value (above ~7.92E28): use scientific notation decomposition.
         let abs_acc = acc.abs();
         let exp_f = abs_acc.log10().floor();
         if exp_f > 99.0 || exp_f < -99.0 {
