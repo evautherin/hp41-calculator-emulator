@@ -71,6 +71,7 @@ impl YieldView {
             YieldKind::Pse => "pse",
             YieldKind::View => "view",
             YieldKind::Aview => "aview",
+            YieldKind::WaitForKey => "wait_for_key", // Phase 64 — event-driven key capture
         }
         .to_string();
         YieldView {
@@ -549,5 +550,23 @@ mod tests {
             "empty program must produce program_steps = [\"000 END\"]"
         );
         assert_eq!(view.pc, 0, "fresh CalcState pc must be 0");
+    }
+
+    /// Phase 64 PRGM-03-j: WaitForKey yield must project as kind "wait_for_key"
+    /// with empty text (D-03: no display override during GETKEY suspend) and
+    /// resume_ms == 0 (event-driven — no timer fires for this kind).
+    #[test]
+    fn from_state_projects_wait_for_key() {
+        let mut calc = CalcState::new();
+        calc.pending_yield = Some(YieldState {
+            kind: YieldKind::WaitForKey,
+            text: String::new(),
+            resume_ms: 0,
+        });
+        let view = CalcStateView::from_state(&calc, vec![], vec![]);
+        let py = view.pending_yield.expect("pending_yield must be Some");
+        assert_eq!(py.kind, "wait_for_key", "WaitForKey must project as 'wait_for_key'");
+        assert_eq!(py.resume_ms, 0, "WaitForKey resume_ms must be 0 (event-driven, no timer)");
+        assert_eq!(py.text, "", "WaitForKey text must be empty (D-03: no display override)");
     }
 }
