@@ -265,16 +265,9 @@ pub fn op_adv_mrij(state: &mut CalcState) -> Result<(), HpError> {
 
 /// ADV MSIJ — matrix store with explicit I/J from stack.
 ///
-/// T = value to store, Z unused, Y = row (1-based), X = col (1-based).
-/// Wait — per OM convention: Y=row, X=col, value already in Z or via separate MS.
-/// Implementation: pops Y+X, writes X (before pop) to position (Y-1, X-1).
-/// Actually per typical HP-41 pattern: X=value is in T before Y and X are row/col.
-/// For simplicity and per plan semantics: Y=row, X=col, and value comes from state
-/// (not stack) — MS stores the *current* X to matrix. MSIJ = MS with explicit I,J.
-/// That means: Y=row (1-based), X=col (1-based). Z = value to write.
-///
-/// HP-41 Advantage OM: MSIJ stores the value in Z at element (Y, X) where Y and X
-/// are 1-based row/col indices, then drops two stack elements.
+/// Stack contract (settled): Z = value to store, Y = row (1-based),
+/// X = col (1-based). Stores Z at element (Y-1, X-1), then drops Y+X (the two
+/// index operands are consumed).
 ///
 /// LiftEffect::Neutral (store operation).
 ///
@@ -620,6 +613,13 @@ pub fn op_adv_piv(state: &mut CalcState) -> Result<(), HpError> {
 ///
 /// Format: "RkCl= value" for each element. LiftEffect::Neutral.
 ///
+/// **Scope (IN-02):** element formatting uses the `Display` impl directly, which
+/// for a large-exponent value (`exponent != 0`, > ~7.92E28) emits the internal
+/// `1.711e98` form rather than the HP-41 SCI display form. Matrix elements are
+/// assumed to be Decimal-range (exponent-0) values in this milestone — the
+/// MATH-01 range extension (ADR v4.3-005) covers FACT/scalar arithmetic only,
+/// not Advantage matrix storage. Not changed here (out of Phase 65 scope).
+///
 /// # Errors
 /// Returns `HpError::InvalidOp` if no matrix is active.
 pub fn op_adv_mp(state: &mut CalcState) -> Result<(), HpError> {
@@ -640,6 +640,21 @@ pub fn op_adv_mp(state: &mut CalcState) -> Result<(), HpError> {
 }
 
 // ── Reduction and norm operations ─────────────────────────────────────────────
+//
+// SCOPE NOTE (WR-05 / IN-01 — documented, NOT changed in Phase 65):
+//   The MAX / MIN / MAXAB / RMAXAB / RNRM reductions and the FNRM Frobenius norm
+//   compare and store matrix elements via `.inner()` (the mantissa Decimal) and,
+//   for FNRM, via `Decimal::from_f64(...)`. Both of these assume Decimal-range
+//   (exponent-0) matrix elements (|value| ≲ 7.92E28). For a large-exponent
+//   element (exponent != 0, > ~7.92E28) `.inner()` returns ONLY the normalized
+//   [1,10) mantissa (dropping the exponent), and `Decimal::from_f64` hits the
+//   ~7.92E28 wall and returns Overflow. The MATH-01 range extension (ADR
+//   v4.3-005) deliberately covers FACT/scalar arithmetic only — Advantage matrix
+//   storage stays Decimal-range in this milestone. In-range matrix data (the
+//   only data these ops are exercised with) works correctly. Extending the
+//   reduction/norm ops to exponent-aware comparison (`to_f64()`) and an
+//   exponent-aware FNRM wall (`HpNum::from_f64`) is intentionally out of scope
+//   for Phase 65.
 
 /// ADV SUM — sum all elements of current matrix (ADV-MTX-35).
 ///
