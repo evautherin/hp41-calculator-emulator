@@ -12,6 +12,8 @@
 
 **Phase 63 complete (2026-06-06): Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW.** Built the synchronous pending-interrupt mechanism in `run_loop` (synthetic XEQ frame at the next instruction boundary, periodic Phase-C `check_alarms`, ack-after-RTN reschedule, 4-level cap honored) and mid-run display yields (PSE/VIEW/AVIEW render-and-resume), wired across CLI and GUI — the GUI gained its first continuous program run loop (`run_program`/`resume_program` Tauri commands + a no-poll TS yield driver, D-11). ALARM-02/03 + PRGM-01/02 satisfied; verification 5/5 (3 visual UAT items pending). Two parity gaps surfaced by review were fixed in-cycle (CLI alarm-launched yield drain; GUI idle alarm → `run_program`).
 
+**Phase 64 complete (2026-06-07): Interactive GETKEY.** GETKEY inside a running program now suspends on a new `YieldKind::WaitForKey` (reusing the Phase 63 yield engine — no new `Op` variant), and resumes via `resume_program_with_key(keycode)` which pushes the key's HP-41 row×col code to X with `LiftEffect::Enable`; Esc/cancel → sentinel 0. Wired across CLI (non-blocking poll+redraw, never freezes) and GUI (Tauri command + permission; no-poll key-event resume, D-11), completing CLI↔GUI parity (D-25.6). `getkey_captured_code` is a transient `#[serde(default, skip)]` field (save-file compat preserved); R/S keycode doc error corrected 84→31. PRGM-03 satisfied; verification 4/4. Code review found 2 critical/3 warning/2 info — CR-01 (a missing guard letting a spurious/racing resume clobber a live PSE/VIEW yield) fixed in-cycle with a regression test.
+
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
 
@@ -426,4 +428,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-06-06 — Milestone v4.3 Hardware Fidelity started. Anchor: interrupting control-alarm execution (program-engine re-entrancy, D-40-04) + an audit-selected set of remaining fidelity gaps. iOS App Store handled externally (out of scope); Android parked as SEED-001. Next: fidelity audit → requirements → roadmap.*
+*Last updated: 2026-06-07 — v4.3 Hardware Fidelity: Phases 62 (alarm-semantics ADR), 63 (run-loop yield engine + interrupting alarms + PSE/VIEW/AVIEW), and 64 (interactive GETKEY) complete. Next: Phase 65 (standalone-fidelity-fixes), then Phase 66 (verification + divergence docs + quality gates).*
