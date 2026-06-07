@@ -177,12 +177,19 @@ fn test_fact_twenty_seven_succeeds() {
 }
 
 #[test]
-fn test_fact_twenty_eight_returns_overflow() {
-    // 28! ≈ 3.05e29 — exceeds Decimal range, Decimal::from_f64 returns None.
+fn test_fact_twenty_eight_now_representable() {
+    // ADR v4.3-005: 28! ≈ 3.05e29 — previously hit the Decimal::from_f64 ceiling (~7.9E28).
+    // HpNum::from_f64 now covers ±9.999E±99 via the two-tier (mantissa, exponent) representation.
     let mut state = CalcState::new();
     push_x(&mut state, "28");
     let res = dispatch(&mut state, Op::Fact);
-    assert_eq!(res, Err(HpError::Overflow));
+    assert_eq!(res, Ok(()), "FACT(28) must succeed after ADR v4.3-005");
+    let actual = state.stack.x.to_f64().expect("FACT(28) must be representable");
+    // 28! ≈ 3.048883447e29 (10-sig-digit HP-41 arithmetic).
+    assert!(
+        (actual / 3.048_883_447e29_f64 - 1.0).abs() < 1e-6,
+        "FACT(28) ≈ 3.048883447e29; got {actual}"
+    );
 }
 
 #[test]

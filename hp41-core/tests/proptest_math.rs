@@ -135,30 +135,27 @@ proptest! {
 // ─── Property 3: FACT recursive invariant FACT(n+1) ≈ FACT(n) × (n+1) ─────────
 //
 // FACT(0) = 1, FACT(n+1) = FACT(n) × (n+1). HP-41 hardware-spec OutOfRange
-// fires at X > 69 (Owner's Manual p.234), but the practical Decimal
-// representable-range wall is X ≤ 27 (op_fact D-05 comment in math.rs
-// — Decimal::from_f64 returns Overflow for f64 factorials of 28..=69).
+// fires at X > 69 (Owner's Manual p.234). ADR v4.3-005 extends HpNum to the
+// full ±9.999E±99 range so FACT(27..=68) is now representable.
 // To keep both FACT(n) and FACT(n+1) representable, the proptest range
-// is n in 0..=26 (so n+1 ≤ 27, the safe interior).
+// is n in 0..=68 (so n+1 ≤ 69, the OutOfRange boundary).
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(256))]
 
     // Catches: off-by-one or sign regression in op_fact's inner
-    // multiplication. Range deviation from PLAN.md: range narrowed
-    // from 0..=68 to 0..=26 because op_fact returns Overflow for
-    // n in 28..=69 (per D-05 / math.rs). Hand-curated tests
-    // (Plan 27-01) exercise the boundary individually.
+    // multiplication. ADR v4.3-005 extends range from 0..=26 to 0..=68.
+    // FACT(n) and FACT(n+1) are both representable within ±9.999E±99.
     #[test]
-    fn fact_recursive_invariant(n in 0i32..=26i32) {
+    fn fact_recursive_invariant(n in 0i32..=68i32) {
         let mut s_n = CalcState::new();
         s_n.stack.x = HpNum::from(n);
         dispatch(&mut s_n, Op::Fact).unwrap();
-        let fact_n = s_n.stack.x.inner().to_f64().unwrap_or(f64::NAN);
+        let fact_n = s_n.stack.x.to_f64().unwrap_or(f64::NAN);
 
         let mut s_n1 = CalcState::new();
         s_n1.stack.x = HpNum::from(n + 1);
         dispatch(&mut s_n1, Op::Fact).unwrap();
-        let fact_n1 = s_n1.stack.x.inner().to_f64().unwrap_or(f64::NAN);
+        let fact_n1 = s_n1.stack.x.to_f64().unwrap_or(f64::NAN);
 
         // FACT(n+1) ≈ FACT(n) × (n+1) within HP-41 10-digit tolerance.
         // Tolerance widens to 1e-8 to absorb 10-digit BCD rounding compounding
