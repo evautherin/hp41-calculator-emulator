@@ -7673,6 +7673,28 @@ fn test_numerical_accuracy_suite() {
         );
     }
 
+    // ── WR-03: FACT golden at a power-of-ten-adjacent large magnitude ──────────
+    // Appended at the END of the case set so these high ids do not shift the
+    // baseline (id < 504) failing-set check. These FACT results land just above
+    // the old ~7.92E28 Decimal wall (exponent != 0) at magnitudes close to a
+    // power of ten, where the f64-derived mantissa can come out < 1.0; the
+    // from_sci borrow-down (WR-03) must renormalize so the stored value is not
+    // off by a factor of 10.
+    {
+        // 28! ≈ 3.048883446E29 — first FACT above the Decimal wall (near 1E29).
+        let mut s = CalcState::new();
+        push(&mut s, "28");
+        dispatch(&mut s, Op::Fact).unwrap();
+        case!("fact", "FACT(28) ~ 3.048883446E29 (WR-03 renorm)", 3.048_883_446e29_f64, get_x(&s), wide);
+    }
+    {
+        // 32! ≈ 2.631308369E35 — another power-of-ten-adjacent large factorial.
+        let mut s = CalcState::new();
+        push(&mut s, "32");
+        dispatch(&mut s, Op::Fact).unwrap();
+        case!("fact", "FACT(32) ~ 2.631308369E35 (WR-03 renorm)", 2.631_308_369e35_f64, get_x(&s), wide);
+    }
+
     // ── Gate: count passes, print failures, assert ────────────────────────────
 
     let total = cases.len();
