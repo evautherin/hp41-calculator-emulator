@@ -844,7 +844,8 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             // ── Phase 63: PSE yield arm (PRGM-01 / D-04 / D-01) ─────────────
             // Replaces the execute_op path that writes display_override + pushes
             // "PAUSE 1000". Instead: set typed yield channel and break.
-            // display_override is NOT written (DISP-01 stays deferred to v4.4).
+            // display_override is NOT written here: PSE uses the typed yield channel,
+            // not the VIEW/AVIEW display_override path (DISP-01, shipped in Phase 65).
             // LiftEffect::Neutral — no stack change (mirrors old execute_op arm).
             // `pc` already advanced past PSE, so resume_program continues correctly.
             // Op::ViewInd deliberately excluded from this yield arm (PRGM-02 scope is
