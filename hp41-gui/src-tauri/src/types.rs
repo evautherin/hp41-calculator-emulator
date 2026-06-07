@@ -48,7 +48,7 @@ use crate::prgm_display;
 use hp41_core::ops::time::clock::get_clock_display_str;
 use hp41_core::ops::time::stopwatch::get_stopwatch_display_str;
 use hp41_core::state::{YieldKind, YieldState};
-use hp41_core::{format_alpha, format_hpnum, AngleMode, CalcState, HpError};
+use hp41_core::{format_alpha, format_hpnum, format_hpnum_lcd, AngleMode, CalcState, HpError};
 use serde::Serialize;
 
 /// Serializable snapshot of `YieldState` sent to the TS layer when the core
@@ -200,7 +200,10 @@ impl CalcStateView {
             // Branch sits AFTER alpha_mode so active ALPHA entry takes priority (D-10).
             format_alpha(&state.alpha_reg)
         } else {
-            format_hpnum(&state.stack.x, &state.display_mode)
+            // Phase 65 (ADR v4.3-006): the main 14-segment display has only 12
+            // cells, so large-exponent values use the authentic no-"E" LCD form.
+            // The stack panel (x_str below) keeps the wide format_hpnum "E" form.
+            format_hpnum_lcd(&state.stack.x, &state.display_mode)
         };
 
         // x_str is always the formatted X register — independent of entry/alpha mode.
@@ -622,5 +625,30 @@ mod tests {
             view.display_str, expected,
             "alpha_mode must take priority over AON flag-48 branch (D-10)"
         );
+    }
+
+    /// Phase 65 (Option A / ADR v4.3-006): a large-exponent X value must render in
+    /// the GUI's 12-cell 14-segment display without an "E" and without truncation.
+    /// Before the fix, display_str was `1.088886945E 28` (14 cells) and the GUI
+    /// truncated the exponent.
+    #[test]
+    fn test_large_exponent_x_fits_12_cell_lcd() {
+        use hp41_core::HpNum;
+        let mut state = CalcState::new();
+        // 27! = 1.088886945E28 — the value the UAT screenshot showed truncated.
+        state.stack.x = HpNum::from_f64(1.088_886_945e28).expect("representable");
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        let cells = view.display_str.chars().filter(|&c| c != '.').count();
+        assert!(
+            cells <= 12,
+            "display_str must fit 12 cells, got [{}] ({cells} cells)",
+            view.display_str
+        );
+        assert!(
+            !view.display_str.contains('E'),
+            "authentic HP-41 LCD has no 'E': [{}]",
+            view.display_str
+        );
+        assert_eq!(view.display_str, "1.08888694528");
     }
 }
