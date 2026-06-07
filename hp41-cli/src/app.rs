@@ -2715,6 +2715,128 @@ mod tests {
     }
 }
 
+// ── DISP-02: CHS mantissa in-buffer sign toggle ──────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod disp02_chs_mantissa_toggle_tests {
+    use super::*;
+    use crossterm::event::KeyCode;
+
+    fn make_app() -> App {
+        App::new_for_test()
+    }
+
+    fn make_key(code: KeyCode) -> crossterm::event::KeyEvent {
+        crossterm::event::KeyEvent::new(code, crossterm::event::KeyModifiers::NONE)
+    }
+
+    // ── Core toggle behavior ────────────────────────────────────────────────
+
+    #[test]
+    fn test_chs_mantissa_adds_leading_minus() {
+        // "123" → CHS → "-123": leading minus inserted, no flush.
+        let mut app = make_app();
+        for c in "123".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        assert_eq!(app.state.entry_buf, "123");
+        let x_before = app.state.stack.x.clone();
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-123", "CHS must add leading '-'");
+        assert_eq!(
+            app.state.stack.x, x_before,
+            "X must be unchanged (no flush, no dispatch)"
+        );
+        assert!(app.message.is_none());
+    }
+
+    #[test]
+    fn test_chs_mantissa_removes_leading_minus() {
+        // "-123" → CHS → "123": leading minus removed.
+        let mut app = make_app();
+        for c in "123".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        app.handle_key(make_key(KeyCode::Char('n'))); // "123" → "-123"
+        assert_eq!(app.state.entry_buf, "-123");
+        app.handle_key(make_key(KeyCode::Char('n'))); // "-123" → "123"
+        assert_eq!(app.state.entry_buf, "123", "CHS must remove leading '-'");
+        assert!(app.message.is_none());
+    }
+
+    #[test]
+    fn test_chs_mantissa_round_trips() {
+        // "123" → CHS → "-123" → CHS → "123" (full round-trip).
+        let mut app = make_app();
+        for c in "123".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-123");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "123");
+    }
+
+    #[test]
+    fn test_chs_mantissa_zero_edge_case() {
+        // "0" → CHS → "-0" → CHS → "0" (display verbatim; "0" is a valid mantissa entry).
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('0')));
+        assert_eq!(app.state.entry_buf, "0");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-0", "CHS on '0' must produce '-0'");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "0", "CHS on '-0' must produce '0'");
+    }
+
+    #[test]
+    fn test_chs_mantissa_decimal_value() {
+        // "3.14" → CHS → "-3.14": works on decimal mantissa.
+        let mut app = make_app();
+        for c in "3.14".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-3.14");
+    }
+
+    // ── Regression: EEX-CHS still toggles exponent sign ───────────────────
+
+    #[test]
+    fn test_eex_chs_still_toggles_exponent() {
+        // "1e2" → CHS → "1e-2": DISP-02 block must NOT intercept EEX entries.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('1')));
+        app.handle_key(make_key(KeyCode::Char('e')));
+        app.handle_key(make_key(KeyCode::Char('2')));
+        assert_eq!(app.state.entry_buf, "1e2");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "1e-2", "EEX-CHS must still toggle exponent sign");
+    }
+
+    // ── Regression: empty-buffer CHS still dispatches Op::Chs ─────────────
+
+    #[test]
+    fn test_empty_buffer_chs_dispatches_op_chs() {
+        // Empty entry_buf: CHS must dispatch Op::Chs and negate X (D-08).
+        let mut app = make_app();
+        assert!(app.state.entry_buf.is_empty(), "entry_buf must start empty");
+        // Push a known value to X
+        app.call_dispatch(hp41_core::ops::Op::PushNum(
+            hp41_core::HpNum::from(42i32),
+        ));
+        app.handle_key(make_key(KeyCode::Char('n'))); // CHS on empty buffer → Op::Chs
+        assert!(
+            app.state.entry_buf.is_empty(),
+            "entry_buf must remain empty after Op::Chs dispatch"
+        );
+        let formatted =
+            hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        assert_eq!(formatted, "-42.0000", "empty-buffer CHS must negate X");
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod eex_integration_tests {
