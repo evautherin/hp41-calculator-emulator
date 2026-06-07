@@ -430,4 +430,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-06-07 — v4.3 Hardware Fidelity: Phases 62 (alarm-semantics ADR), 63 (run-loop yield engine + interrupting alarms + PSE/VIEW/AVIEW), and 64 (interactive GETKEY) complete. Next: Phase 65 (standalone-fidelity-fixes), then Phase 66 (verification + divergence docs + quality gates).*
+*Last updated: 2026-06-07 — v4.3 Hardware Fidelity: Phases 62 (alarm-semantics ADR), 63 (run-loop yield engine + interrupting alarms + PSE/VIEW/AVIEW), 64 (interactive GETKEY), and 65 (standalone fidelity fixes: HpNum ±9.999E±99 range/FACT + DISP-01/02/03) complete. Next: Phase 66 (verification + divergence docs + quality gates) — the final v4.3 phase.*
