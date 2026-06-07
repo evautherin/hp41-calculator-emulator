@@ -115,7 +115,29 @@ function extractErrMessage(err: unknown): string {
 async function invokeForKey(
   effectiveId: string,
   state: CalcStateView | null,
+  key?: KeyDef,
 ): Promise<CalcStateView> {
+  // Phase 64 Plan 04: GETKEY suspend guard (PRGM-03 / D-04 / D-11 / D-25.6).
+  // When the program is suspended on WaitForKey, route the key event to
+  // resume_program_with_key with the HP-41 hardware keyCode instead of dispatch_op.
+  //
+  // keyCode = HP-41 row×10+col code from KeyDef (Keyboard.tsx). On-screen taps pass
+  // the KeyDef directly; physical-keyboard calls resolve the def from KEY_DEFS first.
+  //
+  // Keys without keyCode (CHS, clx_or_a, xge_y, shift, top-row) have no HP-41
+  // hardware equivalent during GETKEY — the wait continues (hardware faithful: the
+  // HP-41 only captures physical calculator keys, not meta keys). An unresolved key
+  // returns Promise.resolve() to avoid leaving busyRef stuck or triggering dispatch_op.
+  if (state?.pending_yield?.kind === 'wait_for_key') {
+    const hp41Code = key?.keyCode;
+    if (hp41Code !== undefined) {
+      return invoke<CalcStateView>('resume_program_with_key', { keycode: hp41Code });
+    }
+    // No HP-41 code for this key (CHS, xge_y, shift, ON, …) — ignore; wait continues.
+    // Return a resolved Promise<CalcStateView> so callers can chain .then/.catch uniformly.
+    // Casting avoids adding an overload — caller always reads the returned view.
+    return Promise.resolve(state as CalcStateView);
+  }
   // Magic-prefix: CollectForModal Enter dispatches __submit_modal_with_label__<label>
   // (Pitfall 15 — must check BEFORE the 'r_s' branch)
   if (effectiveId.startsWith(SUBMIT_MODAL_WITH_LABEL_PREFIX)) {
@@ -589,8 +611,16 @@ function App() {
   // entirely server-side in one run_program call (Phase-C check_alarms fires inside
   // run_loop, the interrupt handler executes, ack-after-RTN fires, program continues).
   // run_program returns once with pending_yield=null, is_running=false — no TS branch needed.
+  //
+  // Phase 64 Plan 04: WaitForKey guard (PRGM-03 / D-11 / D-25.6).
+  // When kind === 'wait_for_key', this yield is event-driven — no timer should fire.
+  // Resume is triggered by a key event (on-screen tap or physical keyboard) via
+  // invokeForKey / handleKey routing to resume_program_with_key. Returning early here
+  // prevents the setTimeout(resume_ms=0) path from running, which would call the
+  // timer-based resume_program and bypass the keycode delivery.
   useEffect(() => {
     if (!calcState?.pending_yield) return;
+    if (calcState.pending_yield.kind === 'wait_for_key') return; // Phase 64: event-driven — key events trigger resume, not a timer
     if (resumeScheduledRef.current) return;
     resumeScheduledRef.current = true;
     const { resume_ms } = calcState.pending_yield;
@@ -919,7 +949,8 @@ function App() {
         const targetId = alphaOn ? 'alpha_backspace' : 'entry_backspace';
         view = await invoke<CalcStateView>('dispatch_op', { keyId: targetId });
       } else {
-        view = await invokeForKey(effectiveId, calcState);
+        // Phase 64: pass the full KeyDef so invokeForKey can read keyCode during WaitForKey suspend.
+        view = await invokeForKey(effectiveId, calcState, key);
       }
       setCalcState(view);
       setErrorMessage(null);
@@ -999,6 +1030,22 @@ function App() {
         if (!busyRef.current) {
           busyRef.current = true;
           invoke<CalcStateView>('cancel_modal')
+            .then(view => { setCalcState(view); setErrorMessage(null); })
+            .catch(err => showToast(extractErrMessage(err)))
+            .finally(() => { busyRef.current = false; });
+        }
+        return;
+      }
+      // Phase 64 Plan 04: GETKEY cancel path (PRGM-03 / D-02).
+      // During a WaitForKey suspend, Esc pushes the no-key sentinel (keycode 0)
+      // and resumes the program. is_running is false during WaitForKey (the program
+      // is suspended waiting for a key event, not running), so this check MUST come
+      // before the is_running branch to be reachable. D-07: the cancel is surfaced
+      // sensibly (resume with sentinel 0) rather than silently dropped.
+      if (calcState?.pending_yield?.kind === 'wait_for_key') {
+        if (!busyRef.current) {
+          busyRef.current = true;
+          invoke<CalcStateView>('resume_program_with_key', { keycode: 0 })
             .then(view => { setCalcState(view); setErrorMessage(null); })
             .catch(err => showToast(extractErrMessage(err)))
             .finally(() => { busyRef.current = false; });
@@ -1147,6 +1194,31 @@ function App() {
       }
       setPendingInput(initial);
       setShiftActive(false);
+      return;
+    }
+
+    // Phase 64 Plan 04: physical-keyboard GETKEY guard (PRGM-03 / D-04 / D-25.6).
+    // During a WaitForKey suspend, physical key events must resume the program with
+    // the HP-41 hardware keyCode rather than dispatching the normal op.
+    //
+    // Look up the KeyDef for the resolved id to read its HP-41 keyCode. Keys without
+    // a keyCode (CHS, clx_or_a, xge_y, shift variants, top-row) have no HP-41
+    // hardware equivalent during GETKEY — the wait continues (hardware faithful).
+    //
+    // Note: Esc is handled above in the Esc precedence block (sentinel 0); this
+    // guard only fires for non-Esc physical keys. busyRef guard above already ran.
+    if (calcState?.pending_yield?.kind === 'wait_for_key') {
+      const matchedDef = KEY_DEFS.find(k => k.id === keyId);
+      const hp41Code = matchedDef?.keyCode;
+      if (hp41Code !== undefined) {
+        e.preventDefault();
+        busyRef.current = true;
+        invoke<CalcStateView>('resume_program_with_key', { keycode: hp41Code })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)))
+          .finally(() => { busyRef.current = false; });
+      }
+      // No HP-41 code for this key → ignore; wait continues.
       return;
     }
 
