@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-07T15:12:12.289Z"
+last_updated: "2026-06-07T15:18:13.099Z"
 last_activity: 2026-06-07
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
   percent: 60
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 65 (standalone-fidelity-fixes) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-07
 
@@ -86,6 +86,7 @@ Overall  ██░░░░░░░░  25%
 | Phase 64 P04 | 8 | 2 tasks | 2 files |
 | Phase 64 P05 | 8 | 1 task | 1 file |
 | Phase 65 P02 | 12 | 2 tasks | 2 files |
+| Phase 65 P03 | 8 | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -95,6 +96,10 @@ Overall  ██░░░░░░░░  25%
 - **64-04-D02:** Esc WaitForKey cancel branch placed BEFORE `is_running` branch — `is_running` is `false` during WaitForKey suspend; the guard detects via `pending_yield.kind === 'wait_for_key'`.
 - **64-04-D03:** Physical keyboard WaitForKey guard always `return`s — prevents fall-through to `dispatchKeyId` for no-keyCode keys (hardware faithful: HP-41 only captures calculator keys).
 - **64-04-D04:** `invokeForKey` no-keyCode path returns `Promise.resolve(state)` — callers chain `.then`/`.catch` and must not receive undefined; keeps `busyRef` clean.
+
+### Decisions (Phase 65-03 — 2026-06-07)
+
+- **65-03-D01:** DISP-02 block placed immediately before the EEX-CHS block — gate `!entry_buf.contains('e')` is mutually exclusive with the EEX branch, so order only matters for clarity (DISP-02 first, then EEX-CHS).
 
 ### Decisions (Phase 65-01 — 2026-06-07)
 

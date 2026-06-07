@@ -186,7 +186,7 @@ Plans:
 **Plans**: 4 plans
 - [x] 65-01-PLAN.md — MATH-01: HpNum range extension (mantissa+exponent struct, arithmetic, serde, format_hpnum, op_fact, ADR v4.3-005) [heavy]
 - [x] 65-02-PLAN.md — DISP-01: CLI renders display_override (VIEW/AVIEW/PROMPT) + state.rs stale-comment cleanup
-- [ ] 65-03-PLAN.md — DISP-02: CLI CHS in-buffer mantissa sign toggle
+- [x] 65-03-PLAN.md — DISP-02: CLI CHS in-buffer mantissa sign toggle
 - [ ] 65-04-PLAN.md — DISP-03: AON flag-48 auto-display on CLI + GUI (from_state)
 **UI hint**: yes
 
@@ -225,7 +225,7 @@ Plans:
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
-| 65. Standalone Fidelity Fixes | v4.3 | 2/4 | In Progress|  |
+| 65. Standalone Fidelity Fixes | v4.3 | 3/4 | In Progress|  |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
 
 ---
