@@ -69,8 +69,14 @@ fn getkey_mid_run_breaks_and_sets_wait_for_key() {
         "yield kind must be WaitForKey, got {:?}",
         py.kind
     );
-    assert_eq!(py.resume_ms, 0, "WaitForKey resume_ms must be 0 (event-driven)");
-    assert_eq!(py.text, "", "WaitForKey text must be empty (D-03: no display override)");
+    assert_eq!(
+        py.resume_ms, 0,
+        "WaitForKey resume_ms must be 0 (event-driven)"
+    );
+    assert_eq!(
+        py.text, "",
+        "WaitForKey text must be empty (D-03: no display override)"
+    );
     assert!(
         state.display_override.is_none(),
         "display_override must not be written by GETKEY (D-03)"
@@ -175,9 +181,9 @@ fn getkey_resume_continues_to_next_step() {
         vec![
             Op::Lbl("D".to_string()),
             Op::GetKey,
-            Op::StoReg(4),                                    // step 1 after GETKEY
-            Op::PushNum(HpNum::rounded(Decimal::from(99))),   // step 2
-            Op::StoReg(5),                                    // step 3 — proves full continuation
+            Op::StoReg(4),                                  // step 1 after GETKEY
+            Op::PushNum(HpNum::rounded(Decimal::from(99))), // step 2
+            Op::StoReg(5),                                  // step 3 — proves full continuation
             Op::Rtn,
         ],
     );
@@ -215,11 +221,7 @@ fn getkey_does_not_write_display_override() {
 
     load_program(
         &mut state,
-        vec![
-            Op::Lbl("E".to_string()),
-            Op::GetKey,
-            Op::Rtn,
-        ],
+        vec![Op::Lbl("E".to_string()), Op::GetKey, Op::Rtn],
     );
 
     run_program(&mut state, "E").unwrap();
@@ -253,11 +255,7 @@ fn getkey_inside_alarm_handler_preserves_interrupt_state() {
     let mut state = CalcState::new();
     load_program(
         &mut state,
-        vec![
-            Op::Lbl("H".to_string()),
-            Op::GetKey,
-            Op::Rtn,
-        ],
+        vec![Op::Lbl("H".to_string()), Op::GetKey, Op::Rtn],
     );
 
     run_program(&mut state, "H").unwrap();
@@ -313,8 +311,14 @@ fn getkey_then_pse_sequential_yields() {
     // First run: breaks at GETKEY
     run_program(&mut state, "S").unwrap();
     {
-        let py = state.pending_yield.as_ref().expect("must have WaitForKey yield");
-        assert!(matches!(py.kind, YieldKind::WaitForKey), "first yield must be WaitForKey");
+        let py = state
+            .pending_yield
+            .as_ref()
+            .expect("must have WaitForKey yield");
+        assert!(
+            matches!(py.kind, YieldKind::WaitForKey),
+            "first yield must be WaitForKey"
+        );
     }
 
     // Resume from GETKEY: run_loop continues to PSE, then breaks again
@@ -324,12 +328,18 @@ fn getkey_then_pse_sequential_yields() {
             .pending_yield
             .as_ref()
             .expect("must have Pse yield after GETKEY resume");
-        assert!(matches!(py.kind, YieldKind::Pse), "second yield must be Pse");
+        assert!(
+            matches!(py.kind, YieldKind::Pse),
+            "second yield must be Pse"
+        );
     }
 
     // Resume from PSE: run_loop continues to STO 6 and completes
     hp41_core::resume_program(&mut state).unwrap();
-    assert!(state.pending_yield.is_none(), "no more yields after PSE resume");
+    assert!(
+        state.pending_yield.is_none(),
+        "no more yields after PSE resume"
+    );
     assert!(!state.is_running);
 }
 
@@ -391,7 +401,10 @@ fn resume_with_key_rejected_when_not_waiting_for_key() {
 
     let r = resume_program_with_key(&mut state, 31);
     assert!(r.is_err(), "resume with no pending yield must Err");
-    assert_eq!(state.stack.x, x_before, "stack X must be unchanged on reject");
+    assert_eq!(
+        state.stack.x, x_before,
+        "stack X must be unchanged on reject"
+    );
     assert!(
         state.getkey_captured_code.is_none(),
         "captured code must not be set on reject"
@@ -421,7 +434,10 @@ fn resume_with_key_rejected_when_not_waiting_for_key() {
         ),
         "PSE yield must be preserved after a rejected resume_with_key"
     );
-    assert_eq!(state.stack.x, x_before, "stack X must be unchanged on reject");
+    assert_eq!(
+        state.stack.x, x_before,
+        "stack X must be unchanged on reject"
+    );
     assert!(
         state.getkey_captured_code.is_none(),
         "captured code must not be set on reject"
