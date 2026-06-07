@@ -489,6 +489,54 @@ pub fn resume_program(state: &mut CalcState) -> Result<(), HpError> {
     result
 }
 
+/// Resume a GETKEY-suspended program by delivering the captured keycode.
+///
+/// Mirrors [`resume_program`] but with two critical additions for GETKEY:
+/// 1. Calls `op_getkey` inline BEFORE re-entering `run_loop` to push the
+///    keycode to X (LiftEffect::Enable). This is necessary because the
+///    `Op::GetKey` yield arm in `run_loop` breaks with `pc` already advanced
+///    past the GetKey step; `op_getkey` would not execute again otherwise.
+///    `state.getkey_captured_code` is set before the call so `op_getkey`
+///    uses the captured code (not stale `last_key_code`).
+/// 2. Does NOT clear `pending_interrupt_alarm_index` / `pending_interrupt_depth`
+///    — these must survive if GETKEY fired inside an alarm-handler frame
+///    (D-06 / Phase 64 Pitfall 1). Only `pending_yield` (the WaitForKey
+///    channel) is cleared here.
+///
+/// `keycode`: HP-41 hardware key code (row×10+col, 1-indexed).
+///    0 = no-key sentinel (cancel path — Esc/ON equivalent per D-02).
+///
+/// CRITICAL — same Pitfall 2 as `resume_program`: capture `run_loop` result
+/// into `let result`, reset `is_running`, THEN return. Never use `?` directly.
+/// Also cleans up `getkey_captured_code` even on error (Pitfall 6).
+///
+/// Phase 64 (v4.3, PRGM-03 / D-05).
+pub fn resume_program_with_key(state: &mut CalcState, keycode: u8) -> Result<(), HpError> {
+    // Note: pc may equal program.len() if GETKEY was the last op in the program —
+    // that is valid; op_getkey must still run to push keycode to X.
+    let program = state.program.clone();
+    // Set captured keycode so op_getkey consumes it (not stale last_key_code).
+    state.getkey_captured_code = Some(keycode);
+    // Clear the WaitForKey yield channel.
+    // Do NOT clear pending_interrupt_alarm_index / pending_interrupt_depth —
+    // they must survive for alarm-handler context (D-06 / Pitfall 1).
+    state.pending_yield = None;
+    // Execute op_getkey inline to push keycode to X (LiftEffect::Enable).
+    // op_getkey takes `getkey_captured_code` via `.take()` and pushes to X.
+    // This is done before run_loop so the value is on X when the next step runs.
+    crate::ops::registers::op_getkey(state)?;
+    // If pc is at the end of program, the program is already done after op_getkey.
+    if state.pc >= program.len() {
+        state.getkey_captured_code = None;
+        return Ok(());
+    }
+    state.is_running = true;
+    let result = run_loop(state, &program);
+    state.is_running = false; // ALWAYS reset, even on Err (Pitfall 2)
+    state.getkey_captured_code = None; // clean up even on error (Pitfall 6)
+    result
+}
+
 // ── Private interpreter loop ──────────────────────────────────────────────────
 
 /// Maximum steps per run_program execution — guards against infinite loops.
@@ -825,6 +873,20 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
                     kind: YieldKind::Aview,
                     text,
                     resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
+            // ── Phase 64: GETKEY yield arm (PRGM-03 / D-05) ──────────────────
+            // Suspends execution and waits for a key event. Unlike PSE/VIEW/AVIEW
+            // this is event-driven (resume_ms = 0 — no timer). Frontend calls
+            // resume_program_with_key(keycode). display_override NOT written (D-03).
+            // pc is already past GetKey; resume_program_with_key calls op_getkey
+            // inline (to push keycode to X) BEFORE re-entering run_loop at pc.
+            Op::GetKey => {
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::WaitForKey,
+                    text: String::new(), // D-03: no display override text
+                    resume_ms: 0,        // event-driven, not timer-driven
                 });
                 break;
             }
