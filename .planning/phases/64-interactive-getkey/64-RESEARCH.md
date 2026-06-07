@@ -524,21 +524,19 @@ pub fn resume_program_with_key(
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **R/S key code during GETKEY (A3): 31 or 84?**
+> All three resolved by the orchestrator with the user during `/gsd-plan-phase 64` (2026-06-07) and implemented in the plans.
+
+1. **R/S key code during GETKEY (A3): 31 or 84? → RESOLVED: 31.**
    - What we know: Keyboard.tsx `r_s` has `keyCode: 31`; CONTEXT.md says "R/S captured as keycode 84"; hardware row 3 col 1 = 31, hardware row 8 col 4 = 84 (ENTER position).
-   - What's unclear: Which code GETKEY actually returns for R/S on real HP-41CX.
-   - Recommendation: Use **31** (the physical R/S position). This matches Keyboard.tsx, CLI `keys.rs` (F5/R-S mapped to 31), and hardware. The CONTEXT.md "84" reference likely conflates R/S with ENTER. Planner can verify and override.
+   - **Resolution:** Use **31** (the physical R/S position). Confirmed with the user; this overrides CONTEXT.md D-02's "84" (which conflated R/S with ENTER). Matches Keyboard.tsx, CLI `keys.rs` (R/S → 31), and hardware. Implemented in Plan 64-02 T2; the D-02 "84"→31 correction is recorded in Plan 64-05 (divergence doc).
 
-2. **CLI Esc key during GETKEY: cancel-GETKEY (sentinel 0) or quit-app?**
-   - What we know: Currently `Esc` cancels modals in CLI; `Ctrl+C` quits. During GETKEY, Esc = cancel seems natural (closest to hardware ON key behavior).
-   - What's unclear: User expectation; whether Esc should push 0 and resume or terminate the app.
-   - Recommendation: `Esc` during GETKEY suspend → push sentinel 0 + resume (per D-02: escape is via cancel path, not hard quit).
+2. **CLI Esc key during GETKEY: cancel-GETKEY (sentinel 0) or quit-app? → RESOLVED: cancel → sentinel 0.**
+   - **Resolution:** `Esc` during GETKEY suspend → push sentinel 0 + resume (Phase 63 `request_cancel` path); `Ctrl+C` still hard-quits the app. Confirmed with the user. Implemented in Plan 64-02 T1.
 
-3. **`resume_program_with_key` vs. Tauri command naming**
-   - What we know: SC-4 convention: thin glue in GUI, full name in core.
-   - Recommendation: Core function = `resume_program_with_key`; Tauri command = `resume_program_with_key`. Permission TOML = `allow-resume-program-with-key.toml`.
+3. **`resume_program_with_key` vs. Tauri command naming → RESOLVED.**
+   - **Resolution:** Core function = `resume_program_with_key`; Tauri command = `resume_program_with_key`; permission TOML = `allow-resume-program-with-key.toml`. Implemented across Plans 64-01/64-03/64-04.
 
 ---
 
