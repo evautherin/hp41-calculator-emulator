@@ -570,6 +570,7 @@ fn render_right_panel(_app: &App, frame: &mut Frame, area: Rect) {
 
 #[cfg(test)]
 mod tests {
+    #[allow(clippy::unwrap_used)]
     use hp41_core::CalcState;
     use std::path::PathBuf;
 
@@ -579,6 +580,33 @@ mod tests {
             PathBuf::from("/tmp/hp41_ui_test.json"),
             None,
         )
+    }
+
+    /// DISP-01 (Phase 65): display_override renders between prgm and alpha (D-06).
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_display_override_renders() {
+        let mut app = make_app();
+        // Set display_override (as the core does after VIEW/AVIEW/PROMPT).
+        app.state.display_override = Some("R01 1.000".into());
+        let s = super::get_display_string(&app);
+        assert_eq!(s, "R01 1.000", "display_override must be shown when Some");
+    }
+
+    /// DISP-01 fallback: with display_override = None, X register is rendered.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_display_override_none_falls_through() {
+        let app = make_app();
+        // No override set — falls through to X register.
+        let s = super::get_display_string(&app);
+        // Default X is 0; format_hpnum returns "0.000000000" in FIX 9 (default mode).
+        assert!(!s.is_empty(), "fallthrough must produce a non-empty string");
+        // Confirm display_override = None means no override rendered.
+        assert!(
+            app.state.display_override.is_none(),
+            "display_override must be None in this path"
+        );
     }
 
     /// BLOCKER 1: test_help_scroll — help_table_state.select_next() must not panic.

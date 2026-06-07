@@ -77,7 +77,7 @@ pub enum YieldKind {
 /// - GUI: renders `text`, schedules `resume_program` via `setInterval` after `resume_ms`
 ///   (Mutex is released between yields, so the GUI stays responsive per D-11).
 ///
-/// `display_override` is NOT written by these yield paths (D-04 / DISP-01 deferred).
+/// display_override is NOT written by these yield paths (D-04); DISP-01 resolved in Phase 65.
 /// Transient — never persisted (`#[serde(default, skip)]` on the field in `CalcState`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct YieldState {
@@ -528,7 +528,7 @@ pub struct CalcState {
     /// Yield channel carrying the formatted display string + kind + resume duration
     /// for PSE/VIEW/AVIEW yields (D-04). Set by `run_loop` when it breaks for a
     /// display yield; cleared by `resume_program` before re-entering `run_loop`.
-    /// Leaves `display_override` untouched (DISP-01 stays deferred to v4.4).
+    /// Leaves display_override untouched (D-04); DISP-01 resolved in Phase 65.
     /// Transient — never persisted (`#[serde(default, skip)]`).
     #[serde(default, skip)]
     pub pending_yield: Option<YieldState>,
