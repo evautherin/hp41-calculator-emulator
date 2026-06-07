@@ -186,9 +186,24 @@ impl<'de> Deserialize<'de> for HpNum {
     fn deserialize<D: Deserializer<'de>>(de: D) -> Result<Self, D::Error> {
         match HpNumWire::deserialize(de)? {
             HpNumWire::Extended { m, e } => {
+                // WR-01: deserialization is an untrusted boundary. Route through the
+                // validating constructors instead of building the struct literally so
+                // a hand-edited / corrupted save with an out-of-range exponent or a
+                // denormalized mantissa is rejected / normalized rather than stored
+                // in a state that violates the struct invariants.
                 let mantissa =
                     Decimal::from_str(&m).map_err(serde::de::Error::custom)?;
-                Ok(HpNum { mantissa, exponent: e })
+                if e == 0 {
+                    // Common case: mantissa IS the full Decimal value (the serializer
+                    // emits the full value with e == 0). Preserve full-mantissa
+                    // semantics via from_decimal (re-rounds to 10 sig digits).
+                    Ok(HpNum::from_decimal(mantissa))
+                } else {
+                    // Large-exponent case: re-apply rounding/carry/range/normalization
+                    // and reject an out-of-range exponent (|e| > 99).
+                    HpNum::from_sci(mantissa, e as i32)
+                        .map_err(serde::de::Error::custom)
+                }
             }
             HpNumWire::Legacy(s) => {
                 let d = Decimal::from_str(&s).map_err(serde::de::Error::custom)?;
