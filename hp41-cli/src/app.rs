@@ -332,14 +332,85 @@ impl App {
     fn drain_pending_yields(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
         while self.state.pending_yield.is_some() {
             // Clone yield data before borrowing self mutably.
-            let (yield_text, resume_ms) = {
+            let (yield_kind, yield_text, resume_ms) = {
                 let y = self
                     .state
                     .pending_yield
                     .as_ref()
                     .expect("checked is_some above");
-                (y.text.clone(), y.resume_ms)
+                (y.kind.clone(), y.text.clone(), y.resume_ms)
             };
+
+            // Phase 64: WaitForKey yield — event-driven, not timer-driven.
+            // Non-blocking poll so the TUI redraws during the wait (Pitfall 5:
+            // never call blocking event::read() without a poll guard).
+            // The inner loop owns crossterm events during the GETKEY suspend:
+            // handle_key is NOT called from run() during this time because
+            // drain_pending_yields replaces the run() poll iteration.
+            if let hp41_core::state::YieldKind::WaitForKey = yield_kind {
+                loop {
+                    terminal.draw(|frame| self.draw(frame))?;
+                    if event::poll(Duration::from_millis(16))? {
+                        if let Event::Key(key) = event::read()? {
+                            if key.kind != KeyEventKind::Press {
+                                continue;
+                            }
+                            // Esc = cancel GETKEY → push sentinel 0 (D-02 cancel path).
+                            if key.code == KeyCode::Esc {
+                                match hp41_core::ops::program::resume_program_with_key(
+                                    &mut self.state,
+                                    0,
+                                ) {
+                                    Ok(()) => {
+                                        self.message = None;
+                                    }
+                                    Err(e) => {
+                                        self.message = Some(format!("{e}"));
+                                    }
+                                }
+                                self.drain_and_show_print_output(None);
+                                break;
+                            }
+                            // Ctrl+C = quit app (unchanged from normal handle_key path).
+                            if key.code == KeyCode::Char('c')
+                                && key.modifiers.contains(KeyModifiers::CONTROL)
+                            {
+                                self.exit = true;
+                                return Ok(());
+                            }
+                            // HP-41 key capture — Ctrl-modified keys are TUI commands,
+                            // not calculator keys (mirrors handle_key lines 392–395).
+                            // None from keycode_to_hp41_code = no HP-41 equivalent
+                            // (F5/F7/F8, unknown keys) → continue waiting (hardware
+                            // faithful: only physical HP-41 keys are captured).
+                            if let Some(code) = keys::keycode_to_hp41_code(key.code) {
+                                if !key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    match hp41_core::ops::program::resume_program_with_key(
+                                        &mut self.state,
+                                        code,
+                                    ) {
+                                        Ok(()) => {
+                                            self.message = None;
+                                        }
+                                        Err(e) => {
+                                            self.message = Some(format!("{e}"));
+                                        }
+                                    }
+                                    self.drain_and_show_print_output(None);
+                                    break;
+                                }
+                            }
+                            // No HP-41 equivalent, or CONTROL-modified → continue
+                            // the inner loop (ignore; hardware faithful).
+                        }
+                    }
+                }
+                // After break, re-check pending_yield — a resumed step may have
+                // produced a new yield (e.g. PSE after GETKEY). The outer while
+                // loop handles it via the existing timer/sleep path.
+                continue;
+            }
+
             // Show the yield text on the main display for the pause duration.
             // entry_buf has display priority 3 (above X register) and is empty
             // during program execution — safe to borrow temporarily.
@@ -383,6 +454,21 @@ impl App {
         // D-06: filter Release immediately — Windows crossterm fires both Press and Release.
         // This MUST be the first check — no other logic before it.
         if key.kind != KeyEventKind::Press {
+            return;
+        }
+
+        // Phase 64: during a WaitForKey suspend, all key routing is handled by
+        // drain_pending_yields' key-wait loop. handle_key is called from the main
+        // run() loop event path; if the program is suspended on GETKEY we must NOT
+        // process the key here — drain_pending_yields owns the event during the wait.
+        // This guard prevents double-processing of a stale event from the outer
+        // run() poll loop. In practice drain_pending_yields blocks the run() main
+        // loop during WaitForKey (poll is inside drain_pending_yields), so this is a
+        // belt-and-suspenders defense against future code-shape changes.
+        if matches!(
+            self.state.pending_yield,
+            Some(ref y) if y.kind == hp41_core::state::YieldKind::WaitForKey
+        ) {
             return;
         }
 
@@ -3513,6 +3599,115 @@ mod synthetic_modal_tests {
             "drain_event_buffer must not set an error message for a successful alarm:xeq; \
              got: {:?}",
             app.message
+        );
+    }
+
+    // ── Phase 64 Plan 02 Tests ─────────────────────────────────────────────────
+
+    /// Locked decision: R/S (F5) is a TUI-only binding with no HP-41 hardware
+    /// equivalent. keycode_to_hp41_code returns None for F5 (and F7/F8).
+    /// During WaitForKey, F5 is therefore ignored — the wait continues.
+    /// Code 31 (row 3, col 1 — R/S position on real HP-41) is only reachable if
+    /// a key is physically wired to 31 in keycode_to_hp41_code. Currently no
+    /// such key exists in the CLI map (TUI parity: R/S = TUI run/stop, not a
+    /// capturable HP-41 key). This test encodes the current locked contract.
+    #[test]
+    fn test_keycode_to_hp41_code_f5_returns_none_rs_is_tui_only() {
+        use crate::keys::keycode_to_hp41_code;
+        use crossterm::event::KeyCode;
+        // F5 = TUI R/S binding — no HP-41 hardware equivalent.
+        assert_eq!(
+            keycode_to_hp41_code(KeyCode::F(5)),
+            None,
+            "F5 (TUI R/S) must return None from keycode_to_hp41_code (TUI-only, not HP-41 capturable)"
+        );
+        // F7/F8 = TUI SST/BST — also no HP-41 equivalent.
+        assert_eq!(
+            keycode_to_hp41_code(KeyCode::F(7)),
+            None,
+            "F7 (TUI SST) must return None"
+        );
+        assert_eq!(
+            keycode_to_hp41_code(KeyCode::F(8)),
+            None,
+            "F8 (TUI BST) must return None"
+        );
+    }
+
+    /// Esc during GETKEY suspend = cancel → sentinel 0 pushed to X, program ends.
+    /// Verifies the core boundary contract: resume_program_with_key(&mut state, 0)
+    /// on a GETKEY-suspended program pushes 0 to X and completes.
+    #[test]
+    fn test_getkey_esc_cancel_pushes_sentinel_zero() {
+        let mut state = hp41_core::CalcState::new();
+        // Program: LBL A, GetKey  (single-step: just GetKey, no RTN)
+        state.program = vec![
+            hp41_core::ops::Op::Lbl("A".to_string()),
+            hp41_core::ops::Op::GetKey,
+        ];
+        // Run until GETKEY yields.
+        hp41_core::run_program(&mut state, "A").unwrap();
+        assert!(
+            matches!(
+                state.pending_yield,
+                Some(ref y) if y.kind == hp41_core::state::YieldKind::WaitForKey
+            ),
+            "program must suspend on WaitForKey after GETKEY"
+        );
+        // Esc path: resume with sentinel 0.
+        hp41_core::resume_program_with_key(&mut state, 0).unwrap();
+        // X must hold 0 (sentinel — D-02 cancel).
+        assert_eq!(
+            state.stack.x,
+            hp41_core::HpNum::from(0i32),
+            "Esc cancel path must push sentinel 0 to X"
+        );
+        // Program has ended — pending_yield must be None.
+        assert!(
+            state.pending_yield.is_none(),
+            "pending_yield must be None after Esc-cancel resume"
+        );
+    }
+
+    /// handle_key guard: when pending_yield is WaitForKey, handle_key early-returns
+    /// without processing the key. This prevents double-processing of a stale event
+    /// from the outer run() poll loop when drain_pending_yields owns the key capture.
+    #[test]
+    fn test_handle_key_ignores_keys_during_waitforkey_suspend() {
+        let mut app = make_app();
+        // Load program [LBL A, GetKey] and suspend on WaitForKey.
+        app.state.program = vec![
+            hp41_core::ops::Op::Lbl("A".to_string()),
+            hp41_core::ops::Op::GetKey,
+        ];
+        hp41_core::run_program(&mut app.state, "A").unwrap();
+        assert!(
+            app.state.pending_yield.is_some(),
+            "program must be suspended on WaitForKey"
+        );
+        // Snapshot state before handle_key (which must NOT process anything).
+        let x_before = app.state.stack.x.clone();
+        let entry_before = app.state.entry_buf.clone();
+        let message_before = app.message.clone();
+        // Deliver a key while suspended — the guard must swallow it silently.
+        app.handle_key(press(KeyCode::Char('5')));
+        // X must be unchanged (the digit '5' must not be appended or dispatched).
+        assert_eq!(
+            app.state.stack.x, x_before,
+            "handle_key must not modify X while WaitForKey is pending"
+        );
+        assert_eq!(
+            app.state.entry_buf, entry_before,
+            "handle_key must not modify entry_buf while WaitForKey is pending"
+        );
+        assert_eq!(
+            app.message, message_before,
+            "handle_key must not change message while WaitForKey is pending"
+        );
+        // pending_yield must still be set (handle_key did not consume/clear it).
+        assert!(
+            app.state.pending_yield.is_some(),
+            "pending_yield must remain Some after handle_key guard fires"
         );
     }
 }
