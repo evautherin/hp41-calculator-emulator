@@ -149,7 +149,7 @@ pub struct CalcStateView {
     // Some when run_loop broke at a PSE/VIEW/AVIEW yield; None on normal stop/end/error.
     // Carries kind (lowercase "pse"/"view"/"aview"), pre-formatted text, and resume_ms
     // so the TS driver can render the yield display and schedule resume_program.
-    // display_override is NOT written by yield paths (D-04 / DISP-01 deferred).
+    // display_override is NOT written by yield paths (D-04); DISP-01 resolved in Phase 65.
     pub pending_yield: Option<YieldView>,
 }
 
@@ -193,6 +193,11 @@ impl CalcStateView {
         } else if state.prgm_mode {
             prgm_display::format_step(state)
         } else if state.alpha_mode {
+            format_alpha(&state.alpha_reg)
+        } else if state.flags & (1u64 << 48) != 0 {
+            // DISP-03 (Phase 65): AON (flag 48) — at rest, show the ALPHA register
+            // instead of X. Uses raw state.flags u64 (not the projected Vec<u8>).
+            // Branch sits AFTER alpha_mode so active ALPHA entry takes priority (D-10).
             format_alpha(&state.alpha_reg)
         } else {
             format_hpnum(&state.stack.x, &state.display_mode)
