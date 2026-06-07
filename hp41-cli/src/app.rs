@@ -845,6 +845,20 @@ impl App {
                 self.message = None;
                 return;
             }
+            // DISP-02: CHS during mantissa entry — toggle leading '-' in place.
+            // Must be checked BEFORE the EEX-CHS block (entry_buf with 'e' takes the
+            // other branch). Key: 'n' maps to Op::Chs (see keys.rs line 117).
+            // D-07: no flush_entry_buf, no call_dispatch, no stack lift.
+            // D-08: empty-buffer case falls through to call_dispatch(Op::Chs) below.
+            if c == 'n' && !self.state.entry_buf.is_empty() && !self.state.entry_buf.contains('e') {
+                if self.state.entry_buf.starts_with('-') {
+                    self.state.entry_buf.remove(0);
+                } else {
+                    self.state.entry_buf.insert(0, '-');
+                }
+                self.message = None;
+                return;
+            }
             if c == 'n' && self.state.entry_buf.contains('e') {
                 // CHS during EEX entry: toggle exponent sign in-place — no flush, no dispatch.
                 // HP-41 hardware behavior: CHS while in EEX mode toggles the exponent sign.
