@@ -21,7 +21,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 - [x] **PRGM-01**: PSE during program execution pauses the display for ~1 second before continuing to the next step (CLI and GUI). *(FGAP-01)*
 - [x] **PRGM-02**: VIEW and AVIEW during a running program display their value briefly (PSE-like) before the next step, rather than only after the program ends. *(FGAP-10)*
-- [ ] **PRGM-03**: GETKEY inside a running program pauses execution, waits for the next key press, pushes that key's HP-41 row×col code to X, and resumes (returns the no-key sentinel only when appropriate). *(FGAP-04; subsumes FGAP-08)*
+- [x] **PRGM-03**: GETKEY inside a running program pauses execution, waits for the next key press, pushes that key's HP-41 row×col code to X, and resumes (returns the no-key sentinel only when appropriate). *(FGAP-04; subsumes FGAP-08)*
 
 ### Display & Entry Fidelity
 
@@ -75,7 +75,7 @@ Which phases cover which requirements.
 | ALARM-03 | Phase 63 | Complete |
 | PRGM-01 | Phase 63 | Complete |
 | PRGM-02 | Phase 63 | Complete |
-| PRGM-03 | Phase 64 | Pending |
+| PRGM-03 | Phase 64 | Complete |
 | DISP-01 | Phase 65 | Pending |
 | DISP-02 | Phase 65 | Pending |
 | DISP-03 | Phase 65 | Pending |

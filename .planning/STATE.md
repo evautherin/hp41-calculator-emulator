@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-07T05:36:54.656Z"
-last_activity: 2026-06-07 -- Phase 64 planning complete
+last_updated: "2026-06-07T08:40:00.000Z"
+last_activity: 2026-06-07 -- Phase 64 Plan 01 complete (GETKEY core engine)
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 7
+  completed_plans: 8
   percent: 40
 ---
 
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 64 — interactive getkey
+**Current focus:** Phase 64 — interactive-getkey
 
 ---
 
 ## Current Position
 
-Phase: 64
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-07 -- Phase 64 planning complete
+Phase: 64 (interactive-getkey) — EXECUTING
+Plan: 2 of 5 (Plan 01 complete)
+Status: Executing Phase 64
+Last activity: 2026-06-07 -- Plan 01 complete: YieldKind::WaitForKey + resume_program_with_key + PRGM-03-a..i tests (4aff9a4..920f285)
 
 ## Progress Bar
 
@@ -80,8 +80,15 @@ Overall  ██░░░░░░░░  25%
 | Phase 63 P04 | 30 | 3 tasks | 6 files |
 | Phase 63 P05 | 4 | 2 tasks | 2 files |
 | Phase 63 P06 | 25 | 2 tasks | 2 files |
+| Phase 64 P01 | 35 | 4 tasks | 7 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 64-01 — 2026-06-07)
+
+- **64-01-D01:** `resume_program_with_key` calls `op_getkey` inline before re-entering `run_loop` — the GetKey yield arm advances pc past GetKey on break; op_getkey must execute inline to push keycode to X before continuation steps run.
+- **64-01-D02:** `resume_program_with_key` has no pc-at-end entry guard — op_getkey must run even when GETKEY is the last program step; early `Ok(())` return after op_getkey when pc >= program.len().
+- **64-01-D03:** `resume_program_with_key` does NOT clear `pending_interrupt_alarm_index`/`pending_interrupt_depth` (differs from `resume_program` D-09 clear) — alarm-handler context must survive a GETKEY yield inside an interrupt frame.
 
 ### Decisions (Phase 63-06 — 2026-06-06)
 

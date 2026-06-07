@@ -168,7 +168,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   4. The suspension and resume mechanism reuses the existing PROMPT suspend/resume path (`CalcState` transient fields with `#[serde(skip)]`) without new `Op` variants; save-file backward compatibility is preserved.
 **Plans**: 5 plans
 Plans:
-- [ ] 64-01-PLAN.md — Core: WaitForKey YieldKind + getkey_captured_code field + run_loop arm + resume_program_with_key + op_getkey rework + phase_64_getkey.rs (PRGM-03-a..i)
+- [x] 64-01-PLAN.md — Core: WaitForKey YieldKind + getkey_captured_code field + run_loop arm + resume_program_with_key + op_getkey rework + phase_64_getkey.rs (PRGM-03-a..i)
 - [ ] 64-02-PLAN.md — CLI: drain_pending_yields WaitForKey poll/redraw/resume loop (R/S=31, Esc=cancel→0, Ctrl+C=quit) + handle_key guard (app.rs)
 - [ ] 64-03-PLAN.md — GUI-Rust: WaitForKey→"wait_for_key" projection + resume_program_with_key Tauri command + permission/capability/registration (PRGM-03-j)
 - [ ] 64-04-PLAN.md — GUI-TS: yield-driver wait_for_key skip + key-event resume guard (on-screen+physical) + cancel→0 + Group Q tests (PRGM-03-k/l)
@@ -220,7 +220,7 @@ Plans:
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
-| 64. Interactive GETKEY | v4.3 | 0/5 | Planned | - |
+| 64. Interactive GETKEY | v4.3 | 1/5 | In Progress|  |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
 
