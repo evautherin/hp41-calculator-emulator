@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: ready_to_plan
-last_updated: 2026-06-07T16:28:57.031Z
+last_updated: 2026-06-07T18:25:00.000Z
 last_activity: 2026-06-07
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 17
+  completed_plans: 17
   percent: 80
-stopped_at: Phase 65 complete (4/4) — ready to discuss Phase 66
+stopped_at: Phase 65 UAT approved (4/4) + plan 65-05 (DISP-04 LCD 12-cell fix) — ready to discuss Phase 66
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -58,6 +58,7 @@ Overall  ██░░░░░░░░  25%
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
 | (pre-phase) | Desktop menu-bar single-instance guard + configurable macOS global hotkey (ADR-v4.3-001/002) | 2026-06-06 | 37dfd5f | Complete ✓ | — |
+| 65-05 | DISP-04 — authentic 12-cell LCD for scientific overflow (GUI exponent no longer truncated; `format_hpnum_lcd`, ADR-v4.3-006). UAT follow-up to MATH-01. | 2026-06-07 | (see git log) | Complete ✓ | 65-standalone-fidelity-fixes |
 
 ## Performance Metrics (v4.2 ship baseline)
 
