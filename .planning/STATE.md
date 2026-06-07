@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: executing
-last_updated: "2026-06-07T08:40:37.835Z"
+status: completed
+last_updated: "2026-06-07T08:49:49.548Z"
 last_activity: 2026-06-07
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
-  percent: 40
+  completed_plans: 12
+  percent: 60
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 ## Current Position
 
-Phase: 64 (interactive-getkey) — EXECUTING
-Plan: 5 of 5 (Plans 01-03, 05 complete; 64-04 GUI TS pending)
-Status: Ready to execute next phase
+Phase: 64 (interactive-getkey) — COMPLETE
+Plan: 5 of 5 (all plans complete: 01 core, 02 CLI, 03 GUI Tauri IPC, 04 GUI TS, 05 divergence-doc)
+Status: Phase complete — ready for Phase 65
 Last activity: 2026-06-07
 
 ## Progress Bar
@@ -83,9 +83,17 @@ Overall  ██░░░░░░░░  25%
 | Phase 64 P01 | 35 | 4 tasks | 7 files |
 | Phase 64 P02 | 20 | 2 tasks | 1 file |
 | Phase 64 P03 | 6 | 3 tasks | 5 files |
+| Phase 64 P04 | 8 | 2 tasks | 2 files |
 | Phase 64 P05 | 8 | 1 task | 1 file |
 
 ## Accumulated Context
+
+### Decisions (Phase 64-04 — 2026-06-07)
+
+- **64-04-D01:** `invokeForKey` gains optional `KeyDef` third param — passes full `KeyDef` from `handleClick` so `keyCode` is available during WaitForKey without secondary `KEY_DEFS` lookup.
+- **64-04-D02:** Esc WaitForKey cancel branch placed BEFORE `is_running` branch — `is_running` is `false` during WaitForKey suspend; the guard detects via `pending_yield.kind === 'wait_for_key'`.
+- **64-04-D03:** Physical keyboard WaitForKey guard always `return`s — prevents fall-through to `dispatchKeyId` for no-keyCode keys (hardware faithful: HP-41 only captures calculator keys).
+- **64-04-D04:** `invokeForKey` no-keyCode path returns `Promise.resolve(state)` — callers chain `.then`/`.catch` and must not receive undefined; keeps `busyRef` clean.
 
 ### Decisions (Phase 64-05 — 2026-06-07)
 
