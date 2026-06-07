@@ -122,7 +122,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 - [x] **Phase 62: Alarm Semantics Spec** — Verify `>` / `>>` prefix semantics against OM; lock the behavioral contract that gates all alarm implementation (ADR v4.3-003; code CONFIRMED CORRECT; da26a98)
 - [x] **Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW** — Build the synchronous pending-interrupt mechanism in `run_loop`; implement interrupting control alarm execution and PSE/VIEW-AVIEW mid-run display yields (completed 2026-06-06)
 - [x] **Phase 64: Interactive GETKEY** — Suspend program execution waiting for a keypress; push HP-41 row×col code to X and resume (completed 2026-06-07)
-- [ ] **Phase 65: Standalone Fidelity Fixes** — CLI `display_override` visibility, CHS mantissa sign-flip, AON auto-display, FACT(27..69) range fix
+- [x] **Phase 65: Standalone Fidelity Fixes** — CLI `display_override` visibility, CHS mantissa sign-flip, AON auto-display, FACT(27..69) range fix (completed 2026-06-07)
 - [ ] **Phase 66: Verification, Divergence-Doc Updates, Quality Gates** — Verify UNC-01/02/03 against OM; update `docs/hp41-time-divergences.md` (D-40-04 resolution); full quality gate green
 
 ## Phase Details
@@ -187,7 +187,7 @@ Plans:
 - [x] 65-01-PLAN.md — MATH-01: HpNum range extension (mantissa+exponent struct, arithmetic, serde, format_hpnum, op_fact, ADR v4.3-005) [heavy]
 - [x] 65-02-PLAN.md — DISP-01: CLI renders display_override (VIEW/AVIEW/PROMPT) + state.rs stale-comment cleanup
 - [x] 65-03-PLAN.md — DISP-02: CLI CHS in-buffer mantissa sign toggle
-- [ ] 65-04-PLAN.md — DISP-03: AON flag-48 auto-display on CLI + GUI (from_state)
+- [x] 65-04-PLAN.md — DISP-03: AON flag-48 auto-display on CLI + GUI (from_state)
 **UI hint**: yes
 
 ### Phase 66: Verification, Divergence-Doc Updates, Quality Gates
@@ -225,7 +225,7 @@ Plans:
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
-| 65. Standalone Fidelity Fixes | v4.3 | 3/4 | In Progress|  |
+| 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete   | 2026-06-07 |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
 
 ---

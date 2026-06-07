@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: executing
-last_updated: "2026-06-07T15:18:13.099Z"
+status: verifying
+last_updated: "2026-06-07T15:25:08.854Z"
 last_activity: 2026-06-07
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
-  percent: 60
+  completed_plans: 16
+  percent: 80
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 ## Current Position
 
-Phase: 65 (standalone-fidelity-fixes) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
+Phase: 65 (standalone-fidelity-fixes) — COMPLETE
+Plan: 4 of 4 (all done)
+Status: Phase 65 complete — ready for Phase 66 (verification)
 Last activity: 2026-06-07
 
 ## Progress Bar
@@ -87,8 +87,15 @@ Overall  ██░░░░░░░░  25%
 | Phase 64 P05 | 8 | 1 task | 1 file |
 | Phase 65 P02 | 12 | 2 tasks | 2 files |
 | Phase 65 P03 | 8 | 2 tasks | 1 file |
+| Phase 65 P04 | 4 | 3 tasks | 2 files |
 
 ## Accumulated Context
+
+### Decisions (Phase 65-04 — 2026-06-07)
+
+- **65-04-D01:** AON flag-48 branch placed AFTER alpha_mode and AFTER display_override — last else-if before X fallback (D-10 ordering); alpha_mode always takes priority over AON.
+- **65-04-D02:** Raw `state.flags` u64 used in both frontends for AON check (not the projected `Vec<u8>`) — consistent with display_ops.rs flag_set pattern.
+- **65-04-D03:** No IPC change, no App.tsx change — AON string flows through existing `display_str` field; frontend App.tsx chain unchanged.
 
 ### Decisions (Phase 64-04 — 2026-06-07)
 
