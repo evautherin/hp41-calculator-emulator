@@ -183,7 +183,11 @@ Plans:
   2. Pressing CHS while entering a mantissa (digits typed, no EEX pressed) toggles the sign of the entry buffer in place; no stack lift occurs and no previously-entered value is overwritten.
   3. When AON is active (flag 48 set), the ALPHA register contents appear on the display automatically after every operation; AOFF (clear flag 48) stops the auto-display.
   4. `FACT(27)` through `FACT(69)` return the correct factorial in scientific notation clipped to 10 significant digits, rather than raising an Overflow error.
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 65-01-PLAN.md — MATH-01: HpNum range extension (mantissa+exponent struct, arithmetic, serde, format_hpnum, op_fact, ADR v4.3-005) [heavy]
+- [ ] 65-02-PLAN.md — DISP-01: CLI renders display_override (VIEW/AVIEW/PROMPT) + state.rs stale-comment cleanup
+- [ ] 65-03-PLAN.md — DISP-02: CLI CHS in-buffer mantissa sign toggle
+- [ ] 65-04-PLAN.md — DISP-03: AON flag-48 auto-display on CLI + GUI (from_state)
 **UI hint**: yes
 
 ### Phase 66: Verification, Divergence-Doc Updates, Quality Gates
