@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-07T08:40:00.000Z"
-last_activity: 2026-06-07 -- Phase 64 Plan 01 complete (GETKEY core engine)
+last_updated: "2026-06-07T09:00:00.000Z"
+last_activity: 2026-06-07 -- Phase 64 Plan 02 complete (CLI GETKEY WaitForKey wiring)
 progress:
   total_phases: 5
   completed_phases: 2
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 64 (interactive-getkey) — EXECUTING
-Plan: 2 of 5 (Plan 01 complete)
+Plan: 3 of 5 (Plans 01-02 complete)
 Status: Executing Phase 64
-Last activity: 2026-06-07 -- Plan 01 complete: YieldKind::WaitForKey + resume_program_with_key + PRGM-03-a..i tests (4aff9a4..920f285)
+Last activity: 2026-06-07 -- Plan 02 complete: CLI WaitForKey drain + handle_key guard + 3 tests (d19f326)
 
 ## Progress Bar
 
@@ -81,8 +81,14 @@ Overall  ██░░░░░░░░  25%
 | Phase 63 P05 | 4 | 2 tasks | 2 files |
 | Phase 63 P06 | 25 | 2 tasks | 2 files |
 | Phase 64 P01 | 35 | 4 tasks | 7 files |
+| Phase 64 P02 | 20 | 2 tasks | 1 file |
 
 ## Accumulated Context
+
+### Decisions (Phase 64-02 — 2026-06-07)
+
+- **64-02-D01:** F5 (TUI R/S) returns `None` from `keycode_to_hp41_code` — ignored during WaitForKey. HP-41 code 31 is not wired in the CLI keyboard map; no special-casing introduced for R/S in the WaitForKey path.
+- **64-02-D02:** `drain_pending_yields` owns crossterm events during WaitForKey inner loop. `handle_key` guard is belt-and-suspenders against future code-shape changes.
 
 ### Decisions (Phase 64-01 — 2026-06-07)
 
