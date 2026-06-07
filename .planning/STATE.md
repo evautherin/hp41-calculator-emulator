@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: completed
-last_updated: "2026-06-07T08:49:49.548Z"
+status: ready_to_plan
+last_updated: 2026-06-07T09:11:04.716Z
 last_activity: 2026-06-07
 progress:
   total_phases: 5
@@ -11,6 +11,7 @@ progress:
   total_plans: 12
   completed_plans: 12
   percent: 60
+stopped_at: Phase 64 complete (5/5) — ready to discuss Phase 65
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,15 +24,15 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 64 — interactive-getkey
+**Current focus:** Phase 65 — standalone fidelity fixes
 
 ---
 
 ## Current Position
 
-Phase: 64 (interactive-getkey) — COMPLETE
-Plan: 5 of 5 (all plans complete: 01 core, 02 CLI, 03 GUI Tauri IPC, 04 GUI TS, 05 divergence-doc)
-Status: Phase complete — ready for Phase 65
+Phase: 65
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-07
 
 ## Progress Bar

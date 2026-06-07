@@ -220,7 +220,7 @@ Plans:
 | 61. Quality Gates | v4.2 | — | Complete | 2026-06-05 |
 | 62. Alarm Semantics Spec | v4.3 | 1/1 | Complete    | 2026-06-06 |
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
-| 64. Interactive GETKEY | v4.3 | 5/5 | Complete   | 2026-06-07 |
+| 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 0/TBD | Not started | - |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
 
