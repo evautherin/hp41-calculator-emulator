@@ -62,6 +62,10 @@ pub enum YieldKind {
     View,
     /// Op::AView — display the ALPHA register content for PSE_RESUME_MS then resume.
     Aview,
+    /// Op::GetKey (Phase 64, v4.3) — event-driven yield; resume is triggered by a
+    /// key event, not a timer. `resume_ms` is 0 (unused). Frontend calls
+    /// `resume_program_with_key(keycode)`. Display unchanged during the wait (D-03).
+    WaitForKey,
 }
 
 /// Typed yield channel: carries the formatted display string, yield kind, and
@@ -528,6 +532,18 @@ pub struct CalcState {
     /// Transient — never persisted (`#[serde(default, skip)]`).
     #[serde(default, skip)]
     pub pending_yield: Option<YieldState>,
+
+    // ── Phase 64 (v4.3): Interactive GETKEY transient capture field ───────────
+    /// Keycode captured during a `WaitForKey` yield; threaded into `op_getkey`
+    /// on resume via `resume_program_with_key()`.
+    ///
+    /// Set by `resume_program_with_key()` BEFORE clearing `pending_yield` — so
+    /// `op_getkey` can read it via `.take()` on the resumed iteration.
+    /// Consumed (via `.take()`) by `op_getkey` at the resumed `pc`.
+    /// `None` when not in a WaitForKey resume path. Cleaned up even on error.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub getkey_captured_code: Option<u8>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
@@ -626,6 +642,8 @@ impl CalcState {
             pending_interrupt_alarm_index: None,
             pending_interrupt_depth: None,
             pending_yield: None,
+            // Phase 64 (v4.3): interactive GETKEY transient capture field
+            getkey_captured_code: None,
         }
     }
 }
@@ -828,6 +846,11 @@ mod tests {
             !json.contains("pending_yield"),
             "pending_yield must be serde(skip)"
         );
+        // Phase 64 (v4.3): GETKEY transient capture field must be serde(skip)
+        assert!(
+            !json.contains("getkey_captured_code"),
+            "getkey_captured_code must be serde(skip) — must not appear in serialized JSON"
+        );
 
         // Persistent fields must appear in serialized output
         assert!(
@@ -875,6 +898,10 @@ mod tests {
         assert!(
             restored.pending_yield.is_none(),
             "pending_yield must reset to None after deserialization"
+        );
+        assert!(
+            restored.getkey_captured_code.is_none(),
+            "getkey_captured_code must reset to None after deserialization"
         );
     }
 
