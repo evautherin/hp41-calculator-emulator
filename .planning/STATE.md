@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-10T12:52:53.238Z"
-last_activity: 2026-06-10 -- Phase 67 planning complete
+last_updated: "2026-06-10T13:04:05.631Z"
+last_activity: 2026-06-10
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 26
-  completed_plans: 21
-  percent: 81
+  completed_plans: 22
+  percent: 83
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** v4.3 Hardware Fidelity — REOPENED. Phases 62–66 complete; **Phase 67 (Reset Escape Hatch)** folded in before the v4.3 tag — an in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS to recover from an input-blocking persisted state that survives restart. Tag `v4.3` + merge PR #26 (develop → main, **merge commit, NOT squash**) deferred until Phase 67 completes.
+**Current focus:** Phase 67 — reset-escape-hatch
 
 ---
 
 ## Current Position
 
-Phase: 67 (reset-escape-hatch) — PLANNING (added 2026-06-10; design spec written)
-Plan: not yet planned (run /gsd-plan-phase 67)
-Status: Ready to execute
-Last activity: 2026-06-10 -- Phase 67 planning complete
+Phase: 67 (reset-escape-hatch) — EXECUTING
+Plan: 2 of 5
+Status: Executing
+Last activity: 2026-06-10 -- Phase 67 Plan 01 complete (CalcState::soft_reset + CalcState::memory_lost, 28 tests)
 
 ## Progress Bar
 
@@ -51,7 +51,7 @@ Overall  ████████░░  83%
 | 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Complete ✓ (2026-06-07) |
 | 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Complete ✓ (2026-06-07) |
 | 66 | Verification, Divergence-Doc Updates, Quality Gates — UNC-01/02/03 verified; D-40-04 closed; all gates green | Complete ✓ (2026-06-10, verified 5/5) |
-| 67 | Reset Escape Hatch — two-tier in-app reset (soft + full/MEMORY LOST) across CLI/GUI/iOS; bypasses dispatch; overwrites autosave | Planning (added 2026-06-10) |
+| 67 | Reset Escape Hatch — two-tier in-app reset (soft + full/MEMORY LOST) across CLI/GUI/iOS; bypasses dispatch; overwrites autosave | In Progress (P01 done 2026-06-10) |
 
 ## Quick Tasks Completed (v4.3)
 
@@ -97,6 +97,12 @@ Overall  ████████░░  83%
 ### Roadmap Evolution
 
 - Phase 67 (Reset Escape Hatch) added 2026-06-10 — v4.3 reopened post-completion to fold in an in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS, recovering from an input-blocking persisted state that survives restart. Discovered on iOS; design spec at `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`. Release (tag `v4.3` + merge PR #26) deferred until Phase 67 lands.
+
+### Decisions (Phase 67-01 — 2026-06-10)
+
+- **67-01-D01:** `soft_reset()` replaces `self.stack` with `Stack::new()` for clean replacement rather than field-by-field zeroing — avoids missing a future Stack field.
+- **67-01-D02:** `cancel_requested` reset via `default_cancel_requested()` (creates a fresh Arc) rather than `.store(false)` — any outstanding Arc clone (e.g., GUI cancel button) also observes the reset.
+- **67-01-D03:** `memory_lost()` is `*self = CalcState::new()` — one-liner guaranteeing field-completeness by construction; avoids the partial-copy maintenance problem.
 
 ### Decisions (Phase 65-04 — 2026-06-07)
 
