@@ -380,4 +380,4 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
 
 ---
 
-*Last updated: 2026-06-06 (§D-40-04 flipped to implemented — Phase 63 / Plan 63-05). Catalog established in Plan 40-01 (Phase 40 / TIME-DOC-02).*
+*Last updated: 2026-06-10 (§D-40-04 "Verified in Phase 66" claim confirmed true — re-entrancy suite green per Phase 66 Plan 66-02). Established in Plan 40-01 (Phase 40 / TIME-DOC-02).*

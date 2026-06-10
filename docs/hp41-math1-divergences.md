@@ -158,10 +158,14 @@ emulator either matches or intentionally diverges from that specification.)*
   non-integer arguments and does not add a GAMMA function. Integer-only is therefore
   hardware-faithful to both the base ROM and the Math Pac I extension.
 
-- **Our behavior**: FACT (carried from v2.2 Phase 27 implementation) accepts integer X only.
-  Range: X = 0 returns 1 (0! = 1, mathematically correct and OM-consistent). X = 1 through
-  69 computes the factorial. Effective cap due to `Decimal::from_f64` overflow is X ≤ 26
-  (calibrated by Phase 27 proptest; FACT(27) overflows the `rust_decimal` representation).
+- **Our behavior**: FACT accepts integer X only. Range: X = 0 returns 1 (0! = 1,
+  mathematically correct and OM-consistent). **X = 1 through 69 computes the correct
+  factorial, including the range 27–69 via `HpNum::from_f64` large-exponent representation
+  (implemented in v4.3 / Phase 65 — FGAP-03).** Prior to v4.3, FACT(27) through FACT(69)
+  incorrectly returned `HpError::Overflow` due to a `Decimal::from_f64` ceiling at n=27
+  (the 28-digit `rust_decimal` precision overflow). The v4.3 fix uses `HpNum::from_f64`
+  which stores large factorials in the two-tier `{ mantissa, exponent }` form, returning
+  a correct 10-significant-digit scientific-notation result matching HP-41 hardware.
   X ≥ 70 returns `HpError::OutOfRange`. Negative or non-integer X returns
   `HpError::InvalidOp`. We do NOT add a `GAMMA` function for non-integer factorial — the
   Math Pac I OM does not contain GAMMA and this is a deliberate scope boundary.
@@ -179,9 +183,10 @@ emulator either matches or intentionally diverges from that specification.)*
   cleanly error. GAMMA is deferred to Phase 32+ if a user explicitly requests it. The
   boundary is clean: FACT is OM-specified behavior; GAMMA is not.
 
-- **See**: README.md `## Documented Divergences from HP-41 Hardware` (v2.2 FACT cap line);
-  `hp41-core/src/ops/math.rs::op_fact`; Phase 27 D-27.5 (FACT case citations in
-  `hp41-core/tests/numerical_accuracy.rs` — FACT(0)=1, FACT(70)→OutOfRange, etc.).
+- **See**: README.md `## Documented Divergences from HP-41 Hardware` (FACT note — updated
+  to v4.3 in Phase 66 / Plan 66-03); `hp41-core/src/ops/math.rs::op_fact`;
+  Phase 27 D-27.5 (FACT case citations in `hp41-core/tests/numerical_accuracy.rs` —
+  FACT(0)=1, FACT(70)→OutOfRange, etc.); FGAP-03 (this divergence, closed Phase 65).
 
 ---
 
@@ -320,8 +325,9 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
 
 ---
 
-*Last updated: 2026-05-17. Catalog expanded to three-bucket numbered format by Plan 30-02
-(Phase 30 / DOC-04).*
+*Last updated: 2026-06-10 (D-30-04 FACT entry updated — FACT(27..=69) range-cap fixed
+in v4.3 / Phase 65; Phase 66 / Plan 66-03 reconciliation). Catalog expanded to
+three-bucket numbered format by Plan 30-02 (Phase 30 / DOC-04).*
 
 *Next planned update: Phase 32 may add entries for cross-platform numerical-drift
 documentation (QUAL-06), additional POLY/MATRIX worked-example divergences discovered
