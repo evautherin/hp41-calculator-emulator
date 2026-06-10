@@ -654,6 +654,131 @@ impl Default for CalcState {
     }
 }
 
+// ── Phase 67 (v4.3): Reset Escape Hatch ──────────────────────────────────────
+
+impl CalcState {
+    /// **Soft reset** — clears every transient / input-trapping field while
+    /// preserving all stored user data (program, registers, flags, key
+    /// assignments, X-MEM, XROM modules, Time/Advantage state, rand_seed).
+    ///
+    /// Intended as an in-app escape hatch for a trapped calculator state
+    /// (including a persisted-trap that survives an app restart).  Runs
+    /// **outside** the normal `dispatch()` / `key→Op` path so it works even
+    /// when dispatch itself is stuck.
+    ///
+    /// After this call the state is **input-accepting**: not running, no
+    /// pending entry, no modal, no display override, not in PRGM mode.
+    ///
+    /// ## What is cleared
+    ///
+    /// - **Stack:** x/y/z/t/lastx → zero; `lift_enabled` → false.
+    /// - **Entry:** `entry_buf` → empty; `alpha_reg` → empty; `alpha_mode` → false.
+    /// - **Display:** `display_override` → None.
+    /// - **Modes:** `prgm_mode` → false; `user_mode` → false.
+    /// - **Modals:** `modal_program` / `modal_prompt` → None; `integ_state` /
+    ///   `solve_state` / `difeq_state` → None; Advantage solver states → None;
+    ///   `pending_chisqd_nu` / `pending_adv_matrix_name` / `pending_adv_matrix_rows` → None.
+    /// - **Matrix workflow:** `matrix_dim` / `matrix_active_reg` → None.
+    /// - **Program execution:** `is_running` → false; `pc` → 0; `call_stack` → cleared.
+    /// - **Phase 63/64 transients:** `pending_interrupt` / `pending_interrupt_alarm_index` /
+    ///   `pending_interrupt_depth` / `pending_yield` / `getkey_captured_code` → None.
+    /// - **Buffers:** `print_buffer` → cleared; `event_buffer` → cleared;
+    ///   `pending_card_op` → None; `last_key_code` → 0.
+    /// - **Clock/stopwatch modes:** `clock_active` → false; `stopwatch_keyboard_mode` → false;
+    ///   `alarm_catalog_mode` → false; `stopwatch_start` → None.
+    /// - **Advantage transients:** `adv_current_matrix` → None; `adv_froot_state` → None;
+    ///   `adv_fintg_state` → None; `adv_fsolve_state` → None; `adv_fdifeq_state` → None.
+    /// - **Cancellation:** `cancel_requested` → reset to false (new Arc).
+    ///
+    /// ## What is preserved
+    ///
+    /// `program`, `regs`, `text_regs`, `flags`, `key_assignments`, `assignments`,
+    /// `xmem_files`, `xmem_active_file`, `xrom_modules`, `rand_seed`, `adv_matrices`,
+    /// `adv_matrix_i`, `adv_matrix_j`, `adv_tvm_state`, `time_offset_secs`,
+    /// `clock_12h`, `clock_display_mode`, `accuracy_factor`, `alarms`,
+    /// `stopwatch_mode`, `stopwatch_accumulated`, `stopwatch_split`,
+    /// `reg_m`, `reg_n`, `reg_o`, `angle_mode`, `display_mode`, `complex_mode`.
+    pub fn soft_reset(&mut self) {
+        // ── Stack ──────────────────────────────────────────────────────────────
+        self.stack = Stack::new();
+
+        // ── Entry state ────────────────────────────────────────────────────────
+        self.entry_buf.clear();
+        self.alpha_reg.clear();
+        self.alpha_mode = false;
+
+        // ── Display ────────────────────────────────────────────────────────────
+        self.display_override = None;
+
+        // ── Keyboard / program modes ───────────────────────────────────────────
+        self.prgm_mode = false;
+        self.user_mode = false;
+
+        // ── Modals: math solvers ────────────────────────────────────────────────
+        self.modal_program = None;
+        self.modal_prompt = None;
+        self.integ_state = None;
+        self.solve_state = None;
+        self.difeq_state = None;
+
+        // ── Math Pac I matrix workflow ─────────────────────────────────────────
+        self.matrix_dim = None;
+        self.matrix_active_reg = None;
+
+        // ── Program execution ──────────────────────────────────────────────────
+        self.is_running = false;
+        self.pc = 0;
+        self.call_stack.clear();
+
+        // ── Phase 63/64 transients ─────────────────────────────────────────────
+        self.pending_interrupt = None;
+        self.pending_interrupt_alarm_index = None;
+        self.pending_interrupt_depth = None;
+        self.pending_yield = None;
+        self.getkey_captured_code = None;
+
+        // ── I/O buffers ────────────────────────────────────────────────────────
+        self.print_buffer.clear();
+        self.event_buffer.clear();
+        self.pending_card_op = None;
+        self.last_key_code = 0;
+
+        // ── Clock / stopwatch interactive modes ────────────────────────────────
+        self.clock_active = false;
+        self.stopwatch_keyboard_mode = false;
+        self.alarm_catalog_mode = false;
+        self.stopwatch_start = None;
+
+        // ── Advantage Pac transients ───────────────────────────────────────────
+        self.adv_current_matrix = None;
+        self.adv_froot_state = None;
+        self.adv_fintg_state = None;
+        self.adv_fsolve_state = None;
+        self.adv_fdifeq_state = None;
+        self.pending_adv_matrix_name = None;
+        self.pending_adv_matrix_rows = None;
+
+        // ── Stat 1 transient ───────────────────────────────────────────────────
+        self.pending_chisqd_nu = None;
+
+        // ── Cancellation flag ──────────────────────────────────────────────────
+        // Replace with a fresh Arc so any outstanding clone sees the reset.
+        self.cancel_requested = default_cancel_requested();
+    }
+
+    /// **Full reset / MEMORY LOST** — restores the calculator to factory state,
+    /// exactly equivalent to `*self = CalcState::new()`.
+    ///
+    /// Destroys ALL stored user data: program, registers, flags, X-MEM files,
+    /// key assignments, Time/Advantage state.  Matches the HP-41 hardware
+    /// "MEMORY LOST" message shown on cold-start after a full clear.
+    ///
+    /// Runs outside `dispatch()` for the same reason as `soft_reset()`.
+    pub fn memory_lost(&mut self) {
+        *self = CalcState::new();
+    }
+}
+
 // ── Phase 33 (v3.1): post-deserialization migration helpers ─────────────────
 
 impl CalcState {

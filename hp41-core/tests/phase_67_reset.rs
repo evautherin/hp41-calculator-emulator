@@ -77,9 +77,10 @@ fn make_trapped_state() -> CalcState {
         rows: 2,
         cols: 2,
         data: vec![HpNum::zero(), HpNum::zero(), HpNum::zero(), HpNum::zero()],
+        is_complex: false,
     });
     s.time_offset_secs = 9876;
-    s.stopwatch_accumulated = 3.14;
+    s.stopwatch_accumulated = 2.5;
     s.stopwatch_split = 1.5;
     s.reg_m = HpNum::from(Decimal::new(7, 0));
     s.reg_n = HpNum::from(Decimal::new(8, 0));
@@ -399,7 +400,7 @@ fn soft_reset_preserves_stopwatch_accumulated() {
     let mut s = make_trapped_state();
     s.soft_reset();
     assert!(
-        (s.stopwatch_accumulated - 3.14).abs() < 1e-9,
+        (s.stopwatch_accumulated - 2.5).abs() < 1e-9,
         "stopwatch_accumulated preserved"
     );
     assert!(
