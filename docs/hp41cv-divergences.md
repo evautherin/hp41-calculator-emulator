@@ -120,6 +120,112 @@ per Phase 64 research (Pitfall 4 / Open Question 1) and orchestrator decision.
   (on-screen taps + physical keyboard) + cancel → sentinel 0.
 - Phase 64 / Plan 64-01 through 64-04 (core engine, CLI wiring, GUI Tauri IPC, GUI TS).
 
+## D-CV-06 — CLI VIEW/AVIEW/PROMPT display reads display_override — Implemented (v4.3)
+
+**Status: IMPLEMENTED in Phase 65 (v4.3). Closes FGAP-02 / DISP-01.**
+
+**Authentic:** On the HP-41, VIEW n, AVIEW, and PROMPT show the register value or ALPHA
+string on the display for approximately one second (VIEW/AVIEW) or until a key is pressed
+(PROMPT). OM p.16 (Viewing Register Contents).
+
+**Emulator behavior (v4.3+):** The CLI `hp41-cli/src/ui.rs::get_display_string()` now
+reads `state.display_override` and shows its value for one render cycle before clearing.
+Prior to Phase 65, `get_display_string()` never read `display_override` — the view result
+was silently discarded. The core (`hp41-core`) already set `state.display_override`
+correctly via `op_view` / `op_aview`; only the CLI rendering path was missing.
+
+**Implementation references:**
+- `hp41-cli/src/ui.rs` — `get_display_string()` `display_override` branch.
+- Phase 65 / Plan 65-XX.
+
+## D-CV-07 — CHS during mantissa entry toggles sign in entry buffer — Implemented (v4.3)
+
+**Status: IMPLEMENTED in Phase 65 (v4.3). Closes FGAP-05 / DISP-02.**
+
+**Authentic:** On the HP-41, pressing CHS while a number is being entered (non-EEX mode)
+toggles the sign of the entry in place — the display flips sign without flushing the buffer
+to the stack. OM p.15 (Display Editing — sign behavior).
+
+**Emulator behavior (v4.3+):** `hp41-cli/src/app.rs` intercepts CHS before the flush
+dispatch when `entry_buf` is non-empty and contains no EEX character, toggleing the sign
+bit of the entry string in place. Prior to Phase 65, CHS always flushed the entry buffer
+to the stack before negating X, lifting the stack on every CHS-during-entry.
+
+**Implementation references:**
+- `hp41-cli/src/app.rs` — CHS intercept before flush.
+- Phase 65 / Plan 65-XX.
+
+## D-CV-08 — AON flag-48 auto-display — Implemented (v4.3)
+
+**Status: IMPLEMENTED in Phase 65 (v4.3). Closes FGAP-07 / DISP-03.**
+
+**Authentic:** On the HP-41, AON sets flag 48 (Alpha Mode). While flag 48 is set, the
+ALPHA register is automatically shown on the display after every operation. AOFF clears
+flag 48. OM p.53 (Flag 48: Alpha Mode).
+
+**Emulator behavior (v4.3+):** Both `hp41-cli/src/ui.rs` and `hp41-gui/src/App.tsx` now
+check flag 48 in `calcState.flags` / `state.flags` after every operation, and display the
+ALPHA register value when the flag is set. Prior to Phase 65, `op_aon` stored flag 48 but
+no frontend read it — the auto-display effect was silent.
+
+**Implementation references:**
+- `hp41-cli/src/ui.rs` — flag-48 auto-display in `get_display_string()`.
+- `hp41-gui/src/App.tsx` — flag-48 auto-display in state projection.
+- Phase 65 / Plan 65-XX.
+
+## D-CV-09 — PRX/PRA/PRSTK now flag-gated on printer presence — Fixed (v4.3)
+
+**Status: FIXED in Phase 66 (v4.3). Closes UNC-02.**
+
+**Authentic:** On the HP-41, executing PRX, PRA, or PRSTK when no printer is connected
+produces a NONEXISTENT-class error. Flag 21 (Printer Enable, p.53) and Flag 55 (Printer
+Existence, p.54) together indicate printer presence; at least one must be set for print
+functions to succeed. OM p.57-58: "An attempt was made to execute a specific print function
+when the printer was not connected to the system."
+
+**Emulator behavior prior to v4.3:** `op_prx`, `op_pra`, and `op_prstk` in
+`hp41-core/src/ops/print.rs` did not read flags 21 or 55 — they always pushed to
+`print_buffer` regardless of printer state. This was a divergence from hardware behavior.
+
+**Emulator behavior (v4.3+):** Each print function now checks
+`flag_get(state.flags, 55) || flag_get(state.flags, 21)` at entry and returns
+`Err(HpError::NonExistent)` if neither is set. `HpError::NonExistent` is a new variant
+added to `hp41-core/src/error.rs` matching the OM "NONEXISTENT" error class. All print
+tests were reworked to set flag 55 in setup; one new test
+(`test_prx_returns_nonexistent_when_no_printer_flag`) was added.
+
+**Note on flag 25:** Flag 25 = "Error Ignore" (generic error-suppression flag, OM p.53) —
+it is NOT a printer flag. The original UNC-02 audit text was imprecise; the fix uses
+flags 21 and 55 only.
+
+**Implementation references:**
+- `hp41-core/src/ops/print.rs` — `op_prx`, `op_pra`, `op_prstk` (flag guard at entry).
+- `hp41-core/src/error.rs` — `HpError::NonExistent` variant.
+- `hp41-core/tests/print_tests.rs` — reworked setup + new nonexistent test.
+- Phase 66 / Plan 66-02.
+
 ---
 
-*Last updated: 2026-06-07 (§D-CV-05 added — interactive GETKEY implemented, Phase 64 / Plan 64-05). Established 2026-06-03.*
+## Verified-Correct Notes (v4.3)
+
+The following UNC items were investigated during Phase 66 (Plan 66-03) by direct reading
+of the HP-41C Operating Manual (HP 00041-90259, June 1980). They are NOT divergences —
+the emulator already behaves correctly.
+
+**UNC-01 — Back-arrow clears error message (OM p.15, verified Phase 66):**
+The OM states "Pressing [←] also clears error messages from the display." The emulator
+correctly implements this: `hp41-cli/src/app.rs` lines 974–975 call `backspace_entry()`
+then set `self.message = None` on every back-arrow press, clearing any active error or
+status message. No fix was required.
+
+**UNC-03 — SIZE reduction is silent, no MEMORY LOST display (OM p.19 + p.57, verified Phase 66):**
+OM p.19 describes SIZE reduction as silently truncating the highest-numbered registers —
+no special display message. OM p.57 defines "MEMORY LOST" as a Continuous Memory clear
+event caused by battery interruption or memory-module removal — not a SIZE event. The
+emulator correctly does not show "MEMORY LOST" on SIZE reduction. A misleading comment
+in `op_size` (`hp41-core/src/ops/program.rs`) that implied "hardware-faithful 'MEM LOST'"
+was corrected in Phase 66 / Plan 66-02.
+
+---
+
+*Last updated: 2026-06-10 (§D-CV-06–09 added — Phase 65/66 DISP + UNC closures). Established 2026-06-03.*
