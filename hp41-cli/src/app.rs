@@ -32,6 +32,32 @@ enum IndToggleAction {
     Continue,
 }
 
+/// Two-tier reset escape-hatch prompt state (Phase 67-02).
+///
+/// Stored on `App` so the intercept in `handle_key` can track which stage the
+/// user is in. Displayed via `render_status` in `ui.rs`. Never serialised —
+/// an app restart always begins in `None`.
+///
+/// State machine:
+///   `None`                 — no reset in progress; Ctrl+R opens → `AwaitingTier`
+///   `AwaitingTier`         — prompt shown: `[s] soft  [f] full (MEMORY LOST)  [Esc] cancel`
+///                            `s` → soft reset + persist → `None`
+///                            `f` → show second confirm → `AwaitingFullConfirm`
+///                            Esc / other → cancel → `None`
+///   `AwaitingFullConfirm`  — prompt shown: `MEMORY LOST? [y/n]`
+///                            `y`/`Y` → full reset + persist → `None`
+///                            `n`/`N`/Esc / other → cancel → `None`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ResetPrompt {
+    /// No reset in progress (default).
+    #[default]
+    None,
+    /// First tier: user chose Ctrl+R and we are showing the tier-selection prompt.
+    AwaitingTier,
+    /// Second tier: user pressed `f`; showing the full-reset confirmation prompt.
+    AwaitingFullConfirm,
+}
+
 /// Discriminator for `PendingInput::XeqByName` — distinguishes the normal
 /// XEQ-by-Name flow from the CollectForModal auto-open hook (D-29.8 / D-29.9).
 ///
@@ -159,6 +185,9 @@ pub struct App {
     pub state_path: PathBuf,
     // ── Phase 5: modal input (D-08) ──────────────────────────────────────────
     pub pending_input: Option<PendingInput>,
+    // ── Phase 67-02: reset escape-hatch prompt state ──────────────────────────
+    /// Two-tier reset state machine (Ctrl+R). Never persisted; always `None` on startup.
+    pub reset_prompt: ResetPrompt,
     // ── Phase 25: one-shot HP-41CV f-prefix arm state (D-25.1 / D-25.4) ──────
     /// True for exactly one key-press cycle after `f` is pressed; consumed
     /// by the next op key (which is then resolved via `keys::shifted_key_to_op`)
@@ -244,6 +273,7 @@ impl App {
             last_save: Instant::now(),
             state_path,
             pending_input: None,
+            reset_prompt: ResetPrompt::None,
             shift_armed: false,
             show_help: false,
             help_table_state: RefCell::new(TableState::default()),
@@ -559,6 +589,89 @@ impl App {
             return;
         }
 
+        // Phase 67-02: Reset escape-hatch — Ctrl+R intercept.
+        //
+        // INTENTIONAL D-07 EXCEPTION: this intercept sits ABOVE the `pending_input`
+        // routing block so the reset prompt beats every stuck state, including a
+        // trapped `pending_input`. This is a documented, deliberate deviation from the
+        // D-07 never-discard ordering: the escape hatch must work even when the
+        // normal dispatch path is the thing that is stuck. Any active pending_input,
+        // shift_armed flag, or in-progress entry buffer is cleared as part of the reset
+        // so no UI state is leaked.
+        //
+        // Two-tier state machine:
+        //   None              + Ctrl+R  → show tier prompt → AwaitingTier
+        //   AwaitingTier      + 's'     → soft_reset + persist → None
+        //   AwaitingTier      + 'f'/'F' → show confirm   → AwaitingFullConfirm
+        //   AwaitingTier      + Esc/other → cancel        → None
+        //   AwaitingFullConfirm + 'y'/'Y' → memory_lost + persist → None
+        //   AwaitingFullConfirm + other   → cancel        → None
+        if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.reset_prompt = ResetPrompt::AwaitingTier;
+            self.message = None;
+            return;
+        }
+        if self.reset_prompt == ResetPrompt::AwaitingTier {
+            match key.code {
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    // Soft reset: clears transient state, preserves stored data.
+                    self.state.soft_reset();
+                    // Clear CLI-only transient entry state that lives outside CalcState.
+                    self.pending_input = None;
+                    self.shift_armed = false;
+                    self.show_help = false;
+                    self.help_search_query.clear();
+                    self.help_table_state.borrow_mut().select(None);
+                    self.show_programs = false;
+                    // Persist immediately — overwrite autosave so recovery survives restart.
+                    match persistence::save_state(&self.state_path, &self.state) {
+                        Ok(()) => self.message = Some("Soft reset complete".to_string()),
+                        Err(e) => self.message = Some(format!("Soft reset — save failed: {e}")),
+                    }
+                    self.reset_prompt = ResetPrompt::None;
+                }
+                KeyCode::Char('f') | KeyCode::Char('F') => {
+                    // Advance to full-reset confirmation prompt.
+                    self.reset_prompt = ResetPrompt::AwaitingFullConfirm;
+                }
+                _ => {
+                    // Esc or any other key cancels the reset prompt.
+                    self.reset_prompt = ResetPrompt::None;
+                    self.message = Some("Reset cancelled".to_string());
+                }
+            }
+            return;
+        }
+        if self.reset_prompt == ResetPrompt::AwaitingFullConfirm {
+            match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    // Full reset: factory state — equivalent to CalcState::new().
+                    self.state.memory_lost();
+                    // Clear CLI-only transient entry state that lives outside CalcState.
+                    self.pending_input = None;
+                    self.shift_armed = false;
+                    self.show_help = false;
+                    self.help_search_query.clear();
+                    self.help_table_state.borrow_mut().select(None);
+                    self.show_programs = false;
+                    // Persist immediately — overwrite autosave so recovery survives restart.
+                    match persistence::save_state(&self.state_path, &self.state) {
+                        Ok(()) => {
+                            self.message = Some("MEMORY LOST — full reset complete".to_string())
+                        }
+                        Err(e) => self.message = Some(format!("MEMORY LOST — save failed: {e}")),
+                    }
+                    self.reset_prompt = ResetPrompt::None;
+                }
+                _ => {
+                    // 'n', 'N', Esc, or any other key cancels.
+                    self.reset_prompt = ResetPrompt::None;
+                    self.message = Some("Reset cancelled".to_string());
+                }
+            }
+            return;
+        }
+
         // Phase 5: route to pending_input handler if modal is active — MUST come before
         // the modal-opening interceptors below (CR-02). If any modal is active, 'S', 'R',
         // and Ctrl+A must be handled by the active modal, not silently replaced.
@@ -625,13 +738,15 @@ impl App {
             return;
         }
 
-        // Card Reader comfort shortcuts — Ctrl+W/R/D/F dispatch the four card ops
+        // Card Reader comfort shortcuts — Ctrl+W/E/D/F dispatch the four card ops
         // directly without typing ALPHA + XEQ. Hardware-faithful path still works in parallel.
+        // NOTE: Ctrl+R was previously Rdprgm but is now reserved for the reset escape-hatch
+        // (Phase 67-02). Rdprgm is reassigned to Ctrl+E (mnemonic: "rEad program").
         if key.code == KeyCode::Char('w') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.call_dispatch_and_drain(Op::Wprgm);
             return;
         }
-        if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.call_dispatch_and_drain(Op::Rdprgm);
             return;
         }
@@ -3546,26 +3661,30 @@ mod synthetic_modal_tests {
         );
     }
 
-    /// Ctrl+R dispatches RDPRGM (read program from card).
+    /// Ctrl+E dispatches RDPRGM (read program from card).
+    ///
+    /// NOTE: Ctrl+R was previously RDPRGM but was reassigned to the reset escape-hatch
+    /// in Phase 67-02. RDPRGM moved to Ctrl+E (mnemonic: "rEad program").
+    ///
     /// Sandboxed: injects a tempdir as cards_dir (no MISSING.raw present).
     /// Proves the correct op was dispatched: RDPRGM on a missing file surfaces
-    /// "card data" in app.message; a R↔W swap would write a file instead of erroring.
+    /// "card data" in app.message; a E↔W swap would write a file instead of erroring.
     #[test]
-    fn test_ctrl_r_dispatches_rdprgm() {
+    fn test_ctrl_e_dispatches_rdprgm() {
         let tmp = tempfile::tempdir().unwrap();
         let mut app = make_app();
         app.cards_dir = Some(tmp.path().to_path_buf());
         app.state.alpha_reg = "MISSING".to_string();
 
-        app.handle_key(make_ctrl_key('r'));
+        app.handle_key(make_ctrl_key('e'));
 
-        assert!(!app.exit, "Ctrl+R must not quit the app");
-        assert!(!app.state.alpha_mode, "Ctrl+R must not activate ALPHA mode");
+        assert!(!app.exit, "Ctrl+E must not quit the app");
+        assert!(!app.state.alpha_mode, "Ctrl+E must not activate ALPHA mode");
         // RDPRGM on a missing file → HpError::CardData → app.message contains "card data".
         let msg = app.message.as_deref().unwrap_or("");
         assert!(
             msg.contains("card data") || msg.contains("CARD DATA"),
-            "Ctrl+R on missing file must surface CARD DATA via app.message; got {msg:?}",
+            "Ctrl+E on missing file must surface CARD DATA via app.message; got {msg:?}",
         );
     }
 

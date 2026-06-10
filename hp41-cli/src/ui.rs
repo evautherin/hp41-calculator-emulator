@@ -247,15 +247,24 @@ fn render_status(app: &App, frame: &mut Frame, area: Rect) {
     // D-11: pending_input prompts override normal status message
     // D-14: ALPHA mode has a standard status message
     // Phase 29 (D-29.3): modal_prompt renders via widened pending_prompt signature.
-    let base: String = if app.pending_input.is_some() || app.state.modal_prompt.is_some() {
-        pending_prompt(
-            app.pending_input.as_ref(),
-            app.state.modal_prompt.as_deref(),
-        )
-    } else if app.state.alpha_mode {
-        "ALPHA mode — Enter or A to exit".to_string()
-    } else {
-        app.message.as_deref().unwrap_or("Ready").to_string()
+    // Phase 67-02: reset escape-hatch prompt overrides all other status text.
+    let base: String = match app.reset_prompt {
+        crate::app::ResetPrompt::AwaitingTier => {
+            "Reset:  [s] soft   [f] full (MEMORY LOST)   [Esc] cancel".to_string()
+        }
+        crate::app::ResetPrompt::AwaitingFullConfirm => "MEMORY LOST? [y/n]".to_string(),
+        crate::app::ResetPrompt::None => {
+            if app.pending_input.is_some() || app.state.modal_prompt.is_some() {
+                pending_prompt(
+                    app.pending_input.as_ref(),
+                    app.state.modal_prompt.as_deref(),
+                )
+            } else if app.state.alpha_mode {
+                "ALPHA mode — Enter or A to exit".to_string()
+            } else {
+                app.message.as_deref().unwrap_or("Ready").to_string()
+            }
+        }
     };
     // Phase 25 (D-25.4 / Plan 01 / RESEARCH Open Q 5): prepend an "f→"
     // indicator when the prefix is armed AND no modal/ALPHA is active —
