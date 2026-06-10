@@ -249,9 +249,18 @@ Plans:
 
 **Out of scope**: the root-cause trap bug (the exact key sequence that produces the persisted block) — separate follow-up once reproduced.
 
-**Plans**: 0 plans
+**Plans**: 5 plans across 3 waves
 Plans:
-- [ ] TBD (run /gsd-plan-phase 67 to break down)
+**Wave 1**
+- [ ] 67-01-PLAN.md — Core: `CalcState::soft_reset()` + `memory_lost()` + table-driven clear/preserve/trapped-recovery tests (phase_67_reset.rs)
+
+**Wave 2** *(depends on 67-01; 67-04 depends on 67-03)*
+- [ ] 67-02-PLAN.md — CLI: `Ctrl+R` two-tier prompt above `pending_input` (D-07 exception) + persist + resolve `Ctrl+R`/Rdprgm conflict
+- [ ] 67-03-PLAN.md — GUI-Rust: `reset_soft`/`reset_full` Tauri commands + permission TOMLs + capabilities + synchronous autosave-overwrite + round-trip test
+- [ ] 67-04-PLAN.md — GUI/iOS: `ON`-key tap=soft / long-press=full wiring outside resolve() + portaled confirm sheet + vitest (non-autonomous: on-device verify)
+
+**Wave 3** *(depends on 67-01..67-04)*
+- [ ] 67-05-PLAN.md — Docs: ADR v4.3-007 + hp41cv divergence entry + discoverability hint + `just ci`/`just gui-ci` green + D-25.6 parity self-check
 
 ---
 
