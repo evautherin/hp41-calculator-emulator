@@ -26,10 +26,47 @@ findings:
   warning: 2
   info: 2
   total: 6
-status: issues_found
+status: resolved
+disposition:
+  CR-01: deferred (out of scope — see below)
+  CR-02: fixed (commit 11ee2b0)
+  WR-01: deferred (escape-hatch must work while busy by design)
+  WR-02: noted (no action)
+  IN-01: noted (test polish, optional)
+  IN-02: noted (test polish, optional)
 ---
 
 # Phase 67: Code Review Report
+
+## Orchestrator Disposition (2026-06-10, post-review)
+
+- **CR-02 — FIXED (commit `11ee2b0`).** `soft_reset()` now clears `cancel_requested`
+  in place (`store(false)`) and `memory_lost()` preserves the Arc identity across the
+  factory reset instead of minting a new Arc. This keeps the GUI's long-lived
+  `CancelFlag` clone connected so cancellation keeps working after any reset. Added
+  RST-05 regression tests asserting `Arc::ptr_eq` holds across both reset tiers.
+  `#[serde(skip)]` on the field means RST-03 JSON equivalence is unaffected.
+
+- **CR-01 — DEFERRED (out of scope, not a Phase-67 regression).** The GUI physical-key
+  `'r'`→RDPRGM mapping is **pre-existing and unchanged** by this phase. The locked phase
+  design (67-CONTEXT.md) intentionally chose the **ON key** as the GUI reset surface and
+  `Ctrl+R` *only* for the CLI ("a terminal has no ON button"). GUI users reach reset by
+  tapping/clicking ON. D-25.6 parity is satisfied at the behavior level (both surfaces
+  expose soft+full tiers). CLI/GUI keyboard maps diverging by design is a known, accepted
+  state. Adding a GUI `Ctrl+R` reset binding is a future enhancement, tracked as a
+  follow-up — not closed within Phase 67's scope fence.
+
+- **WR-01 — DEFERRED.** Gating the long-press on `busyRef` would defeat the escape
+  hatch's purpose (it must recover a stuck/busy app). The reset Tauri commands acquire
+  the `AppState` lock between Phase-63 run-loop yields. Worth an on-device confirmation
+  in a follow-up, but not a blocker.
+
+- **WR-02 / IN-01 / IN-02 — NOTED.** Test-quality polish (the RST-01-i `pending_yield`
+  assertion is tautological because `make_trapped_state()` never sets it; CLI RST-CLI-07
+  negative-guard fragility). Optional; no action this phase.
+
+---
+
 
 **Reviewed:** 2026-06-10T10:30:00Z
 **Depth:** standard
