@@ -37,6 +37,10 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 - [x] **VERIFY-01**: Verify the three uncertain behaviors against the OM / a trusted reference and fix only those confirmed divergent; document any that are already correct: (a) ← clears an error display *(UNC-01)*, (b) flags 21/25 gating PRX/PRA/PRSTK printing *(UNC-02)*, (c) SIZE reduction showing "MEMORY LOST" on the display *(UNC-03)*.
 
+### Resilience & Recovery (escape hatch — reopened addition)
+
+- [ ] **RESET-01**: A user whose calculator is stuck in an input-blocking state that survives an app restart (the shared autosave reloads the blocking state) recovers in-app via a two-tier reset, without reinstalling. Both tiers run **outside** the key→Op dispatch path (so they work when dispatch itself is stuck) and overwrite the shared autosave **synchronously** (so recovery survives relaunch). A **soft reset** (`CalcState::soft_reset()`; GUI/iOS ON-tap, CLI `Ctrl+R`→`s`) clears all transient working state and every input-trapping mode/field (stack/LastX, in-progress entry, `display_override`, PRGM/USER/modal/matrix-edit modes, `is_running`/`pc`/`call_stack`, Phase 63/64 pending fields) while **preserving** stored user data (program, numbered/text registers, flags, key assignments, X-MEM, XROM modules, Time/Advantage state). A **full reset / MEMORY LOST** (`CalcState::memory_lost()` ≡ `CalcState::new()`; GUI/iOS ON long-press + confirm, CLI `Ctrl+R`→`f`→y/n) restores factory state. Reset is **not** an `Op` (no 4-way exhaustive-match) and is not added to the function-JSON pools; the intentional divergence from hardware ON power-toggle semantics (real ON preserves Continuous Memory) is recorded in an ADR + a `docs/hp41-*-divergences.md` entry. *(Design spec: `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`)*
+
 ## Future Requirements
 
 Deferred to a follow-up milestone (v4.4). Tracked but not in this roadmap. Both are L-effort structural members of the same `run_loop`-yield family, deferred to keep v4.3 focused.
@@ -81,12 +85,13 @@ Which phases cover which requirements.
 | DISP-03 | Phase 65 | Complete |
 | MATH-01 | Phase 65 | Complete |
 | VERIFY-01 | Phase 66 | Complete |
+| RESET-01 | Phase 67 | Planned |
 
 **Coverage:**
-- v4.3 requirements: 11 total
-- Mapped to phases: 11 (Phase 62: 1, Phase 63: 4, Phase 64: 1, Phase 65: 4, Phase 66: 1)
+- v4.3 requirements: 12 total
+- Mapped to phases: 12 (Phase 62: 1, Phase 63: 4, Phase 64: 1, Phase 65: 4, Phase 66: 1, Phase 67: 1)
 - Unmapped: 0 ✓ (100% coverage)
 
 ---
 *Requirements defined: 2026-06-06*
-*Last updated: 2026-06-06 — Traceability filled in by roadmapper (100% coverage, Phases 62–66).*
+*Last updated: 2026-06-10 — RESET-01 added (Phase 67 Reset Escape Hatch, reopened into v4.3).*
