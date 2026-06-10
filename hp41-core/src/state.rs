@@ -762,8 +762,12 @@ impl CalcState {
         self.pending_chisqd_nu = None;
 
         // ── Cancellation flag ──────────────────────────────────────────────────
-        // Replace with a fresh Arc so any outstanding clone sees the reset.
-        self.cancel_requested = default_cancel_requested();
+        // Clear the flag IN PLACE — do NOT swap the Arc. The GUI clones this Arc
+        // into a long-lived `CancelFlag` managed state at startup so `request_cancel`
+        // can flip it without locking `AppState`; replacing the Arc here would orphan
+        // that clone and permanently break cancellation after any reset (CR-02).
+        self.cancel_requested
+            .store(false, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// **Full reset / MEMORY LOST** — restores the calculator to factory state,
@@ -775,7 +779,16 @@ impl CalcState {
     ///
     /// Runs outside `dispatch()` for the same reason as `soft_reset()`.
     pub fn memory_lost(&mut self) {
+        // Preserve the `cancel_requested` Arc identity across the factory reset so the
+        // GUI's long-lived `CancelFlag` clone stays connected — a fresh
+        // `CalcState::new()` would mint a new Arc and orphan it (CR-02). The flag is
+        // `#[serde(skip)]`, so this does not affect the `memory_lost() == new()` JSON
+        // equivalence (RST-03).
+        let cancel = std::sync::Arc::clone(&self.cancel_requested);
         *self = CalcState::new();
+        self.cancel_requested = cancel;
+        self.cancel_requested
+            .store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
 

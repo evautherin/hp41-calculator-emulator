@@ -443,6 +443,54 @@ fn memory_lost_equals_new() {
     );
 }
 
+// ── RST-05: cancel_requested Arc identity preserved across reset (CR-02) ───────
+//
+// The GUI clones `CalcState.cancel_requested` into a long-lived `CancelFlag`
+// managed state once at startup; `request_cancel` flips that clone without
+// locking `AppState`. If a reset swaps the Arc, the clone is orphaned and
+// cancellation is permanently broken afterwards. Both reset tiers MUST clear the
+// flag in place, preserving Arc identity.
+
+#[test]
+fn soft_reset_preserves_cancel_arc_identity() {
+    let mut s = CalcState::new();
+    let before = std::sync::Arc::clone(&s.cancel_requested);
+    s.cancel_requested
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+
+    s.soft_reset();
+
+    assert!(
+        std::sync::Arc::ptr_eq(&before, &s.cancel_requested),
+        "soft_reset() must preserve the cancel_requested Arc identity (GUI CancelFlag clone, CR-02)"
+    );
+    assert!(
+        !s.cancel_requested
+            .load(std::sync::atomic::Ordering::Relaxed),
+        "soft_reset() must clear the cancel flag"
+    );
+}
+
+#[test]
+fn memory_lost_preserves_cancel_arc_identity() {
+    let mut s = CalcState::new();
+    let before = std::sync::Arc::clone(&s.cancel_requested);
+    s.cancel_requested
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+
+    s.memory_lost();
+
+    assert!(
+        std::sync::Arc::ptr_eq(&before, &s.cancel_requested),
+        "memory_lost() must preserve the cancel_requested Arc identity (GUI CancelFlag clone, CR-02)"
+    );
+    assert!(
+        !s.cancel_requested
+            .load(std::sync::atomic::Ordering::Relaxed),
+        "memory_lost() must clear the cancel flag"
+    );
+}
+
 // ── RST-04: serde round-trip + reset recovery ─────────────────────────────────
 
 #[test]
