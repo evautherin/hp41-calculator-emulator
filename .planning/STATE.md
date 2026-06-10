@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: executing
-last_updated: "2026-06-10T07:35:10.073Z"
+status: complete
+last_updated: "2026-06-10T08:30:00.000Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 21
-  completed_plans: 20
-  percent: 80
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,34 +23,34 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 66 — verification-divergence-doc-updates-quality-gates
+**Current focus:** v4.3 Hardware Fidelity — COMPLETE (all 5 phases shipped). Ready for tag `v4.3` + merge PR #26 (develop → main, **merge commit, NOT squash**).
 
 ---
 
 ## Current Position
 
-Phase: 66 (verification-divergence-doc-updates-quality-gates) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
+Phase: 66 (verification-divergence-doc-updates-quality-gates) — COMPLETE ✓ (verified 5/5, 2026-06-10)
+Plan: 4 of 4 complete
+Status: Milestone v4.3 complete — awaiting human release actions (tag + merge)
 Last activity: 2026-06-10
 
 ## Progress Bar
 
 ```
 v4.3 Hardware Fidelity
-Phase 62 ██████████ 100%  Phase 63 ██░░░░░░░░  25%
-Phase 64 ░░░░░░░░░░   0%  Phase 65 ░░░░░░░░░░   0%
-Phase 66 ░░░░░░░░░░   0%
-Overall  ██░░░░░░░░  25%
+Phase 62 ██████████ 100%  Phase 63 ██████████ 100%
+Phase 64 ██████████ 100%  Phase 65 ██████████ 100%
+Phase 66 ██████████ 100%
+Overall  ██████████ 100%
 ```
 
 | Phase | Goal | Status |
 |-------|------|--------|
 | 62 | Alarm Semantics Spec — verify `>` / `>>` prefix semantics against OM, lock behavioral contract | Complete ✓ (2026-06-06, da26a98) |
-| 63 | Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW — synchronous pending-interrupt mechanism, alarm execution mid-run, display yields | Planned ✓ (6 plans / 4 waves; +GUI run loop) |
-| 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Not started |
-| 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Not started |
-| 66 | Verification, Divergence-Doc Updates, Quality Gates — UNC-01/02/03 verified; D-40-04 closed; all gates green | Not started |
+| 63 | Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW — synchronous pending-interrupt mechanism, alarm execution mid-run, display yields | Complete ✓ (2026-06-06) |
+| 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Complete ✓ (2026-06-07) |
+| 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Complete ✓ (2026-06-07) |
+| 66 | Verification, Divergence-Doc Updates, Quality Gates — UNC-01/02/03 verified; D-40-04 closed; all gates green | Complete ✓ (2026-06-10, verified 5/5) |
 
 ## Quick Tasks Completed (v4.3)
 

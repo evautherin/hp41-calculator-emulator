@@ -123,7 +123,7 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 - [x] **Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW** — Build the synchronous pending-interrupt mechanism in `run_loop`; implement interrupting control alarm execution and PSE/VIEW-AVIEW mid-run display yields (completed 2026-06-06)
 - [x] **Phase 64: Interactive GETKEY** — Suspend program execution waiting for a keypress; push HP-41 row×col code to X and resume (completed 2026-06-07)
 - [x] **Phase 65: Standalone Fidelity Fixes** — CLI `display_override` visibility, CHS mantissa sign-flip, AON auto-display, FACT(27..69) range fix (completed 2026-06-07)
-- [ ] **Phase 66: Verification, Divergence-Doc Updates, Quality Gates** — Verify UNC-01/02/03 against OM; update `docs/hp41-time-divergences.md` (D-40-04 resolution); full quality gate green
+- [x] **Phase 66: Verification, Divergence-Doc Updates, Quality Gates** — Verify UNC-01/02/03 against OM; update `docs/hp41-time-divergences.md` (D-40-04 resolution); full quality gate green (completed 2026-06-10, verified 5/5)
 
 ## Phase Details
 
@@ -214,7 +214,7 @@ Plans:
 **Requirements**: VERIFY-01
 **Success Criteria** (what must be TRUE):
 
-  1. UNC-01 (← clears error display), UNC-02 (flags 21/25 gate PRX/PRA/PRSTK printing), and UNC-03 (SIZE reduction shows "MEMORY LOST") are each verified against the HP OM or trusted reference; any confirmed divergence is fixed and any already-correct behavior is documented as such.
+  1. UNC-01 (← clears error display), UNC-02 (flags 21/55 gate PRX/PRA/PRSTK printing — flag 21 Printer Enable / flag 55 Printer Existence; flag 25 is Error-Ignore, not a printer flag), and UNC-03 (SIZE reduction is silent — NOT "MEMORY LOST", which is a Continuous-Memory power event) are each verified against the HP OM or trusted reference; any confirmed divergence is fixed and any already-correct behavior is documented as such.
   2. `docs/hp41-time-divergences.md` is updated to reflect the resolution of D-40-04 (interrupting alarm execution now implemented), and any other divergence entries closed by v4.3 work are marked resolved.
   3. The re-entrancy test matrix (7 test scenarios from PITFALLS.md) is implemented in `hp41-core/tests/phase_63_interrupting_alarms.rs` and all scenarios pass.
   4. `just ci` is green (lint + test + coverage ≥ 95% lines / ≥ 93% regions + license-audit + schema-aliases); `just ci-msrv` is green; numerical accuracy ≥ 98% (843+ cases); zero panics in `hp41-core`.
@@ -230,7 +230,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 66-04-PLAN.md — Wave 2: full quality-gate suite green + v4.3 milestone PR description update
+- [x] 66-04-PLAN.md — Wave 2: full quality-gate suite green + v4.3 milestone PR description update
 
 ---
 
@@ -256,8 +256,8 @@ Plans:
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
-| 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 3/4 | In Progress|  |
+| 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 4/4 | Complete    | 2026-06-10 |
 
 ---
 
-*Last updated: 2026-06-10 — Phase 66 planned (4 plans across 3 waves; VERIFY-01). Next: `/gsd-execute-phase 66`.*
+*Last updated: 2026-06-10 — Phase 66 complete (verified 5/5, VERIFY-01 closed). **v4.3 Hardware Fidelity milestone complete** (all 5 phases). Next: tag `v4.3` on develop, then `gh pr merge 26 --merge` (NEVER `--squash`).*
