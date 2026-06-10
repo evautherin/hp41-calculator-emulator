@@ -1194,3 +1194,196 @@ describe('Q — Phase 64 Plan 04: Interactive GETKEY GUI driver (PRGM-03)', () =
     expect(tauriCalls).toHaveLength(0);
   });
 });
+
+// =====================================================================
+// Group Q — Phase 67 Plan 04: ON-key escape hatch
+//   Q1: tap (<600ms) → reset_soft (no confirm sheet)
+//   Q2: long-press (>=600ms) → MEMORY LOST confirm sheet opens (not reset_full yet)
+//   Q3: long-press + Confirm → reset_full; long-press + Cancel → no invoke
+//   Q4: pointer-up after long-press → no double-fire of reset_soft
+// =====================================================================
+
+describe('Q — Phase 67 Plan 04: ON-key escape hatch (tap/long-press/confirm/no-double-fire)', () => {
+  // Restore real timers after each test in this group (Q1-Q4 use fake timers).
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  // Helper: find the ON key element (rendered as <g data-key-id="on"> by Keyboard.tsx).
+  function findOnKey(container: HTMLElement): Element {
+    const el = container.querySelector('[data-key-id="on"]');
+    if (!el) throw new Error('ON key <g> not found (expected data-key-id="on")');
+    return el;
+  }
+
+  it('Q1: tap ON key (pointerdown then pointerup before 600ms) → reset_soft called, no confirm sheet', async () => {
+    // Install fake timers BEFORE render so timer callbacks stay under our control.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    // reset_soft resolves to a fresh CalcStateView.
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      if (cmd === 'reset_soft') return Promise.resolve(makeEmptyView());
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // pointerdown starts the long-press timer.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+    // pointerup before 600ms → tap path: no timer fired.
+    await act(async () => { fireEvent.pointerUp(onKey); });
+    // Let promises settle.
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // reset_soft must have been invoked.
+    expect(mockInvoke).toHaveBeenCalledWith('reset_soft', undefined);
+
+    // Confirm sheet must NOT appear (only fires on long-press).
+    expect(document.body.querySelector('[data-testid="memory-lost-sheet"]')).toBeNull();
+  });
+
+  it('Q2: long-press ON key (pointerdown then advance >600ms) → MEMORY LOST sheet appears, reset_full NOT yet invoked', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // pointerdown — starts the 600ms timer.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+
+    // Advance past the threshold — timer fires, opens confirm sheet.
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+    });
+    // Flush React state updates triggered by the timer callback.
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // The portaled sheet must be visible in document.body.
+    const sheet = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet).not.toBeNull();
+
+    // MEMORY LOST copy must be present in the sheet.
+    expect(sheet?.textContent).toContain('MEMORY LOST');
+
+    // reset_full must NOT have been called yet (confirm button not clicked).
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', undefined);
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', expect.anything());
+  });
+
+  it('Q3a: confirm → reset_full invoked; Q3b: cancel → sheet closes, no reset_full', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      if (cmd === 'reset_full') return Promise.resolve(makeEmptyView());
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // Long-press to open the confirm sheet.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+    await act(async () => { vi.advanceTimersByTime(700); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // Sheet must be open.
+    let sheet = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet).not.toBeNull();
+
+    // Q3a: Click Confirm → reset_full called.
+    const confirmBtn = sheet?.querySelector('.on-key-confirm-btn--confirm') as HTMLElement;
+    expect(confirmBtn).not.toBeNull();
+    await act(async () => { fireEvent.click(confirmBtn); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    expect(mockInvoke).toHaveBeenCalledWith('reset_full', undefined);
+
+    // Sheet must be gone after confirm.
+    sheet = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet).toBeNull();
+
+    // Q3b: Re-open the sheet and test Cancel path.
+    // Re-render with fresh state to avoid stale ref.
+    cleanup();
+    mockInvoke.mockReset();
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container: c2 } = await renderAppAndWait();
+    const onKey2 = findOnKey(c2);
+    await act(async () => { fireEvent.pointerDown(onKey2); });
+    await act(async () => { vi.advanceTimersByTime(700); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    const sheet2 = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet2).not.toBeNull();
+
+    // Click Cancel.
+    const cancelBtn = sheet2?.querySelector('.on-key-confirm-btn--cancel') as HTMLElement;
+    expect(cancelBtn).not.toBeNull();
+    await act(async () => { fireEvent.click(cancelBtn); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // reset_full must NOT have been called.
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', undefined);
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', expect.anything());
+
+    // Sheet must be gone.
+    expect(document.body.querySelector('[data-testid="memory-lost-sheet"]')).toBeNull();
+  });
+
+  it('Q4: pointer-up after long-press does NOT fire reset_soft (no-double-fire guard)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // pointerdown — start timer.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+
+    // Advance past 600ms — timer fires, longPressFiredRef=true, sheet opens.
+    await act(async () => { vi.advanceTimersByTime(700); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // Verify sheet is open before releasing.
+    expect(document.body.querySelector('[data-testid="memory-lost-sheet"]')).not.toBeNull();
+
+    // Record invoke call count at this point.
+    const callCountBeforeUp = mockInvoke.mock.calls.length;
+
+    // pointerup — longPressFiredRef is true → must NOT call reset_soft.
+    await act(async () => { fireEvent.pointerUp(onKey); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // No new reset_soft call must have been made.
+    const newCalls = mockInvoke.mock.calls.slice(callCountBeforeUp);
+    const resetSoftCalls = newCalls.filter(([cmd]) => cmd === 'reset_soft');
+    expect(resetSoftCalls).toHaveLength(0);
+  });
+});
