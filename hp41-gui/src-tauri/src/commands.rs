@@ -1024,6 +1024,7 @@ pub fn export_data_dialog(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use hp41_core::ops::flags::flag_set;
     use hp41_core::ops::{dispatch, Op};
     use hp41_core::HpNum;
 
@@ -1045,6 +1046,8 @@ mod tests {
         // SC-3: After a command that produces print output, the print_buffer is empty
         // AND the returned view.print_lines contains the produced lines.
         let mut calc = CalcState::new();
+        // Flag 55 = Printer Existence — required by UNC-02 fix (OM p.53-54)
+        calc.flags = flag_set(calc.flags, 55);
         calc.stack.x = HpNum::from(42);
         // Ensure the buffer has at least one line via direct dispatch (sanity).
         dispatch(&mut calc, Op::PRX).unwrap();
@@ -1083,6 +1086,8 @@ mod tests {
     fn test_handle_op_drains_print_buffer_via_dispatch() {
         // PRX
         let mut calc = CalcState::new();
+        // Flag 55 = Printer Existence — required by UNC-02 fix (OM p.53-54)
+        calc.flags = flag_set(calc.flags, 55);
         calc.stack.x = HpNum::from(7);
         let view = handle_op(&mut calc, "prx").expect("handle_op prx must succeed");
         assert!(
@@ -1098,6 +1103,8 @@ mod tests {
 
         // PRA — exercises a different op_* helper through the same drain path
         let mut calc2 = CalcState::new();
+        // Flag 55 = Printer Existence — required by UNC-02 fix (OM p.53-54)
+        calc2.flags = flag_set(calc2.flags, 55);
         calc2.alpha_reg = "HELLO".to_string();
         let view2 = handle_op(&mut calc2, "pra").expect("handle_op pra must succeed");
         assert!(calc2.print_buffer.is_empty());
@@ -1105,6 +1112,8 @@ mod tests {
 
         // PRSTK — drains 6 lines in one call
         let mut calc3 = CalcState::new();
+        // Flag 55 = Printer Existence — required by UNC-02 fix (OM p.53-54)
+        calc3.flags = flag_set(calc3.flags, 55);
         let view3 = handle_op(&mut calc3, "prstk").expect("handle_op prstk must succeed");
         assert!(calc3.print_buffer.is_empty());
         assert_eq!(
