@@ -65,6 +65,13 @@ pub enum HpError {
     /// in 600-register capacity). Matches HP-41CX QRG p.39 "NO ROOM".
     #[error("no room")]
     NoRoom,
+    /// Printer not present: PRX/PRA/PRSTK executed when neither flag 55
+    /// (Printer Existence) nor flag 21 (Printer Enable) is set. Matches the
+    /// HP-41C OM p.57-58 NONEXISTENT error-message class: "An attempt was made
+    /// to execute a specific print function when the printer was not connected
+    /// to the system." (UNC-02, Phase 66).
+    #[error("nonexistent")]
+    NonExistent,
 }
 
 #[cfg(test)]
@@ -107,5 +114,18 @@ mod tests {
     #[test]
     fn no_room_display() {
         assert_eq!(HpError::NoRoom.to_string(), "no room");
+    }
+
+    // Catches: NonExistent Display regression (HP-41C OM p.57-58 NONEXISTENT
+    // error class — printer not connected; UNC-02, Phase 66)
+    #[test]
+    fn non_existent_display() {
+        assert_eq!(HpError::NonExistent.to_string(), "nonexistent");
+    }
+
+    // Catches: NonExistent variant conflation with InvalidOp or other errors
+    #[test]
+    fn non_existent_distinct_from_invalid_op() {
+        assert_ne!(HpError::NonExistent, HpError::InvalidOp);
     }
 }
