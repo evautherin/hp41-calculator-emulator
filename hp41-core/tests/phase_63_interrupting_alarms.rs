@@ -184,37 +184,44 @@ fn interrupting_alarm_halts_running_program_and_resumes() {
 // GREEN after 63-02.
 //
 // Verifies that:
-//   a) The handler RUNS (proven by STO of a sentinel constant into reg 6).
+//   a) The handler RUNS (proven by STO 6 of sentinel into reg 6).
 //   b) The main program COMPLETES after the handler returns (proven by STO 5).
-//   c) X/Y stack values from MAIN are preserved end-to-end (set pre-run_program).
+//   c) X/Y/Z/T and lift_enabled set pre-run_program are unchanged after completion.
 //   d) is_running = false after completion.
 //
 // Stack is set BEFORE run_program so assertions hold regardless of when inside
 // the program the interrupt fires (the Phase-C boundary check may fire at any
 // step, which is hardware-faithful — the real HP-41 fires at the next
 // instruction boundary, not a guaranteed position within the program).
+//
+// Program design: uses ONLY StoReg ops (no PushNum, no arithmetic) so the stack
+// registers are never modified by the program or handler. This makes X/Y/Z/T
+// post-run assertions meaningful: any change must come from the interrupt
+// mechanism itself, not from program ops.
 #[test]
 fn interrupt_preserves_stack_x_y_z_t_and_lift_state() {
     let mut state = CalcState::new();
     state.time_offset_secs = 0;
 
-    // Pre-load a known stack state so assertions are independent of alarm timing.
+    // Pre-load a known full stack state so all four registers can be asserted.
     state.stack.x = HpNum::rounded(Decimal::from(20));
-    state.stack.y = HpNum::rounded(Decimal::from(10));
+    state.stack.y = HpNum::rounded(Decimal::from(30));
+    state.stack.z = HpNum::rounded(Decimal::from(40));
+    state.stack.t = HpNum::rounded(Decimal::from(50));
     state.stack.lift_enabled = true;
 
     // Program: STO 5 (stores X=20 into reg 5, proves main ran).
-    // Handler: STO 6 (stores whatever X is at interrupt time into reg 6,
-    //   proves handler ran; STO does NOT modify X, so X is preserved).
+    // Handler: STO 6 (stores X=20 into reg 6, proves handler ran).
+    // Neither op modifies any stack register — they only READ X.
     load_program(
         &mut state,
         vec![
             Op::Lbl("A".to_string()),
-            Op::StoReg(5), // store X=20 into reg 5
+            Op::StoReg(5), // store X=20 into reg 5 (proves main ran)
             Op::Rtn,
-            // Handler: STO 6 only — does NOT push, does NOT modify X.
+            // Handler: STO 6 only — does NOT push, does NOT modify X/Y/Z/T.
             Op::Lbl("NHND".to_string()),
-            Op::StoReg(6), // store X (whatever it is) into reg 6 (proves handler ran)
+            Op::StoReg(6), // store X (=20) into reg 6 (proves handler ran)
             Op::Rtn,
         ],
     );
@@ -235,6 +242,34 @@ fn interrupt_preserves_stack_x_y_z_t_and_lift_state() {
         Decimal::from(20),
         "main program must have set regs[5]=20"
     );
+
+    // Stack X/Y/Z/T must be unchanged — the interrupt mechanism must not corrupt them.
+    assert_eq!(
+        state.stack.x.inner(),
+        Decimal::from(20),
+        "stack X must be preserved through interrupt/handler/resume (was 20)"
+    );
+    assert_eq!(
+        state.stack.y.inner(),
+        Decimal::from(30),
+        "stack Y must be preserved through interrupt/handler/resume (was 30)"
+    );
+    assert_eq!(
+        state.stack.z.inner(),
+        Decimal::from(40),
+        "stack Z must be preserved through interrupt/handler/resume (was 40)"
+    );
+    assert_eq!(
+        state.stack.t.inner(),
+        Decimal::from(50),
+        "stack T must be preserved through interrupt/handler/resume (was 50)"
+    );
+    // lift_enabled must survive the interrupt cycle unchanged.
+    assert!(
+        state.stack.lift_enabled,
+        "stack lift_enabled must be preserved through interrupt/handler/resume (was true)"
+    );
+
     assert!(
         !state.is_running,
         "is_running must be false after completion"
@@ -479,9 +514,165 @@ fn interrupt_demoted_when_solver_or_modal_active() {
         state.is_running = false;
     }
 
-    // Sub-test C: modal_program active — use None check since ModalProgram is non-Default
-    // We just verify the same routing works; integ/solve already exercise the guard path.
-    // (Modal guard is also covered by the shared solver_active check in dispatch_alarm_event)
+    // Sub-test C: difeq_state active (D-10 extension — previously unasserted).
+    //
+    // A regression that drops `difeq_state` from the `solver_active` disjunction in
+    // `dispatch_alarm_event` would let an interrupting alarm corrupt DIFEQ re-entrancy
+    // by injecting a new run-loop frame while the RK4 integrator is mid-step. This
+    // sub-test makes such a regression detectable.
+    {
+        let mut state = CalcState::new();
+        state.time_offset_secs = 0;
+        state.is_running = true;
+        state.difeq_state = Some(hp41_core::ops::math1::difeq::DifeqState::default());
+
+        state
+            .alarms
+            .push(make_past_due_interrupting_alarm("DIFEQ_HANDLER"));
+        check_alarms(&mut state);
+
+        assert!(
+            state
+                .event_buffer
+                .contains(&"alarm:xeq:DIFEQ_HANDLER".to_string()),
+            "with difeq_state active, interrupt must demote to alarm:xeq; got: {:?}",
+            state.event_buffer
+        );
+        assert!(
+            state.pending_interrupt.is_none(),
+            "pending_interrupt must stay None when difeq_state is active"
+        );
+        state.is_running = false;
+    }
+
+    // Sub-test D: modal_program active (D-10 extension — previously unasserted).
+    //
+    // A regression dropping `modal_program` from the `solver_active` disjunction would
+    // allow an interrupting alarm to inject a run-loop frame while a modal prompt
+    // (e.g., DIFEQ "STEP SIZE=?") is waiting for user input. This sub-test catches it.
+    {
+        let mut state = CalcState::new();
+        state.time_offset_secs = 0;
+        state.is_running = true;
+        // Use a concrete ModalProgram variant; any variant satisfies `is_some()`.
+        state.modal_program = Some(
+            hp41_core::ops::math1::modal::ModalProgram::Difeq(
+                hp41_core::ops::math1::modal::DifeqInputStep::FunctionNamePrompt,
+            ),
+        );
+
+        state
+            .alarms
+            .push(make_past_due_interrupting_alarm("MODAL_HANDLER"));
+        check_alarms(&mut state);
+
+        assert!(
+            state
+                .event_buffer
+                .contains(&"alarm:xeq:MODAL_HANDLER".to_string()),
+            "with modal_program active, interrupt must demote to alarm:xeq; got: {:?}",
+            state.event_buffer
+        );
+        assert!(
+            state.pending_interrupt.is_none(),
+            "pending_interrupt must stay None when modal_program is active"
+        );
+        state.is_running = false;
+    }
+}
+
+// ── Edge: already_pending_demotes_new_interrupt ──────────────────────────────
+//
+// GREEN after 63-01 (D-nesting guard).
+//
+// When `is_running=true` AND `pending_interrupt` is already `Some`, a new
+// interrupting alarm must demote to `alarm:xeq:{label}` on `event_buffer`.
+// This is the unit-level `check_alarms` confirmation of the nesting guard;
+// the existing `interrupt_nesting_blocked_when_already_in_alarm_program` covers
+// the same path but this test provides a direct, self-contained assertion at the
+// `check_alarms` boundary (not via a `run_program` flow).
+#[test]
+fn already_pending_demotes_new_interrupting_alarm_to_xeq_event() {
+    let mut state = CalcState::new();
+    state.time_offset_secs = 0;
+    state.is_running = true;
+    // Pre-set an existing pending interrupt — simulates mid-handler state.
+    state.pending_interrupt = Some("EXISTING".to_string());
+
+    state
+        .alarms
+        .push(make_past_due_interrupting_alarm("SECOND"));
+    check_alarms(&mut state);
+
+    // New alarm must be demoted — NOT overwrite pending_interrupt.
+    assert!(
+        state
+            .event_buffer
+            .contains(&"alarm:xeq:SECOND".to_string()),
+        "second interrupting alarm must demote to alarm:xeq:SECOND; got: {:?}",
+        state.event_buffer
+    );
+    assert_eq!(
+        state.pending_interrupt.as_deref(),
+        Some("EXISTING"),
+        "pre-existing pending_interrupt must not be overwritten by the demoted alarm"
+    );
+    state.is_running = false;
+}
+
+// ── Edge: op_almnow_interrupting_control_routes_to_xeq_event ─────────────────
+//
+// GREEN after 63-01 (op_almnow defer_to_run_loop=false path).
+//
+// ALMNOW passes `defer_to_run_loop=false` to `dispatch_alarm_event`, so an
+// interrupting Control alarm must route to `event_buffer` as `alarm:xeq:{label}`
+// and must NOT set `pending_interrupt` (avoids the double-ack / stale-index
+// hazard when `is_running=true`).
+//
+// This test is the unit-level regression guard for the D-38.4 comment in alarm.rs.
+// A regression accidentally passing `defer_to_run_loop=true` from op_almnow would
+// allow `pending_interrupt` to be set, and the stale-index ack would corrupt a
+// running program.
+#[test]
+fn op_almnow_interrupting_control_routes_to_xeq_not_pending_interrupt() {
+    let mut state = CalcState::new();
+    state.time_offset_secs = 0;
+    // is_running=true: if defer_to_run_loop were accidentally true, pending_interrupt
+    // would be set. This lets us detect the regression by asserting it stays None.
+    state.is_running = true;
+
+    // Push a past-due interrupting Control alarm.
+    state.alarms.push(AlarmEntry {
+        trigger_unix: 1000,
+        repeat_secs: 0,
+        alarm_type: AlarmType::Control {
+            label: "MYHND".to_string(),
+            interrupting: true,
+        },
+        past_due: true,
+    });
+
+    hp41_core::ops::time::alarm::op_almnow(&mut state).unwrap();
+
+    // ALMNOW must route to event_buffer (defer_to_run_loop=false path).
+    assert!(
+        state
+            .event_buffer
+            .contains(&"alarm:xeq:MYHND".to_string()),
+        "op_almnow must push alarm:xeq:MYHND to event_buffer; got: {:?}",
+        state.event_buffer
+    );
+    // pending_interrupt must NOT be set (double-ack hazard guard D-38.4).
+    assert!(
+        state.pending_interrupt.is_none(),
+        "op_almnow must NOT set pending_interrupt (defer_to_run_loop=false, D-38.4)"
+    );
+    // One-shot alarm must be removed by op_almnow's own ack.
+    assert!(
+        state.alarms.is_empty(),
+        "one-shot alarm must be removed by op_almnow after dispatch"
+    );
+    state.is_running = false;
 }
 
 // ── Edge: missing_handler_label_surfaces_event ───────────────────────────────

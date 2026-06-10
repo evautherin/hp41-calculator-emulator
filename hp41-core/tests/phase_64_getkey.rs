@@ -246,44 +246,88 @@ fn getkey_does_not_write_display_override() {
 //
 // If GETKEY fires inside an alarm-handler frame, pending_interrupt_alarm_index
 // and pending_interrupt_depth must NOT be cleared by resume_program_with_key
-// (unlike resume_program which clears all interrupt state via D-09).
+// before run_loop runs (unlike resume_program which clears all interrupt state
+// via D-09 at function entry).
 //
-// Approach: run a program to the GETKEY yield, then manually inject alarm-handler
-// context fields; verify they survive the resume call.
+// Strategy: we need to distinguish two observable states:
+//   A) resume_program_with_key clears alarm_index BEFORE run_loop (wrong)
+//   B) resume_program_with_key passes alarm_index INTO run_loop unchanged (correct)
+//
+// We do this by using a two-step program: after the GETKEY yield we inject
+// alarm-handler context, then resume. In the resume we check that the GETKEY
+// result was captured correctly (proves run_loop ran) AND that the RTN in the
+// test program did NOT trigger an unexpected ack-after-RTN clear that would
+// mask the regression.
+//
+// Specifically: the ack-after-RTN gate in run_loop fires only when
+// `pending_interrupt_alarm_index.is_some()` AND the alarm at that index exists.
+// In this test the alarm catalog is EMPTY (no alarm pushed), so ack-after-RTN
+// cannot fire even if alarm_index reaches run_loop. This means:
+//   - If alarm_index was cleared by resume_program_with_key BEFORE run_loop:
+//     it will be None after the call.
+//   - If alarm_index was correctly passed into run_loop unchanged: run_loop
+//     finds no matching alarm (catalog empty) and leaves alarm_index untouched;
+//     it will still be Some(2) after the call.
+// The direct assertion `assert_eq!(pending_interrupt_alarm_index, Some(2))` below
+// is therefore load-bearing: it fails if and only if resume_program_with_key
+// prematurely clears the field.
 #[test]
 fn getkey_inside_alarm_handler_preserves_interrupt_state() {
     let mut state = CalcState::new();
+    // Program: LBL H → GETKEY (yield) → STO 9 (captures keycode after resume) → RTN.
+    // No alarm in catalog: ack-after-RTN cannot fire, so alarm_index is not consumed.
     load_program(
         &mut state,
-        vec![Op::Lbl("H".to_string()), Op::GetKey, Op::Rtn],
+        vec![
+            Op::Lbl("H".to_string()),
+            Op::GetKey,    // yield point
+            Op::StoReg(9), // captures keycode — proves run_loop ran after resume
+            Op::Rtn,
+        ],
     );
 
     run_program(&mut state, "H").unwrap();
-    assert!(state.pending_yield.is_some());
+    assert!(
+        state.pending_yield.is_some(),
+        "must be in WaitForKey yield before resume"
+    );
 
-    // Simulate being inside an alarm handler: inject alarm-handler context fields.
-    // In a real interrupt scenario these are set by run_loop's interrupt injection
-    // boundary (Phase 63 Phase-B). Here we set them manually post-run to verify
-    // resume_program_with_key doesn't blindly clear them (unlike resume_program).
-    state.pending_interrupt_alarm_index = Some(2);
+    // Simulate being inside an alarm handler frame by manually injecting the
+    // alarm-handler context fields. In a real interrupt scenario these are set
+    // by run_loop's Phase-B injection boundary (Phase 63). Here we inject them
+    // AFTER the GETKEY yield to test that resume_program_with_key does NOT clear
+    // them at function entry (before run_loop runs).
+    state.pending_interrupt_alarm_index = Some(2); // index 2 — catalog is empty so ack-after-RTN cannot fire
     state.pending_interrupt_depth = Some(1);
 
-    resume_program_with_key(&mut state, 31).unwrap();
+    resume_program_with_key(&mut state, 44).unwrap();
 
-    // These fields must NOT have been prematurely cleared by resume_program_with_key.
-    // The ack-after-RTN gate in run_loop is the correct consumer of alarm_index.
-    // Since our test program above ends with Rtn, ack-after-RTN may have cleared
-    // pending_interrupt_alarm_index. What we verify is that resume_program_with_key
-    // itself does not zero them before run_loop runs — i.e., it did not clear them
-    // at the start of the function (before run_loop consumed them via ack-after-RTN).
-    // The indirect proof: if resume_program_with_key had cleared alarm_index before
-    // run_loop ran, the ack-after-RTN gate would not fire (alarm_index.is_none()),
-    // which is the wrong behavior. There is no direct assertion we can make here
-    // without instrumenting run_loop — the critical check is structural (code review):
-    // resume_program_with_key must NOT call state.pending_interrupt_alarm_index = None
-    // before run_loop(). The test confirms the function completes successfully and
-    // is_running is reset — catching regressions that corrupt state.
-    assert!(!state.is_running, "is_running must be reset after resume");
+    // Primary assertion: alarm_index must still be Some(2).
+    // If resume_program_with_key had cleared it before run_loop, this would be None.
+    // The empty alarm catalog ensures ack-after-RTN did NOT consume it.
+    assert_eq!(
+        state.pending_interrupt_alarm_index,
+        Some(2),
+        "pending_interrupt_alarm_index must survive resume_program_with_key unchanged \
+         (must not be cleared at function entry before run_loop)"
+    );
+    assert_eq!(
+        state.pending_interrupt_depth,
+        Some(1),
+        "pending_interrupt_depth must survive resume_program_with_key unchanged"
+    );
+
+    // Secondary assertion: the keycode reached STO 9 — proves run_loop actually ran.
+    assert_eq!(
+        state.regs[9].inner(),
+        rust_decimal::Decimal::from(44),
+        "STO 9 must have stored keycode 44 — proves run_loop ran after resume"
+    );
+
+    assert!(
+        !state.is_running,
+        "is_running must be reset after resume completes"
+    );
 }
 
 // ── PRGM-03-g: getkey_then_pse_sequential_yields ─────────────────────────────
