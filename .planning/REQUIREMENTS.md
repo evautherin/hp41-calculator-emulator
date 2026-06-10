@@ -35,7 +35,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Verification (fix-if-confirmed)
 
-- [ ] **VERIFY-01**: Verify the three uncertain behaviors against the OM / a trusted reference and fix only those confirmed divergent; document any that are already correct: (a) ← clears an error display *(UNC-01)*, (b) flags 21/25 gating PRX/PRA/PRSTK printing *(UNC-02)*, (c) SIZE reduction showing "MEMORY LOST" on the display *(UNC-03)*.
+- [x] **VERIFY-01**: Verify the three uncertain behaviors against the OM / a trusted reference and fix only those confirmed divergent; document any that are already correct: (a) ← clears an error display *(UNC-01)*, (b) flags 21/25 gating PRX/PRA/PRSTK printing *(UNC-02)*, (c) SIZE reduction showing "MEMORY LOST" on the display *(UNC-03)*.
 
 ## Future Requirements
 
@@ -80,7 +80,7 @@ Which phases cover which requirements.
 | DISP-02 | Phase 65 | Complete |
 | DISP-03 | Phase 65 | Complete |
 | MATH-01 | Phase 65 | Complete |
-| VERIFY-01 | Phase 66 | Pending |
+| VERIFY-01 | Phase 66 | Complete |
 
 **Coverage:**
 - v4.3 requirements: 11 total
