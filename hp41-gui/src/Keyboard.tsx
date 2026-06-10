@@ -297,6 +297,13 @@ export interface KeyboardProps {
   // onPointerDown: immediate feedback hook for haptics + audio (Plan 03 fills body).
   isIos?: boolean;
   onPointerDown?: (key: KeyDef) => void;
+  // Phase 67 Plan 04 — ON key escape hatch. Raw pointer events on the ON key are
+  // routed OUTSIDE handleKeyClick (which early-returns for empty id) so the reset
+  // path never passes through key_map.resolve() / dispatch_op. App.tsx owns the
+  // 600 ms long-press logic and decide which reset tier to invoke.
+  onOnPointerDown?: () => void;
+  onOnPointerUp?: () => void;
+  onOnPointerCancel?: () => void;
 }
 
 export function Keyboard({
@@ -309,6 +316,9 @@ export function Keyboard({
   gradientColors = DARK_GRADIENT_COLORS,
   isIos = false,
   onPointerDown,
+  onOnPointerDown,
+  onOnPointerUp,
+  onOnPointerCancel,
 }: KeyboardProps) {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
 
@@ -433,6 +443,41 @@ export function Keyboard({
                     stroke="#3a2208" strokeWidth={0.8} />
               <rect x={x + 1} y={y + 1} width={w - 2} height={h / 2} rx={4} ry={4}
                     fill="url(#bevel-hi)" />
+            </g>
+          );
+        }
+
+        // Phase 67 Plan 04 — ON key escape hatch. The ON key has empty id so
+        // handleKeyClick returns early. Route its pointer events to the dedicated
+        // onOnPointerDown/Up/Cancel props (App.tsx owns the 600 ms timer logic).
+        // data-key-id="on" lets tests locate the key without an id= attribute.
+        const isOnKey = key.label === 'ON' && !key.id;
+        if (isOnKey) {
+          return (
+            <g
+              key={labelKey}
+              onPointerDown={onOnPointerDown}
+              onPointerUp={onOnPointerUp}
+              onPointerCancel={onOnPointerCancel}
+              className="key"
+              data-key-id="on"
+            >
+              <rect x={x + 1} y={y + 2} width={w} height={h} rx={5} ry={5} fill="#000" opacity={0.45} />
+              <rect x={x} y={y} width={w} height={h} rx={5} ry={5}
+                    fill={getKeyGrad(key, shiftActive)}
+                    stroke="#0a0a0a" strokeWidth={0.8} />
+              <rect x={x + 1} y={y + 1} width={w - 2} height={h / 2} rx={4} ry={4}
+                    fill="url(#bevel-hi)" className="key-bevel" />
+              <text
+                x={x + w / 2}
+                y={y + h / 2 + 5}
+                textAnchor="middle"
+                fill={labelColor}
+                fontSize={14}
+                fontWeight="bold"
+              >
+                {key.label}
+              </text>
             </g>
           );
         }

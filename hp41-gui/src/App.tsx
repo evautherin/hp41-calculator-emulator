@@ -379,6 +379,16 @@ function App() {
   const audioResumedRef = useRef(false);
   const errorHapticFiredRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  // Phase 67 Plan 04 — ON-key escape hatch: long-press timer + fired-flag refs.
+  // LONG_PRESS_MS: threshold for long-press vs tap (ms).
+  // longPressTimerRef: holds the setTimeout id; cleared on pointerup/cancel before firing.
+  // longPressFiredRef: set to true when the timer fires (prevents pointer-up from also
+  //   firing reset_soft — the no-double-fire guard).
+  const LONG_PRESS_MS = 600;
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  // Portaled confirm sheet visibility (MEMORY LOST warning).
+  const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
   const showToast = useCallback((msg: string) => {
     toastSeqRef.current += 1;
     setToast({ msg, seq: toastSeqRef.current });
@@ -391,6 +401,80 @@ function App() {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Phase 67 Plan 04 — ON-key escape hatch handlers.
+  //
+  // Design: the ON key has id='' and is filtered out by Keyboard.tsx handleKeyClick.
+  // These three pointer-event handlers are wired to dedicated `onOnPointerDown/Up/Cancel`
+  // props on <Keyboard> so the reset path never passes through handleClick → invokeForKey
+  // → key_map.resolve() / dispatch_op. This ensures the ON key works even when the core
+  // dispatch path is stuck (the whole point of the escape hatch).
+  //
+  // Long-press logic:
+  //   pointerdown → start LONG_PRESS_MS timer; if it fires → set longPressFiredRef, open sheet.
+  //   pointerup (before timer fires) → clear timer, invoke reset_soft (tap path).
+  //   pointerup (after timer fires) → longPressFiredRef is true → clear flag, do nothing
+  //     (no-double-fire guard: sheet is already open from the timer callback).
+  //   pointercancel → clear timer unconditionally, do not invoke reset_soft.
+  //
+  // On reset: clear shiftActive + pendingInput (ALPHA modal / waiting-for-key UI).
+  // Both reset invokes refresh the view from the returned CalcStateView (setState).
+  const handleOnPointerDown = useCallback(() => {
+    if (busyRef.current) return;
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      longPressTimerRef.current = null;
+      setConfirmSheetOpen(true);
+    }, LONG_PRESS_MS);
+  }, []);
+
+  const handleOnPointerUp = useCallback(() => {
+    if (longPressFiredRef.current) {
+      // Long-press fired — sheet is open; do NOT also fire reset_soft (no-double-fire guard).
+      longPressFiredRef.current = false;
+      return;
+    }
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    // Tap path: invoke reset_soft.
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setShiftActive(false);
+    setPendingInput(null);
+    invoke<CalcStateView>('reset_soft')
+      .then(view => { setCalcState(view); setErrorMessage(null); })
+      .catch(err => showToast(extractErrMessage(err)))
+      .finally(() => { busyRef.current = false; });
+  }, [showToast]);
+
+  const handleOnPointerCancel = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressFiredRef.current = false;
+  }, []);
+
+  // Confirm full reset from the MEMORY LOST sheet.
+  const handleConfirmFullReset = useCallback(() => {
+    setConfirmSheetOpen(false);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setShiftActive(false);
+    setPendingInput(null);
+    invoke<CalcStateView>('reset_full')
+      .then(view => { setCalcState(view); setErrorMessage(null); })
+      .catch(err => showToast(extractErrMessage(err)))
+      .finally(() => { busyRef.current = false; });
+  }, [showToast]);
+
+  // Cancel from the MEMORY LOST sheet — close sheet, no invoke.
+  const handleCancelFullReset = useCallback(() => {
+    setConfirmSheetOpen(false);
+  }, []);
 
   // Phase 48 D-48.13 — theme change handler.
   // Applies theme instantly via CSS variable system + gradient prop, then
@@ -1543,6 +1627,9 @@ function App() {
         userKeymap={calcState.user_keymap}
         gradientColors={THEME_GRADIENTS[theme] || THEME_GRADIENTS['dark']}
         isIos={isIos}
+        onOnPointerDown={handleOnPointerDown}
+        onOnPointerUp={handleOnPointerUp}
+        onOnPointerCancel={handleOnPointerCancel}
         onPointerDown={(key) => {
           // Phase 55 Plan 03: per-key haptics + audio resume (TOUCH-05, TOUCH-06, TOUCH-08).
           // Both calls are iOS-gated and silently catch on desktop.
@@ -1632,6 +1719,41 @@ function App() {
         onClose={handleOnboardingClose}
         isFirstRun={isFirstRun}
       />
+      {/* Phase 67 Plan 04 — ON-key MEMORY LOST confirm sheet.
+          Portaled to document.body so the `transform: scale()` ancestor
+          (.scaled-app-frame) is NOT the containing block for position:fixed —
+          otherwise the sheet would be clipped/offset on iOS (ADR-v4.1-005,
+          reference_ios_gui_layout_gotchas). Same portal pattern as the print
+          bottom sheet (line ~1666 above). Only rendered when confirmSheetOpen
+          is true. */}
+      {confirmSheetOpen && createPortal(
+        <div
+          className="on-key-confirm-overlay"
+          data-testid="memory-lost-sheet"
+        >
+          <div className="on-key-confirm-sheet">
+            <p className="on-key-confirm-title">MEMORY LOST</p>
+            <p className="on-key-confirm-body">
+              MEMORY LOST — delete all programs, registers and files?
+            </p>
+            <div className="on-key-confirm-buttons">
+              <button
+                className="on-key-confirm-btn on-key-confirm-btn--cancel"
+                onClick={handleCancelFullReset}
+              >
+                Cancel
+              </button>
+              <button
+                className="on-key-confirm-btn on-key-confirm-btn--confirm"
+                onClick={handleConfirmFullReset}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
