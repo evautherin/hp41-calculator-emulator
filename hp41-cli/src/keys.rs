@@ -470,6 +470,11 @@ pub fn key_ref_entries() -> Vec<(String, String)> {
 /// Returns `Some(code)` for keys that correspond to physical HP-41 calculator keys.
 /// Returns `None` for TUI-only keys (F5/F7/F8) and unmapped keys.
 ///
+/// NOTE: R/S (HP-41 keycode 31) is intentionally NOT mapped here — in the CLI R/S
+/// is F5, which must stay TUI-only (run/stop) outside a GETKEY wait. During a
+/// `WaitForKey` suspend, `App::drain_pending_yields` special-cases F5 → 31 directly
+/// so GETKEY can receive R/S, matching the GUI (D-25.6 parity).
+///
 /// Callers must only update `last_key_code` when `Some` is returned — `None` means
 /// the keypress has no HP-41 hardware equivalent and must not corrupt GETKEY state.
 pub fn keycode_to_hp41_code(code: crossterm::event::KeyCode) -> Option<u8> {

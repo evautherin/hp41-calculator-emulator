@@ -378,11 +378,36 @@ impl App {
                                 self.exit = true;
                                 return Ok(());
                             }
+                            // R/S during a GETKEY wait delivers keycode 31 (hardware-
+                            // faithful; matches the GUI, where the R/S button has
+                            // keyCode 31). In the CLI R/S is F5, and keycode_to_hp41_code
+                            // returns None for F5 to protect the run loop — so 31 is
+                            // delivered explicitly here, in the WaitForKey loop only, to
+                            // close the CLI↔GUI GETKEY parity gap (D-25.6). F5's normal
+                            // run/stop role in the main loop is unaffected.
+                            if key.code == KeyCode::F(5)
+                                && !key.modifiers.contains(KeyModifiers::CONTROL)
+                            {
+                                match hp41_core::ops::program::resume_program_with_key(
+                                    &mut self.state,
+                                    31,
+                                ) {
+                                    Ok(()) => {
+                                        self.message = None;
+                                    }
+                                    Err(e) => {
+                                        self.message = Some(format!("{e}"));
+                                    }
+                                }
+                                self.drain_and_show_print_output(None);
+                                break;
+                            }
                             // HP-41 key capture — Ctrl-modified keys are TUI commands,
                             // not calculator keys (mirrors handle_key lines 392–395).
                             // None from keycode_to_hp41_code = no HP-41 equivalent
-                            // (F5/F7/F8, unknown keys) → continue waiting (hardware
-                            // faithful: only physical HP-41 keys are captured).
+                            // (F7/F8, unknown keys; F5 handled just above) → continue
+                            // waiting (hardware faithful: only physical HP-41 keys are
+                            // captured).
                             if let Some(code) = keys::keycode_to_hp41_code(key.code) {
                                 if !key.modifiers.contains(KeyModifiers::CONTROL) {
                                     match hp41_core::ops::program::resume_program_with_key(
@@ -847,7 +872,7 @@ impl App {
             }
             // DISP-02: CHS during mantissa entry — toggle leading '-' in place.
             // Must be checked BEFORE the EEX-CHS block (entry_buf with 'e' takes the
-            // other branch). Key: 'n' maps to Op::Chs (see keys.rs line 117).
+            // other branch). Key: 'n' maps to Op::Chs (see key_to_op in keys.rs).
             // D-07: no flush_entry_buf, no call_dispatch, no stack lift.
             // D-08: empty-buffer case falls through to call_dispatch(Op::Chs) below.
             if c == 'n' && !self.state.entry_buf.is_empty() && !self.state.entry_buf.contains('e') {
