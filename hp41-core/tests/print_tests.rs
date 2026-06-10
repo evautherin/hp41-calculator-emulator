@@ -109,6 +109,62 @@ fn test_prx_returns_nonexistent_when_no_printer_flag() {
     );
 }
 
+/// PRX succeeds with ONLY flag 21 (Printer Enable) set — exercises the `|| flag_get(21)` branch.
+///
+/// UNC-02 (Phase 66): `require_printer` returns `Ok` if flag 55 OR flag 21 is set.
+/// `setup_with_printer()` always sets flag 55; this test deliberately leaves flag 55 CLEAR
+/// and sets ONLY flag 21 to ensure the flag-21 half of the disjunction is exercised.
+/// Without this test a regression dropping `|| flag_get(21)` from `require_printer`
+/// passes the entire suite undetected.
+#[test]
+fn test_prx_succeeds_with_flag21_only() {
+    let mut s = CalcState::new(); // flags = 0 — no printer flags yet
+    s.flags = flag_set(s.flags, 21); // set flag 21 (Printer Enable) only; flag 55 stays CLEAR
+    push_val(&mut s, 42);
+    let result = dispatch(&mut s, Op::PRX);
+    assert_eq!(
+        result,
+        Ok(()),
+        "PRX must succeed when only flag 21 (Printer Enable) is set"
+    );
+    assert_eq!(
+        s.print_buffer.len(),
+        1,
+        "PRX with flag 21 must push exactly one print line"
+    );
+}
+
+/// PRA returns NonExistent when neither flag 21 (Printer Enable) nor flag 55
+/// (Printer Existence) is set — mirrors the existing PRX no-printer test for PRA.
+///
+/// UNC-02 (Phase 66): per-op wiring of `require_printer` was previously unasserted for PRA.
+#[test]
+fn test_pra_returns_nonexistent_when_no_printer_flag() {
+    let mut s = CalcState::new(); // default: flags = 0
+    s.alpha_reg = "HELLO".to_string();
+    let result = dispatch(&mut s, Op::PRA);
+    assert_eq!(
+        result,
+        Err(HpError::NonExistent),
+        "PRA with no printer flags must return Err(NonExistent)"
+    );
+}
+
+/// PRSTK returns NonExistent when neither flag 21 (Printer Enable) nor flag 55
+/// (Printer Existence) is set — mirrors the existing PRX no-printer test for PRSTK.
+///
+/// UNC-02 (Phase 66): per-op wiring of `require_printer` was previously unasserted for PRSTK.
+#[test]
+fn test_prstk_returns_nonexistent_when_no_printer_flag() {
+    let mut s = CalcState::new(); // default: flags = 0
+    let result = dispatch(&mut s, Op::PRSTK);
+    assert_eq!(
+        result,
+        Err(HpError::NonExistent),
+        "PRSTK with no printer flags must return Err(NonExistent)"
+    );
+}
+
 // ── PRNT-02: PRA ─────────────────────────────────────────────────────────────
 
 /// PRA pushes exactly one line to print_buffer.
