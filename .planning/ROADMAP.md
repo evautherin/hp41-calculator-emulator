@@ -225,7 +225,7 @@ Plans:
 **Wave 1**
 
 - [x] 66-01-PLAN.md — Wave 0 (BLOCKING): add HpError::NonExistent variant + Display test (unblocks UNC-02 print guard)
-- [ ] 66-02-PLAN.md — Wave 1: UNC-02 print-flag gating + test rework; UNC-01/UNC-03 already-correct records; 7-PITFALLS re-entrancy mapping
+- [x] 66-02-PLAN.md — Wave 1: UNC-02 print-flag gating + test rework; UNC-01/UNC-03 already-correct records; 7-PITFALLS re-entrancy mapping
 - [x] 66-03-PLAN.md — Wave 1: divergence-doc sweep (5 files) + v4.3 closure ledger
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -256,7 +256,7 @@ Plans:
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
-| 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 2/4 | In Progress|  |
+| 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 3/4 | In Progress|  |
 
 ---
 
