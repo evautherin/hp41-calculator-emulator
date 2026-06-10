@@ -204,6 +204,63 @@ flags 21 and 55 only.
 - `hp41-core/tests/print_tests.rs` — reworked setup + new nonexistent test.
 - Phase 66 / Plan 66-02.
 
+## D-CV-10 — Reset escape hatch diverges from hardware ON semantics — Implemented (v4.3)
+
+**Status: IMPLEMENTED in Phase 67 (v4.3). ADR v4.3-007.**
+
+**Authentic HP-41 ON behavior:**
+- Tapping ON while a computation is running displays "RUNNING" — it does not clear the
+  X register or stack.
+- Simultaneously pressing ON + ← triggers "MEMORY LOST" (continuous-memory wipe). This
+  is a physical two-key chord unavailable on touchscreen devices.
+
+**Emulator reset escape hatch (v4.3+):**
+
+The emulator provides a two-tier in-app recovery mechanism that intentionally diverges
+from hardware ON semantics in the following ways:
+
+1. **Soft reset clears working state.** `CalcState::soft_reset()` clears the full working
+   state (X/Y/Z/T, last_x, entry buffer, display_override, prgm_mode, all modal/yield/run
+   fields). The real ON tap does not clear working state. The divergence is intentional: the
+   escape hatch must recover from any persisted trap regardless of which fields are blocking,
+   including the X register and stack.
+
+2. **Full reset maps to ON+← MEMORY LOST.** `CalcState::memory_lost()` restores factory
+   state (`CalcState::new()`). This corresponds to the HP-41 "MEMORY LOST" message triggered
+   by the ON+← chord. No physical chord is emulated — a long-press + explicit confirm dialog
+   provides the equivalent safety confirmation.
+
+3. **Long-press replaces the ON+← chord.** The GUI/iOS ON key uses a 600 ms long-press +
+   portaled confirm sheet ("MEMORY LOST — delete all programs, registers and files?") to
+   trigger `memory_lost()`. The CLI uses `Ctrl+R` → two-tier status-bar prompt.
+
+**Rationale:** The emulator auto-saves `CalcState` to disk (`~/.hp41/autosave.json`). A
+crash or abnormal exit while a trapping field (e.g. `modal_program`, `pending_yield`,
+`is_running`) is active persists the trap — every subsequent launch reloads it. No
+operation available through the normal key→`dispatch()` path can escape, because
+`dispatch()` itself may be stuck. The escape hatch must therefore bypass `dispatch()` and
+overwrite the autosave synchronously. Clearing the working state is a consequence of this
+approach, not a fidelity goal.
+
+**Both tiers persist synchronously** inside the mutex (GUI) / before returning (CLI) to
+guarantee that the trapped autosave is overwritten before the user sees the reset result.
+
+**Impact:** None on normal operation — the escape hatch is only reachable by an explicit
+Ctrl+R (CLI) or ON-key tap/long-press (GUI/iOS). Users who rely on the stack contents
+surviving an ON tap should note this behavioral difference from hardware.
+
+**Implementation references:**
+- `hp41-core/src/state.rs` — `CalcState::soft_reset()` and `CalcState::memory_lost()`.
+- `hp41-core/tests/phase_67_reset.rs` — 28 integration tests (Plans 67-01).
+- `hp41-cli/src/app.rs` — `ResetPrompt` enum, `Ctrl+R` intercept above `pending_input`
+  routing block; `Ctrl+E` for the displaced `Rdprgm` shortcut.
+- `hp41-gui/src-tauri/src/commands.rs` — `reset_soft` and `reset_full` Tauri commands
+  with persist-under-lock invariant.
+- `hp41-gui/src/App.tsx`, `Keyboard.tsx` — ON-key pointer handlers, long-press timer,
+  portaled MEMORY LOST confirm sheet.
+- ADR v4.3-007 (`docs/adr/v4.3-007-reset-escape-hatch.md`) — full architecture record.
+- Phase 67 Plans 01–04 (committed 2026-06-10).
+
 ---
 
 ## Verified-Correct Notes (v4.3)
@@ -228,4 +285,4 @@ was corrected in Phase 66 / Plan 66-02.
 
 ---
 
-*Last updated: 2026-06-10 (§D-CV-06–09 added — Phase 65/66 DISP + UNC closures). Established 2026-06-03.*
+*Last updated: 2026-06-10 (§D-CV-10 added — Phase 67 reset escape hatch). Established 2026-06-03.*
