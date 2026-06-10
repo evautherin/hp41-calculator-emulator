@@ -10,6 +10,34 @@
 //! Test naming convention mirrors the VALIDATION.md scenario table.
 //! Scenarios marked "// GREEN after 63-02" require the run_loop interrupt arm
 //! (plan 63-02, program.rs) and will fail RED until that plan executes.
+//!
+//! # 7-PITFALLS → 12-Test-Fn Coverage Mapping (D-08, Phase 66 VERIFY-01)
+//!
+//! The 7 re-entrancy scenarios from `.planning/research/PITFALLS.md` map to the
+//! 12 test functions in this file as follows. All 7 scenarios are covered with
+//! ZERO GAPS — no new re-entrancy test is required or added.
+//!
+//! | PITFALLS Scenario | Test Function(s) |
+//! |---|---|
+//! | Scenario 1: Basic Interrupt — Running Program Halted, Alarm Executes, Resumes | `interrupting_alarm_halts_running_program_and_resumes` |
+//! | Scenario 2: Stack and PC Preservation Through Interrupt | `interrupt_preserves_stack_x_y_z_t_and_lift_state` |
+//! | Scenario 3: 4-Level Call Stack Cap Respected | `interrupt_blocked_when_call_stack_at_4_level_cap` |
+//! | Scenario 4: Nested Interrupt Blocked (No Recursive Interrupt) | `interrupt_nesting_blocked_when_already_in_alarm_program` |
+//! | Scenario 5: Idle-Fire Path (No Program Running) | `interrupting_alarm_fires_when_no_program_running` |
+//! | Scenario 6: Non-Interrupting Path Regression | `non_interrupting_alarm_still_fires_as_event_not_inline` |
+//! | Scenario 7: Message Alarm Regression | `message_alarm_still_fires_to_event_buffer_not_executed` |
+//!
+//! Additional edge-case tests (beyond the 7-scenario minimum):
+//! - `interrupt_demoted_when_solver_or_modal_active` — D-10 demotion guard
+//!   (sub-tests A: integ_state, B: solve_state)
+//! - `missing_handler_label_surfaces_event` — missing handler label surfaces
+//!   `alarm:missing:LABEL` on event_buffer
+//! - `pending_interrupt_cleared_on_resume_after_stop` — D-09: resume_program
+//!   clears pending_interrupt before re-entering run_loop
+//! - `v4_3_interrupt_backward_compat` — v4.2 autosave JSON deserializes cleanly;
+//!   all 4 new Phase 63 fields default to None
+//! - `repeating_interrupting_alarm_reschedules_after_handler` — D-06:
+//!   repeating alarm trigger_unix advances after handler RTN (ack-after-RTN)
 #![allow(clippy::unwrap_used)]
 
 use hp41_core::ops::time::alarm::{check_alarms, AlarmEntry, AlarmType};
