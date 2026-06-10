@@ -1,11 +1,24 @@
 //! Integration tests for print operations: PRX, PRA, PRSTK.
 //! PRNT-01, PRNT-02, PRNT-03 — hp41-core side.
-//! These tests are RED until Plan 11-01 ships Op::PRX/PRA/PRSTK and print_buffer.
+//!
+//! UNC-02 (Phase 66): PRX/PRA/PRSTK are printer-presence-gated on flags 21/55.
+//! All tests that exercise the print path must set flag 55 (Printer Existence)
+//! in `setup_with_printer()` so print ops succeed. One new test asserts that
+//! the default-flags state (no printer) returns `Err(HpError::NonExistent)`.
 
 #![allow(clippy::unwrap_used)]
 
+use hp41_core::error::HpError;
+use hp41_core::ops::flags::flag_set;
 use hp41_core::ops::{dispatch, Op};
 use hp41_core::{CalcState, DisplayMode, HpNum};
+
+/// Return a `CalcState` with flag 55 (Printer Existence) set so PRX/PRA/PRSTK succeed.
+fn setup_with_printer() -> CalcState {
+    let mut s = CalcState::new();
+    s.flags = flag_set(s.flags, 55); // flag 55 = Printer Existence (OM p.54)
+    s
+}
 
 fn push_val(state: &mut CalcState, n: i32) {
     dispatch(state, Op::PushNum(HpNum::from(n))).unwrap();
@@ -16,7 +29,7 @@ fn push_val(state: &mut CalcState, n: i32) {
 /// PRX pushes exactly one line to print_buffer.
 #[test]
 fn test_prx_pushes_one_line_to_buffer() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     push_val(&mut s, 42);
     dispatch(&mut s, Op::PRX).unwrap();
     assert_eq!(s.print_buffer.len(), 1, "PRX must push exactly 1 line");
@@ -25,7 +38,7 @@ fn test_prx_pushes_one_line_to_buffer() {
 /// PRX output line is exactly 24 chars wide (right-aligned).
 #[test]
 fn test_prx_output_is_24_chars() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     push_val(&mut s, 42);
     dispatch(&mut s, Op::PRX).unwrap();
     let line = &s.print_buffer[0];
@@ -39,7 +52,7 @@ fn test_prx_output_is_24_chars() {
 /// PRX output is right-aligned (leading spaces for short values).
 #[test]
 fn test_prx_output_is_right_aligned() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     push_val(&mut s, 1); // short value → many leading spaces
     dispatch(&mut s, Op::PRX).unwrap();
     let line = &s.print_buffer[0];
@@ -53,7 +66,7 @@ fn test_prx_output_is_right_aligned() {
 /// PRX respects SCI display mode.
 #[test]
 fn test_prx_respects_display_mode_sci() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.display_mode = DisplayMode::Sci(4);
     push_val(&mut s, 12345);
     dispatch(&mut s, Op::PRX).unwrap();
@@ -70,7 +83,7 @@ fn test_prx_respects_display_mode_sci() {
 /// PRX has LiftEffect::Neutral — stack unchanged after PRX.
 #[test]
 fn test_prx_lift_effect_neutral() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     push_val(&mut s, 7);
     let x_before = s.stack.x.clone();
     dispatch(&mut s, Op::PRX).unwrap();
@@ -80,12 +93,28 @@ fn test_prx_lift_effect_neutral() {
     );
 }
 
+// ── PRNT-01: PRX no-printer guard (UNC-02) ───────────────────────────────────
+
+/// PRX returns NonExistent when neither flag 21 (Printer Enable) nor flag 55
+/// (Printer Existence) is set — OM p.57-58, UNC-02 (Phase 66).
+#[test]
+fn test_prx_returns_nonexistent_when_no_printer_flag() {
+    let mut s = CalcState::new(); // default: flags = 0, no printer flags set
+    push_val(&mut s, 42);
+    let result = dispatch(&mut s, Op::PRX);
+    assert_eq!(
+        result,
+        Err(HpError::NonExistent),
+        "PRX with no printer flags must return Err(NonExistent)"
+    );
+}
+
 // ── PRNT-02: PRA ─────────────────────────────────────────────────────────────
 
 /// PRA pushes exactly one line to print_buffer.
 #[test]
 fn test_pra_pushes_one_line_to_buffer() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = "HELLO".to_string();
     dispatch(&mut s, Op::PRA).unwrap();
     assert_eq!(s.print_buffer.len(), 1, "PRA must push exactly 1 line");
@@ -94,7 +123,7 @@ fn test_pra_pushes_one_line_to_buffer() {
 /// PRA output line is exactly 24 chars wide (left-aligned).
 #[test]
 fn test_pra_output_is_24_chars() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = "HI".to_string();
     dispatch(&mut s, Op::PRA).unwrap();
     let line = &s.print_buffer[0];
@@ -108,7 +137,7 @@ fn test_pra_output_is_24_chars() {
 /// PRA output is left-aligned (trailing spaces for short values).
 #[test]
 fn test_pra_output_is_left_aligned() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = "HI".to_string();
     dispatch(&mut s, Op::PRA).unwrap();
     let line = &s.print_buffer[0];
@@ -126,7 +155,7 @@ fn test_pra_output_is_left_aligned() {
 /// PRA with empty alpha_reg produces 24 spaces.
 #[test]
 fn test_pra_empty_alpha_is_24_spaces() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = String::new();
     dispatch(&mut s, Op::PRA).unwrap();
     let line = &s.print_buffer[0];
@@ -140,7 +169,7 @@ fn test_pra_empty_alpha_is_24_spaces() {
 /// PRA truncates alpha_reg longer than 24 chars to 24 chars.
 #[test]
 fn test_pra_truncates_long_alpha_to_24_chars() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = "A".repeat(30);
     dispatch(&mut s, Op::PRA).unwrap();
     let line = &s.print_buffer[0];
@@ -152,7 +181,7 @@ fn test_pra_truncates_long_alpha_to_24_chars() {
 /// PRSTK pushes exactly 6 lines to print_buffer.
 #[test]
 fn test_prstk_produces_six_lines() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     dispatch(&mut s, Op::PRSTK).unwrap();
     assert_eq!(s.print_buffer.len(), 6, "PRSTK must push exactly 6 lines");
 }
@@ -160,7 +189,7 @@ fn test_prstk_produces_six_lines() {
 /// All 6 PRSTK lines are exactly 24 chars wide.
 #[test]
 fn test_prstk_all_lines_are_24_chars() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     push_val(&mut s, 1);
     dispatch(&mut s, Op::PRSTK).unwrap();
     for (i, line) in s.print_buffer.iter().enumerate() {
@@ -175,7 +204,7 @@ fn test_prstk_all_lines_are_24_chars() {
 /// PRSTK lines appear in T/Z/Y/X/LASTX/ALPHA order.
 #[test]
 fn test_prstk_line_order_and_labels() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     dispatch(&mut s, Op::PRSTK).unwrap();
     assert!(
         s.print_buffer[0].starts_with("T:"),
@@ -206,7 +235,7 @@ fn test_prstk_line_order_and_labels() {
 /// PRSTK ALPHA line when alpha_reg is empty: "ALPHA:                  " ("ALPHA:" (6) + 18 spaces = 24).
 #[test]
 fn test_prstk_alpha_empty_line_format() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = String::new();
     dispatch(&mut s, Op::PRSTK).unwrap();
     let alpha_line = &s.print_buffer[5];
@@ -220,7 +249,7 @@ fn test_prstk_alpha_empty_line_format() {
 /// PRSTK ALPHA line with content: left-aligned in 17-char field after 7-char label.
 #[test]
 fn test_prstk_alpha_nonempty_line_format() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = "HP41".to_string();
     dispatch(&mut s, Op::PRSTK).unwrap();
     let alpha_line = &s.print_buffer[5];
@@ -240,7 +269,7 @@ fn test_prstk_alpha_nonempty_line_format() {
 /// PRX inside a running program fills print_buffer (execute_op arm must exist).
 #[test]
 fn test_prx_in_program() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     push_val(&mut s, 99);
     // Build a minimal program: LBL "P", PRX, RTN
     s.program = vec![Op::Lbl("P".to_string()), Op::PRX, Op::Rtn];
@@ -255,7 +284,7 @@ fn test_prx_in_program() {
 /// PRA inside a running program fills print_buffer (execute_op arm must exist).
 #[test]
 fn test_pra_in_program() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.alpha_reg = "TEST".to_string();
     s.program = vec![Op::Lbl("Q".to_string()), Op::PRA, Op::Rtn];
     hp41_core::run_program(&mut s, "Q").unwrap();
@@ -269,7 +298,7 @@ fn test_pra_in_program() {
 /// PRSTK inside a running program fills print_buffer with 6 lines.
 #[test]
 fn test_prstk_in_program() {
-    let mut s = CalcState::new();
+    let mut s = setup_with_printer();
     s.program = vec![Op::Lbl("R".to_string()), Op::PRSTK, Op::Rtn];
     hp41_core::run_program(&mut s, "R").unwrap();
     assert_eq!(
