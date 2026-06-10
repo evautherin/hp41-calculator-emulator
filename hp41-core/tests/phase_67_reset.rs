@@ -147,7 +147,10 @@ fn soft_reset_clears_entry_and_alpha() {
 fn soft_reset_clears_display_override() {
     let mut s = make_trapped_state();
     s.soft_reset();
-    assert!(s.display_override.is_none(), "display_override must be None");
+    assert!(
+        s.display_override.is_none(),
+        "display_override must be None"
+    );
 }
 
 #[test]
@@ -180,7 +183,10 @@ fn soft_reset_clears_matrix_mode() {
     let mut s = make_trapped_state();
     s.soft_reset();
     assert!(s.matrix_dim.is_none(), "matrix_dim must be None");
-    assert!(s.matrix_active_reg.is_none(), "matrix_active_reg must be None");
+    assert!(
+        s.matrix_active_reg.is_none(),
+        "matrix_active_reg must be None"
+    );
 }
 
 #[test]
@@ -272,10 +278,7 @@ fn soft_reset_clears_clock_and_stopwatch_modes() {
         !s.stopwatch_keyboard_mode,
         "stopwatch_keyboard_mode must be false"
     );
-    assert!(
-        !s.alarm_catalog_mode,
-        "alarm_catalog_mode must be false"
-    );
+    assert!(!s.alarm_catalog_mode, "alarm_catalog_mode must be false");
     assert!(s.stopwatch_start.is_none(), "stopwatch_start must be None");
 }
 
@@ -337,7 +340,10 @@ fn soft_reset_preserves_text_regs() {
 fn soft_reset_preserves_xmem_and_xrom_modules() {
     let mut s = make_trapped_state();
     s.soft_reset();
-    assert_eq!(s.xrom_modules, 0b0001_1111, "xrom_modules must be preserved");
+    assert_eq!(
+        s.xrom_modules, 0b0001_1111,
+        "xrom_modules must be preserved"
+    );
     // xmem_files and xmem_active_file are empty/None in make_trapped_state —
     // that's intentional; xmem state is the "not changed" class of stored data.
 }
@@ -360,10 +366,7 @@ fn soft_reset_preserves_adv_matrices_and_tvm() {
     assert_eq!(s.adv_matrices.len(), 1, "adv_matrices must be preserved");
     assert_eq!(s.adv_matrices[0].name, "MAT", "adv_matrix name preserved");
     // adv_tvm_state: None in make_trapped_state — preserved as None
-    assert!(
-        s.adv_tvm_state.is_none(),
-        "adv_tvm_state None preserved"
-    );
+    assert!(s.adv_tvm_state.is_none(), "adv_tvm_state None preserved");
     assert_eq!(s.adv_matrix_i, 3, "adv_matrix_i preserved");
     assert_eq!(s.adv_matrix_j, 2, "adv_matrix_j preserved");
 }
@@ -383,7 +386,11 @@ fn soft_reset_preserves_angle_and_display_mode() {
     s.display_mode = DisplayMode::Sci(3);
     s.soft_reset();
     assert_eq!(s.angle_mode, AngleMode::Rad, "angle_mode preserved");
-    assert_eq!(s.display_mode, DisplayMode::Sci(3), "display_mode preserved");
+    assert_eq!(
+        s.display_mode,
+        DisplayMode::Sci(3),
+        "display_mode preserved"
+    );
 }
 
 #[test]
@@ -427,10 +434,8 @@ fn memory_lost_equals_new() {
 
     // Compare via JSON serialization (the canonical serde-equality check used
     // throughout this codebase; see rand_seed_serde_round_trip in state.rs).
-    let s_json =
-        serde_json::to_string(&s).expect("memory_lost state must serialize");
-    let fresh_json =
-        serde_json::to_string(&fresh).expect("fresh state must serialize");
+    let s_json = serde_json::to_string(&s).expect("memory_lost state must serialize");
+    let fresh_json = serde_json::to_string(&fresh).expect("fresh state must serialize");
 
     assert_eq!(
         s_json, fresh_json,
@@ -448,8 +453,7 @@ fn trapped_state_round_trip_soft_reset() {
     let json = serde_json::to_string(&trapped).expect("serialize trapped state");
 
     // Deserialize it (simulates app relaunch loading autosave).
-    let mut restored: CalcState =
-        serde_json::from_str(&json).expect("deserialize trapped state");
+    let mut restored: CalcState = serde_json::from_str(&json).expect("deserialize trapped state");
     restored.migrate_after_load();
 
     // Transient fields don't survive serde (skip), so they're gone.
@@ -479,16 +483,14 @@ fn trapped_state_round_trip_memory_lost() {
     let trapped = make_trapped_state();
 
     let json = serde_json::to_string(&trapped).expect("serialize trapped state");
-    let mut restored: CalcState =
-        serde_json::from_str(&json).expect("deserialize trapped state");
+    let mut restored: CalcState = serde_json::from_str(&json).expect("deserialize trapped state");
     restored.migrate_after_load();
 
     // Apply memory_lost (factory reset).
     restored.memory_lost();
 
     let fresh = CalcState::new();
-    let restored_json =
-        serde_json::to_string(&restored).expect("serialize restored");
+    let restored_json = serde_json::to_string(&restored).expect("serialize restored");
     let fresh_json = serde_json::to_string(&fresh).expect("serialize fresh");
     assert_eq!(
         restored_json, fresh_json,
