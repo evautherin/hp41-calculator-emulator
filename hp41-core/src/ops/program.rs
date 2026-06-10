@@ -259,9 +259,12 @@ pub fn op_clst(state: &mut CalcState) -> Result<(), HpError> {
 /// OQ-2 (AMENDED 2026-05-14): `nnn == 0` silently clamps to 1 (documented
 /// divergence from real HP-41 which accepts `SIZE 000`). `nnn > 319`
 /// returns `HpError::InvalidOp`. Otherwise `state.regs.resize(target,
-/// crate::num::HpValue::default())`: shrinking truncates the tail (hardware-faithful
-/// "MEM LOST"); growing zero-fills the new slots. Preserves values where
-/// the old and new ranges overlap.
+/// crate::num::HpValue::default())`: shrinking truncates the tail (hardware-
+/// faithful: data is lost silently with no "MEMORY LOST" display message —
+/// OM p.19 confirms SIZE reduction is a silent operation; "MEMORY LOST" is
+/// a power-event / Continuous-Memory-clear display per OM p.57, NOT triggered
+/// by SIZE — UNC-03, Phase 66); growing zero-fills the new slots. Preserves
+/// values where the old and new ranges overlap.
 ///
 /// SAFETY: every legacy register access (op_sto/op_rcl/op_sto_arith/op_view/
 /// op_clreg/Σ-family) was audited in 22-03-01..03 to honor `state.regs.len()`

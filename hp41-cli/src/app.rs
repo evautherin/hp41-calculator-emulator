@@ -2942,6 +2942,8 @@ mod print_modal_tests {
     #[test]
     fn test_print_modal_prx_sets_message() {
         let mut app = App::new_for_test();
+        // UNC-02: set flag 55 (Printer Existence) so PRX does not return NonExistent.
+        app.state.flags = hp41_core::ops::flags::flag_set(app.state.flags, 55);
         // Push a value onto the stack
         hp41_core::ops::dispatch(&mut app.state, Op::PushNum(hp41_core::HpNum::from(42))).unwrap();
         // Simulate 'P' key (opens modal)
@@ -2998,6 +3000,8 @@ mod print_modal_tests {
             PathBuf::from("/tmp/hp41-cli-test-state.json"),
             Some(log_path.clone()),
         );
+        // UNC-02: set flag 55 (Printer Existence) so PRX does not return NonExistent.
+        app.state.flags = hp41_core::ops::flags::flag_set(app.state.flags, 55);
         hp41_core::ops::dispatch(&mut app.state, Op::PushNum(hp41_core::HpNum::from(99))).unwrap();
         // Trigger PRX via call_dispatch_and_drain directly
         app.call_dispatch_and_drain(Op::PRX);
@@ -3844,6 +3848,27 @@ mod synthetic_modal_tests {
         assert!(
             app.state.pending_yield.is_some(),
             "pending_yield must remain Some after handle_key guard fires"
+        );
+    }
+
+    /// UNC-01 regression (Phase 66): OM p.15 states "Pressing [←] also clears error
+    /// messages from the display." Verify that back-arrow clears `app.message` when an
+    /// error message is currently shown — the production path at app.rs lines 974-975
+    /// already does this; this test pins the behavior against future regressions.
+    #[test]
+    fn test_backspace_clears_error_message() {
+        let mut app = App::new_for_test();
+        // Simulate an error message being displayed (e.g. after an invalid operation).
+        app.message = Some("invalid operation".to_string());
+        // Simulate back-arrow key press.
+        let key = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Backspace,
+            crossterm::event::KeyModifiers::NONE,
+        );
+        app.handle_key(key);
+        assert_eq!(
+            app.message, None,
+            "Back-arrow (←) must clear app.message (UNC-01, OM p.15)"
         );
     }
 }
