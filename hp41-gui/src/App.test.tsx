@@ -645,6 +645,22 @@ describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade 
     expect(runStopCalls.length).toBe(0);
   });
 
+  it('H3b: run_program error flushes buffered print lines via get_state (PR #26 review)', async () => {
+    // A program that printed (PRA/PRX) before erroring returns Err with no view,
+    // so its buffered print lines would otherwise surface only on the next
+    // unrelated drain. The run/resume catch sites now refetch get_state (which
+    // drains both buffers) so the print output lands right after the error toast.
+    const { container } = await renderAppAndWait();
+
+    mockInvoke.mockRejectedValueOnce('data error'); // run_program('A') fails mid-run
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({ print_lines: ['RESULT'] })); // flush
+    await clickKey(container, 'r_s');
+
+    expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
+    // The catch must refetch get_state to flush the stranded print buffer.
+    expect(mockInvoke).toHaveBeenCalledWith('get_state', undefined);
+  });
+
   it('H4: Esc with modal_program_active calls cancel_modal', async () => {
     // Seed initial state: modal is active.
     mockInvoke.mockResolvedValue(
