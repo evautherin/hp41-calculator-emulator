@@ -260,7 +260,7 @@ Plans:
 - [x] 67-04-PLAN.md — GUI/iOS: `ON`-key tap=soft / long-press=full wiring outside resolve() + portaled confirm sheet + vitest (non-autonomous: on-device verify)
 
 **Wave 3** *(depends on 67-01..67-04)*
-- [ ] 67-05-PLAN.md — Docs: ADR v4.3-007 + hp41cv divergence entry + discoverability hint + `just ci`/`just gui-ci` green + D-25.6 parity self-check
+- [x] 67-05-PLAN.md — Docs: ADR v4.3-007 + hp41cv divergence entry + discoverability hint + `just ci`/`just gui-ci` green + D-25.6 parity self-check
 
 ---
 
@@ -287,7 +287,7 @@ Plans:
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 4/4 | Complete    | 2026-06-10 |
-| 67. Reset Escape Hatch | v4.3 | 4/5 | In Progress|  |
+| 67. Reset Escape Hatch | v4.3 | 5/5 | Complete   | 2026-06-10 |
 
 ---
 

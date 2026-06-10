@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: executing
-last_updated: "2026-06-10T16:00:00.000Z"
-last_activity: 2026-06-10 -- Phase 67 Plan 04 COMPLETE (ON-key escape hatch + portaled MEMORY LOST sheet + vitest; T-67-10 human-verify PASSED); next: 67-05
+status: complete
+last_updated: "2026-06-10T16:15:00.000Z"
+last_activity: 2026-06-10 -- Phase 67 Plan 05 COMPLETE (ADR v4.3-007 + D-CV-10 divergence + discoverability hints + T-67-11 human-verify PASSED; all 4 gates green). Phase 67 done 5/5. PENDING RELEASE: tag v4.3 on develop, then gh pr merge 26 --merge (NEVER --squash).
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 26
-  completed_plans: 25
-  percent: 87
+  completed_plans: 26
+  percent: 100
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 ## Current Position
 
-Phase: 67 (reset-escape-hatch) — EXECUTING
-Plan: 5 of 5
-Status: Executing
-Last activity: 2026-06-10 -- Phase 67 Plan 04 COMPLETE (ON-key escape hatch + portaled MEMORY LOST sheet + vitest; T-67-10 human-verify PASSED on-device); next: 67-05 (CLI-GUI parity verification + wave-3 quality gates)
+Phase: 67 (reset-escape-hatch) — COMPLETE
+Plan: 5 of 5 (ALL DONE)
+Status: Complete — v4.3 milestone ready for release
+Last activity: 2026-06-10 -- Phase 67 Plan 05 COMPLETE (ADR v4.3-007 + D-CV-10 divergence entry + ON-key discoverability hints + T-67-11 human-verify PASSED; just ci + just gui-ci + MSRV clippy + root fmt all green; D-25.6 parity confirmed); NEXT: tag v4.3 on develop + gh pr merge 26 --merge (NEVER --squash)
 
 ## Progress Bar
 
@@ -40,8 +40,8 @@ Last activity: 2026-06-10 -- Phase 67 Plan 04 COMPLETE (ON-key escape hatch + po
 v4.3 Hardware Fidelity
 Phase 62 ██████████ 100%  Phase 63 ██████████ 100%
 Phase 64 ██████████ 100%  Phase 65 ██████████ 100%
-Phase 66 ██████████ 100%  Phase 67 ████████░░  80%
-Overall  ████████░░  87%
+Phase 66 ██████████ 100%  Phase 67 ██████████ 100%
+Overall  ██████████ 100%
 ```
 
 | Phase | Goal | Status |
@@ -51,7 +51,7 @@ Overall  ████████░░  87%
 | 64 | Interactive GETKEY — suspend execution, await keypress, push row×col code to X, resume | Complete ✓ (2026-06-07) |
 | 65 | Standalone Fidelity Fixes — CLI display_override, CHS mantissa sign-flip, AON auto-display, FACT(27..69) | Complete ✓ (2026-06-07) |
 | 66 | Verification, Divergence-Doc Updates, Quality Gates — UNC-01/02/03 verified; D-40-04 closed; all gates green | Complete ✓ (2026-06-10, verified 5/5) |
-| 67 | Reset Escape Hatch — two-tier in-app reset (soft + full/MEMORY LOST) across CLI/GUI/iOS; bypasses dispatch; overwrites autosave | In Progress (P01 done 2026-06-10) |
+| 67 | Reset Escape Hatch — two-tier in-app reset (soft + full/MEMORY LOST) across CLI/GUI/iOS; bypasses dispatch; overwrites autosave | Complete ✓ (2026-06-10, all 5 plans done) |
 
 ## Quick Tasks Completed (v4.3)
 
@@ -99,6 +99,11 @@ Overall  ████████░░  87%
 ### Roadmap Evolution
 
 - Phase 67 (Reset Escape Hatch) added 2026-06-10 — v4.3 reopened post-completion to fold in an in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS, recovering from an input-blocking persisted state that survives restart. Discovered on iOS; design spec at `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`. Release (tag `v4.3` + merge PR #26) deferred until Phase 67 lands.
+
+### Decisions (Phase 67-05 — 2026-06-10)
+
+- **67-05-D01:** ADR records the outside-dispatch invariant and rejected alternatives (reset-as-Op: self-defeating + forces 4-way match; frontend-only: SC-4 duplication/drift risk) — both alternatives have correctness/maintenance implications, so the decision record is load-bearing for future maintainers.
+- **67-05-D02:** Divergence entry D-CV-10 placed in `docs/hp41cv-divergences.md` (general CV divergence file, same home as GETKEY D-CV-05 and X-MEM entries) — hardware ON is a CX-class Continuous Memory event, not an XROM module behavior.
 
 ### Decisions (Phase 67-04 — 2026-06-10)
 
