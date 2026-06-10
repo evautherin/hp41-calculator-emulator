@@ -229,8 +229,10 @@ impl HpNum {
     /// Construct an `HpNum` from a `Decimal` value (for in-range values, exponent == 0).
     ///
     /// Rounds the Decimal to 10 significant digits and stores with `exponent = 0`.
-    /// Trailing zeros are normalized away so `inner().to_string()` is compact
-    /// (e.g., `-3` not `-3.000000000`).
+    /// The stored mantissa retains the `round_sf` scale and may carry trailing
+    /// zeros (e.g. `from_decimal(-3).inner().to_string()` is `-3.000000000`, NOT
+    /// `-3`): no `.normalize()` happens here. The compact form is produced only by
+    /// `Display`, which calls `.normalize()` at render time.
     ///
     /// Used for legacy serde deserialization, `From<Decimal>` / `From<i32>`, and all
     /// arithmetic paths where the result is within the Decimal representable range.
@@ -478,7 +480,7 @@ impl HpNum {
         // floor()/fmod()). f64 log10 is imprecise at exact powers of ten
         // (log10(1000.0) can come back as 2.9999…, flooring to 2 → 10×-wrong).
         let exp = decimal_floor_log10(&self.mantissa.abs());
-        let scale = decimal_pow10_f64(exp);
+        let scale = decimal_pow10(exp);
         let normalized = self.mantissa.checked_div(scale).unwrap_or(self.mantissa); // safe: scale is always nonzero
         (normalized, exp)
     }
@@ -855,7 +857,7 @@ fn decimal_floor_log10(d: &Decimal) -> i32 {
 
 /// Compute `10^exp` as a Decimal, for arbitrary integer exp.
 /// Used for to_sci() normalization.
-fn decimal_pow10_f64(exp: i32) -> Decimal {
+fn decimal_pow10(exp: i32) -> Decimal {
     if exp == 0 {
         return Decimal::ONE;
     }
@@ -868,14 +870,11 @@ fn decimal_pow10_f64(exp: i32) -> Decimal {
         // abs_exp >= 1 and the subtraction cannot underflow. Guard it so a
         // future refactor that routes exp == 0 here cannot underflow usize and
         // panic in this panic-free core crate.
-        debug_assert!(
-            exp != 0,
-            "decimal_pow10_f64 negative branch requires exp != 0"
-        );
+        debug_assert!(exp != 0, "decimal_pow10 negative branch requires exp != 0");
         let abs_exp = (-exp) as usize;
         let zeros = abs_exp.saturating_sub(1);
         let s = "0.".to_string() + &"0".repeat(zeros) + "1";
-        Decimal::from_str(&s).expect("decimal_pow10_f64: valid negative-exp string")
+        Decimal::from_str(&s).expect("decimal_pow10: valid negative-exp string")
     }
 }
 

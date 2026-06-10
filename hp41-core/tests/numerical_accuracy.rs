@@ -2931,7 +2931,8 @@ fn test_numerical_accuracy_suite() {
         let mut s = CalcState::new();
         push(&mut s, "68");
         dispatch(&mut s, Op::Fact).unwrap();
-        // 68! ≈ 2.480035542E96 (last representable; FACT(69) is OutOfRange)
+        // 68! ≈ 2.480035542E96. FACT(69) also succeeds (≈1.711E98, asserted below);
+        // FACT(70) is the OutOfRange boundary (HP-41C OM p.234: X > 69 → OutOfRange).
         case!(
             "fact",
             "FACT(68) ~ 2.480035542E96",
