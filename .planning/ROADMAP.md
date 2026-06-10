@@ -128,28 +128,36 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
 ## Phase Details
 
 ### Phase 62: Alarm Semantics Spec
+
 **Goal**: The `>` / `>>` control-alarm prefix semantics are verified against HP 82182A OM §XYZALM and the behavioral contract is locked in writing — resolving which prefix interrupts a running program — before any alarm implementation code is written.
 **Depends on**: Nothing (first phase of v4.3 formal work; quick-tasks already landed)
 **Requirements**: ALARM-01
 **Success Criteria** (what must be TRUE):
+
   1. A written behavioral contract (decision record or inline doc) states unambiguously which prefix (`>` or `>>`) maps to the interrupting alarm and which maps to the conditional/deferred alarm, with a primary OM citation.
   2. The existing code's `interrupting: bool` flag and `parse_alarm_type` logic are audited; if the current assignment is inverted relative to the OM, a correction plan is noted in the contract before any implementation starts.
   3. The contract also covers edge-case behavior: 4-level call-stack cap (alarm suppressed at depth 4), idle-fire behavior (alarm fires when no program is running), and the non-interrupting path (existing `alarm:xeq:` event routing stays unchanged).
   4. `just ci` remains green (this phase touches documentation/research only, zero runtime code changes).
+
 **Plans**: 1 plan
+
   - [x] 62-01-PLAN.md — Author ADR v4.3-003 locking the `>`/`>>` control-alarm prefix semantics (OM-confirmed; docs-only)
 
 ### Phase 63: Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW
+
 **Goal**: Users running programs on the emulator experience interrupting control alarms (alarm program executes mid-run and original program resumes), PSE pauses the display for ~1 second during execution, and VIEW/AVIEW show their value mid-run — because `run_loop` now has a synchronous yield/interrupt point between instructions.
 **Depends on**: Phase 62
 **Requirements**: ALARM-02, ALARM-03, PRGM-01, PRGM-02
 **Success Criteria** (what must be TRUE):
+
   1. A running program is interrupted at the next instruction boundary when an interrupting control alarm comes due; the alarm's stored label program executes in the interrupted program's register environment; the original program resumes from exactly where it was halted when the alarm program completes.
   2. An interrupting alarm is suppressed (left past-due) and not executed when the call stack is already at the 4-level cap; `state.call_stack` is never pushed to a 5th level and `state.is_running` is correctly restored on all paths including errors.
   3. An idle-fired interrupting alarm (no program running) executes the alarm label program via the existing `run_program` path without any resume logic.
   4. PSE during a running program pauses the display for approximately 1 second (visible to the user in both CLI and GUI) before the next program step executes.
   5. VIEW and AVIEW during a running program display their register/ALPHA value briefly (PSE-like) before the program continues to the next step — not only after the program ends.
+
 **Plans**: 6 plans
+
   - [x] 63-01-PLAN.md — Phase A: Wave-0 test scaffolds (authored first) + CalcState yield/interrupt fields (incl. pending_interrupt_depth) + dispatch_alarm_event routing (state.rs, time/alarm.rs, 2 test files)
   - [x] 63-02-PLAN.md — Phase B/C/D + yield arms: run_loop interrupt boundary, Phase-C check, ack-after-RTN, PSE/VIEW/AVIEW yields, clear-on-entry (program.rs)
   - [x] 63-03-PLAN.md — CLI wiring: yield render+sleep+resume loop + alarm:missing status line (app.rs)
@@ -158,16 +166,20 @@ See [milestones/v4.2-ROADMAP.md](milestones/v4.2-ROADMAP.md) for full phase deta
   - [x] 63-06-PLAN.md — GUI-TS run-loop driver: R/S 4-way start/stop, yield render + scheduled resume, alarm:missing toast, interrupting silent-ignore removed (App.tsx, App.test.tsx)
 
 ### Phase 64: Interactive GETKEY
+
 **Goal**: GETKEY inside a running program suspends execution, waits for the user's next key press, pushes that key's HP-41 row×col code to X, and resumes — matching real HP-41 keyboard-polling behavior.
 **Depends on**: Phase 63
 **Requirements**: PRGM-03
 **Success Criteria** (what must be TRUE):
+
   1. When a running program executes GETKEY, execution halts and the display enters a waiting state; the program does not continue until the user presses a key.
   2. After a key press, the HP-41 row×col key code for that key is placed in X (stack lift is applied as the hardware specifies), the program resumes at the next step, and normal execution continues.
   3. GETKEY returns the no-key sentinel value (0) only in the circumstances where the HP-41 specifies it (e.g., the appropriate timeout / idle condition) — not spuriously.
   4. The suspension and resume mechanism reuses the existing PROMPT suspend/resume path (`CalcState` transient fields with `#[serde(skip)]`) without new `Op` variants; save-file backward compatibility is preserved.
+
 **Plans**: 5 plans
 Plans:
+
 - [x] 64-01-PLAN.md — Core: WaitForKey YieldKind + getkey_captured_code field + run_loop arm + resume_program_with_key + op_getkey rework + phase_64_getkey.rs (PRGM-03-a..i)
 - [x] 64-02-PLAN.md — CLI: drain_pending_yields WaitForKey poll/redraw/resume loop (R/S=31, Esc=cancel→0, Ctrl+C=quit) + handle_key guard (app.rs)
 - [x] 64-03-PLAN.md — GUI-Rust: WaitForKey→"wait_for_key" projection + resume_program_with_key Tauri command + permission/capability/registration (PRGM-03-j)
@@ -175,36 +187,49 @@ Plans:
 - [x] 64-05-PLAN.md — Docs: flip FGAP-04/SYNT-06 to implemented v4.3 + record D-02 84→31 R/S correction (hp41cv-divergences.md)
 
 ### Phase 65: Standalone Fidelity Fixes
+
 **Goal**: Four independent hardware-fidelity gaps are closed: the CLI renders VIEW/AVIEW/PROMPT values on the display, CHS correctly flips the sign of the entry buffer in place, AON causes the ALPHA register to auto-display after every operation, and FACT(X) returns correct scientific-notation results for X in 27..=69.
 **Depends on**: Phase 62 (no engine dependency; can proceed in parallel with Phase 63 after spec is locked)
 **Requirements**: DISP-01, DISP-02, DISP-03, MATH-01
 **Success Criteria** (what must be TRUE):
+
   1. After VIEW or AVIEW executes (or PROMPT is active), the CLI's main display line shows the correct register name and value or ALPHA string — matching the GUI behavior already present.
   2. Pressing CHS while entering a mantissa (digits typed, no EEX pressed) toggles the sign of the entry buffer in place; no stack lift occurs and no previously-entered value is overwritten.
   3. When AON is active (flag 48 set), the ALPHA register contents appear on the display automatically after every operation; AOFF (clear flag 48) stops the auto-display.
   4. `FACT(27)` through `FACT(69)` return the correct factorial in scientific notation clipped to 10 significant digits, rather than raising an Overflow error.
+
 **Plans**: 4 plans
+
 - [x] 65-01-PLAN.md — MATH-01: HpNum range extension (mantissa+exponent struct, arithmetic, serde, format_hpnum, op_fact, ADR v4.3-005) [heavy]
 - [x] 65-02-PLAN.md — DISP-01: CLI renders display_override (VIEW/AVIEW/PROMPT) + state.rs stale-comment cleanup
 - [x] 65-03-PLAN.md — DISP-02: CLI CHS in-buffer mantissa sign toggle
 - [x] 65-04-PLAN.md — DISP-03: AON flag-48 auto-display on CLI + GUI (from_state)
+
 **UI hint**: yes
 
 ### Phase 66: Verification, Divergence-Doc Updates, Quality Gates
+
 **Goal**: The three uncertain behaviors (UNC-01/02/03) are verified against the OM or a trusted reference and fixed if confirmed divergent; divergence documentation is updated to reflect all v4.3 closures; and all quality gates are green.
 **Depends on**: Phase 63, Phase 64, Phase 65
 **Requirements**: VERIFY-01
 **Success Criteria** (what must be TRUE):
+
   1. UNC-01 (← clears error display), UNC-02 (flags 21/25 gate PRX/PRA/PRSTK printing), and UNC-03 (SIZE reduction shows "MEMORY LOST") are each verified against the HP OM or trusted reference; any confirmed divergence is fixed and any already-correct behavior is documented as such.
   2. `docs/hp41-time-divergences.md` is updated to reflect the resolution of D-40-04 (interrupting alarm execution now implemented), and any other divergence entries closed by v4.3 work are marked resolved.
   3. The re-entrancy test matrix (7 test scenarios from PITFALLS.md) is implemented in `hp41-core/tests/phase_63_interrupting_alarms.rs` and all scenarios pass.
   4. `just ci` is green (lint + test + coverage ≥ 95% lines / ≥ 93% regions + license-audit + schema-aliases); `just ci-msrv` is green; numerical accuracy ≥ 98% (843+ cases); zero panics in `hp41-core`.
   5. `just gui-ci` is green and the v4.3 milestone PR description is updated with the phase completion summary.
+
 **Plans**: 4 plans across 3 waves
 Plans:
+**Wave 1**
+
 - [ ] 66-01-PLAN.md — Wave 0 (BLOCKING): add HpError::NonExistent variant + Display test (unblocks UNC-02 print guard)
 - [ ] 66-02-PLAN.md — Wave 1: UNC-02 print-flag gating + test rework; UNC-01/UNC-03 already-correct records; 7-PITFALLS re-entrancy mapping
 - [ ] 66-03-PLAN.md — Wave 1: divergence-doc sweep (5 files) + v4.3 closure ledger
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 66-04-PLAN.md — Wave 2: full quality-gate suite green + v4.3 milestone PR description update
 
 ---
