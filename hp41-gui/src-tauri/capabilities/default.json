@@ -28,6 +28,8 @@
     "allow-run-program",
     "allow-resume-program",
     "allow-resume-program-with-key",
+    "allow-reset-soft",
+    "allow-reset-full",
     "dialog:allow-open",
     "dialog:allow-save",
     "autostart:default"

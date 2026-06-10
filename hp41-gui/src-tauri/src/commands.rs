@@ -676,6 +676,56 @@ pub fn save_state(app: AppHandle, state: State<'_, AppState>) -> Result<(), Stri
     persistence::save_state(&path, &snapshot).map_err(|e| e.to_string())
 }
 
+// ── Phase 67: Reset Escape Hatch — reset_soft / reset_full Tauri commands ────
+
+/// Tauri command: soft-reset the calculator — clears all trapping fields, preserves
+/// stored data (programs, registers, flags, X-MEM, modules, Advantage state).
+///
+/// Persistence ordering invariant (T-67-06): the autosave is overwritten WHILE HOLDING
+/// the AppState mutex.  This guarantees that if the auto-save background thread wakes
+/// immediately after this command returns, it acquires the same mutex and serialises the
+/// already-reset state — it can never write back a stale pre-reset snapshot.
+///
+/// Called by the GUI/iOS ON-key tap handler (Plan 67-04). Bypasses `dispatch()` so it
+/// works even when the core key-dispatch path is stuck (the escape-hatch contract).
+///
+/// Returns the post-reset `CalcStateView` so the frontend can refresh its display
+/// immediately without a separate `get_state` round-trip.
+#[tauri::command]
+pub fn reset_soft(app: AppHandle, state: State<'_, AppState>) -> Result<CalcStateView, GuiError> {
+    // Lock once for the entire operation — reset + persist inside the critical section.
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    calc.soft_reset();
+    // Persist while still holding the lock (ordering invariant — see doc comment above).
+    let path = persistence::state_path_for_app(&app);
+    persistence::save_state(&path, &calc).map_err(|e| GuiError { message: e.to_string() })?;
+    let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+    let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+    Ok(CalcStateView::from_state(&calc, print_lines, event_lines))
+}
+
+/// Tauri command: full reset — restores factory state (`CalcState::new()`); all
+/// user data (programs, registers, files) is permanently discarded.
+///
+/// Same persistence-ordering invariant as `reset_soft`: autosave overwritten inside
+/// the mutex lock so the auto-save thread cannot re-persist the pre-reset state.
+///
+/// Called by the GUI/iOS ON-key long-press confirm handler (Plan 67-04). Bypasses
+/// `dispatch()` — see `reset_soft` rationale above.
+///
+/// Returns the post-reset `CalcStateView` (a clean factory view) so the frontend
+/// refreshes immediately.
+#[tauri::command]
+pub fn reset_full(app: AppHandle, state: State<'_, AppState>) -> Result<CalcStateView, GuiError> {
+    let mut calc = state.lock().unwrap_or_else(|e| e.into_inner());
+    calc.memory_lost();
+    let path = persistence::state_path_for_app(&app);
+    persistence::save_state(&path, &calc).map_err(|e| GuiError { message: e.to_string() })?;
+    let print_lines: Vec<String> = calc.print_buffer.drain(..).collect();
+    let event_lines: Vec<String> = calc.event_buffer.drain(..).collect();
+    Ok(CalcStateView::from_state(&calc, print_lines, event_lines))
+}
+
 // ── Phase 50: .raw / .card.json file dialog I/O ──────────────────────────────
 
 /// Structured info for a single program in a multi-program `.raw` archive.

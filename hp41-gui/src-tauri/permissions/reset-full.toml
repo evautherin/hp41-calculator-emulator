@@ -1,0 +1,6 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-reset-full"
+description = "Allows the reset_full command."
+commands.allow = ["reset_full"]

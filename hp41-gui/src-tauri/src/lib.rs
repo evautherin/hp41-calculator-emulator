@@ -263,6 +263,9 @@ pub fn run() {
             commands::resume_program,
             // Phase 64 — interactive GETKEY: event-driven resume with captured keycode
             commands::resume_program_with_key,
+            // Phase 67 — reset escape hatch (bypasses dispatch; usable when core path is stuck)
+            commands::reset_soft,
+            commands::reset_full,
         ])
         .on_window_event(|window, event| {
             #[cfg(target_os = "macos")]
