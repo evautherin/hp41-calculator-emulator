@@ -200,7 +200,12 @@ Plans:
   3. The re-entrancy test matrix (7 test scenarios from PITFALLS.md) is implemented in `hp41-core/tests/phase_63_interrupting_alarms.rs` and all scenarios pass.
   4. `just ci` is green (lint + test + coverage ≥ 95% lines / ≥ 93% regions + license-audit + schema-aliases); `just ci-msrv` is green; numerical accuracy ≥ 98% (843+ cases); zero panics in `hp41-core`.
   5. `just gui-ci` is green and the v4.3 milestone PR description is updated with the phase completion summary.
-**Plans**: TBD
+**Plans**: 4 plans across 3 waves
+Plans:
+- [ ] 66-01-PLAN.md — Wave 0 (BLOCKING): add HpError::NonExistent variant + Display test (unblocks UNC-02 print guard)
+- [ ] 66-02-PLAN.md — Wave 1: UNC-02 print-flag gating + test rework; UNC-01/UNC-03 already-correct records; 7-PITFALLS re-entrancy mapping
+- [ ] 66-03-PLAN.md — Wave 1: divergence-doc sweep (5 files) + v4.3 closure ledger
+- [ ] 66-04-PLAN.md — Wave 2: full quality-gate suite green + v4.3 milestone PR description update
 
 ---
 
@@ -226,8 +231,8 @@ Plans:
 | 63. Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW | v4.3 | 6/6 | Complete    | 2026-06-06 |
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
-| 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/TBD | Not started | - |
+| 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 0/4 | Planned | - |
 
 ---
 
-*Last updated: 2026-06-06 — v4.3 Hardware Fidelity roadmap created (Phases 62–66, 11 requirements mapped). Next: `/gsd-plan-phase 62`.*
+*Last updated: 2026-06-10 — Phase 66 planned (4 plans across 3 waves; VERIFY-01). Next: `/gsd-execute-phase 66`.*
