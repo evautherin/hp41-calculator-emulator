@@ -401,4 +401,26 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
 
 ---
 
-*Last updated: 2026-05-26. Catalog established in Plan 45-01 (Phase 45 / ADV-DOC-02).*
+### D-65-01: Matrix Elements Assume Decimal Range (exponent-0) — MATH-01 Scope Boundary
+
+- **Our behavior**: The Advantage matrix reduction/norm ops (`MAX`, `MIN`, `MAXAB`,
+  `RMAXAB`, `RNRM` compare via `.inner()`; `FNRM` converts via `Decimal::from_f64`) and
+  `MP` matrix-element printing (via the `HpNum` `Display` impl) assume matrix elements are
+  within the `Decimal` range (`exponent == 0`, |value| ≲ 7.92E28). The MATH-01 range
+  extension to ±9.999E±99 (ADR v4.3-005, Phase 65) applies to FACT and scalar `HpNum`
+  arithmetic only — it deliberately does **not** extend Advantage matrix element storage.
+  Large-exponent matrix elements are not supported by these ops in this milestone; in-range
+  matrix data (the supported and tested case) works correctly.
+
+- **Rationale**: Pre-existing unextended limit, not a regression. Extending the matrix
+  reductions to exponent-aware comparison (`to_f64()`) and FNRM to the `HpNum::from_f64`
+  post-compute wall is scoped out of Phase 65 (standalone-fidelity-fixes) to keep the
+  phase focused on its four correctness fixes.
+
+- **See**: ADR v4.3-005 (HpNum range extension); review findings WR-05 / IN-01 / IN-02;
+  `hp41-core/src/ops/advantage/matrix_ops.rs` ("Reduction and norm operations" scope note
+  + `op_adv_mp` doc).
+
+---
+
+*Last updated: 2026-06-07. Catalog established in Plan 45-01 (Phase 45 / ADV-DOC-02).*

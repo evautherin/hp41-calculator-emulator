@@ -32,6 +32,32 @@ enum IndToggleAction {
     Continue,
 }
 
+/// Two-tier reset escape-hatch prompt state (Phase 67-02).
+///
+/// Stored on `App` so the intercept in `handle_key` can track which stage the
+/// user is in. Displayed via `render_status` in `ui.rs`. Never serialised —
+/// an app restart always begins in `None`.
+///
+/// State machine:
+///   `None`                 — no reset in progress; Ctrl+R opens → `AwaitingTier`
+///   `AwaitingTier`         — prompt shown: `[s] soft  [f] full (MEMORY LOST)  [Esc] cancel`
+///                            `s` → soft reset + persist → `None`
+///                            `f` → show second confirm → `AwaitingFullConfirm`
+///                            Esc / other → cancel → `None`
+///   `AwaitingFullConfirm`  — prompt shown: `MEMORY LOST? [y/n]`
+///                            `y`/`Y` → full reset + persist → `None`
+///                            `n`/`N`/Esc / other → cancel → `None`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ResetPrompt {
+    /// No reset in progress (default).
+    #[default]
+    None,
+    /// First tier: user chose Ctrl+R and we are showing the tier-selection prompt.
+    AwaitingTier,
+    /// Second tier: user pressed `f`; showing the full-reset confirmation prompt.
+    AwaitingFullConfirm,
+}
+
 /// Discriminator for `PendingInput::XeqByName` — distinguishes the normal
 /// XEQ-by-Name flow from the CollectForModal auto-open hook (D-29.8 / D-29.9).
 ///
@@ -159,6 +185,9 @@ pub struct App {
     pub state_path: PathBuf,
     // ── Phase 5: modal input (D-08) ──────────────────────────────────────────
     pub pending_input: Option<PendingInput>,
+    // ── Phase 67-02: reset escape-hatch prompt state ──────────────────────────
+    /// Two-tier reset state machine (Ctrl+R). Never persisted; always `None` on startup.
+    pub reset_prompt: ResetPrompt,
     // ── Phase 25: one-shot HP-41CV f-prefix arm state (D-25.1 / D-25.4) ──────
     /// True for exactly one key-press cycle after `f` is pressed; consumed
     /// by the next op key (which is then resolved via `keys::shifted_key_to_op`)
@@ -244,6 +273,7 @@ impl App {
             last_save: Instant::now(),
             state_path,
             pending_input: None,
+            reset_prompt: ResetPrompt::None,
             shift_armed: false,
             show_help: false,
             help_table_state: RefCell::new(TableState::default()),
@@ -280,6 +310,13 @@ impl App {
             if event::poll(Duration::from_millis(16))? {
                 if let Event::Key(key) = event::read()? {
                     self.handle_key(key);
+                    // PSE/VIEW/AVIEW yield drain (Phase 63-03, criteria 4–5 CLI half):
+                    // After run_program returns with pending_yield set, render the yield
+                    // text on the display, sleep resume_ms, then call resume_program to
+                    // continue the program at the next step. Loop for consecutive yields
+                    // (e.g. PSE then VIEW). Terminal is only available in run(), so the
+                    // loop lives here rather than in handle_key.
+                    self.drain_pending_yields(&mut terminal)?;
                 }
             }
             // PERS-02: 30-second auto-save via extracted method (D-05)
@@ -289,10 +326,170 @@ impl App {
             // in real-time without user interaction.
             hp41_core::ops::time::alarm::check_alarms(&mut self.state);
             self.drain_event_buffer();
+            // WR-04 (Phase 63 review): drain any PSE/VIEW/AVIEW yield that an
+            // alarm-triggered program (via alarm:xeq) may have set on pending_yield.
+            // Without this, the yield would sit stranded until the next keypress
+            // triggers the handle_key-path drain (line ~289), causing pause text to
+            // never render and the program to stall.  Placed here (after every
+            // check_alarms + drain_event_buffer tick) so the drain fires on the same
+            // 16 ms frame as the alarm:xeq run_program, with no extra keypress needed.
+            // Mirrors the after-handle_key drain invariant ("wire ALL run_program
+            // call sites" — CLAUDE.md / I-07 parity).
+            self.drain_pending_yields(&mut terminal)?;
         }
         // D-05: save on graceful exit before ratatui::restore()
         if let Err(e) = persistence::save_state(&self.state_path, &self.state) {
             eprintln!("Warning: failed to save state on exit: {e}");
+        }
+        Ok(())
+    }
+
+    /// Drain any pending PSE/VIEW/AVIEW yields: render yield text, sleep, resume.
+    ///
+    /// Phase 63-03 (criteria 4–5, CLI half of D-25.6): after run_program yields mid-run,
+    /// the CLI must show the pause text for resume_ms before resuming execution.
+    ///
+    /// Yield text is surfaced via state.entry_buf (priority 3 in get_display_string),
+    /// which is always empty during program execution. It is cleared before each
+    /// resume_program call so the core sees a clean entry state. resume_program itself
+    /// clears pending_yield on entry and advances to the next step.
+    ///
+    /// Handles consecutive yields (e.g. PSE followed immediately by VIEW) by looping
+    /// until pending_yield is None after a resume.
+    ///
+    /// I-07 print discipline: drain_and_show_print_output is called after every
+    /// resume_program so alarm-handler PRX/PRA/PRSTK output is never stranded.
+    fn drain_pending_yields(&mut self, terminal: &mut DefaultTerminal) -> std::io::Result<()> {
+        while self.state.pending_yield.is_some() {
+            // Clone yield data before borrowing self mutably.
+            let (yield_kind, yield_text, resume_ms) = {
+                let y = self
+                    .state
+                    .pending_yield
+                    .as_ref()
+                    .expect("checked is_some above");
+                (y.kind.clone(), y.text.clone(), y.resume_ms)
+            };
+
+            // Phase 64: WaitForKey yield — event-driven, not timer-driven.
+            // Non-blocking poll so the TUI redraws during the wait (Pitfall 5:
+            // never call blocking event::read() without a poll guard).
+            // The inner loop owns crossterm events during the GETKEY suspend:
+            // handle_key is NOT called from run() during this time because
+            // drain_pending_yields replaces the run() poll iteration.
+            if let hp41_core::state::YieldKind::WaitForKey = yield_kind {
+                loop {
+                    terminal.draw(|frame| self.draw(frame))?;
+                    if event::poll(Duration::from_millis(16))? {
+                        if let Event::Key(key) = event::read()? {
+                            if key.kind != KeyEventKind::Press {
+                                continue;
+                            }
+                            // Esc = cancel GETKEY → push sentinel 0 (D-02 cancel path).
+                            if key.code == KeyCode::Esc {
+                                match hp41_core::ops::program::resume_program_with_key(
+                                    &mut self.state,
+                                    0,
+                                ) {
+                                    Ok(()) => {
+                                        self.message = None;
+                                    }
+                                    Err(e) => {
+                                        self.message = Some(format!("{e}"));
+                                    }
+                                }
+                                self.drain_and_show_print_output(None);
+                                break;
+                            }
+                            // Ctrl+C = quit app (unchanged from normal handle_key path).
+                            if key.code == KeyCode::Char('c')
+                                && key.modifiers.contains(KeyModifiers::CONTROL)
+                            {
+                                self.exit = true;
+                                return Ok(());
+                            }
+                            // R/S during a GETKEY wait delivers keycode 31 (hardware-
+                            // faithful; matches the GUI, where the R/S button has
+                            // keyCode 31). In the CLI R/S is F5, and keycode_to_hp41_code
+                            // returns None for F5 to protect the run loop — so 31 is
+                            // delivered explicitly here, in the WaitForKey loop only, to
+                            // close the CLI↔GUI GETKEY parity gap (D-25.6). F5's normal
+                            // run/stop role in the main loop is unaffected.
+                            if key.code == KeyCode::F(5)
+                                && !key.modifiers.contains(KeyModifiers::CONTROL)
+                            {
+                                match hp41_core::ops::program::resume_program_with_key(
+                                    &mut self.state,
+                                    31,
+                                ) {
+                                    Ok(()) => {
+                                        self.message = None;
+                                    }
+                                    Err(e) => {
+                                        self.message = Some(format!("{e}"));
+                                    }
+                                }
+                                self.drain_and_show_print_output(None);
+                                break;
+                            }
+                            // HP-41 key capture — Ctrl-modified keys are TUI commands,
+                            // not calculator keys (mirrors handle_key lines 392–395).
+                            // None from keycode_to_hp41_code = no HP-41 equivalent
+                            // (F7/F8, unknown keys; F5 handled just above) → continue
+                            // waiting (hardware faithful: only physical HP-41 keys are
+                            // captured).
+                            if let Some(code) = keys::keycode_to_hp41_code(key.code) {
+                                if !key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    match hp41_core::ops::program::resume_program_with_key(
+                                        &mut self.state,
+                                        code,
+                                    ) {
+                                        Ok(()) => {
+                                            self.message = None;
+                                        }
+                                        Err(e) => {
+                                            self.message = Some(format!("{e}"));
+                                        }
+                                    }
+                                    self.drain_and_show_print_output(None);
+                                    break;
+                                }
+                            }
+                            // No HP-41 equivalent, or CONTROL-modified → continue
+                            // the inner loop (ignore; hardware faithful).
+                        }
+                    }
+                }
+                // After break, re-check pending_yield — a resumed step may have
+                // produced a new yield (e.g. PSE after GETKEY). The outer while
+                // loop handles it via the existing timer/sleep path.
+                continue;
+            }
+
+            // Show the yield text on the main display for the pause duration.
+            // entry_buf has display priority 3 (above X register) and is empty
+            // during program execution — safe to borrow temporarily.
+            self.state.entry_buf = yield_text;
+            terminal.draw(|frame| self.draw(frame))?;
+            self.state.entry_buf.clear();
+
+            std::thread::sleep(Duration::from_millis(resume_ms));
+
+            // resume_program clears pending_yield on entry, then continues at
+            // the already-advanced pc. If the next step is also a yield op
+            // (PSE/VIEW/AVIEW), pending_yield will be set again and the loop
+            // iterates. If the program ends or errors, pending_yield stays None.
+            match hp41_core::resume_program(&mut self.state) {
+                Ok(()) => {
+                    self.message = None;
+                    let card_err = self.drain_pending_card_op();
+                    self.drain_and_show_print_output(card_err);
+                }
+                Err(e) => {
+                    self.message = Some(format!("{e}"));
+                    break;
+                }
+            }
         }
         Ok(())
     }
@@ -312,6 +509,21 @@ impl App {
         // D-06: filter Release immediately — Windows crossterm fires both Press and Release.
         // This MUST be the first check — no other logic before it.
         if key.kind != KeyEventKind::Press {
+            return;
+        }
+
+        // Phase 64: during a WaitForKey suspend, all key routing is handled by
+        // drain_pending_yields' key-wait loop. handle_key is called from the main
+        // run() loop event path; if the program is suspended on GETKEY we must NOT
+        // process the key here — drain_pending_yields owns the event during the wait.
+        // This guard prevents double-processing of a stale event from the outer
+        // run() poll loop. In practice drain_pending_yields blocks the run() main
+        // loop during WaitForKey (poll is inside drain_pending_yields), so this is a
+        // belt-and-suspenders defense against future code-shape changes.
+        if matches!(
+            self.state.pending_yield,
+            Some(ref y) if y.kind == hp41_core::state::YieldKind::WaitForKey
+        ) {
             return;
         }
 
@@ -374,6 +586,89 @@ impl App {
         if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.show_programs = !self.show_programs;
             self.show_help = false; // close help overlay if open
+            return;
+        }
+
+        // Phase 67-02: Reset escape-hatch — Ctrl+R intercept.
+        //
+        // INTENTIONAL D-07 EXCEPTION: this intercept sits ABOVE the `pending_input`
+        // routing block so the reset prompt beats every stuck state, including a
+        // trapped `pending_input`. This is a documented, deliberate deviation from the
+        // D-07 never-discard ordering: the escape hatch must work even when the
+        // normal dispatch path is the thing that is stuck. Any active pending_input,
+        // shift_armed flag, or in-progress entry buffer is cleared as part of the reset
+        // so no UI state is leaked.
+        //
+        // Two-tier state machine:
+        //   None              + Ctrl+R  → show tier prompt → AwaitingTier
+        //   AwaitingTier      + 's'     → soft_reset + persist → None
+        //   AwaitingTier      + 'f'/'F' → show confirm   → AwaitingFullConfirm
+        //   AwaitingTier      + Esc/other → cancel        → None
+        //   AwaitingFullConfirm + 'y'/'Y' → memory_lost + persist → None
+        //   AwaitingFullConfirm + other   → cancel        → None
+        if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.reset_prompt = ResetPrompt::AwaitingTier;
+            self.message = None;
+            return;
+        }
+        if self.reset_prompt == ResetPrompt::AwaitingTier {
+            match key.code {
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    // Soft reset: clears transient state, preserves stored data.
+                    self.state.soft_reset();
+                    // Clear CLI-only transient entry state that lives outside CalcState.
+                    self.pending_input = None;
+                    self.shift_armed = false;
+                    self.show_help = false;
+                    self.help_search_query.clear();
+                    self.help_table_state.borrow_mut().select(None);
+                    self.show_programs = false;
+                    // Persist immediately — overwrite autosave so recovery survives restart.
+                    match persistence::save_state(&self.state_path, &self.state) {
+                        Ok(()) => self.message = Some("Soft reset complete".to_string()),
+                        Err(e) => self.message = Some(format!("Soft reset — save failed: {e}")),
+                    }
+                    self.reset_prompt = ResetPrompt::None;
+                }
+                KeyCode::Char('f') | KeyCode::Char('F') => {
+                    // Advance to full-reset confirmation prompt.
+                    self.reset_prompt = ResetPrompt::AwaitingFullConfirm;
+                }
+                _ => {
+                    // Esc or any other key cancels the reset prompt.
+                    self.reset_prompt = ResetPrompt::None;
+                    self.message = Some("Reset cancelled".to_string());
+                }
+            }
+            return;
+        }
+        if self.reset_prompt == ResetPrompt::AwaitingFullConfirm {
+            match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    // Full reset: factory state — equivalent to CalcState::new().
+                    self.state.memory_lost();
+                    // Clear CLI-only transient entry state that lives outside CalcState.
+                    self.pending_input = None;
+                    self.shift_armed = false;
+                    self.show_help = false;
+                    self.help_search_query.clear();
+                    self.help_table_state.borrow_mut().select(None);
+                    self.show_programs = false;
+                    // Persist immediately — overwrite autosave so recovery survives restart.
+                    match persistence::save_state(&self.state_path, &self.state) {
+                        Ok(()) => {
+                            self.message = Some("MEMORY LOST — full reset complete".to_string())
+                        }
+                        Err(e) => self.message = Some(format!("MEMORY LOST — save failed: {e}")),
+                    }
+                    self.reset_prompt = ResetPrompt::None;
+                }
+                _ => {
+                    // 'n', 'N', Esc, or any other key cancels.
+                    self.reset_prompt = ResetPrompt::None;
+                    self.message = Some("Reset cancelled".to_string());
+                }
+            }
             return;
         }
 
@@ -443,13 +738,15 @@ impl App {
             return;
         }
 
-        // Card Reader comfort shortcuts — Ctrl+W/R/D/F dispatch the four card ops
+        // Card Reader comfort shortcuts — Ctrl+W/E/D/F dispatch the four card ops
         // directly without typing ALPHA + XEQ. Hardware-faithful path still works in parallel.
+        // NOTE: Ctrl+R was previously Rdprgm but is now reserved for the reset escape-hatch
+        // (Phase 67-02). Rdprgm is reassigned to Ctrl+E (mnemonic: "rEad program").
         if key.code == KeyCode::Char('w') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.call_dispatch_and_drain(Op::Wprgm);
             return;
         }
-        if key.code == KeyCode::Char('r') && key.modifiers.contains(KeyModifiers::CONTROL) {
+        if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.call_dispatch_and_drain(Op::Rdprgm);
             return;
         }
@@ -684,6 +981,20 @@ impl App {
                     self.state.entry_buf.push_str("1e");
                 } else {
                     self.state.entry_buf.push('e');
+                }
+                self.message = None;
+                return;
+            }
+            // DISP-02: CHS during mantissa entry — toggle leading '-' in place.
+            // Must be checked BEFORE the EEX-CHS block (entry_buf with 'e' takes the
+            // other branch). Key: 'n' maps to Op::Chs (see key_to_op in keys.rs).
+            // D-07: no flush_entry_buf, no call_dispatch, no stack lift.
+            // D-08: empty-buffer case falls through to call_dispatch(Op::Chs) below.
+            if c == 'n' && !self.state.entry_buf.is_empty() && !self.state.entry_buf.contains('e') {
+                if self.state.entry_buf.starts_with('-') {
+                    self.state.entry_buf.remove(0);
+                } else {
+                    self.state.entry_buf.insert(0, '-');
                 }
                 self.message = None;
                 return;
@@ -1771,10 +2082,22 @@ impl App {
     /// Drain all events from state.event_buffer and process them (D-39.6).
     ///
     /// Routing:
-    ///   "alarm:message:{text}"      → set self.message = Some(text)
-    ///   "alarm:xeq:{label}"         → call run_program(state, label); on error set self.message
-    ///   "alarm:interrupting:..."    → ignored (deferred per D-38.4)
-    ///   anything else               → ignored (BEEP, TONE, future events)
+    ///   "alarm:message:{text}"  → set self.message = Some(text)
+    ///   "alarm:xeq:{label}"     → call run_program(state, label); drain print/card; on error set self.message
+    ///   "alarm:missing:{label}" → set self.message (D-08: missing handler label; D-07: never swallow)
+    ///   anything else           → dropped (BEEP, TONE, future events)
+    ///
+    /// Phase 63-01 removed the old deferred-stub routing. Running interrupting alarms
+    /// execute inline inside run_loop; idle/demoted alarms arrive as "alarm:xeq:{label}";
+    /// missing handler labels produce "alarm:missing:{label}" from the run_loop boundary.
+    ///
+    /// WR-04 (Phase 63 review): PSE/VIEW/AVIEW yield drain is NOT performed here.
+    /// The run() loop calls `drain_pending_yields(&mut terminal)` unconditionally after
+    /// every `drain_event_buffer()` invocation, so an alarm:xeq program that sets
+    /// `pending_yield` will be drained on the same 16 ms tick — without waiting for
+    /// the next keypress.  Yield drain requires a terminal handle that is only available
+    /// in the run() loop, not in the single-op dispatch paths (call_dispatch) that also
+    /// call this function.
     fn drain_event_buffer(&mut self) {
         let events: Vec<String> = self.state.event_buffer.drain(..).collect();
         for event in events {
@@ -1790,11 +2113,19 @@ impl App {
                         // would otherwise be stranded in their buffers.
                         let card_err = self.drain_pending_card_op();
                         self.drain_and_show_print_output(card_err);
+                        // Yield drain (PSE/VIEW/AVIEW) is handled by the run() loop
+                        // which calls drain_pending_yields(&mut terminal) immediately
+                        // after drain_event_buffer() on every tick — see WR-04 comment
+                        // above and the run() loop drain at line ~298.
                     }
                     Err(e) => self.message = Some(format!("Alarm XEQ {label}: {e}")),
                 }
+            } else if let Some(label) = event.strip_prefix("alarm:missing:") {
+                // D-08: missing interrupt handler label → surface on status line.
+                // D-07: never swallow errors — always show a visible diagnostic.
+                self.message = Some(format!("Alarm XEQ {label}: label not found"));
             }
-            // "alarm:interrupting:..." and other events are silently ignored.
+            // Other events (BEEP, TONE, future extensions) are dropped.
         }
     }
 
@@ -1926,6 +2257,10 @@ impl App {
         // when modal needs alpha label.
         self.maybe_auto_open_collect_for_modal();
         // D-39.6: process any alarm events triggered by this dispatch.
+        // D-39.6: process any alarm events triggered by this dispatch.
+        // Pending yields (if any alarm:xeq runs a program with PSE) are caught on
+        // the next run() tick — drain_pending_yields is called there after every
+        // drain_event_buffer() call (WR-04 fix).
         self.drain_event_buffer();
     }
 
@@ -1968,6 +2303,7 @@ impl App {
         // when modal needs alpha label.
         self.maybe_auto_open_collect_for_modal();
         // D-39.6: process any alarm events triggered by this dispatch.
+        // See sister comment in call_dispatch for yield-drain note (WR-04).
         self.drain_event_buffer();
     }
 
@@ -2519,6 +2855,128 @@ mod tests {
     }
 }
 
+// ── DISP-02: CHS mantissa in-buffer sign toggle ──────────────────────────────
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod disp02_chs_mantissa_toggle_tests {
+    use super::*;
+    use crossterm::event::KeyCode;
+
+    fn make_app() -> App {
+        App::new_for_test()
+    }
+
+    fn make_key(code: KeyCode) -> crossterm::event::KeyEvent {
+        crossterm::event::KeyEvent::new(code, crossterm::event::KeyModifiers::NONE)
+    }
+
+    // ── Core toggle behavior ────────────────────────────────────────────────
+
+    #[test]
+    fn test_chs_mantissa_adds_leading_minus() {
+        // "123" → CHS → "-123": leading minus inserted, no flush.
+        let mut app = make_app();
+        for c in "123".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        assert_eq!(app.state.entry_buf, "123");
+        let x_before = app.state.stack.x.clone();
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-123", "CHS must add leading '-'");
+        assert_eq!(
+            app.state.stack.x, x_before,
+            "X must be unchanged (no flush, no dispatch)"
+        );
+        assert!(app.message.is_none());
+    }
+
+    #[test]
+    fn test_chs_mantissa_removes_leading_minus() {
+        // "-123" → CHS → "123": leading minus removed.
+        let mut app = make_app();
+        for c in "123".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        app.handle_key(make_key(KeyCode::Char('n'))); // "123" → "-123"
+        assert_eq!(app.state.entry_buf, "-123");
+        app.handle_key(make_key(KeyCode::Char('n'))); // "-123" → "123"
+        assert_eq!(app.state.entry_buf, "123", "CHS must remove leading '-'");
+        assert!(app.message.is_none());
+    }
+
+    #[test]
+    fn test_chs_mantissa_round_trips() {
+        // "123" → CHS → "-123" → CHS → "123" (full round-trip).
+        let mut app = make_app();
+        for c in "123".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-123");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "123");
+    }
+
+    #[test]
+    fn test_chs_mantissa_zero_edge_case() {
+        // "0" → CHS → "-0" → CHS → "0" (display verbatim; "0" is a valid mantissa entry).
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('0')));
+        assert_eq!(app.state.entry_buf, "0");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-0", "CHS on '0' must produce '-0'");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "0", "CHS on '-0' must produce '0'");
+    }
+
+    #[test]
+    fn test_chs_mantissa_decimal_value() {
+        // "3.14" → CHS → "-3.14": works on decimal mantissa.
+        let mut app = make_app();
+        for c in "3.14".chars() {
+            app.handle_key(make_key(KeyCode::Char(c)));
+        }
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(app.state.entry_buf, "-3.14");
+    }
+
+    // ── Regression: EEX-CHS still toggles exponent sign ───────────────────
+
+    #[test]
+    fn test_eex_chs_still_toggles_exponent() {
+        // "1e2" → CHS → "1e-2": DISP-02 block must NOT intercept EEX entries.
+        let mut app = make_app();
+        app.handle_key(make_key(KeyCode::Char('1')));
+        app.handle_key(make_key(KeyCode::Char('e')));
+        app.handle_key(make_key(KeyCode::Char('2')));
+        assert_eq!(app.state.entry_buf, "1e2");
+        app.handle_key(make_key(KeyCode::Char('n')));
+        assert_eq!(
+            app.state.entry_buf, "1e-2",
+            "EEX-CHS must still toggle exponent sign"
+        );
+    }
+
+    // ── Regression: empty-buffer CHS still dispatches Op::Chs ─────────────
+
+    #[test]
+    fn test_empty_buffer_chs_dispatches_op_chs() {
+        // Empty entry_buf: CHS must dispatch Op::Chs and negate X (D-08).
+        let mut app = make_app();
+        assert!(app.state.entry_buf.is_empty(), "entry_buf must start empty");
+        // Push a known value to X
+        app.call_dispatch(hp41_core::ops::Op::PushNum(hp41_core::HpNum::from(42i32)));
+        app.handle_key(make_key(KeyCode::Char('n'))); // CHS on empty buffer → Op::Chs
+        assert!(
+            app.state.entry_buf.is_empty(),
+            "entry_buf must remain empty after Op::Chs dispatch"
+        );
+        let formatted = hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        assert_eq!(formatted, "-42.0000", "empty-buffer CHS must negate X");
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod eex_integration_tests {
@@ -2624,6 +3082,8 @@ mod print_modal_tests {
     #[test]
     fn test_print_modal_prx_sets_message() {
         let mut app = App::new_for_test();
+        // UNC-02: set flag 55 (Printer Existence) so PRX does not return NonExistent.
+        app.state.flags = hp41_core::ops::flags::flag_set(app.state.flags, 55);
         // Push a value onto the stack
         hp41_core::ops::dispatch(&mut app.state, Op::PushNum(hp41_core::HpNum::from(42))).unwrap();
         // Simulate 'P' key (opens modal)
@@ -2680,6 +3140,8 @@ mod print_modal_tests {
             PathBuf::from("/tmp/hp41-cli-test-state.json"),
             Some(log_path.clone()),
         );
+        // UNC-02: set flag 55 (Printer Existence) so PRX does not return NonExistent.
+        app.state.flags = hp41_core::ops::flags::flag_set(app.state.flags, 55);
         hp41_core::ops::dispatch(&mut app.state, Op::PushNum(hp41_core::HpNum::from(99))).unwrap();
         // Trigger PRX via call_dispatch_and_drain directly
         app.call_dispatch_and_drain(Op::PRX);
@@ -2996,8 +3458,9 @@ mod synthetic_modal_tests {
 
     #[test]
     fn test_getkey_end_to_end_keypress_to_x() {
-        // UAT-1: keyboard press → last_key_code → GETKEY in program via run_program → X
-        // Tests the execute_op path (Op::GetKey arm in program.rs), not just dispatch.
+        // Phase 64 (PRGM-03): GETKEY in a running program yields (WaitForKey) and
+        // resumes with the captured key code via resume_program_with_key.
+        // Tests the run_loop yield arm + op_getkey inline call in resume path.
         let mut app = make_app();
         // Press '5' — keycode_to_hp41_code maps it to 62 (row 6 × 10 + col 2)
         app.handle_key(press(KeyCode::Char('5')));
@@ -3006,17 +3469,27 @@ mod synthetic_modal_tests {
             "pressing '5' must record HP-41 code 62"
         );
 
-        // Load program [LBL A, GetKey] and run via run_program — exercises execute_op
+        // Load program [LBL A, GetKey] and run via run_program
+        // Phase 64: run_program breaks at GETKEY with WaitForKey yield
         app.state.program = vec![
             hp41_core::ops::Op::Lbl("A".to_string()),
             hp41_core::ops::Op::GetKey,
         ];
         hp41_core::run_program(&mut app.state, "A").unwrap();
 
+        // Verify the program is suspended on WaitForKey
+        assert!(
+            app.state.pending_yield.is_some(),
+            "GETKEY in program must yield WaitForKey (Phase 64)"
+        );
+
+        // Resume with keycode 62 (the key that was pressed) — mirrors CLI drain path
+        hp41_core::resume_program_with_key(&mut app.state, 62).unwrap();
+
         assert_eq!(
             app.state.stack.x,
             hp41_core::HpNum::from(62i32),
-            "GETKEY in program must push last_key_code (62) into X"
+            "GETKEY in program must push the resumed key code (62) into X"
         );
     }
 
@@ -3188,26 +3661,30 @@ mod synthetic_modal_tests {
         );
     }
 
-    /// Ctrl+R dispatches RDPRGM (read program from card).
+    /// Ctrl+E dispatches RDPRGM (read program from card).
+    ///
+    /// NOTE: Ctrl+R was previously RDPRGM but was reassigned to the reset escape-hatch
+    /// in Phase 67-02. RDPRGM moved to Ctrl+E (mnemonic: "rEad program").
+    ///
     /// Sandboxed: injects a tempdir as cards_dir (no MISSING.raw present).
     /// Proves the correct op was dispatched: RDPRGM on a missing file surfaces
-    /// "card data" in app.message; a R↔W swap would write a file instead of erroring.
+    /// "card data" in app.message; a E↔W swap would write a file instead of erroring.
     #[test]
-    fn test_ctrl_r_dispatches_rdprgm() {
+    fn test_ctrl_e_dispatches_rdprgm() {
         let tmp = tempfile::tempdir().unwrap();
         let mut app = make_app();
         app.cards_dir = Some(tmp.path().to_path_buf());
         app.state.alpha_reg = "MISSING".to_string();
 
-        app.handle_key(make_ctrl_key('r'));
+        app.handle_key(make_ctrl_key('e'));
 
-        assert!(!app.exit, "Ctrl+R must not quit the app");
-        assert!(!app.state.alpha_mode, "Ctrl+R must not activate ALPHA mode");
+        assert!(!app.exit, "Ctrl+E must not quit the app");
+        assert!(!app.state.alpha_mode, "Ctrl+E must not activate ALPHA mode");
         // RDPRGM on a missing file → HpError::CardData → app.message contains "card data".
         let msg = app.message.as_deref().unwrap_or("");
         assert!(
             msg.contains("card data") || msg.contains("CARD DATA"),
-            "Ctrl+R on missing file must surface CARD DATA via app.message; got {msg:?}",
+            "Ctrl+E on missing file must surface CARD DATA via app.message; got {msg:?}",
         );
     }
 
@@ -3312,6 +3789,230 @@ mod synthetic_modal_tests {
         assert!(
             app.state.pending_card_op.is_none(),
             "request must be cleared so user is not locked out of next card op",
+        );
+    }
+
+    /// Phase 63-03 Task 2: drain_event_buffer routes "alarm:missing:{label}" to self.message.
+    ///
+    /// D-08: a missing interrupt-handler label must surface visibly on the status line.
+    /// D-07: never silently swallow an unknown or error event — always show a diagnostic.
+    /// hp41-cli is NOT coverage-gated (VALIDATION §Manual-Only), so this targeted test
+    /// is the backstop for the alarm:missing arm.
+    #[test]
+    fn drain_event_alarm_missing_sets_message() {
+        let mut app = make_app();
+        app.state.event_buffer.push("alarm:missing:FOO".to_string());
+        app.message = None;
+
+        app.drain_event_buffer();
+
+        let msg = app.message.as_deref().unwrap_or("");
+        assert!(
+            msg.contains("FOO"),
+            "alarm:missing arm must include the label name; got {msg:?}"
+        );
+        assert!(
+            msg.contains("label not found") || msg.contains("not found"),
+            "alarm:missing arm must indicate a missing label; got {msg:?}"
+        );
+    }
+
+    /// WR-04 regression: alarm:xeq launching a program that contains PSE must result in
+    /// `pending_yield` being set (not silently lost) so the run() loop can drain it.
+    ///
+    /// ## What this tests
+    ///
+    /// Before the WR-04 fix, `drain_event_buffer` had no yield-drain path at all for the
+    /// alarm:xeq arm — `pending_yield` would be set by `run_program` and then sit stranded
+    /// until the next keypress triggered `drain_pending_yields`.  The fix moves the drain
+    /// to the run() loop: after every `check_alarms + drain_event_buffer` cycle, the loop
+    /// calls `drain_pending_yields(&mut terminal)`.
+    ///
+    /// This state-level test verifies the first half of the contract:
+    /// 1. `drain_event_buffer` correctly runs the alarm-target program via `run_program`.
+    /// 2. `run_program` on a PSE-containing program sets `state.pending_yield = Some(...)`.
+    ///
+    /// The second half — that the run() loop drains the yield on the same 16 ms tick — is
+    /// proven by the run() code path itself: `drain_pending_yields` is called unconditionally
+    /// after `drain_event_buffer()` in `run()`, so any stranded yield is drained within the
+    /// same iteration (not on the next keypress).  Full terminal rendering cannot be asserted
+    /// without a real TTY, but the state invariant `pending_yield = Some` → `drain` is the
+    /// load-bearing contract.
+    ///
+    /// ## Before fix
+    ///
+    /// drain_event_buffer only drained print/card output; pending_yield was left set forever
+    /// (or until the next keypress happened to trigger the handle_key path).
+    ///
+    /// ## After fix
+    ///
+    /// The run() loop drains pending_yield on the same 16 ms tick via the second call to
+    /// `drain_pending_yields(&mut terminal)` placed after `drain_event_buffer()`.
+    #[test]
+    fn drain_event_alarm_xeq_pse_sets_pending_yield() {
+        let mut app = make_app();
+
+        // Build a minimal program under label "ALRM":
+        //   LBL "ALRM"
+        //   PSE         ← yields mid-program, sets state.pending_yield
+        //   RTN
+        app.state.program = vec![Op::Lbl("ALRM".to_string()), Op::Pse, Op::Rtn];
+
+        // Simulate the event that fires when an idle/demoted control alarm targets "ALRM".
+        app.state.event_buffer.push("alarm:xeq:ALRM".to_string());
+
+        // Before fix: drain_event_buffer had no yield-drain path; pending_yield stayed set.
+        // After fix:  run() drains pending_yield on the same tick (not tested here — needs
+        //             a real terminal).  What we CAN assert at the state level:
+        app.drain_event_buffer();
+
+        // drain_event_buffer MUST have executed run_program (not returned early / not errored).
+        // If run_program set pending_yield, the program ran to the PSE step correctly.
+        // If pending_yield is None it means run_program somehow consumed the yield (wrong)
+        // or never ran (also wrong).
+        assert!(
+            app.state.pending_yield.is_some(),
+            "alarm:xeq of a PSE-containing program must leave pending_yield = Some after \
+             drain_event_buffer; got None — likely run_program was not called or the \
+             program did not reach the PSE step"
+        );
+
+        // Confirm no error was surfaced (i.e., run_program succeeded, not Err branch).
+        assert!(
+            app.message.is_none() || !app.message.as_deref().unwrap_or("").contains("Alarm XEQ"),
+            "drain_event_buffer must not set an error message for a successful alarm:xeq; \
+             got: {:?}",
+            app.message
+        );
+    }
+
+    // ── Phase 64 Plan 02 Tests ─────────────────────────────────────────────────
+
+    /// Locked decision: R/S (F5) is a TUI-only binding with no HP-41 hardware
+    /// equivalent. keycode_to_hp41_code returns None for F5 (and F7/F8).
+    /// During WaitForKey, F5 is therefore ignored — the wait continues.
+    /// Code 31 (row 3, col 1 — R/S position on real HP-41) is only reachable if
+    /// a key is physically wired to 31 in keycode_to_hp41_code. Currently no
+    /// such key exists in the CLI map (TUI parity: R/S = TUI run/stop, not a
+    /// capturable HP-41 key). This test encodes the current locked contract.
+    #[test]
+    fn test_keycode_to_hp41_code_f5_returns_none_rs_is_tui_only() {
+        use crate::keys::keycode_to_hp41_code;
+        use crossterm::event::KeyCode;
+        // F5 = TUI R/S binding — no HP-41 hardware equivalent.
+        assert_eq!(
+            keycode_to_hp41_code(KeyCode::F(5)),
+            None,
+            "F5 (TUI R/S) must return None from keycode_to_hp41_code (TUI-only, not HP-41 capturable)"
+        );
+        // F7/F8 = TUI SST/BST — also no HP-41 equivalent.
+        assert_eq!(
+            keycode_to_hp41_code(KeyCode::F(7)),
+            None,
+            "F7 (TUI SST) must return None"
+        );
+        assert_eq!(
+            keycode_to_hp41_code(KeyCode::F(8)),
+            None,
+            "F8 (TUI BST) must return None"
+        );
+    }
+
+    /// Esc during GETKEY suspend = cancel → sentinel 0 pushed to X, program ends.
+    /// Verifies the core boundary contract: resume_program_with_key(&mut state, 0)
+    /// on a GETKEY-suspended program pushes 0 to X and completes.
+    #[test]
+    fn test_getkey_esc_cancel_pushes_sentinel_zero() {
+        let mut state = hp41_core::CalcState::new();
+        // Program: LBL A, GetKey  (single-step: just GetKey, no RTN)
+        state.program = vec![
+            hp41_core::ops::Op::Lbl("A".to_string()),
+            hp41_core::ops::Op::GetKey,
+        ];
+        // Run until GETKEY yields.
+        hp41_core::run_program(&mut state, "A").unwrap();
+        assert!(
+            matches!(
+                state.pending_yield,
+                Some(ref y) if y.kind == hp41_core::state::YieldKind::WaitForKey
+            ),
+            "program must suspend on WaitForKey after GETKEY"
+        );
+        // Esc path: resume with sentinel 0.
+        hp41_core::resume_program_with_key(&mut state, 0).unwrap();
+        // X must hold 0 (sentinel — D-02 cancel).
+        assert_eq!(
+            state.stack.x,
+            hp41_core::HpNum::from(0i32),
+            "Esc cancel path must push sentinel 0 to X"
+        );
+        // Program has ended — pending_yield must be None.
+        assert!(
+            state.pending_yield.is_none(),
+            "pending_yield must be None after Esc-cancel resume"
+        );
+    }
+
+    /// handle_key guard: when pending_yield is WaitForKey, handle_key early-returns
+    /// without processing the key. This prevents double-processing of a stale event
+    /// from the outer run() poll loop when drain_pending_yields owns the key capture.
+    #[test]
+    fn test_handle_key_ignores_keys_during_waitforkey_suspend() {
+        let mut app = make_app();
+        // Load program [LBL A, GetKey] and suspend on WaitForKey.
+        app.state.program = vec![
+            hp41_core::ops::Op::Lbl("A".to_string()),
+            hp41_core::ops::Op::GetKey,
+        ];
+        hp41_core::run_program(&mut app.state, "A").unwrap();
+        assert!(
+            app.state.pending_yield.is_some(),
+            "program must be suspended on WaitForKey"
+        );
+        // Snapshot state before handle_key (which must NOT process anything).
+        let x_before = app.state.stack.x.clone();
+        let entry_before = app.state.entry_buf.clone();
+        let message_before = app.message.clone();
+        // Deliver a key while suspended — the guard must swallow it silently.
+        app.handle_key(press(KeyCode::Char('5')));
+        // X must be unchanged (the digit '5' must not be appended or dispatched).
+        assert_eq!(
+            app.state.stack.x, x_before,
+            "handle_key must not modify X while WaitForKey is pending"
+        );
+        assert_eq!(
+            app.state.entry_buf, entry_before,
+            "handle_key must not modify entry_buf while WaitForKey is pending"
+        );
+        assert_eq!(
+            app.message, message_before,
+            "handle_key must not change message while WaitForKey is pending"
+        );
+        // pending_yield must still be set (handle_key did not consume/clear it).
+        assert!(
+            app.state.pending_yield.is_some(),
+            "pending_yield must remain Some after handle_key guard fires"
+        );
+    }
+
+    /// UNC-01 regression (Phase 66): OM p.15 states "Pressing [←] also clears error
+    /// messages from the display." Verify that back-arrow clears `app.message` when an
+    /// error message is currently shown — the production path at app.rs lines 974-975
+    /// already does this; this test pins the behavior against future regressions.
+    #[test]
+    fn test_backspace_clears_error_message() {
+        let mut app = App::new_for_test();
+        // Simulate an error message being displayed (e.g. after an invalid operation).
+        app.message = Some("invalid operation".to_string());
+        // Simulate back-arrow key press.
+        let key = crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Backspace,
+            crossterm::event::KeyModifiers::NONE,
+        );
+        app.handle_key(key);
+        assert_eq!(
+            app.message, None,
+            "Back-arrow (←) must clear app.message (UNC-01, OM p.15)"
         );
     }
 }

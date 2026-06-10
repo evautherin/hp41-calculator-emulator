@@ -15,13 +15,134 @@ use crate::state::DisplayMode;
 
 /// Format an HpNum according to the current display mode.
 /// Returns the HP-41-style display string.
+///
+/// For large-exponent values (HpNum::exponent != 0, above ~7.92E28):
+/// all three display modes fall through to SCI 9 since such values always exceed
+/// the FIX/ENG overflow threshold. We call `format_sci_large` directly with the
+/// stored mantissa and exponent, bypassing the Decimal-only path in `format_sci`.
 pub fn format_hpnum(n: &HpNum, mode: &DisplayMode) -> String {
+    if n.exponent != 0 {
+        // Large-exponent value: mantissa is in [1, 10), stored exponent is the
+        // base-10 exponent. All three display modes overflow to SCI 9 for such values
+        // (the value far exceeds 10^10, the FIX/ENG overflow threshold).
+        let digits = match mode {
+            DisplayMode::Fix(_) => 9_usize, // FIX always overflows to SCI 9
+            DisplayMode::Sci(d) => *d as usize,
+            DisplayMode::Eng(d) => *d as usize, // ENG similarly overflows
+        };
+        return format_sci_large(n.inner(), n.exponent as i32, digits);
+    }
     let d = n.inner();
     match mode {
         DisplayMode::Fix(digits) => format_fix(d, *digits as usize),
         DisplayMode::Sci(digits) => format_sci(d, *digits as usize),
         DisplayMode::Eng(digits) => format_eng(d, *digits as usize),
     }
+}
+
+/// Format a large-exponent value (mantissa in [1,10), explicit base-10 exponent)
+/// in SCI notation to `digits` decimal places.
+///
+/// Used by `format_hpnum` when `HpNum::exponent != 0`. The mantissa and exponent
+/// are already in normalized SCI form; this just rounds the mantissa to `digits`
+/// decimal places (with carry), then assembles the HP-41 display string.
+fn format_sci_large(mantissa: Decimal, base_exp: i32, digits: usize) -> String {
+    let (mantissa_with_point, exp, is_negative) = round_sci_parts(mantissa, base_exp, digits);
+    let sign = if is_negative { "-" } else { "" };
+    assemble_sci(&format!("{sign}{mantissa_with_point}"), exp)
+}
+
+/// Round a normalized SCI mantissa (in [1, 10)) to `digits` decimal places with
+/// carry, returning `(mantissa_string_with_point, adjusted_exp, is_negative)`.
+///
+/// Shared by `format_sci_large` (the wide "E" form) and `format_hpnum_lcd` (the
+/// 12-cell authentic LCD form) so both round mantissas identically.
+fn round_sci_parts(mantissa: Decimal, base_exp: i32, digits: usize) -> (String, i32, bool) {
+    let is_negative = mantissa.is_sign_negative();
+    let abs_mantissa = mantissa.abs();
+
+    // Round mantissa to `digits` decimal places.
+    let mut m_rounded =
+        abs_mantissa.round_dp_with_strategy(digits as u32, RoundingStrategy::MidpointAwayFromZero);
+
+    // Carry: 9.9995 rounded to 1 decimal place → 10.0 → re-normalize.
+    let mut exp = base_exp;
+    if m_rounded >= Decimal::from(10) {
+        m_rounded /= Decimal::from(10);
+        exp += 1;
+    }
+
+    let mantissa_str = format!("{m_rounded:.digits$}");
+    (ensure_decimal_point(mantissa_str), exp, is_negative)
+}
+
+/// Count display cells the way the GUI `Display14Seg` component does: the decimal
+/// point folds into the preceding digit and does NOT consume a cell.
+fn lcd_cell_count(s: &str) -> usize {
+    s.chars().filter(|&c| c != '.').count()
+}
+
+/// HP-41-authentic 12-character LCD rendering for the GUI 14-segment display
+/// (ADR v4.3-006).
+///
+/// `format_hpnum` emits the wide scientific form `1.088886945E 28` (14 cells),
+/// which overflows the GUI's 12-cell grid and truncates the exponent — exactly
+/// the values Phase 65-01 made reachable (`FACT(27..=69)`). Whenever the rendered
+/// string exceeds 12 cells, this formatter drops the "E" and right-justifies the
+/// exponent so the full value fits:
+/// - positive exponent → up to a 10-significant-digit mantissa + 2-digit exponent,
+/// - negative exponent → mantissa + sign + 2-digit exponent (the sign reserves one
+///   mantissa cell, so the mantissa drops to 9 significant digits).
+///
+/// The exponent is right-justified, the mantissa left-justified, and any slack
+/// between them is filled with spaces (the authentic gap on real hardware). The
+/// decimal point folds into its leading digit and costs no cell. Strings that
+/// already fit 12 cells (FIX values, SCI/ENG with small exponents) are returned
+/// unchanged, so the wide CLI / stack displays keep their `format_hpnum` form.
+pub fn format_hpnum_lcd(n: &HpNum, mode: &DisplayMode) -> String {
+    const CELLS: usize = 12;
+    let s = format_hpnum(n, mode);
+    if lcd_cell_count(&s) <= CELLS {
+        return s;
+    }
+
+    // Only scientific output can exceed 12 cells. Reflow it without the "E".
+    let Some((mantissa_part, exp_part)) = s.split_once('E') else {
+        return s; // unexpected non-scientific overflow — leave unchanged
+    };
+    // exp_part is " NN" (positive, leading space) or "-NN" (negative).
+    let Ok(exp) = exp_part.trim().parse::<i32>() else {
+        return s;
+    };
+    let Ok(mantissa) = Decimal::from_str(mantissa_part.trim()) else {
+        return s;
+    };
+
+    // Reserve cells on the right for the exponent field (2 digits, +1 for a
+    // leading '-') and one cell for the mantissa's own sign; keep as much
+    // mantissa precision as fits, never more than the source string had.
+    let exp_field_cells = if exp < 0 { 3 } else { 2 };
+    let mantissa_sign_cells = usize::from(mantissa.is_sign_negative());
+    let max_decimals = CELLS.saturating_sub(mantissa_sign_cells + 1 + exp_field_cells);
+    let cur_decimals = mantissa_part
+        .trim()
+        .split_once('.')
+        .map_or(0, |(_, frac)| frac.len());
+    let decimals = cur_decimals.min(max_decimals);
+
+    let (mantissa_with_point, exp, is_negative) = round_sci_parts(mantissa, exp, decimals);
+    let sign = if is_negative { "-" } else { "" };
+    let mantissa_field = format!("{sign}{mantissa_with_point}");
+    let exp_str = if exp < 0 {
+        format!("-{:02}", -exp)
+    } else {
+        format!("{exp:02}")
+    };
+
+    // Right-justify the exponent: pad the slack between mantissa and exponent.
+    let used = lcd_cell_count(&mantissa_field) + exp_str.chars().count();
+    let gap = CELLS.saturating_sub(used);
+    format!("{mantissa_field}{}{exp_str}", " ".repeat(gap))
 }
 
 /// Round an `HpNum` to the precision of the current `DisplayMode` (D-01/D-02/D-03).
@@ -49,6 +170,34 @@ pub fn round_to_display_precision(n: &HpNum, mode: &DisplayMode) -> HpNum {
     if n.is_zero() {
         return HpNum::zero();
     }
+
+    // Large-exponent path: value exceeds Decimal range (~7.92E28).
+    // Mantissa is already in [1,10); round it to display precision and reassemble.
+    if n.exponent != 0 {
+        let digits = match mode {
+            DisplayMode::Fix(_) => 9_usize, // FIX overflows → SCI 9 precision
+            DisplayMode::Sci(d) => *d as usize,
+            DisplayMode::Eng(d) => *d as usize,
+        };
+        let m = n.inner(); // mantissa ∈ [1, 10)
+        let m_rounded = m
+            .round_sf_with_strategy((digits as u32) + 1, RoundingStrategy::MidpointAwayFromZero)
+            .expect("round_sf_with_strategy(<= 10) cannot fail for valid mantissa");
+        // Carry check: rounding could push mantissa to 10.
+        let base_exp = n.exponent as i32;
+        let (final_m, final_exp) = if m_rounded.abs() >= Decimal::from(10) {
+            (
+                m_rounded
+                    .checked_div(Decimal::from(10))
+                    .expect("division by 10 cannot fail"),
+                base_exp + 1,
+            )
+        } else {
+            (m_rounded, base_exp)
+        };
+        return HpNum::from_sci(final_m, final_exp).unwrap_or_else(|_| HpNum::zero());
+    }
+
     let d = n.inner();
     let rounded = match mode {
         DisplayMode::Fix(digits) => {
@@ -249,8 +398,14 @@ fn decimal_pow10(exp: i32) -> Decimal {
     let s = if exp > 0 {
         "1".to_string() + &"0".repeat(exp as usize)
     } else {
+        // WR-04: make the `abs_exp - 1` precondition explicit. This branch is only
+        // reached for exp < 0 (exp == 0 returns above), so abs_exp >= 1. Guard with
+        // a debug_assert + saturating_sub so a future refactor cannot underflow
+        // usize and panic in this panic-free core crate.
+        debug_assert!(exp != 0, "decimal_pow10 negative branch requires exp != 0");
         let abs_exp = (-exp) as usize;
-        "0.".to_string() + &"0".repeat(abs_exp - 1) + "1"
+        let zeros = abs_exp.saturating_sub(1);
+        "0.".to_string() + &"0".repeat(zeros) + "1"
     };
     Decimal::from_str(&s).expect("string built from known-valid exp always parses")
 }
@@ -319,8 +474,14 @@ mod tests {
     #[test]
     fn round_sci3_carry_9_9995_is_10() {
         // SCI(3): keep 4 sig digits — 9.9995 → 10 (mantissa carry at the digit-4 boundary).
+        // After ADR v4.3-005: HpNum(10) normalizes to { mantissa: 1.0, exponent: 1 }.
+        // Verify via to_f64() which returns the full value.
         let out = round_to_display_precision(&hp("9.9995"), &DisplayMode::Sci(3));
-        assert_eq!(out.inner(), Decimal::from(10));
+        let full_val = out.to_f64().expect("to_f64 must succeed");
+        assert!(
+            (full_val - 10.0).abs() < 1e-9,
+            "9.9995 rounded in SCI(3) must equal 10.0, got {full_val}"
+        );
     }
 
     #[test]

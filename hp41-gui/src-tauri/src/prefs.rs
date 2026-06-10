@@ -42,6 +42,14 @@ pub struct GuiPrefs {
     /// so existing prefs.json files (no field) keep the current menu-bar behavior.
     #[serde(default = "default_launch_mode")]
     pub macos_launch_mode: String,
+    /// macOS-only global hotkey accelerator that toggles the menu-bar popover
+    /// (e.g. "Control+Alt+Command+H"). Ignored on Windows/Linux. Defaults to
+    /// `DEFAULT_GLOBAL_SHORTCUT` so existing prefs.json files (no field) keep
+    /// the established hotkey. The accepted accelerator grammar lives in
+    /// `shortcut.rs`; the macOS registration falls back to the default for any
+    /// non-empty-but-unparseable value.
+    #[serde(default = "default_global_shortcut")]
+    pub global_shortcut: String,
 }
 
 /// Default theme value — "dark" per D-48.8.
@@ -54,12 +62,22 @@ fn default_launch_mode() -> String {
     "menu-bar".to_string()
 }
 
+/// Factory-default global hotkey accelerator — `⌃⌥⌘H`. Single source of truth,
+/// shared by `GuiPrefs::default()` and the macOS `shortcut` module.
+pub const DEFAULT_GLOBAL_SHORTCUT: &str = "Control+Alt+Command+H";
+
+/// Default global hotkey — [`DEFAULT_GLOBAL_SHORTCUT`].
+fn default_global_shortcut() -> String {
+    DEFAULT_GLOBAL_SHORTCUT.to_string()
+}
+
 impl Default for GuiPrefs {
     fn default() -> Self {
         GuiPrefs {
             theme: default_theme(),
             onboarding_done: false,
             macos_launch_mode: default_launch_mode(),
+            global_shortcut: default_global_shortcut(),
         }
     }
 }
@@ -150,6 +168,14 @@ pub fn load_prefs(path: &Path) -> GuiPrefs {
     if !VALID_LAUNCH_MODES.contains(&prefs.macos_launch_mode.as_str()) {
         prefs.macos_launch_mode = default_launch_mode();
     }
+    // Only an emptiness sanity-check here: full accelerator parsing requires the
+    // macOS-only `shortcut::Shortcut` type (prefs.rs compiles on all platforms,
+    // including iOS). The macOS `shortcut::install` already falls back to the
+    // default for any non-empty-but-unparseable value, so an empty string is the
+    // only case we must repair to keep a usable hotkey.
+    if prefs.global_shortcut.trim().is_empty() {
+        prefs.global_shortcut = default_global_shortcut();
+    }
     prefs
 }
 
@@ -171,6 +197,7 @@ mod tests {
             theme: "light".to_string(),
             onboarding_done: false,
             macos_launch_mode: "menu-bar".to_string(),
+            global_shortcut: default_global_shortcut(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
@@ -216,6 +243,7 @@ mod tests {
             theme: "neon-pink".to_string(),
             onboarding_done: false,
             macos_launch_mode: "menu-bar".to_string(),
+            global_shortcut: default_global_shortcut(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
@@ -233,6 +261,7 @@ mod tests {
             theme: "dark".to_string(),
             onboarding_done: false,
             macos_launch_mode: "window".to_string(),
+            global_shortcut: default_global_shortcut(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);
@@ -276,6 +305,56 @@ mod tests {
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 
+    #[test]
+    fn test_global_shortcut_roundtrip() {
+        let path = temp_path("prefs_global_shortcut_roundtrip");
+        let prefs = GuiPrefs {
+            theme: "dark".to_string(),
+            onboarding_done: false,
+            macos_launch_mode: "menu-bar".to_string(),
+            global_shortcut: "Control+Shift+K".to_string(),
+        };
+        save_prefs(&path, &prefs).unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.global_shortcut, "Control+Shift+K",
+            "roundtrip must preserve global_shortcut"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Backward compat: a prefs.json without `global_shortcut` (written before this
+    /// feature) must load with the default accelerator via `#[serde(default)]`.
+    #[test]
+    fn test_global_shortcut_serde_default() {
+        let path = temp_path("prefs_global_shortcut_default");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, br#"{"theme":"dark","onboarding_done":true}"#).unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.global_shortcut, DEFAULT_GLOBAL_SHORTCUT,
+            "missing global_shortcut must default to DEFAULT_GLOBAL_SHORTCUT (backward compat)"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn test_empty_global_shortcut_falls_back_to_default() {
+        let path = temp_path("prefs_global_shortcut_empty");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(
+            &path,
+            br#"{"theme":"dark","onboarding_done":false,"macos_launch_mode":"menu-bar","global_shortcut":"  "}"#,
+        )
+        .unwrap();
+        let loaded = load_prefs(&path);
+        assert_eq!(
+            loaded.global_shortcut, DEFAULT_GLOBAL_SHORTCUT,
+            "blank global_shortcut must fall back to the default accelerator"
+        );
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
     /// D-49.4 / ONBOARD-05: `onboarding_done = true` must survive a save/load roundtrip.
     #[test]
     fn test_onboarding_done_roundtrip() {
@@ -284,6 +363,7 @@ mod tests {
             theme: "dark".to_string(),
             onboarding_done: true,
             macos_launch_mode: "menu-bar".to_string(),
+            global_shortcut: default_global_shortcut(),
         };
         save_prefs(&path, &prefs).unwrap();
         let loaded = load_prefs(&path);

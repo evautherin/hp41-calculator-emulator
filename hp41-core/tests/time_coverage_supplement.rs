@@ -887,7 +887,11 @@ fn alarm_almnow_past_due_repeating_reschedules() {
 
 #[test]
 fn alarm_interrupting_control_dispatch_event() {
-    // Covers dispatch_alarm_event for interrupting control alarms.
+    // Covers dispatch_alarm_event for interrupting control alarms via op_almnow.
+    //
+    // Phase 63 routing: op_almnow calls dispatch_alarm_event with defer_to_run_loop=false.
+    // When is_running=false (idle, D-13), the alarm routes to alarm:xeq:{label}
+    // on event_buffer. The old "alarm:interrupting:deferred" stub was removed in Phase 63.
     let mut s = CalcState::new();
     s.alarms.push(AlarmEntry {
         trigger_unix: 1_000_000,
@@ -899,6 +903,10 @@ fn alarm_interrupting_control_dispatch_event() {
         past_due: true,
     });
     dispatch(&mut s, Op::TimeAlmnow).unwrap();
-    // Interrupting control alarm pushes "alarm:interrupting:deferred".
-    assert!(s.event_buffer.iter().any(|e| e.contains("interrupting")));
+    // Phase 63 idle path: interrupting control alarm with is_running=false queues as alarm:xeq.
+    assert!(
+        s.event_buffer.iter().any(|e| e.contains("alarm:xeq:IPROG")),
+        "Phase 63: op_almnow with idle interrupting alarm must push alarm:xeq:IPROG; got: {:?}",
+        s.event_buffer
+    );
 }

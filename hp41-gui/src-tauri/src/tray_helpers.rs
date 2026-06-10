@@ -30,6 +30,21 @@ pub fn compute_popover_position(
     }
 }
 
+/// Right margin (physical px) between the popover and the screen's right edge in
+/// the fallback layout.
+const FALLBACK_RIGHT_MARGIN: i32 = 8;
+
+/// Position the popover when no tray-icon rect is known yet (the popover is being
+/// opened by the global hotkey or a single-instance re-launch before the user has
+/// ever clicked the tray icon). Pins the window to the top-right corner, just below
+/// the menu bar — close to where the tray icon lives. All inputs are physical pixels.
+pub fn compute_fallback_position(screen_w: i32, window_w: i32, menu_bar_h: i32) -> PopoverPos {
+    PopoverPos {
+        x: (screen_w - window_w - FALLBACK_RIGHT_MARGIN).max(0),
+        y: menu_bar_h,
+    }
+}
+
 /// Decide whether a tray left-click on a currently-hidden window should SHOW it.
 ///
 /// When the popover is open and the user clicks the tray icon, macOS fires a
@@ -70,6 +85,20 @@ mod tests {
     fn places_top_at_icon_bottom() {
         let pos = compute_popover_position(500, 24, 38, 440);
         assert_eq!(pos.y, 38);
+    }
+
+    #[test]
+    fn fallback_pins_window_to_top_right() {
+        // 1440-wide screen, 440 window, 24px menu bar -> x = 1440-440-8 = 992, y = 24
+        let pos = compute_fallback_position(1440, 440, 24);
+        assert_eq!(pos, PopoverPos { x: 992, y: 24 });
+    }
+
+    #[test]
+    fn fallback_clamps_x_to_zero_on_narrow_screen() {
+        // window wider than screen -> x clamps to 0 (never off the left edge)
+        let pos = compute_fallback_position(300, 440, 24);
+        assert_eq!(pos.x, 0);
     }
 
     #[test]

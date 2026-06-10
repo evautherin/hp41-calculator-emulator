@@ -16,9 +16,10 @@ use std::str::FromStr;
 use crate::error::HpError;
 use crate::num::HpNum;
 use crate::ops::math1::xrom::{XromModule, ADV_MATH_A, ADV_MATH_B, MATH_1, STAT_1, TIME_MODULE};
+use crate::ops::time;
 use crate::ops::{Op, TestKind};
 use crate::stack::{apply_lift_effect, enter_number, LiftEffect};
-use crate::state::CalcState;
+use crate::state::{CalcState, YieldKind, YieldState, PSE_RESUME_MS};
 
 // ── Public op dispatch functions ─────────────────────────────────────────────
 // Called from dispatch() match arms (added in plan 03-06).
@@ -258,9 +259,12 @@ pub fn op_clst(state: &mut CalcState) -> Result<(), HpError> {
 /// OQ-2 (AMENDED 2026-05-14): `nnn == 0` silently clamps to 1 (documented
 /// divergence from real HP-41 which accepts `SIZE 000`). `nnn > 319`
 /// returns `HpError::InvalidOp`. Otherwise `state.regs.resize(target,
-/// crate::num::HpValue::default())`: shrinking truncates the tail (hardware-faithful
-/// "MEM LOST"); growing zero-fills the new slots. Preserves values where
-/// the old and new ranges overlap.
+/// crate::num::HpValue::default())`: shrinking truncates the tail (hardware-
+/// faithful: data is lost silently with no "MEMORY LOST" display message —
+/// OM p.19 confirms SIZE reduction is a silent operation; "MEMORY LOST" is
+/// a power-event / Continuous-Memory-clear display per OM p.57, NOT triggered
+/// by SIZE — UNC-03, Phase 66); growing zero-fills the new slots. Preserves
+/// values where the old and new ranges overlap.
 ///
 /// SAFETY: every legacy register access (op_sto/op_rcl/op_sto_arith/op_view/
 /// op_clreg/Σ-family) was audited in 22-03-01..03 to honor `state.regs.len()`
@@ -443,6 +447,12 @@ pub fn run_program(state: &mut CalcState, entry_label: &str) -> Result<(), HpErr
 
     state.pc = start + 1; // execute step AFTER the Lbl marker (Pitfall 4)
     state.call_stack.clear();
+    // D-12: clear all transient interrupt/yield state on fresh run_program entry so
+    // stale interrupts never fire into a new execution.
+    state.pending_interrupt = None;
+    state.pending_interrupt_alarm_index = None;
+    state.pending_interrupt_depth = None;
+    state.pending_yield = None;
     state.is_running = true;
 
     let result = run_loop(state, &program);
@@ -470,9 +480,77 @@ pub fn resume_program(state: &mut CalcState) -> Result<(), HpError> {
         return Err(HpError::InvalidOp); // nothing to resume
     }
     let program = state.program.clone();
+    // D-09: clear transient interrupt/yield state before re-entering run_loop so an
+    // interrupt set just before Op::Stop is dropped on resume (not redirected to handler).
+    state.pending_interrupt = None;
+    state.pending_interrupt_alarm_index = None;
+    state.pending_interrupt_depth = None;
+    state.pending_yield = None;
     state.is_running = true;
     let result = run_loop(state, &program);
     state.is_running = false; // ALWAYS reset, even on Err (Pitfall 2)
+    result
+}
+
+/// Resume a GETKEY-suspended program by delivering the captured keycode.
+///
+/// Mirrors [`resume_program`] but with two critical additions for GETKEY:
+/// 1. Calls `op_getkey` inline BEFORE re-entering `run_loop` to push the
+///    keycode to X (LiftEffect::Enable). This is necessary because the
+///    `Op::GetKey` yield arm in `run_loop` breaks with `pc` already advanced
+///    past the GetKey step; `op_getkey` would not execute again otherwise.
+///    `state.getkey_captured_code` is set before the call so `op_getkey`
+///    uses the captured code (not stale `last_key_code`).
+/// 2. Does NOT clear `pending_interrupt_alarm_index` / `pending_interrupt_depth`
+///    — these must survive if GETKEY fired inside an alarm-handler frame
+///    (D-06 / Phase 64 Pitfall 1). Only `pending_yield` (the WaitForKey
+///    channel) is cleared here.
+///
+/// `keycode`: HP-41 hardware key code (row×10+col, 1-indexed).
+///    0 = no-key sentinel (cancel path — Esc/ON equivalent per D-02).
+///
+/// CRITICAL — same Pitfall 2 as `resume_program`: capture `run_loop` result
+/// into `let result`, reset `is_running`, THEN return. Never use `?` directly.
+/// Also cleans up `getkey_captured_code` even on error (Pitfall 6).
+///
+/// Phase 64 (v4.3, PRGM-03 / D-05).
+pub fn resume_program_with_key(state: &mut CalcState, keycode: u8) -> Result<(), HpError> {
+    // CR-01 (Phase 64 code review): refuse spurious resumes. Only a program actually
+    // suspended on a WaitForKey yield may be resumed with a key. Without this guard a
+    // racing/duplicate caller (e.g. a GUI double-tap before pending_yield clears) would
+    // clobber a live PSE/VIEW yield, push a bogus keycode to X, and re-enter run_loop at
+    // the wrong pc. Mirrors resume_program's defensive bounds check (D-07 never-discard).
+    if !matches!(
+        state.pending_yield,
+        Some(YieldState {
+            kind: YieldKind::WaitForKey,
+            ..
+        })
+    ) {
+        return Err(HpError::InvalidOp);
+    }
+    // Note: pc may equal program.len() if GETKEY was the last op in the program —
+    // that is valid; op_getkey must still run to push keycode to X.
+    let program = state.program.clone();
+    // Set captured keycode so op_getkey consumes it (not stale last_key_code).
+    state.getkey_captured_code = Some(keycode);
+    // Clear the WaitForKey yield channel.
+    // Do NOT clear pending_interrupt_alarm_index / pending_interrupt_depth —
+    // they must survive for alarm-handler context (D-06 / Pitfall 1).
+    state.pending_yield = None;
+    // Execute op_getkey inline to push keycode to X (LiftEffect::Enable).
+    // op_getkey takes `getkey_captured_code` via `.take()` and pushes to X.
+    // This is done before run_loop so the value is on X when the next step runs.
+    crate::ops::registers::op_getkey(state)?;
+    // If pc is at the end of program, the program is already done after op_getkey.
+    if state.pc >= program.len() {
+        state.getkey_captured_code = None;
+        return Ok(());
+    }
+    state.is_running = true;
+    let result = run_loop(state, &program);
+    state.is_running = false; // ALWAYS reset, even on Err (Pitfall 2)
+    state.getkey_captured_code = None; // clean up even on error (Pitfall 6)
     result
 }
 
@@ -489,6 +567,48 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             return Err(HpError::Overflow); // infinite-loop guard (CR-01)
         }
         steps += 1;
+
+        // ── Phase 63 Phase-C: periodic alarm scan (D-05) ─────────────────────
+        // The GUI holds the Mutex for the whole run_loop invocation, so
+        // `tick_time`'s check_alarms cannot fire mid-program. Scan on the FIRST
+        // step (to catch alarms that were already past-due when run_program was
+        // called, converting them to pending_interrupt while is_running=true) and
+        // then every ~1000 steps (to detect new alarms that become past-due during
+        // long-running programs). Sub-millisecond at real execution speed.
+        if steps == 1 || steps.is_multiple_of(1000) {
+            time::alarm::check_alarms(state);
+        }
+
+        // ── Phase 63 Phase-B: interrupt injection boundary (D-12 / D-07) ────
+        // pending_interrupt is set by check_alarms/dispatch_alarm_event when
+        // is_running=true and no solver/modal is active (63-01 routing).
+        if let Some(label) = state.pending_interrupt.take() {
+            if state.call_stack.len() >= 4 {
+                // D-07: 4-level cap → SILENTLY suppress. Never push a 5th frame,
+                // never return Err(CallDepth). The alarm stays past_due for manual ack.
+                state.pending_interrupt_alarm_index = None;
+                state.pending_interrupt_depth = None;
+                // label already taken/dropped; continue the loop at current pc.
+            } else {
+                match find_in_program(program, &label) {
+                    Ok(target) => {
+                        // Record the call_stack depth AT injection time so Op::Rtn
+                        // can identify when the handler pops back to the interrupted pc.
+                        state.pending_interrupt_depth = Some(state.call_stack.len());
+                        state.call_stack.push(state.pc);
+                        state.pc = target + 1;
+                        // pending_interrupt_alarm_index stays set for Task 2 ack-after-RTN.
+                    }
+                    Err(_) => {
+                        // D-08: missing handler label → surface event, no ack.
+                        state.event_buffer.push(format!("alarm:missing:{label}"));
+                        state.pending_interrupt_alarm_index = None;
+                        state.pending_interrupt_depth = None;
+                    }
+                }
+            }
+        }
+
         if state.pc >= program.len() {
             // Ran off end of program = implicit top-level RTN
             break;
@@ -499,7 +619,27 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
         match op {
             Op::Rtn => {
                 match state.call_stack.pop() {
-                    Some(return_pc) => state.pc = return_pc,
+                    Some(return_pc) => {
+                        state.pc = return_pc;
+                        // ── Phase 63 D-06: ack-after-RTN ────────────────────────────
+                        // When this pop returns call_stack to the exact depth it had at
+                        // interrupt injection, the handler has fully returned — ack the
+                        // alarm so repeating alarms reschedule (D-06 / ALARM-03).
+                        // The guard is `pending_interrupt_alarm_index.is_some()` AND
+                        // `Some(call_stack.len()) == pending_interrupt_depth`.
+                        // Cap-drop / missing-label already cleared both fields in the
+                        // interrupt boundary above, so this guard naturally skips them.
+                        if state.pending_interrupt_alarm_index.is_some()
+                            && Some(state.call_stack.len()) == state.pending_interrupt_depth
+                        {
+                            if let Some(idx) = state.pending_interrupt_alarm_index.take() {
+                                // Ignore ack errors — out-of-bounds means the alarm was
+                                // already removed (one-shot acked elsewhere); not a bug.
+                                let _ = time::alarm::acknowledge_alarm(state, idx);
+                            }
+                            state.pending_interrupt_depth = None;
+                        }
+                    }
                     None => break, // top-level RTN = normal termination
                 }
             }
@@ -704,6 +844,71 @@ fn run_loop(state: &mut CalcState, program: &[Op]) -> Result<(), HpError> {
             Op::AdvFdifeqRunLoop => {
                 crate::ops::advantage::solvers::op_adv_fdifeq_run_loop(state, program)?;
             }
+            // ── Phase 63: PSE yield arm (PRGM-01 / D-04 / D-01) ─────────────
+            // Replaces the execute_op path that writes display_override + pushes
+            // "PAUSE 1000". Instead: set typed yield channel and break.
+            // display_override is NOT written here: PSE/VIEW/AVIEW all use the typed
+            // yield channel and leave display_override untouched (D-04; the separate
+            // CLI display_override path, DISP-01, was resolved in Phase 65).
+            // LiftEffect::Neutral — no stack change (mirrors old execute_op arm).
+            // `pc` already advanced past PSE, so resume_program continues correctly.
+            // Op::ViewInd deliberately excluded from this yield arm (PRGM-02 scope is
+            // literal VIEW/AVIEW; VIEW IND keeps the execute_op path for now).
+            Op::Pse => {
+                let text = crate::format::format_hpnum(&state.stack.x, &state.display_mode);
+                apply_lift_effect(state, LiftEffect::Neutral);
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::Pse,
+                    text,
+                    resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
+            // ── Phase 63: VIEW yield arm (PRGM-02 / D-04) ────────────────────
+            // Captures format_hpnum(regs[reg]) into the typed yield channel.
+            // display_override NOT written. Breaks run_loop for frontend render+resume.
+            Op::View(reg) => {
+                let val = state
+                    .regs
+                    .get(reg as usize)
+                    .ok_or(HpError::InvalidOp)?
+                    .clone();
+                let text = crate::format::format_hpnum(&val.numeric_or_zero(), &state.display_mode);
+                apply_lift_effect(state, LiftEffect::Neutral);
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::View,
+                    text,
+                    resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
+            // ── Phase 63: AVIEW yield arm (PRGM-02 / D-04) ───────────────────
+            // Captures alpha_reg[..24] into the typed yield channel.
+            // display_override NOT written. Breaks run_loop for frontend render+resume.
+            Op::AView => {
+                let text = state.alpha_reg.chars().take(24).collect::<String>();
+                apply_lift_effect(state, LiftEffect::Neutral);
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::Aview,
+                    text,
+                    resume_ms: PSE_RESUME_MS,
+                });
+                break;
+            }
+            // ── Phase 64: GETKEY yield arm (PRGM-03 / D-05) ──────────────────
+            // Suspends execution and waits for a key event. Unlike PSE/VIEW/AVIEW
+            // this is event-driven (resume_ms = 0 — no timer). Frontend calls
+            // resume_program_with_key(keycode). display_override NOT written (D-03).
+            // pc is already past GetKey; resume_program_with_key calls op_getkey
+            // inline (to push keycode to X) BEFORE re-entering run_loop at pc.
+            Op::GetKey => {
+                state.pending_yield = Some(YieldState {
+                    kind: YieldKind::WaitForKey,
+                    text: String::new(), // D-03: no display override text
+                    resume_ms: 0,        // event-driven, not timer-driven
+                });
+                break;
+            }
             other => {
                 // All other ops execute without flush_entry_buf (no digit entry mid-program)
                 // and without prgm_mode check (RESEARCH Pitfall 2)
@@ -889,16 +1094,14 @@ fn execute_op(state: &mut CalcState, op: Op) -> Result<(), HpError> {
         // ── Phase 21: Sound ───────────────────────────────────────────────────
         Op::Beep => super::sound::op_beep(state),
         Op::Tone(n) => super::sound::op_tone(state, n),
-        // ── Phase 22: PSE — pause display (D-22.4, FN-PROG-02, Pitfall 3) ────
-        // Writes both channels: display_override (visible value) + event_buffer
-        // ("PAUSE 1000" marker for frontend timing). run_loop does NOT break;
-        // execution continues to the next step. display_override survives
-        // subsequent run_loop iterations because run_loop calls execute_op
-        // directly (NOT dispatch), so the dispatch-top clear at mod.rs:410
-        // does not fire between iterations. The NEXT interactive dispatch
-        // clears it — matches HP-41 "value visible until next key" semantic.
-        // Pitfall 10: do NOT add flush_entry_buf here — dispatch already
-        // called it; execute_op inside run_loop never sees stale entry_buf.
+        // ── Phase 22: PSE — pause display (D-22.4, FN-PROG-02) ──────────────
+        // INTERACTIVE path only: writes display_override + "PAUSE 1000" event.
+        // Phase 63: during program execution, run_loop intercepts Op::Pse BEFORE
+        // the `other =>` catch-all reaches execute_op — it sets pending_yield and
+        // breaks instead (D-04 / PRGM-01). This body only fires for an interactive
+        // PSE keystroke (no program running), keeping the "value visible until
+        // next key" semantic for that case.
+        // Pitfall 10: do NOT add flush_entry_buf here — dispatch already called it.
         Op::Pse => {
             let formatted = crate::format::format_hpnum(&state.stack.x, &state.display_mode);
             state.display_override = Some(formatted);
@@ -1584,7 +1787,7 @@ mod program_tests {
 
     #[test]
     fn test_parse_counter_canonical_phase3_example() {
-        let n = HpNum(Decimal::from_str("1.005").unwrap());
+        let n = HpNum::from_decimal(Decimal::from_str("1.005").unwrap());
         let (current, final_val, step, frac_padded) = parse_counter(&n).unwrap();
         assert_eq!(current, 1);
         assert_eq!(final_val, 5);
@@ -1596,7 +1799,7 @@ mod program_tests {
     fn test_parse_counter_integer_only_register() {
         // A register with no decimal part (e.g. initialised to 5 without ISG setup):
         // frac = "" → padded = "00000" → final=0, step 00 → 1
-        let n = HpNum(Decimal::from_str("5").unwrap());
+        let n = HpNum::from_decimal(Decimal::from_str("5").unwrap());
         let (current, final_val, step, frac_padded) = parse_counter(&n).unwrap();
         assert_eq!(current, 5);
         assert_eq!(final_val, 0, "no decimal → final=0");
@@ -1607,7 +1810,7 @@ mod program_tests {
     #[test]
     fn test_parse_counter_step_99_max_step() {
         // counter = 1.00099 → current=1, final=000=0, step=99
-        let n = HpNum(Decimal::from_str("1.00099").unwrap());
+        let n = HpNum::from_decimal(Decimal::from_str("1.00099").unwrap());
         let (current, final_val, step, frac_padded) = parse_counter(&n).unwrap();
         assert_eq!(current, 1);
         assert_eq!(final_val, 0);
@@ -1618,7 +1821,7 @@ mod program_tests {
     #[test]
     fn test_isg_increments_and_then_skips() {
         let mut state = CalcState::default();
-        state.regs[0] = HpNum(Decimal::from_str("4.005").unwrap()).into();
+        state.regs[0] = HpNum::from_decimal(Decimal::from_str("4.005").unwrap()).into();
         let result1 = op_isg(&mut state, 0).unwrap();
         assert!(
             !result1,
@@ -1643,42 +1846,48 @@ mod program_tests {
     fn test_program_arithmetic_add() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("3").unwrap())),
-            Op::PushNum(HpNum(Decimal::from_str("4").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("4").unwrap())),
             Op::Add,
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("7").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("7").unwrap())
+        );
     }
 
     #[test]
     fn test_program_sub_mul_div() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("10").unwrap())),
-            Op::PushNum(HpNum(Decimal::from_str("2").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("10").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("2").unwrap())),
             Op::Sub,
-            Op::PushNum(HpNum(Decimal::from_str("3").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3").unwrap())),
             Op::Mul,
-            Op::PushNum(HpNum(Decimal::from_str("4").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("4").unwrap())),
             Op::Div,
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("6").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("6").unwrap())
+        );
     }
 
     #[test]
     fn test_program_stack_ops() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("5").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("5").unwrap())),
             Op::Enter,
             Op::Clx,
-            Op::PushNum(HpNum(Decimal::from_str("3").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3").unwrap())),
             Op::Chs,
-            Op::PushNum(HpNum(Decimal::from_str("7").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("7").unwrap())),
             Op::XySwap,
             Op::Rdn,
             Op::Lastx,
@@ -1691,7 +1900,7 @@ mod program_tests {
     fn test_program_sto_rcl_clreg() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("42").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("42").unwrap())),
             Op::StoReg(5),
             Op::Clreg,
             Op::RclReg(5),
@@ -1735,7 +1944,7 @@ mod program_tests {
     fn test_program_math_ops() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("4").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("4").unwrap())),
             Op::Sqrt,
             Op::Sq,
             Op::Int,
@@ -1743,14 +1952,17 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("0.25").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("0.25").unwrap())
+        );
     }
 
     #[test]
     fn test_program_runs_off_end() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("1").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("1").unwrap())),
         ];
         let mut state = state_with_program(program);
         let result = crate::ops::program::run_program(&mut state, "A");
@@ -1763,38 +1975,47 @@ mod program_tests {
         let program = vec![
             Op::Lbl("A".to_string()),
             Op::Lbl("B".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("9").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("9").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("9").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("9").unwrap())
+        );
     }
 
     #[test]
     fn test_program_test_op_skip() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("0").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("0").unwrap())),
             Op::Test(TestKind::XNeZero),
-            Op::PushNum(HpNum(Decimal::from_str("99").unwrap())),
-            Op::PushNum(HpNum(Decimal::from_str("7").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("99").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("7").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("7").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("7").unwrap())
+        );
     }
 
     #[test]
     fn test_program_test_op_no_skip() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("0").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("0").unwrap())),
             Op::Test(TestKind::XEqZero),
-            Op::PushNum(HpNum(Decimal::from_str("42").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("42").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("42").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("42").unwrap())
+        );
     }
 
     #[test]
@@ -1811,15 +2032,18 @@ mod program_tests {
         // counter 0.00103 → current=0, final=1, step=3; 0+3=3 > 1 → skip
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("0.00103").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("0.00103").unwrap())),
             Op::StoReg(0),
             Op::Isg(0),
             Op::Gto("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("5").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("5").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("5").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("5").unwrap())
+        );
     }
 
     #[test]
@@ -1827,39 +2051,45 @@ mod program_tests {
         // counter 3.00103 → current=3, final=1, step=3; 3-3=0 <= 1 → skip
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("3.00103").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("3.00103").unwrap())),
             Op::StoReg(0),
             Op::Dse(0),
             Op::Gto("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("8").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("8").unwrap())),
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("8").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("8").unwrap())
+        );
     }
 
     #[test]
     fn test_program_xeq_subroutine_returns() {
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("1").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("1").unwrap())),
             Op::Xeq("B".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("2").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("2").unwrap())),
             Op::Rtn,
             Op::Lbl("B".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("10").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("10").unwrap())),
             Op::Rtn,
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("2").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("2").unwrap())
+        );
     }
 
     #[test]
     fn test_evaluate_test_relational_variants() {
         let mut state = CalcState::default();
-        state.stack.x = HpNum(Decimal::from_str("-3").unwrap());
-        state.stack.y = HpNum(Decimal::from_str("5").unwrap());
+        state.stack.x = HpNum::from_decimal(Decimal::from_str("-3").unwrap());
+        state.stack.y = HpNum::from_decimal(Decimal::from_str("5").unwrap());
 
         assert!(evaluate_test(&state, &TestKind::XLtZero));
         assert!(!evaluate_test(&state, &TestKind::XGtZero));
@@ -1899,16 +2129,16 @@ mod program_tests {
         //       Op::SetDeg, Op::SetRad, Op::SetGrad
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("1").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("1").unwrap())),
             Op::Exp,
             Op::Ln,
             Op::SetRad,
             Op::SetGrad,
             Op::SetDeg,
-            Op::PushNum(HpNum(Decimal::from_str("100").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("100").unwrap())),
             Op::Log,
             Op::TenPow,
-            Op::PushNum(HpNum(Decimal::from_str("2").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("2").unwrap())),
             Op::YPow,
         ];
         let mut state = state_with_program(program);
@@ -1920,13 +2150,13 @@ mod program_tests {
         // Cover Op::Sin, Op::Cos, Op::Tan, Op::Asin, Op::Acos, Op::Atan
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("30").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("30").unwrap())),
             Op::Sin,
             Op::Asin,
-            Op::PushNum(HpNum(Decimal::from_str("60").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("60").unwrap())),
             Op::Cos,
             Op::Acos,
-            Op::PushNum(HpNum(Decimal::from_str("45").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("45").unwrap())),
             Op::Tan,
             Op::Atan,
         ];
@@ -1968,9 +2198,9 @@ mod program_tests {
         use crate::ops::StoArithKind;
         let program = vec![
             Op::Lbl("A".to_string()),
-            Op::PushNum(HpNum(Decimal::from_str("10").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("10").unwrap())),
             Op::StoReg(0),
-            Op::PushNum(HpNum(Decimal::from_str("5").unwrap())),
+            Op::PushNum(HpNum::from_decimal(Decimal::from_str("5").unwrap())),
             Op::StoArith {
                 reg: 0,
                 kind: StoArithKind::Add,
@@ -1979,7 +2209,10 @@ mod program_tests {
         ];
         let mut state = state_with_program(program);
         crate::ops::program::run_program(&mut state, "A").unwrap();
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("15").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("15").unwrap())
+        );
     }
 
     #[test]
@@ -2130,8 +2363,8 @@ mod phase25_builtin_card_op_tests {
             Op::Rtn,
         ];
         let mut state = state_with_program(program);
-        state.stack.y = HpNum(Decimal::from_str("5").unwrap());
-        state.stack.x = HpNum(Decimal::from_str("7").unwrap());
+        state.stack.y = HpNum::from_decimal(Decimal::from_str("5").unwrap());
+        state.stack.x = HpNum::from_decimal(Decimal::from_str("7").unwrap());
 
         let result = super::run_program(&mut state, "TEST");
         assert!(
@@ -2142,8 +2375,14 @@ mod phase25_builtin_card_op_tests {
         assert!(!state.is_running);
         // Stack is read-only for Op::Test (LiftEffect::Neutral) — values
         // preserved.
-        assert_eq!(state.stack.x, HpNum(Decimal::from_str("7").unwrap()));
-        assert_eq!(state.stack.y, HpNum(Decimal::from_str("5").unwrap()));
+        assert_eq!(
+            state.stack.x,
+            HpNum::from_decimal(Decimal::from_str("7").unwrap())
+        );
+        assert_eq!(
+            state.stack.y,
+            HpNum::from_decimal(Decimal::from_str("5").unwrap())
+        );
     }
 
     // ── Phase 28 / Task 6: resolver chain extension tests ──────────────────────

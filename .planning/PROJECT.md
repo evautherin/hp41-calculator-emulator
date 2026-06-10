@@ -8,7 +8,13 @@
 
 **Deferred (before any public App Store release):** wire `PrivacyInfo.xcprivacy` into the shipped bundle (tracked todo) + store assets + Apple review.
 
-**No active milestone** — planning the next one (`/gsd-new-milestone`).
+**Active milestone: v4.3 Hardware Fidelity** — in progress. Closing the remaining *genuine* behavioral gaps vs. real HP-41CX hardware, anchored on interrupting control-alarm execution (program-engine re-entrancy, D-40-04), plus an audit-selected set of further divergences. First substantive `hp41-core` engine work since the v3.x module era.
+
+**Phase 63 complete (2026-06-06): Run-Loop Yield Engine + Interrupting Alarms + PSE/VIEW-AVIEW.** Built the synchronous pending-interrupt mechanism in `run_loop` (synthetic XEQ frame at the next instruction boundary, periodic Phase-C `check_alarms`, ack-after-RTN reschedule, 4-level cap honored) and mid-run display yields (PSE/VIEW/AVIEW render-and-resume), wired across CLI and GUI — the GUI gained its first continuous program run loop (`run_program`/`resume_program` Tauri commands + a no-poll TS yield driver, D-11). ALARM-02/03 + PRGM-01/02 satisfied; verification 5/5 (3 visual UAT items pending). Two parity gaps surfaced by review were fixed in-cycle (CLI alarm-launched yield drain; GUI idle alarm → `run_program`).
+
+**Phase 64 complete (2026-06-07): Interactive GETKEY.** GETKEY inside a running program now suspends on a new `YieldKind::WaitForKey` (reusing the Phase 63 yield engine — no new `Op` variant), and resumes via `resume_program_with_key(keycode)` which pushes the key's HP-41 row×col code to X with `LiftEffect::Enable`; Esc/cancel → sentinel 0. Wired across CLI (non-blocking poll+redraw, never freezes) and GUI (Tauri command + permission; no-poll key-event resume, D-11), completing CLI↔GUI parity (D-25.6). `getkey_captured_code` is a transient `#[serde(default, skip)]` field (save-file compat preserved); R/S keycode doc error corrected 84→31. PRGM-03 satisfied; verification 4/4. Code review found 2 critical/3 warning/2 info — CR-01 (a missing guard letting a spurious/racing resume clobber a live PSE/VIEW yield) fixed in-cycle with a regression test.
+
+**Phase 65 complete (2026-06-07): Standalone Fidelity Fixes.** Four independent HP-41CX gaps closed. **MATH-01 (the substantive one):** `HpNum` re-architected from a `Decimal` newtype to a normalized `{mantissa: Decimal, exponent: i8}` pair covering the full HP-41 range ±9.999999999E±99 (ADR v4.3-005, amending the rust_decimal Frozen Invariant) — `FACT(27..=69)` now returns correct 10-sig scientific-notation results (FACT(69)≈1.711E98) instead of Overflow; backward-compatible untagged serde round-trips v1.0–v4.2 saves; zero new deps. **DISP-01/02/03:** CLI renders `state.display_override`; CHS toggles the entry-buffer sign in place (no flush/lift); AON (flag 48) auto-displays the ALPHA register at rest on both CLI (`ui.rs`) and GUI (`types.rs` `from_state`), all with matching precedence (D-10/D-25.6). MATH-01/DISP-01/02/03 satisfied; verification 4/4 automated (4 visual UAT items pending). Code review found 2 critical/5 warning/3 info — **CR-01 (silent exponent-wrap: large-exponent `checked_mul`/`checked_div` narrowed the i32 exponent `as i8` before the range check, so `1e80×1e80` returned ~1e-58 instead of Overflow)** fixed in-cycle by widening `from_sci` to range-check in i32, with dedicated large-exponent regression tests (the proptest generator clamped exponents to ±18, hiding it); remaining warnings fixed, Advantage matrix-op large-range limits documented (D-65-01, out of scope). CI lint green (stable + MSRV 1.88).
 
 <details>
 <summary>v4.1 iOS Foundation (shipped 2026-06-04 — see <code>milestones/v4.1-ROADMAP.md</code>)</summary>
@@ -81,6 +87,21 @@
 **Delivered:** 5 phases (28–32), 33 plans (26 original + 7 gap-closure), ~40 new Op variants, XROM resolver chain, modal-workflow state machine, user-callback re-entrancy, complex stack overlay, hyperbolics, triangle solvers, coordinate transforms, Fourier series, full CLI + GUI integration, 95.39% line / 94.26% region coverage, 763-case numerical accuracy at 99.3%.
 
 </details>
+
+---
+
+## Current Milestone: v4.3 Hardware Fidelity
+
+**Goal:** Close the remaining genuine behavioral gaps between the emulator and real HP-41CX hardware — anchored on interrupting control-alarm execution.
+
+**Target work:**
+- **Interrupting Control Alarms (D-40-04)** — make program execution re-entrant against the 4-level call stack so a fired control alarm can interrupt the calculator (including a running program), execute its designated program, and return cleanly. The data model already exists (D-38.4); only execution is missing.
+- **Fidelity audit** — an early audit phase inventories *real* remaining divergences (real-hardware behavior vs. emulator) and produces a prioritized list; an audit-selected handful are closed this milestone.
+- Deliberately-accepted divergences (emulator extensions, host-clock policy, oracle corrections) stay untouched by design.
+
+**Out of scope:** iOS App Store submission (handled externally). Android (parked as `SEED-001`).
+
+**Active requirements:** defined in `.planning/REQUIREMENTS.md` for this milestone.
 
 ---
 
@@ -315,7 +336,7 @@ _Carried-over deferred items: `PrivacyInfo.xcprivacy` bundle wiring before any p
 - iPhone (iOS) — now IN SCOPE for v4.1 iOS Foundation (desktop-stable precondition met at v4.0); iPad and Android remain deferred
 - Binary releases (signed cross-platform CLI + GUI installers via cargo-dist + tauri-action) — deferred post-v3.3
 - X-MEM / Extended Memory file model — post-v3.x scope
-- Interrupting control alarm execution — data model ready (D-38.4), requires re-entrancy against 4-level call stack
+- ~~Interrupting control alarm execution — data model ready (D-38.4), requires re-entrancy against 4-level call stack~~ → ✓ **Implemented in v4.3 Phase 63** (synchronous pending-interrupt at the run_loop boundary; ADR v4.3-004)
 - Cycle-accurate Nut CPU simulation — high effort, low user value vs. behavioral emulation
 - HP-copyrighted ROM image redistribution — legal risk, excluded permanently
 - HP-IL peripheral emulation — niche, complex
@@ -409,4 +430,4 @@ Per-phase detail lives in `docs/architecture-history.md` and the archived milest
 
 ---
 
-*Last updated: 2026-06-05 after v4.2 milestone — Help Search Enrichment shipped + archived (Phases 58–61, 18 v1 requirements, audit `tech_debt`/no functional gaps). Intent-aware `?` overlay with DE+EN aliases, hand-rolled fuzzy, CI-gated coverage; `hp41-core` untouched, zero new deps. PR #23 open (develop→main). Next: `/gsd-new-milestone`.*
+*Last updated: 2026-06-10 — **v4.3 Hardware Fidelity milestone COMPLETE** (all 6 phases): 62 (alarm-semantics ADR), 63 (run-loop yield engine + interrupting alarms + PSE/VIEW/AVIEW), 64 (interactive GETKEY), 65 (standalone fidelity fixes: HpNum ±9.999E±99 range/FACT + DISP-01/02/03), 66 (verification + divergence docs + quality gates), and 67 (Reset Escape Hatch). **Phase 67:** two-tier in-app reset (RESET-01) — `CalcState::soft_reset()` (clears transient/input-trapping state, preserves stored data) + `memory_lost()` (factory), wired OUTSIDE the dispatch path (CLI `Ctrl+R`→s/f; GUI/iOS ON-key tap=soft / long-press=portaled MEMORY LOST=full), autosave overwritten synchronously so recovery survives restart; ADR v4.3-007 + D-CV-10 record the intentional divergence from hardware ON semantics. Code review found + fixed CR-02 (cancel_requested Arc orphaned across reset → GUI cancellation breakage); both gates green. Next: tag `v4.3` on develop, then `gh pr merge 26 --merge` (NEVER --squash).*

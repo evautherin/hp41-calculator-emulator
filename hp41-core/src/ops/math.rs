@@ -22,13 +22,18 @@ use crate::state::{AngleMode, CalcState};
 // We use HpNum(raw_decimal) (pub(crate) inner field) to bypass pre-rounding.
 // The multiplication result is still rounded to 10 sig digits via checked_mul.
 fn pi_over_180() -> HpNum {
-    HpNum(
+    // Use from_decimal (not rounded) to preserve full precision of the constant.
+    // from_decimal calls normalize which round_sf(10) — but these constants are
+    // 20 sig digits and will be rounded at normalize time. The multiplication
+    // result is then rounded again via checked_mul to 10 sig digits. This matches
+    // the previous behavior where HpNum(Decimal) stored the full Decimal value.
+    HpNum::from_decimal(
         Decimal::from_str("0.01745329251994329576")
             .expect("pi/180 angle constant must parse as valid Decimal"),
     )
 }
 fn pi_over_200() -> HpNum {
-    HpNum(
+    HpNum::from_decimal(
         Decimal::from_str("0.01570796326794896558")
             .expect("pi/200 angle constant must parse as valid Decimal"),
     )
@@ -446,18 +451,18 @@ pub fn op_sign(state: &mut CalcState) -> Result<(), HpError> {
 /// 3. Integer check (D-07): non-integer X → `Domain`.
 /// 4. Sign check (D-07): negative X → `Domain`.
 /// 5. Iterative f64 product (D-04); convert via
-///    `Decimal::from_f64(...).map(HpNum::rounded).ok_or(HpError::Overflow)`
-///    — practical magnitude wall is `X ≤ 26` (Phase 27 proptest calibration);
-///    `27..=69` returns `Overflow` from the conversion side.
+///    `HpNum::from_f64(acc).ok_or(HpError::Overflow)` — post-compute wall
+///    extended to `X ≤ 68` (FACT(69) ≈ 1.711E98, within the ±9.999E±99 range).
+///    ADR v4.3-005 extends `HpNum` to cover this range; the pre-compute OutOfRange
+///    guard (`X > 69`) remains unchanged (D-06, SC-3).
 ///
 /// LiftEffect: Enable (via `unary_result`).
 pub fn op_fact(state: &mut CalcState) -> Result<(), HpError> {
     let v = state
         .stack
         .x
-        .inner()
         .to_f64()
-        .expect("HpNum is always within f64 range");
+        .expect("HpNum for fact input is always within f64 range (X ≤ 69)");
     // Step 2: hardware-spec OutOfRange pre-flight (D-06, SC-3).
     if v > 69.0 {
         return Err(HpError::OutOfRange);
@@ -477,9 +482,9 @@ pub fn op_fact(state: &mut CalcState) -> Result<(), HpError> {
     for k in 1..=n {
         acc *= k as f64;
     }
-    let result = Decimal::from_f64(acc)
-        .map(HpNum::rounded)
-        .ok_or(HpError::Overflow)?;
+    // ADR v4.3-005: HpNum::from_f64 covers the full ±9.999E±99 range, so FACT(27..=69)
+    // no longer overflows here. The pre-compute OutOfRange guard (v > 69.0) is unchanged.
+    let result = HpNum::from_f64(acc).ok_or(HpError::Overflow)?;
     unary_result(state, result);
     Ok(())
 }

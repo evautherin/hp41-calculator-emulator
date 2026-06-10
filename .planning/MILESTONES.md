@@ -1,5 +1,21 @@
 # Milestones
 
+## v4.3 — Hardware Fidelity
+
+**Status:** 🚧 IN PROGRESS (opened 2026-06-06)
+**Theme:** Hardware-fidelity emulation work (formal phases TBD).
+
+### Quick-tasks (landed on `develop` ahead of formal phases)
+
+- **Desktop menu-bar UX: single-instance guard + configurable global hotkey** — done 2026-06-06, commit `37dfd5f` (`develop`). Recorded as a quick-task (no GSD phase directory; small, self-contained desktop-platform polish).
+  - **Single-instance** (`tauri-plugin-single-instance`, ADR-v4.3-001): registered first; a second launch surfaces the already-running instance (popover on macOS menu-bar, else show+focus) and exits, so no duplicate menu-bar tray icon is ever created. Also fixes the `just gui-dev`-twice dev annoyance.
+  - **Configurable macOS global hotkey** (`tauri-plugin-global-shortcut`, ADR-v4.3-002): default `⌃⌥⌘H` toggles the popover via Carbon `RegisterEventHotKey` (no Accessibility permission). Recorded live through a macOS-gated Settings overlay (`ShortcutRecorder.tsx`); the Rust backend validates + live-registers, so only an accepted accelerator sticks. Stored in `GuiPrefs.global_shortcut` (`#[serde(default)]`, back-compat preserved).
+  - **Shared foundation:** one `tray::toggle_popover` / `surface_popover` for tray click, hotkey and relaunch; `PopoverState.last_tray_rect` positions the popover with a unit-tested top-right fallback (`compute_fallback_position`). No `hp41-core` / IPC / `Op` change, no new Tauri capability; iOS build unaffected (desktop/macOS-gated deps).
+  - **Verification:** 126 Rust (gui crate) + 337 Vitest green; `tsc`, `license-audit`, permission coverage (21/21) and iOS-target `cargo check` all passed.
+  - **Deferred:** GUI version bumps (`hp41-gui/src-tauri/Cargo.toml`, `tauri.conf.json`) and the root `hp41 --version` bump happen at the v4.3 release, not per quick-task.
+
+---
+
 ## v4.2 — Help Search Enrichment
 
 **Status:** ✅ SHIPPED 2026-06-05

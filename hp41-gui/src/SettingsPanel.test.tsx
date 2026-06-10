@@ -260,4 +260,62 @@ describe('SettingsPanel', () => {
         fireEvent.click(getByLabelText('Window'));
         expect(getByText('Restart now')).toBeTruthy();
     });
+
+    it('hides the global-shortcut section when isMacos=false', () => {
+        const { queryByText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={false}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
+                globalShortcut="Control+Alt+Command+H"
+                onRecordShortcut={vi.fn()}
+            />
+        );
+        expect(queryByText('Global Shortcut (macOS)')).toBeNull();
+    });
+
+    it('shows the global-shortcut section with the formatted accelerator when isMacos=true', () => {
+        const { getByText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={true}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
+                globalShortcut="Control+Alt+Command+H"
+                onRecordShortcut={vi.fn()}
+            />
+        );
+        expect(getByText('Global Shortcut (macOS)')).toBeTruthy();
+        // Button shows the macOS glyphs for the current accelerator.
+        expect(getByText(/Show\/Hide window:\s*⌃⌥⌘H/)).toBeTruthy();
+    });
+
+    it('calls onRecordShortcut when the shortcut button is clicked', () => {
+        const onRecordShortcut = vi.fn();
+        const { getByText } = render(
+            <SettingsPanel
+                open={true}
+                onClose={() => {}}
+                currentTheme="dark"
+                onThemeChange={() => {}}
+                onShowOnboarding={vi.fn()}
+                isMacos={true}
+                currentLaunchMode="menu-bar"
+                onLaunchModeChange={vi.fn()}
+                globalShortcut="Control+Alt+Command+H"
+                onRecordShortcut={onRecordShortcut}
+            />
+        );
+        fireEvent.click(getByText(/Show\/Hide window:/));
+        expect(onRecordShortcut).toHaveBeenCalledTimes(1);
+    });
 });

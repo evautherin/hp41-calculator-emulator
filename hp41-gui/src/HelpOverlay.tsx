@@ -408,6 +408,11 @@ export function HelpOverlay({ open, onClose, isIos = false, onRun }: HelpOverlay
                                             ))}
                                         </div>
                                     )}
+                                    {/* Phase 67 Plan 05: reset escape-hatch discoverability hint (D-25.6, ADR v4.3-007).
+                                        Plain copy only — reset is not an Op and does not appear in the JSON function pools. */}
+                                    <div className="shortcut-reset-hint">
+                                        ON key: tap = soft reset, long-press = MEMORY LOST (full reset)
+                                    </div>
                                 </div>
                             )}
                         </div>

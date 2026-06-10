@@ -2249,21 +2249,21 @@ mod flush_eex_tests {
     fn test_flush_scientific_lowercase_e() {
         let mut state = make_state_with_entry("1.5e3");
         flush_entry_buf(&mut state).unwrap();
-        assert_eq!(state.stack.x.0, Decimal::from(1500));
+        assert_eq!(state.stack.x.inner(), Decimal::from(1500));
     }
 
     #[test]
     fn test_flush_scientific_uppercase_e() {
         let mut state = make_state_with_entry("2.5E-2");
         flush_entry_buf(&mut state).unwrap();
-        assert_eq!(state.stack.x.0, Decimal::from_str("0.025").unwrap());
+        assert_eq!(state.stack.x.inner(), Decimal::from_str("0.025").unwrap());
     }
 
     #[test]
     fn test_flush_plain_decimal_still_works() {
         let mut state = make_state_with_entry("1500");
         flush_entry_buf(&mut state).unwrap();
-        assert_eq!(state.stack.x.0, Decimal::from(1500));
+        assert_eq!(state.stack.x.inner(), Decimal::from(1500));
     }
 
     #[test]
@@ -2284,7 +2284,7 @@ mod flush_eex_tests {
             "trailing 'e' with no exponent must commit as exponent 00, not Err"
         );
         assert_eq!(
-            state.stack.x.0,
+            state.stack.x.inner(),
             Decimal::from_str("1.5").unwrap(),
             "1.5e must commit as 1.5 (exponent 00)"
         );
@@ -2302,7 +2302,7 @@ mod flush_eex_tests {
         let result = flush_entry_buf(&mut state);
         assert!(result.is_ok(), "1e must commit successfully");
         assert_eq!(
-            state.stack.x.0,
+            state.stack.x.inner(),
             Decimal::from(1),
             "1e must commit as 1 (1 * 10^0)"
         );
@@ -2327,7 +2327,7 @@ mod flush_eex_tests {
         flush_entry_buf(&mut state).unwrap();
         assert!(state.entry_buf.is_empty());
         // 1e-2 == 0.01
-        assert_eq!(state.stack.x.0, Decimal::from_str("0.01").unwrap());
+        assert_eq!(state.stack.x.inner(), Decimal::from_str("0.01").unwrap());
     }
 }
 

@@ -470,6 +470,11 @@ pub fn key_ref_entries() -> Vec<(String, String)> {
 /// Returns `Some(code)` for keys that correspond to physical HP-41 calculator keys.
 /// Returns `None` for TUI-only keys (F5/F7/F8) and unmapped keys.
 ///
+/// NOTE: R/S (HP-41 keycode 31) is intentionally NOT mapped here — in the CLI R/S
+/// is F5, which must stay TUI-only (run/stop) outside a GETKEY wait. During a
+/// `WaitForKey` suspend, `App::drain_pending_yields` special-cases F5 → 31 directly
+/// so GETKEY can receive R/S, matching the GUI (D-25.6 parity).
+///
 /// Callers must only update `last_key_code` when `Some` is returned — `None` means
 /// the keypress has no HP-41 hardware equivalent and must not corrupt GETKEY state.
 pub fn keycode_to_hp41_code(code: crossterm::event::KeyCode) -> Option<u8> {
@@ -626,10 +631,11 @@ mod tests {
         state.stack.x = hp41_core::HpNum::from(30);
         let result = hp41_core::ops::dispatch(&mut state, Op::Sin);
         assert!(result.is_ok(), "Op::Sin must not error on valid input");
-        assert_eq!(
-            format!("{}", state.stack.x),
-            "0.5000000000",
-            "sin(30 DEG) must equal 0.5 (10 significant digits)"
+        // Display normalize removes trailing zeros; check that sin(30 DEG) ~ 0.5.
+        let sin_30 = state.stack.x.to_f64().expect("sin(30 DEG) must be numeric");
+        assert!(
+            (sin_30 - 0.5_f64).abs() < 1e-9_f64,
+            "sin(30 DEG) must equal 0.5, got {sin_30}"
         );
     }
 

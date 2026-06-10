@@ -50,12 +50,14 @@ fn push(state: &mut CalcState, s: &str) {
 }
 
 fn get_x(state: &CalcState) -> f64 {
-    state.stack.x.inner().to_f64().unwrap_or(f64::NAN)
+    // Use HpNum::to_f64() to handle both common-case (exponent==0) and
+    // large-exponent values (FACT(27+) with exponent != 0). ADR v4.3-005.
+    state.stack.x.to_f64().unwrap_or(f64::NAN)
 }
 
 #[allow(dead_code)]
 fn get_y(state: &CalcState) -> f64 {
-    state.stack.y.inner().to_f64().unwrap_or(f64::NAN)
+    state.stack.y.to_f64().unwrap_or(f64::NAN)
 }
 
 fn passes_with_tol(actual: f64, expected: f64, tol: f64) -> bool {
@@ -2855,8 +2857,116 @@ fn test_numerical_accuracy_suite() {
         dispatch(&mut s, Op::Fact).unwrap();
         case!("fact", "FACT(13) = 6227020800", 6_227_020_800.0, get_x(&s));
     }
+    // ── v4.3 Op::Fact — extended range FACT(27..=68) (cases 517–531) ─────────
+    // ADR v4.3-005 extends HpNum to ±9.999E±99 so FACT(27..=68) no longer
+    // overflows. Expected values computed from the same f64 iterative product
+    // the op uses, then rounded to 10 significant digits via HpNum::from_f64.
+    // Wide tolerance because f64 accumulates rounding for large factorials.
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "27");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 27! ≈ 1.088886945E28 (10-sig-digit HP-41-faithful result)
+        case!(
+            "fact",
+            "FACT(27) ~ 1.088886945E28",
+            1.088_886_945e28_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "30");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 30! ≈ 2.652528598E32
+        case!(
+            "fact",
+            "FACT(30) ~ 2.652528598E32",
+            2.652_528_598e32_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "40");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 40! ≈ 8.159152832E47
+        case!(
+            "fact",
+            "FACT(40) ~ 8.159152832E47",
+            8.159_152_832e47_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "50");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 50! ≈ 3.041409320E64
+        case!(
+            "fact",
+            "FACT(50) ~ 3.041409320E64",
+            3.041_409_320e64_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "60");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 60! ≈ 8.320987113E81
+        case!(
+            "fact",
+            "FACT(60) ~ 8.320987113E81",
+            8.320_987_113e81_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "68");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 68! ≈ 2.480035542E96. FACT(69) also succeeds (≈1.711E98, asserted below);
+        // FACT(70) is the OutOfRange boundary (HP-41C OM p.234: X > 69 → OutOfRange).
+        case!(
+            "fact",
+            "FACT(68) ~ 2.480035542E96",
+            2.480_035_542e96_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        let mut s = CalcState::new();
+        push(&mut s, "69");
+        dispatch(&mut s, Op::Fact).unwrap();
+        // 69! ≈ 1.711224524e98 (ADR v4.3-005: last representable factorial)
+        case!(
+            "fact",
+            "FACT(69) ~ 1.711224524E98",
+            1.711_224_524e98_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        // FACT(70) is OutOfRange (HP-41 Owner's Manual p.234: X > 69 → OutOfRange).
+        // This guard is UNCHANGED from pre-ADR v4.3-005 behavior.
+        let mut s = CalcState::new();
+        push(&mut s, "70");
+        let result = dispatch(&mut s, Op::Fact);
+        assert!(
+            matches!(result, Err(hp41_core::error::HpError::OutOfRange)),
+            "FACT(70) must return OutOfRange (HP-41 hardware spec: X > 69)"
+        );
+    }
 
-    // ── v2.2 Op::Mod (cases 517–528) ────────────────────────────────────────
+    // ── v2.2 Op::Mod (cases 517–528, now 532–543) ────────────────────────────
     // Cross-checked against Free42 source core_math1.cc::do_mod —
     // HP-41 sign follows Y, per HP-41C Owner's Manual p.234.
     {
@@ -7606,6 +7716,40 @@ fn test_numerical_accuracy_suite() {
         );
     }
 
+    // ── WR-03: FACT golden at a power-of-ten-adjacent large magnitude ──────────
+    // Appended at the END of the case set so these high ids do not shift the
+    // baseline (id < 504) failing-set check. These FACT results land just above
+    // the old ~7.92E28 Decimal wall (exponent != 0) at magnitudes close to a
+    // power of ten, where the f64-derived mantissa can come out < 1.0; the
+    // from_sci borrow-down (WR-03) must renormalize so the stored value is not
+    // off by a factor of 10.
+    {
+        // 28! ≈ 3.048883446E29 — first FACT above the Decimal wall (near 1E29).
+        let mut s = CalcState::new();
+        push(&mut s, "28");
+        dispatch(&mut s, Op::Fact).unwrap();
+        case!(
+            "fact",
+            "FACT(28) ~ 3.048883446E29 (WR-03 renorm)",
+            3.048_883_446e29_f64,
+            get_x(&s),
+            wide
+        );
+    }
+    {
+        // 32! ≈ 2.631308369E35 — another power-of-ten-adjacent large factorial.
+        let mut s = CalcState::new();
+        push(&mut s, "32");
+        dispatch(&mut s, Op::Fact).unwrap();
+        case!(
+            "fact",
+            "FACT(32) ~ 2.631308369E35 (WR-03 renorm)",
+            2.631_308_369e35_f64,
+            get_x(&s),
+            wide
+        );
+    }
+
     // ── Gate: count passes, print failures, assert ────────────────────────────
 
     let total = cases.len();
@@ -7708,7 +7852,7 @@ fn fact_70_returns_out_of_range() {
 }
 
 #[test]
-fn fact_27_is_last_representable() {
+fn fact_27_now_representable_adr_v43_005() {
     // I-5 boundary: FACT(27) is the LAST n for which `Decimal::from_f64(n!)`
     // succeeds. FACT(28) hits the Decimal magnitude wall and returns Overflow
     // (math.rs::op_fact step 5; D-05). This test pins the upper Ok boundary
@@ -7722,55 +7866,52 @@ fn fact_27_is_last_representable() {
         r.is_ok(),
         "FACT(27) must succeed (last n before Decimal::from_f64 wall per D-05); got {r:?}"
     );
-    // Order-of-magnitude check — 27! is ≈ 1.0888869e28. Use HpNum's f64
-    // accessor to compare without nailing every digit (HP-41 hardware
-    // would emit `1.088869450 28` in SCI 9 mode; the exact mantissa
-    // depends on Decimal rounding at the 10-sig-digit boundary).
-    let x_f64 = s.stack.x.inner().to_string();
+    // ADR v4.3-005: FACT(27) now succeeds. Use to_f64() to handle the
+    // large-exponent HpNum (exponent != 0 for values above ~7.92E28).
+    // 27! ≈ 1.088886945e28 in 10-significant-digit HP-41 arithmetic.
+    let actual = s.stack.x.to_f64().expect("FACT(27) must be representable");
     assert!(
-        x_f64.starts_with("1088"),
-        "FACT(27) ≈ 1.088869e28; got X = {x_f64}"
+        passes_with_tol(actual, 1.088_886_945e28_f64, WIDE_TOL),
+        "FACT(27) ≈ 1.088886945e28 (ADR v4.3-005); got {actual}"
     );
 }
 
 #[test]
-fn fact_28_returns_overflow() {
-    // I-5 boundary: FACT(28) is the FIRST n at which `Decimal::from_f64`
-    // fails. Per math.rs::op_fact (D-05), this surfaces as `Overflow`
-    // (NOT `OutOfRange` — that variant is reserved for the hardware-spec
-    // `X > 69` pre-flight check). The 27→28 transition is the contract:
-    // 27 returns Ok, 28 returns Err(Overflow). If a future refactor
-    // unified the two error variants, the existing `fact_70_returns_out_of_range`
-    // test would silently change semantics — this test pins the variant.
-    // Catches: error-type drift between Decimal-wall (Overflow) and
-    // hardware-spec (OutOfRange) FACT failure modes.
+fn fact_28_now_representable_adr_v43_005() {
+    // ADR v4.3-005: FACT(28) no longer hits the Decimal wall (Decimal::from_f64
+    // ceiling ~7.92E28). HpNum::from_f64 covers ±9.999E±99. FACT(28) succeeds.
+    // 28! ≈ 3.048883447e29.
     let mut s = CalcState::new();
     push(&mut s, "28");
     let r = dispatch(&mut s, Op::Fact);
     assert!(
-        matches!(r, Err(hp41_core::HpError::Overflow)),
-        "FACT(28) must return Overflow (Decimal::from_f64 wall per D-05); got {r:?}"
+        r.is_ok(),
+        "FACT(28) must succeed after ADR v4.3-005; got {r:?}"
+    );
+    let actual = s.stack.x.to_f64().expect("FACT(28) must be representable");
+    assert!(
+        passes_with_tol(actual, 3.048_883_447e29_f64, WIDE_TOL),
+        "FACT(28) ≈ 3.048883447e29; got {actual}"
     );
 }
 
 #[test]
-fn fact_69_returns_overflow_not_out_of_range() {
-    // I-5 boundary: FACT(69) is the LAST n in the Decimal-wall corridor —
-    // the next valid input (n=70) flips to OutOfRange because the hardware
-    // pre-flight (`v > 69.0` at math.rs::op_fact step 2) runs BEFORE the
-    // Decimal conversion. So 28..=69 returns Overflow; 70..=∞ returns
-    // OutOfRange. This 69→70 boundary is order-of-checks-dependent and
-    // would silently invert if a refactor moved the Decimal check before
-    // the hardware-spec check. Pinning it as an explicit test makes the
-    // order-of-checks contract a regression sentinel.
-    // Catches: order-of-checks inversion between hardware-spec pre-flight
-    // (OutOfRange) and Decimal magnitude wall (Overflow) in op_fact.
+fn fact_69_now_representable_adr_v43_005() {
+    // ADR v4.3-005: FACT(69) now succeeds. 69! ≈ 1.711224524e98, within ±9.999E±99.
+    // The hardware-spec OutOfRange guard (X > 69) fires for X = 70, 71, …
+    // Catches: regression that re-introduces Overflow for FACT(69) or that
+    // misroutes FACT(69) to OutOfRange (only X > 69 is OutOfRange).
     let mut s = CalcState::new();
     push(&mut s, "69");
     let r = dispatch(&mut s, Op::Fact);
     assert!(
-        matches!(r, Err(hp41_core::HpError::Overflow)),
-        "FACT(69) must return Overflow (Decimal wall fires before hardware OutOfRange); got {r:?}"
+        r.is_ok(),
+        "FACT(69) must succeed after ADR v4.3-005 (69 ≤ 69); got {r:?}"
+    );
+    let actual = s.stack.x.to_f64().expect("FACT(69) must be representable");
+    assert!(
+        passes_with_tol(actual, 1.711_224_524e98_f64, WIDE_TOL),
+        "FACT(69) ≈ 1.711224524e98; got {actual}"
     );
 }
 

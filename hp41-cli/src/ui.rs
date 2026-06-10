@@ -129,7 +129,7 @@ fn render_display(app: &App, frame: &mut Frame, area: Rect) {
 }
 
 /// Get the string to show in the HP-41 display area.
-/// Priority: clock_active > stopwatch_keyboard_mode > entry_buf > prgm step > alpha > formatted X.
+/// Priority: clock_active > stopwatch_keyboard_mode > entry_buf > prgm step > display_override > alpha > (flag48 ? alpha : X).
 fn get_display_string(app: &App) -> String {
     let st = &app.state;
     // D-39.1: clock and stopwatch displays take priority over all other display modes.
@@ -151,8 +151,18 @@ fn get_display_string(app: &App) -> String {
     } else if st.prgm_mode {
         // D-14: PRGM mode shows step number + op name.
         prgm_display::format_step(st)
+    } else if let Some(ref s) = st.display_override {
+        // DISP-01 (Phase 65): VIEW/AVIEW/PROMPT writes a pre-formatted string here.
+        // CLI reads it at this priority slot, between prgm and alpha (D-06).
+        // Dismissal is core-governed (CLD / next overwrite / start of entry) — D-05.
+        s.clone()
     } else if st.alpha_mode {
         // ALPHA mode: show the ALPHA register (12-char max per format_alpha).
+        format_alpha(&st.alpha_reg)
+    } else if st.flags & (1u64 << 48) != 0 {
+        // DISP-03 (Phase 65): AON (flag 48) — at rest, show the ALPHA register
+        // instead of X. AOFF (flag 48 cleared) falls through to X (D-09, D-10).
+        // Branch sits AFTER alpha_mode so active ALPHA entry always takes priority.
         format_alpha(&st.alpha_reg)
     } else {
         // Normal mode: format X register per current display mode.
@@ -237,15 +247,24 @@ fn render_status(app: &App, frame: &mut Frame, area: Rect) {
     // D-11: pending_input prompts override normal status message
     // D-14: ALPHA mode has a standard status message
     // Phase 29 (D-29.3): modal_prompt renders via widened pending_prompt signature.
-    let base: String = if app.pending_input.is_some() || app.state.modal_prompt.is_some() {
-        pending_prompt(
-            app.pending_input.as_ref(),
-            app.state.modal_prompt.as_deref(),
-        )
-    } else if app.state.alpha_mode {
-        "ALPHA mode — Enter or A to exit".to_string()
-    } else {
-        app.message.as_deref().unwrap_or("Ready").to_string()
+    // Phase 67-02: reset escape-hatch prompt overrides all other status text.
+    let base: String = match app.reset_prompt {
+        crate::app::ResetPrompt::AwaitingTier => {
+            "Reset:  [s] soft   [f] full (MEMORY LOST)   [Esc] cancel".to_string()
+        }
+        crate::app::ResetPrompt::AwaitingFullConfirm => "MEMORY LOST? [y/n]".to_string(),
+        crate::app::ResetPrompt::None => {
+            if app.pending_input.is_some() || app.state.modal_prompt.is_some() {
+                pending_prompt(
+                    app.pending_input.as_ref(),
+                    app.state.modal_prompt.as_deref(),
+                )
+            } else if app.state.alpha_mode {
+                "ALPHA mode — Enter or A to exit".to_string()
+            } else {
+                app.message.as_deref().unwrap_or("Ready").to_string()
+            }
+        }
     };
     // Phase 25 (D-25.4 / Plan 01 / RESEARCH Open Q 5): prepend an "f→"
     // indicator when the prefix is armed AND no modal/ALPHA is active —
@@ -565,6 +584,7 @@ fn render_right_panel(_app: &App, frame: &mut Frame, area: Rect) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use hp41_core::CalcState;
     use std::path::PathBuf;
 
@@ -574,6 +594,80 @@ mod tests {
             PathBuf::from("/tmp/hp41_ui_test.json"),
             None,
         )
+    }
+
+    /// DISP-01 (Phase 65): display_override renders between prgm and alpha (D-06).
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_display_override_renders() {
+        let mut app = make_app();
+        // Set display_override (as the core does after VIEW/AVIEW/PROMPT).
+        app.state.display_override = Some("R01 1.000".into());
+        let s = super::get_display_string(&app);
+        assert_eq!(s, "R01 1.000", "display_override must be shown when Some");
+    }
+
+    /// DISP-01 fallback: with display_override = None, X register is rendered.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_display_override_none_falls_through() {
+        let app = make_app();
+        // No override set — falls through to X register.
+        let s = super::get_display_string(&app);
+        // Default X is 0; format_hpnum returns "0.000000000" in FIX 9 (default mode).
+        assert!(!s.is_empty(), "fallthrough must produce a non-empty string");
+        // Confirm display_override = None means no override rendered.
+        assert!(
+            app.state.display_override.is_none(),
+            "display_override must be None in this path"
+        );
+    }
+
+    /// DISP-03 (Phase 65): AON (flag 48) — at rest, CLI shows ALPHA register.
+    /// AOFF (flag 48 cleared) reverts to X. display_override still wins over AON.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_aon_flag48_shows_alpha_reg() {
+        let mut app = make_app();
+        // Set flag 48 (AON) and put something in alpha_reg.
+        app.state.flags |= 1u64 << 48;
+        app.state.alpha_reg = "HP41".to_string();
+        let s = super::get_display_string(&app);
+        let expected = hp41_core::format_alpha(&app.state.alpha_reg);
+        assert_eq!(
+            s, expected,
+            "AON (flag 48 set): display must show alpha_reg"
+        );
+    }
+
+    /// DISP-03 (Phase 65): AOFF (flag 48 cleared) reverts CLI display to X register.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_aoff_reverts_to_x_register() {
+        let mut app = make_app();
+        // Set then clear flag 48 — display falls through to X.
+        app.state.flags |= 1u64 << 48;
+        app.state.flags &= !(1u64 << 48);
+        app.state.alpha_reg = "HP41".to_string();
+        let s = super::get_display_string(&app);
+        let expected = hp41_core::format_hpnum(&app.state.stack.x, &app.state.display_mode);
+        assert_eq!(
+            s, expected,
+            "AOFF (flag 48 cleared): display must show X register"
+        );
+    }
+
+    /// DISP-03 (Phase 65): display_override takes precedence over AON (D-06 / D-10).
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn test_display_override_wins_over_aon() {
+        let mut app = make_app();
+        // Both flag 48 (AON) and display_override set.
+        app.state.flags |= 1u64 << 48;
+        app.state.alpha_reg = "HP".to_string();
+        app.state.display_override = Some("VIEW 1.000".into());
+        let s = super::get_display_string(&app);
+        assert_eq!(s, "VIEW 1.000", "display_override must win over AON (D-06)");
     }
 
     /// BLOCKER 1: test_help_scroll — help_table_state.select_next() must not panic.

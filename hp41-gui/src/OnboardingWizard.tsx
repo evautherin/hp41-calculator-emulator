@@ -130,6 +130,9 @@ const PANELS: PanelDef[] = [
                         </tr>
                     </tbody>
                 </table>
+                <p style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: '0.9em' }}>
+                    <strong>Recovery:</strong> ON key — tap for soft reset, long-press for full reset (MEMORY LOST).
+                </p>
             </div>
         ),
     },

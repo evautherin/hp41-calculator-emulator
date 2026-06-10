@@ -7,6 +7,7 @@ import { triggerHaptic, maybeFireErrorHaptic, ensureAudioResumed } from './hapti
 import Display14Seg from './Display14Seg';
 import HelpOverlay from './HelpOverlay';
 import SettingsPanel from './SettingsPanel';
+import ShortcutRecorder from './ShortcutRecorder';
 import OnboardingWizard from './OnboardingWizard';
 import RawPickerOverlay from './RawPickerOverlay';
 import BottomSheet from './BottomSheet';
@@ -67,6 +68,10 @@ interface CalcStateView {
   clock_active: boolean;
   stopwatch_keyboard_mode: boolean;
   stopwatch_running: boolean;
+  // Phase 63 Plan 06: yield state from run_program/resume_program (63-04 YieldView projection).
+  // Non-null when the program halted at a PSE/VIEW/AVIEW yield point; null otherwise.
+  // kind: "pse" | "view" | "aview"; text: formatted display text; resume_ms: ms to wait before resuming.
+  pending_yield: { kind: string; text: string; resume_ms: number } | null;
 }
 
 // Tauri rejects with GuiError { message: string } — String(err) yields
@@ -95,10 +100,44 @@ function extractErrMessage(err: unknown): string {
 // - Magic-prefix route: `__submit_modal_with_label__<label>` → submit_modal_with_label
 // - R/S 3-way (D-31.1): modal_program_active → submit_modal; is_running → request_cancel
 //   + get_state; else → existing run_stop.
+//
+// Phase 63 Plan 06:
+// - R/S routing extended to 4-way (D-25.6 CLI↔GUI parity):
+//   1. modal_program_active → submit_modal (unchanged)
+//   2. is_running → request_cancel + get_state (cancel long-running op; unchanged)
+//   3. stopped, no modal → run_program({ label: 'A' }) to START the GUI run loop.
+//      The yield-and-resume driver (useEffect on pending_yield) continues from here.
+//      Label "A" mirrors the CLI F5 path: app.rs run_program("A") (D-16).
+//   Branch 2 already handles "R/S while a user-LBL program is running" via cancel:
+//   the driver halts because the resumed view will have is_running=false/pending_yield=null.
+//   NOTE: the previous branch 3 (run_stop toggle) is replaced by run_program; the
+//   run_stop command is no longer reached via R/S (run_program replaces that path).
 async function invokeForKey(
   effectiveId: string,
   state: CalcStateView | null,
+  key?: KeyDef,
 ): Promise<CalcStateView> {
+  // Phase 64 Plan 04: GETKEY suspend guard (PRGM-03 / D-04 / D-11 / D-25.6).
+  // When the program is suspended on WaitForKey, route the key event to
+  // resume_program_with_key with the HP-41 hardware keyCode instead of dispatch_op.
+  //
+  // keyCode = HP-41 row×10+col code from KeyDef (Keyboard.tsx). On-screen taps pass
+  // the KeyDef directly; physical-keyboard calls resolve the def from KEY_DEFS first.
+  //
+  // Keys without keyCode (CHS, clx_or_a, xge_y, shift, top-row) have no HP-41
+  // hardware equivalent during GETKEY — the wait continues (hardware faithful: the
+  // HP-41 only captures physical calculator keys, not meta keys). An unresolved key
+  // returns Promise.resolve() to avoid leaving busyRef stuck or triggering dispatch_op.
+  if (state?.pending_yield?.kind === 'wait_for_key') {
+    const hp41Code = key?.keyCode;
+    if (hp41Code !== undefined) {
+      return invoke<CalcStateView>('resume_program_with_key', { keycode: hp41Code });
+    }
+    // No HP-41 code for this key (CHS, xge_y, shift, ON, …) — ignore; wait continues.
+    // Return a resolved Promise<CalcStateView> so callers can chain .then/.catch uniformly.
+    // Casting avoids adding an overload — caller always reads the returned view.
+    return Promise.resolve(state as CalcStateView);
+  }
   // Magic-prefix: CollectForModal Enter dispatches __submit_modal_with_label__<label>
   // (Pitfall 15 — must check BEFORE the 'r_s' branch)
   if (effectiveId.startsWith(SUBMIT_MODAL_WITH_LABEL_PREFIX)) {
@@ -108,10 +147,10 @@ async function invokeForKey(
   if (effectiveId === 'sst') return invoke<CalcStateView>('sst_step');
   if (effectiveId === 'bst') return invoke<CalcStateView>('bst_step');
   if (effectiveId === 'r_s') {
-    // D-31.1 R/S 3-way state-routed dispatch:
+    // D-31.1 / Phase-63-06 R/S 4-way state-routed dispatch:
     //   1. modal_program_active → submit_modal (advances the modal step)
-    //   2. is_running → request_cancel + get_state (cancels long-running op)
-    //   3. else → existing run_stop (R/S key toggle)
+    //   2. is_running → request_cancel + get_state (cancels long-running op or running program)
+    //   3. else (stopped, no modal) → run_program('A') — starts the GUI run loop.
     if (state?.modal_program_active) {
       return invoke<CalcStateView>('submit_modal');
     }
@@ -119,7 +158,11 @@ async function invokeForKey(
       await invoke<void>('request_cancel');
       return invoke<CalcStateView>('get_state');
     }
-    return invoke<CalcStateView>('run_stop');
+    // Branch 3: stopped, no modal → start the run loop.
+    // The yield-and-resume useEffect picks up the returned pending_yield (if any)
+    // and schedules resume_program after pending_yield.resume_ms — no polling (D-11).
+    // "A" mirrors CLI F5 path (app.rs run_program("A"), D-16).
+    return invoke<CalcStateView>('run_program', { label: 'A' });
   }
   return invoke<CalcStateView>('dispatch_op', { keyId: effectiveId });
 }
@@ -260,6 +303,10 @@ function App() {
   // From<HpError> ends up at console.error and the user sees stale state.
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const busyRef = useRef(false);
+  // Phase 63 Plan 06: single-flight guard for the yield-and-resume driver.
+  // Prevents double-scheduling when React re-renders while a setTimeout is pending.
+  // Set to true before scheduling resume_program; cleared in .finally().
+  const resumeScheduledRef = useRef(false);
   // Phase 41 D-41.2/D-41.8: live-display interval reference.
   // Holds the setInterval ID when clock_active || stopwatch_keyboard_mode is true.
   const liveTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -297,6 +344,9 @@ function App() {
   // macOS launch mode — overridden by get_prefs on mount; only meaningful on macOS.
   const [macosLaunchMode, setMacosLaunchMode] = useState<string>('menu-bar');
   const [isMacos, setIsMacos] = useState(false);
+  // macOS global hotkey accelerator (overridden by get_prefs on mount) + recorder visibility.
+  const [globalShortcut, setGlobalShortcut] = useState<string>('Control+Alt+Command+H');
+  const [recorderOpen, setRecorderOpen] = useState(false);
   const [isIos, setIsIos] = useState(false); // D-55.1 — gates touch behaviors on iOS
   // Phase 55 Plan 05 — iOS collapsible stack panel (TOUCH-10).
   // Default collapsed on iOS to give the keypad more vertical room.
@@ -329,6 +379,16 @@ function App() {
   const audioResumedRef = useRef(false);
   const errorHapticFiredRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  // Phase 67 Plan 04 — ON-key escape hatch: long-press timer + fired-flag refs.
+  // LONG_PRESS_MS: threshold for long-press vs tap (ms).
+  // longPressTimerRef: holds the setTimeout id; cleared on pointerup/cancel before firing.
+  // longPressFiredRef: set to true when the timer fires (prevents pointer-up from also
+  //   firing reset_soft — the no-double-fire guard).
+  const LONG_PRESS_MS = 600;
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  // Portaled confirm sheet visibility (MEMORY LOST warning).
+  const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
   const showToast = useCallback((msg: string) => {
     toastSeqRef.current += 1;
     setToast({ msg, seq: toastSeqRef.current });
@@ -341,6 +401,80 @@ function App() {
     const t = setTimeout(() => setToast(null), 2000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Phase 67 Plan 04 — ON-key escape hatch handlers.
+  //
+  // Design: the ON key has id='' and is filtered out by Keyboard.tsx handleKeyClick.
+  // These three pointer-event handlers are wired to dedicated `onOnPointerDown/Up/Cancel`
+  // props on <Keyboard> so the reset path never passes through handleClick → invokeForKey
+  // → key_map.resolve() / dispatch_op. This ensures the ON key works even when the core
+  // dispatch path is stuck (the whole point of the escape hatch).
+  //
+  // Long-press logic:
+  //   pointerdown → start LONG_PRESS_MS timer; if it fires → set longPressFiredRef, open sheet.
+  //   pointerup (before timer fires) → clear timer, invoke reset_soft (tap path).
+  //   pointerup (after timer fires) → longPressFiredRef is true → clear flag, do nothing
+  //     (no-double-fire guard: sheet is already open from the timer callback).
+  //   pointercancel → clear timer unconditionally, do not invoke reset_soft.
+  //
+  // On reset: clear shiftActive + pendingInput (ALPHA modal / waiting-for-key UI).
+  // Both reset invokes refresh the view from the returned CalcStateView (setState).
+  const handleOnPointerDown = useCallback(() => {
+    if (busyRef.current) return;
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      longPressTimerRef.current = null;
+      setConfirmSheetOpen(true);
+    }, LONG_PRESS_MS);
+  }, []);
+
+  const handleOnPointerUp = useCallback(() => {
+    if (longPressFiredRef.current) {
+      // Long-press fired — sheet is open; do NOT also fire reset_soft (no-double-fire guard).
+      longPressFiredRef.current = false;
+      return;
+    }
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    // Tap path: invoke reset_soft.
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setShiftActive(false);
+    setPendingInput(null);
+    invoke<CalcStateView>('reset_soft')
+      .then(view => { setCalcState(view); setErrorMessage(null); })
+      .catch(err => showToast(extractErrMessage(err)))
+      .finally(() => { busyRef.current = false; });
+  }, [showToast]);
+
+  const handleOnPointerCancel = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressFiredRef.current = false;
+  }, []);
+
+  // Confirm full reset from the MEMORY LOST sheet.
+  const handleConfirmFullReset = useCallback(() => {
+    setConfirmSheetOpen(false);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setShiftActive(false);
+    setPendingInput(null);
+    invoke<CalcStateView>('reset_full')
+      .then(view => { setCalcState(view); setErrorMessage(null); })
+      .catch(err => showToast(extractErrMessage(err)))
+      .finally(() => { busyRef.current = false; });
+  }, [showToast]);
+
+  // Cancel from the MEMORY LOST sheet — close sheet, no invoke.
+  const handleCancelFullReset = useCallback(() => {
+    setConfirmSheetOpen(false);
+  }, []);
 
   // Phase 48 D-48.13 — theme change handler.
   // Applies theme instantly via CSS variable system + gradient prop, then
@@ -362,6 +496,23 @@ function App() {
       // Persistence failure is non-fatal — the choice is re-applied on next change.
     });
   }, []);
+
+  // macOS global hotkey — open the recorder overlay from Settings.
+  const handleRecordShortcut = useCallback(() => {
+    setSettingsOpen(false);
+    setRecorderOpen(true);
+  }, []);
+
+  // Persist + register the captured accelerator. The backend is the validator: it
+  // parses and registers the hotkey, so the displayed value only updates on success.
+  // An accelerator the Rust parser rejects (or that the OS won't register) leaves the
+  // current hotkey unchanged and surfaces a toast.
+  const handleShortcutConfirm = useCallback((accel: string) => {
+    setRecorderOpen(false);
+    invoke('set_pref', { key: 'global_shortcut', value: accel })
+      .then(() => setGlobalShortcut(accel))
+      .catch(() => showToast('Shortcut not available'));
+  }, [showToast]);
 
   // Phase 49 ONBOARD-01/ONBOARD-05 — close handler for the onboarding wizard.
   // Marks onboarding_done=true via fire-and-forget IPC (D-48.13 pattern).
@@ -529,6 +680,52 @@ function App() {
     needsTickRef.current = needsTick;
   }, [needsTick]);
 
+  // Phase 63 Plan 06: Yield-and-resume driver (D-11 no-polling, D-25.6 CLI↔GUI parity).
+  //
+  // Fires whenever calcState updates. If pending_yield is non-null and no resume is
+  // already scheduled (resumeScheduledRef guards double-scheduling), schedules a single
+  // invoke('resume_program') after pending_yield.resume_ms. The returned view is set
+  // via setCalcState, which re-renders and re-fires this effect — if the new view also
+  // has pending_yield the loop continues; it terminates when pending_yield is null.
+  //
+  // The loop is driven entirely by RETURN VALUES (run_program → pending_yield → timeout →
+  // resume_program → pending_yield → … → pending_yield null) — no get_state polling (D-11).
+  //
+  // Compute-loop alarm note: a no-yield program that triggers an interrupting alarm runs
+  // entirely server-side in one run_program call (Phase-C check_alarms fires inside
+  // run_loop, the interrupt handler executes, ack-after-RTN fires, program continues).
+  // run_program returns once with pending_yield=null, is_running=false — no TS branch needed.
+  //
+  // Phase 64 Plan 04: WaitForKey guard (PRGM-03 / D-11 / D-25.6).
+  // When kind === 'wait_for_key', this yield is event-driven — no timer should fire.
+  // Resume is triggered by a key event (on-screen tap or physical keyboard) via
+  // invokeForKey / handleKey routing to resume_program_with_key. Returning early here
+  // prevents the setTimeout(resume_ms=0) path from running, which would call the
+  // timer-based resume_program and bypass the keycode delivery.
+  useEffect(() => {
+    if (!calcState?.pending_yield) return;
+    if (calcState.pending_yield.kind === 'wait_for_key') return; // Phase 64: event-driven — key events trigger resume, not a timer
+    if (resumeScheduledRef.current) return;
+    resumeScheduledRef.current = true;
+    const { resume_ms } = calcState.pending_yield;
+    setTimeout(() => {
+      invoke<CalcStateView>('resume_program')
+        .then(view => {
+          setCalcState(view);
+          setErrorMessage(null);
+        })
+        .catch(err => {
+          showToast(extractErrMessage(err));
+          // A program that printed (PRA/PRX) before erroring returns Err with no
+          // view, so its buffered print/event lines would otherwise surface only on
+          // the next unrelated drain. get_state drains both buffers now, delivering
+          // those lines to the print log immediately after the error toast.
+          invoke<CalcStateView>('get_state').then(setCalcState).catch(() => {});
+        })
+        .finally(() => { resumeScheduledRef.current = false; });
+    }, resume_ms);
+  }, [calcState, showToast]);
+
   // Mount: load initial state via get_state (D-11 — no polling)
   useEffect(() => {
     invoke<CalcStateView>('get_state')
@@ -575,11 +772,12 @@ function App() {
   // NEVER in autosave.json). Silently falls back to 'dark' and opens wizard if prefs.json
   // is missing (first-run fallback — D-49.4 / RESEARCH Pitfall 3).
   useEffect(() => {
-    invoke<{ theme: string; onboarding_done: boolean; macos_launch_mode: string }>('get_prefs')
+    invoke<{ theme: string; onboarding_done: boolean; macos_launch_mode: string; global_shortcut: string }>('get_prefs')
       .then(prefs => {
         setTheme(prefs.theme);
         document.body.dataset.theme = prefs.theme;
         setMacosLaunchMode(prefs.macos_launch_mode);
+        setGlobalShortcut(prefs.global_shortcut);
         if (!prefs.onboarding_done) {
           // First launch: auto-open wizard in first-run mode (Esc blocked per D-49.9).
           setIsFirstRun(true);
@@ -628,7 +826,14 @@ function App() {
         setErrorMessage(null);
         void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
       })
-      .catch(err => showToast(extractErrMessage(err)))
+      .catch(err => {
+        showToast(extractErrMessage(err));
+        // R/S (run_program) and GETKEY (resume_program_with_key) route through here:
+        // a program that printed before erroring returns Err with no view, so flush
+        // its buffered print/event lines now via get_state (drains both buffers)
+        // rather than letting them surface on the next unrelated drain.
+        invoke<CalcStateView>('get_state').then(setCalcState).catch(() => {});
+      })
       .finally(() => { busyRef.current = false; });
   }, [calcState, isIos, showToast]);
 
@@ -842,7 +1047,8 @@ function App() {
         const targetId = alphaOn ? 'alpha_backspace' : 'entry_backspace';
         view = await invoke<CalcStateView>('dispatch_op', { keyId: targetId });
       } else {
-        view = await invokeForKey(effectiveId, calcState);
+        // Phase 64: pass the full KeyDef so invokeForKey can read keyCode during WaitForKey suspend.
+        view = await invokeForKey(effectiveId, calcState, key);
       }
       setCalcState(view);
       setErrorMessage(null);
@@ -922,6 +1128,22 @@ function App() {
         if (!busyRef.current) {
           busyRef.current = true;
           invoke<CalcStateView>('cancel_modal')
+            .then(view => { setCalcState(view); setErrorMessage(null); })
+            .catch(err => showToast(extractErrMessage(err)))
+            .finally(() => { busyRef.current = false; });
+        }
+        return;
+      }
+      // Phase 64 Plan 04: GETKEY cancel path (PRGM-03 / D-02).
+      // During a WaitForKey suspend, Esc pushes the no-key sentinel (keycode 0)
+      // and resumes the program. is_running is false during WaitForKey (the program
+      // is suspended waiting for a key event, not running), so this check MUST come
+      // before the is_running branch to be reachable. D-07: the cancel is surfaced
+      // sensibly (resume with sentinel 0) rather than silently dropped.
+      if (calcState?.pending_yield?.kind === 'wait_for_key') {
+        if (!busyRef.current) {
+          busyRef.current = true;
+          invoke<CalcStateView>('resume_program_with_key', { keycode: 0 })
             .then(view => { setCalcState(view); setErrorMessage(null); })
             .catch(err => showToast(extractErrMessage(err)))
             .finally(() => { busyRef.current = false; });
@@ -1073,6 +1295,31 @@ function App() {
       return;
     }
 
+    // Phase 64 Plan 04: physical-keyboard GETKEY guard (PRGM-03 / D-04 / D-25.6).
+    // During a WaitForKey suspend, physical key events must resume the program with
+    // the HP-41 hardware keyCode rather than dispatching the normal op.
+    //
+    // Look up the KeyDef for the resolved id to read its HP-41 keyCode. Keys without
+    // a keyCode (CHS, clx_or_a, xge_y, shift variants, top-row) have no HP-41
+    // hardware equivalent during GETKEY — the wait continues (hardware faithful).
+    //
+    // Note: Esc is handled above in the Esc precedence block (sentinel 0); this
+    // guard only fires for non-Esc physical keys. busyRef guard above already ran.
+    if (calcState?.pending_yield?.kind === 'wait_for_key') {
+      const matchedDef = KEY_DEFS.find(k => k.id === keyId);
+      const hp41Code = matchedDef?.keyCode;
+      if (hp41Code !== undefined) {
+        e.preventDefault();
+        busyRef.current = true;
+        invoke<CalcStateView>('resume_program_with_key', { keycode: hp41Code })
+          .then(view => { setCalcState(view); setErrorMessage(null); })
+          .catch(err => showToast(extractErrMessage(err)))
+          .finally(() => { busyRef.current = false; });
+      }
+      // No HP-41 code for this key → ignore; wait continues.
+      return;
+    }
+
     e.preventDefault();
     dispatchKeyId(keyId);
   }, [calcState, dispatchKeyId, pendingInput, shiftActive, applyModalResult, helpOpen, settingsOpen, onboardingOpen, isFirstRun, handleOnboardingClose, showToast, importRawDialog, exportRawDialog, importDataDialog, exportDataDialog]);
@@ -1138,9 +1385,21 @@ function App() {
   // the projection contract; the event_buffer schema stays the same.
   //
   // Phase 41 D-41.6: extended to parse alarm event prefixes from hp41-core alarm.rs:
-  //   "alarm:message:{text}" → showToast with prefix stripped (shows only alarm text)
-  //   "alarm:xeq:{label}"   → invoke dispatch_op xeq_{label} (control alarm XEQ target)
-  //   other lines            → showToast as before (BEEP/TONE/etc.)
+  //   "alarm:message:{text}"  → showToast with prefix stripped (shows only alarm text)
+  //   "alarm:xeq:{label}"     → invoke run_program({ label }) (SC-3 parity: executes user-LBL
+  //                              programs, not just builtins; returned pending_yield composes
+  //                              with the yield-and-resume useEffect above — D-11 no-polling)
+  //   "alarm:missing:{label}" → showToast "Alarm XEQ {label}: label not found" (D-08/D-07)
+  //   other lines             → showToast as before (BEEP/TONE/etc.)
+  // Phase 63 Plan 06: the D-38.4 "interrupting alarms deferred" silent-ignore arm has
+  // been removed — interrupting control alarms now execute entirely server-side inside
+  // run_program/resume_program via Phase-C check_alarms + interrupt boundary; they no
+  // longer arrive as event_buffer lines.
+  // alarm:missing added: missing interrupt handler label surfaces as toast (D-07/D-08).
+  // SC-3 / CR-01 (gap closure): alarm:xeq now uses run_program so that user-LBL targets
+  // execute correctly when the calculator is idle. The previous dispatch_op(xeq_…) call
+  // resolved only card-reader/XROM builtins and returned InvalidOp for user programs,
+  // producing a silent toast error — a D-25.6 parity gap vs. the CLI run_program path.
   useEffect(() => {
     if (calcState && calcState.event_buffer.length > 0) {
       for (const line of calcState.event_buffer) {
@@ -1151,12 +1410,18 @@ function App() {
           const label = line.slice('alarm:xeq:'.length);
           if (busyRef.current) continue;
           busyRef.current = true;
-          invoke<CalcStateView>('dispatch_op', { keyId: `xeq_${label}` })
+          // SC-3 fix: call run_program (not dispatch_op) so idle-fired control alarms
+          // whose label is a user LBL execute correctly — D-25.6 CLI↔GUI parity.
+          // The returned CalcStateView is applied via setCalcState; if pending_yield is
+          // non-null the existing yield-and-resume useEffect above picks it up and
+          // schedules resume_program — no duplicated scheduling, no polling (D-11).
+          invoke<CalcStateView>('run_program', { label })
             .then(view => { setCalcState(view); setErrorMessage(null); })
             .catch(err => showToast(extractErrMessage(err)))
             .finally(() => { busyRef.current = false; });
-        } else if (line.startsWith('alarm:interrupting:')) {
-          // D-38.4: interrupting control alarms deferred — silently ignore.
+        } else if (line.startsWith('alarm:missing:')) {
+          // D-07 never-discard / D-08: missing interrupt handler label → surface as toast.
+          showToast(`Alarm XEQ ${line.slice('alarm:missing:'.length)}: label not found`);
         } else {
           showToast(line);
         }
@@ -1240,10 +1505,13 @@ function App() {
   // and cleared by the next op) over `calcState.display_str`. Without this
   // the backend's display_override projection is wired through IPC but the
   // React render path drops it — AVIEW / PROMPT / VIEW produce no visible
-  // effect. Precedence order: modal preview > display_override > display_str.
+  // effect.
+  // Phase 63 Plan 06 D-04: pending_yield.text sits ABOVE display_str but BELOW
+  // modal preview; does NOT route through display_override (D-04 deferred).
+  // Precedence order: modal preview > pending_yield.text > display_override > display_str.
   const displayText: string = pendingInput
     ? renderModalLcd(pendingInput)
-    : (calcState.display_override ?? calcState.display_str);
+    : (calcState.pending_yield?.text ?? calcState.display_override ?? calcState.display_str);
 
   return (
     <div
@@ -1280,7 +1548,16 @@ function App() {
           isMacos={isMacos}
           currentLaunchMode={macosLaunchMode}
           onLaunchModeChange={handleLaunchModeChange}
+          globalShortcut={globalShortcut}
+          onRecordShortcut={handleRecordShortcut}
         />
+        {isMacos && recorderOpen && (
+          <ShortcutRecorder
+            current={globalShortcut}
+            onConfirm={handleShortcutConfirm}
+            onCancel={() => setRecorderOpen(false)}
+          />
+        )}
       </div>
       <div className="annunciators">
         {annunciatorNames.map(name => (
@@ -1350,6 +1627,9 @@ function App() {
         userKeymap={calcState.user_keymap}
         gradientColors={THEME_GRADIENTS[theme] || THEME_GRADIENTS['dark']}
         isIos={isIos}
+        onOnPointerDown={handleOnPointerDown}
+        onOnPointerUp={handleOnPointerUp}
+        onOnPointerCancel={handleOnPointerCancel}
         onPointerDown={(key) => {
           // Phase 55 Plan 03: per-key haptics + audio resume (TOUCH-05, TOUCH-06, TOUCH-08).
           // Both calls are iOS-gated and silently catch on desktop.
@@ -1439,6 +1719,41 @@ function App() {
         onClose={handleOnboardingClose}
         isFirstRun={isFirstRun}
       />
+      {/* Phase 67 Plan 04 — ON-key MEMORY LOST confirm sheet.
+          Portaled to document.body so the `transform: scale()` ancestor
+          (.scaled-app-frame) is NOT the containing block for position:fixed —
+          otherwise the sheet would be clipped/offset on iOS (ADR-v4.1-005,
+          reference_ios_gui_layout_gotchas). Same portal pattern as the print
+          bottom sheet (line ~1666 above). Only rendered when confirmSheetOpen
+          is true. */}
+      {confirmSheetOpen && createPortal(
+        <div
+          className="on-key-confirm-overlay"
+          data-testid="memory-lost-sheet"
+        >
+          <div className="on-key-confirm-sheet">
+            <p className="on-key-confirm-title">MEMORY LOST</p>
+            <p className="on-key-confirm-body">
+              MEMORY LOST — delete all programs, registers and files?
+            </p>
+            <div className="on-key-confirm-buttons">
+              <button
+                className="on-key-confirm-btn on-key-confirm-btn--cancel"
+                onClick={handleCancelFullReset}
+              >
+                Cancel
+              </button>
+              <button
+                className="on-key-confirm-btn on-key-confirm-btn--confirm"
+                onClick={handleConfirmFullReset}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

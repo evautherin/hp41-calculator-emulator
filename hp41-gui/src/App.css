@@ -1118,3 +1118,132 @@
   color: var(--display-text);
   border: 1px solid var(--display-text);
 }
+
+/* ── Global-shortcut recorder overlay (macOS hotkey config) ──────────────── */
+/* Portaled to document.body; z-index above the settings popover (70) and overlays (60). */
+.shortcut-recorder-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.shortcut-recorder {
+  min-width: 260px;
+  max-width: 320px;
+  padding: 20px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.shortcut-recorder-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.shortcut-recorder-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.shortcut-recorder-preview {
+  margin: 0 0 18px;
+  padding: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--display-text);
+  background: var(--display-bg, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  min-height: 28px;
+}
+
+.shortcut-recorder-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.shortcut-recorder-actions .settings-action-btn {
+  text-align: center;
+}
+
+/* ── Phase 67 Plan 04 — ON-key MEMORY LOST confirm sheet ──────────────── */
+/* Portaled to document.body — position:fixed is safe here because the
+   portal escapes the transform:scale ancestor (.scaled-app-frame) that
+   would otherwise become the containing block on iOS (ADR-v4.1-005). */
+.on-key-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.on-key-confirm-sheet {
+  background: var(--calc-body, #2a2a2a);
+  border: 1px solid #555;
+  border-radius: 10px;
+  padding: 24px 20px 18px;
+  width: min(320px, 90vw);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  text-align: center;
+}
+
+.on-key-confirm-title {
+  font: bold 18px/1.3 monospace;
+  color: var(--toast-text, #f0e040);
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+}
+
+.on-key-confirm-body {
+  font: 13px/1.5 monospace;
+  color: var(--display-fg, #e8e8e8);
+  margin: 0 0 20px;
+}
+
+.on-key-confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.on-key-confirm-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 6px;
+  font: bold 13px/1 monospace;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.on-key-confirm-btn--cancel {
+  background: #444;
+  color: #ccc;
+}
+
+.on-key-confirm-btn--cancel:hover {
+  background: #555;
+}
+
+.on-key-confirm-btn--confirm {
+  background: #8b1a1a;
+  color: #f5e0e0;
+}
+
+.on-key-confirm-btn--confirm:hover {
+  background: #a52020;
+}

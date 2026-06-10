@@ -11,7 +11,7 @@
 #![allow(clippy::unwrap_used)]
 
 use hp41_core::ops::program::{resume_program, run_program};
-use hp41_core::ops::{dispatch, Op};
+use hp41_core::ops::Op;
 use hp41_core::{format_hpnum, CalcState, DisplayMode, HpError, HpNum};
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -126,12 +126,19 @@ fn test_resume_program_preserves_call_stack() {
     assert_eq!(state.call_stack, vec![123usize, 456usize]);
 }
 
-// ── FN-PROG-02: PSE writes both channels ────────────────────────────────────
+// ── FN-PROG-02: PSE — Phase 63 yield-and-resume (PRGM-01 / D-04) ───────────
+//
+// Phase 63 changed Op::Pse mid-run behavior: run_loop now breaks and sets
+// `pending_yield` instead of writing `display_override` + pushing "PAUSE 1000".
+// The old display_override + event_buffer path survives ONLY for interactive
+// (non-program) PSE keystrokes, handled by execute_op in dispatch().
 
 #[test]
 fn test_pse_writes_both_channels() {
+    // Phase 63: run_loop intercepts Op::Pse and breaks with pending_yield.
+    // display_override is NOT written (D-04: DISP-01 deferred to v4.4).
+    // "PAUSE 1000" event marker is NOT pushed (replaced by typed yield channel).
     let mut state = CalcState::new();
-    // Force a known display mode so the formatted string is predictable.
     state.display_mode = DisplayMode::Fix(4);
     state.program = vec![
         Op::Lbl("A".to_string()),
@@ -141,79 +148,111 @@ fn test_pse_writes_both_channels() {
 
     run_program(&mut state, "A").unwrap();
 
+    // Phase 63: display_override must NOT be written by the program-path PSE (D-04).
+    assert!(
+        state.display_override.is_none(),
+        "Phase 63: display_override must NOT be written by program-path PSE (D-04)"
+    );
+    // Phase 63: no legacy "PAUSE 1000" marker — typed pending_yield channel instead.
+    assert!(
+        !state.event_buffer.iter().any(|e| e == "PAUSE 1000"),
+        "Phase 63: 'PAUSE 1000' must NOT be in event_buffer (replaced by pending_yield)"
+    );
+    // Phase 63: pending_yield must be set with kind=Pse.
+    let py = state
+        .pending_yield
+        .as_ref()
+        .expect("pending_yield must be Some after PSE");
+    assert!(
+        matches!(py.kind, hp41_core::state::YieldKind::Pse),
+        "pending_yield kind must be Pse"
+    );
+    // text must contain the formatted X value.
     let expected = format_hpnum(
         &HpNum::rounded(Decimal::from_str("1.23").unwrap()),
         &DisplayMode::Fix(4),
     );
     assert_eq!(
-        state.display_override.as_deref(),
-        Some(expected.as_str()),
-        "display_override must equal format_hpnum(X) at PSE time"
+        py.text, expected,
+        "pending_yield.text must be format_hpnum(X)"
     );
-    assert!(
-        state.event_buffer.iter().any(|e| e == "PAUSE 1000"),
-        "event_buffer must contain 'PAUSE 1000' (got {:?})",
-        state.event_buffer
-    );
+    assert_eq!(py.resume_ms, hp41_core::state::PSE_RESUME_MS);
 }
 
-// ── Pitfall 3 sentinel: PSE's display_override survives next step ───────────
+// ── Pitfall 3 sentinel: PSE breaks run_loop — steps after PSE do NOT run ────
 
 #[test]
 fn test_pse_display_override_survives_next_program_step() {
+    // Phase 63: PSE breaks run_loop. Steps AFTER PSE do not execute until
+    // resume_program is called. This test verifies the break (not display survival).
     let mut state = CalcState::new();
     state.display_mode = DisplayMode::Fix(4);
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::PushNum(HpNum::rounded(Decimal::from_str("1.23").unwrap())),
         Op::Pse,
-        Op::PushNum(HpNum::from(5i32)),
+        Op::PushNum(HpNum::from(5i32)), // must NOT execute before resume
     ];
 
     run_program(&mut state, "A").unwrap();
 
-    // run_loop calls execute_op directly (NOT dispatch), so the dispatch-top
-    // display_override = None clear does NOT fire between iterations. The
-    // PSE write therefore survives the subsequent PushNum step.
-    let expected_pse = format_hpnum(
-        &HpNum::rounded(Decimal::from_str("1.23").unwrap()),
-        &DisplayMode::Fix(4),
-    );
+    // Phase 63: PSE breaks run_loop, so the subsequent PushNum(5) did NOT run.
+    // X must still be 1.23 (the push that happened before PSE).
+    let expected_pse_x = HpNum::rounded(Decimal::from_str("1.23").unwrap());
     assert_eq!(
-        state.display_override.as_deref(),
-        Some(expected_pse.as_str()),
-        "display_override from PSE must survive subsequent run_loop iterations"
+        state.stack.x, expected_pse_x,
+        "Phase 63: PSE breaks run_loop; subsequent PushNum(5) must not have run yet"
     );
-    // X still ends as 5 from the final PushNum.
-    assert_eq!(state.stack.x, HpNum::from(5i32));
+    // pending_yield must be set (program is paused at PSE).
+    assert!(
+        state.pending_yield.is_some(),
+        "Phase 63: pending_yield must be Some (program paused at PSE)"
+    );
+    // display_override must NOT be written.
+    assert!(
+        state.display_override.is_none(),
+        "Phase 63: display_override must NOT be written by program-path PSE (D-04)"
+    );
 }
 
 // ── Pitfall 3 sentinel: next interactive dispatch clears display_override ───
+//
+// Phase 63: PSE no longer writes display_override during program execution.
+// This test verifies resume_program clears pending_yield and continues execution.
 
 #[test]
 fn test_pse_display_override_cleared_by_next_dispatch() {
+    // Phase 63: PSE sets pending_yield and breaks. resume_program clears pending_yield.
     let mut state = CalcState::new();
     state.display_mode = DisplayMode::Fix(4);
     state.program = vec![
         Op::Lbl("A".to_string()),
         Op::PushNum(HpNum::from(7i32)),
         Op::Pse,
+        Op::PushNum(HpNum::from(42i32)), // runs after resume
     ];
 
     run_program(&mut state, "A").unwrap();
     assert!(
-        state.display_override.is_some(),
-        "PSE must have written display_override"
+        state.pending_yield.is_some(),
+        "Phase 63: PSE must set pending_yield (program paused)"
     );
-
-    // Next interactive dispatch — any op — clears display_override via the
-    // mod.rs dispatch-top clear. This is Phase 21's Pitfall 5 in action.
-    dispatch(&mut state, Op::Add).ok();
-    // Don't care if Op::Add errors (stack may be partial) — the clear happens
-    // BEFORE the op runs, at the top of dispatch().
     assert!(
         state.display_override.is_none(),
-        "next dispatch must clear display_override (HP-41 'value visible until next key')"
+        "Phase 63: display_override must NOT be written by program-path PSE (D-04)"
+    );
+
+    // Resume — pending_yield is cleared and execution continues.
+    resume_program(&mut state).unwrap();
+    assert!(
+        state.pending_yield.is_none(),
+        "pending_yield must be cleared after resume_program"
+    );
+    // PushNum(42) ran after resume — X = 42.
+    assert_eq!(
+        state.stack.x,
+        HpNum::from(42i32),
+        "PushNum(42) must have run after resume_program"
     );
 }
 

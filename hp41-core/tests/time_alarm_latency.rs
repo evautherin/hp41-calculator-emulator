@@ -112,7 +112,11 @@ fn alarm_latency_control_alarm_fires_in_one_cycle() {
 }
 
 /// Past-due interrupting control alarm fires in one check_alarms call.
-/// event_buffer must contain "alarm:interrupting:deferred" (D-38.4).
+///
+/// Phase 63 routing (D-13 / idle path): when is_running=false (default),
+/// an interrupting alarm is demoted to `alarm:xeq:{label}` on event_buffer
+/// (same as a non-interrupting alarm). The old `"alarm:interrupting:deferred"`
+/// dead-end stub was removed in Phase 63 Plan 01.
 #[test]
 fn alarm_latency_interrupting_control_fires_in_one_cycle() {
     let mut state = CalcState::new();
@@ -132,11 +136,11 @@ fn alarm_latency_interrupting_control_fires_in_one_cycle() {
         state.alarms[0].past_due,
         "Interrupting control alarm must be marked past_due after one cycle"
     );
+    // Phase 63 idle path (D-13): interrupting alarm with is_running=false routes
+    // to alarm:xeq:{label} on event_buffer (not the old "alarm:interrupting:deferred" stub).
     assert!(
-        state
-            .event_buffer
-            .contains(&"alarm:interrupting:deferred".to_string()),
-        "event_buffer must contain alarm:interrupting:deferred; got: {:?}",
+        state.event_buffer.contains(&"alarm:xeq:IPROG".to_string()),
+        "Phase 63: idle interrupting alarm must queue as alarm:xeq:IPROG; got: {:?}",
         state.event_buffer
     );
 }

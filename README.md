@@ -167,7 +167,7 @@ The GUI and CLI share state via `~/.hp41/autosave.json` — they auto-save every
 A small set of deliberate behavioral divergences from the real HP-41C/CV/CX; each is recorded as a per-row `divergences` entry in the [function matrix](docs/hp41cv-function-matrix.md):
 
 - **PI** — 10-digit rounded value (`3.141592654`); hardware uses the same internal 10-digit precision.
-- **FACT** — effective cap at X ≤ 26 (Decimal-range overflow at n=27 via the `Decimal::from_f64` wall, calibrated by Phase 27 proptest); HP-41 caps at X ≤ 69. X in 27..=69 returns `Overflow`.
+- **FACT** — implemented (v4.3): FACT(27..=69) returns the correct factorial in scientific notation (10 significant digits) via `HpNum::from_f64` large-exponent form; HP-41 caps at X ≤ 69. Prior to v4.3 X in 27..=69 returned `Overflow` (now fixed, FGAP-03 / Phase 65).
 - **CLP** — boundary is the next `LBL` marker; HP-41 uses `END` / `.END.` markers (not present in our flat-Vec program model).
 - **PACK** — no-op; HP-41 compacts program memory (we have no gaps to compact in the flat-Vec model).
 - **POSA** — single-char only; multi-char POSA is deferred to v3.x (requires typed-stack shadow channel).

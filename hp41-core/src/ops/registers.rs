@@ -140,10 +140,22 @@ pub fn op_clreg(state: &mut CalcState) -> Result<(), HpError> {
 
 // ── Phase 12: Synthetic Programming ──────────────────────────────────────────
 
-/// GETKEY — push the last HP-41 row-column key code to X. LiftEffect::Enable.
-/// Reads `state.last_key_code` (u8) — default 0 when no key has been pressed yet.
+/// GETKEY — push the HP-41 row×col key code to X. LiftEffect::Enable.
+///
+/// **Interactive path (Phase 64, PRGM-03):** when called from `run_loop` after a
+/// `WaitForKey` yield, the keycode is delivered via `state.getkey_captured_code`
+/// (set by `resume_program_with_key`). `.take()` consumes the field exactly once.
+///
+/// **Non-program (interactive) dispatch path:** reads `state.last_key_code` as
+/// before (backward-compat — `test_getkey_pushes_last_key_code` / PRGM-03-h).
 pub fn op_getkey(state: &mut CalcState) -> Result<(), HpError> {
-    let code = HpNum::from(state.last_key_code as i32);
+    let code = if let Some(captured) = state.getkey_captured_code.take() {
+        // Interactive program path: keycode delivered by resume_program_with_key.
+        HpNum::from(captured as i32)
+    } else {
+        // Non-program (interactive) dispatch: reads last_key_code as before.
+        HpNum::from(state.last_key_code as i32)
+    };
     state.stack.lift_enabled = true; // GETKEY always lifts (produces a new value)
     enter_number(state, code);
     apply_lift_effect(state, LiftEffect::Enable);

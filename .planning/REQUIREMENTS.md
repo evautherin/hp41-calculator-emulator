@@ -1,0 +1,97 @@
+# Requirements: HP-41 Calculator Emulator — v4.3 Hardware Fidelity
+
+**Defined:** 2026-06-06
+**Core Value:** Faithful HP-41 RPN fidelity — the four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to the original hardware; everything else is secondary.
+
+**Milestone goal:** Close the remaining *genuine* behavioral gaps between the emulator and real HP-41CX hardware. The emulator is feature-complete at v4.0; **no new calculator functions or modules** are added. The anchor is interrupting control-alarm execution (engine re-entrancy, D-40-04); the rest is an audit-selected set of fixable divergences. Deliberately-accepted divergences and intentional extensions are out of scope by design. Audit: `.planning/research/SUMMARY.md` + `DIVERGENCE-AUDIT.md`.
+
+**Architectural note:** The anchor (ALARM-*) and the program-visibility gaps (PRGM-*) share one root cause — `hp41-core`'s `run_loop` runs a program to completion with no yield/interrupt points. The recommended design adds a synchronous pending-interrupt check at the existing run-loop boundary (reusing the call-stack / Xeq / PROMPT-resume machinery — no threads, no new `Op` variants). See `ARCHITECTURE.md`.
+
+## v4.3 Requirements
+
+Requirements for this milestone. Each maps to a roadmap phase.
+
+### Control Alarms (anchor — D-40-04)
+
+- [x] **ALARM-01**: The control-alarm `>` / `>>` prefix semantics are verified against the primary OM (HP 00041-90035 §XYZALM) and the behavioral contract is locked, resolving which prefix interrupts a running program (the audit surfaced a possible inversion between the code's `interrupting` flag and the OM). *Gates ALARM-02/03.*
+- [x] **ALARM-02**: A control alarm that comes due while a program is running interrupts it at the next instruction boundary, XEQs the alarm's stored label program (in the interrupted program's register environment), and resumes the interrupted program when the alarm program completes.
+- [x] **ALARM-03**: An interrupting control alarm respects the 4-level subroutine call-stack limit (suppressed and left past-due at depth 4) and cannot re-interrupt itself; `is_running` and call-stack integrity are preserved on every path (including errors). Idle-fired control alarms continue to execute via the existing path, unchanged.
+
+### Program-Execution Visibility (run-loop yield family)
+
+- [x] **PRGM-01**: PSE during program execution pauses the display for ~1 second before continuing to the next step (CLI and GUI). *(FGAP-01)*
+- [x] **PRGM-02**: VIEW and AVIEW during a running program display their value briefly (PSE-like) before the next step, rather than only after the program ends. *(FGAP-10)*
+- [x] **PRGM-03**: GETKEY inside a running program pauses execution, waits for the next key press, pushes that key's HP-41 row×col code to X, and resumes (returns the no-key sentinel only when appropriate). *(FGAP-04; subsumes FGAP-08)*
+
+### Display & Entry Fidelity
+
+- [x] **DISP-01**: The CLI shows VIEW / AVIEW / PROMPT register and ALPHA values on the display (it currently never reads `display_override`). *(FGAP-02)*
+- [x] **DISP-02**: CHS during active number entry (mantissa, no EEX) toggles the sign of the entry buffer in place, without flushing the entry to the stack or lifting it. *(FGAP-05)*
+- [x] **DISP-03**: AON causes the ALPHA register to display automatically after every operation while active; AOFF disables it. *(FGAP-07)*
+
+### Calculation Fidelity
+
+- [x] **MATH-01**: FACT(X) for X in 27..=69 returns the correct factorial value in scientific notation (clipped to 10 significant digits) instead of an Overflow error. *(FGAP-03; `hp41-core/src/ops/math.rs` — outside the frozen `math1/`)*
+
+### Verification (fix-if-confirmed)
+
+- [x] **VERIFY-01**: Verify the three uncertain behaviors against the OM / a trusted reference and fix only those confirmed divergent; document any that are already correct: (a) ← clears an error display *(UNC-01)*, (b) flags 21/25 gating PRX/PRA/PRSTK printing *(UNC-02)*, (c) SIZE reduction showing "MEMORY LOST" on the display *(UNC-03)*.
+
+### Resilience & Recovery (escape hatch — reopened addition)
+
+- [x] **RESET-01**: A user whose calculator is stuck in an input-blocking state that survives an app restart (the shared autosave reloads the blocking state) recovers in-app via a two-tier reset, without reinstalling. Both tiers run **outside** the key→Op dispatch path (so they work when dispatch itself is stuck) and overwrite the shared autosave **synchronously** (so recovery survives relaunch). A **soft reset** (`CalcState::soft_reset()`; GUI/iOS ON-tap, CLI `Ctrl+R`→`s`) clears all transient working state and every input-trapping mode/field (stack/LastX, in-progress entry, `display_override`, PRGM/USER/modal/matrix-edit modes, `is_running`/`pc`/`call_stack`, Phase 63/64 pending fields) while **preserving** stored user data (program, numbered/text registers, flags, key assignments, X-MEM, XROM modules, Time/Advantage state). A **full reset / MEMORY LOST** (`CalcState::memory_lost()` ≡ `CalcState::new()`; GUI/iOS ON long-press + confirm, CLI `Ctrl+R`→`f`→y/n) restores factory state. Reset is **not** an `Op` (no 4-way exhaustive-match) and is not added to the function-JSON pools; the intentional divergence from hardware ON power-toggle semantics (real ON preserves Continuous Memory) is recorded in an ADR + a `docs/hp41-*-divergences.md` entry. *(Design spec: `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`)*
+
+## Future Requirements
+
+Deferred to a follow-up milestone (v4.4). Tracked but not in this roadmap. Both are L-effort structural members of the same `run_loop`-yield family, deferred to keep v4.3 focused.
+
+### Interactive Catalog
+
+- **CATSCROLL-01**: CATALOG 1 scrolls through the program listing interactively, with R/S to stop and SST/BST to step. *(FGAP-06)*
+
+### Extended-Memory File Fidelity
+
+- **XMEMFILE-01**: PURFL / CLFL are implemented so SAVEP/SAVED raise "DUP FL" on an existing file instead of silently overwriting, and SAVED/GETD honor the bbb.eee block control word from X. *(FGAP-09; converts accepted divergence D-52-01 back to hardware-faithful)*
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Deliberately-accepted divergences (21 items) | Intentional, documented decisions (e.g. D-30-01 scratch-register clobber, D-30-04 FACT integer-only, D-40-01 CORRECT no-op, stopwatch frozen-on-save). "Fixing" them would regress correct, hardware-faithful behavior. See DIVERGENCE-AUDIT.md "Do-Not-Touch". |
+| Emulator extensions (9 items) | Intentional quality-of-life additions (RAND/SEED, SW interactive stopwatch, help search). Not removed. |
+| New calculator functions / XROM modules | Engine is feature-complete at v4.0; v4.3 closes behavior gaps only. |
+| Interactive CATALOG scroll (FGAP-06) | Deferred to v4.4 (L-effort generator/yield work). |
+| X-MEM PURFL/CLFL + bbb.eee (FGAP-09) | Deferred to v4.4. |
+| iOS App Store submission | Handled externally by Daniel; not a v4.3 deliverable. |
+| Android | Parked as `SEED-001` (no test device, no Android expertise, unclear ROI). |
+| Re-entrant alarm chains beyond the 4-level cap | 4-level limit is honored (ALARM-03); deeper interrupt nesting is out of scope. |
+
+## Traceability
+
+Which phases cover which requirements.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ALARM-01 | Phase 62 | Complete |
+| ALARM-02 | Phase 63 | Complete |
+| ALARM-03 | Phase 63 | Complete |
+| PRGM-01 | Phase 63 | Complete |
+| PRGM-02 | Phase 63 | Complete |
+| PRGM-03 | Phase 64 | Complete |
+| DISP-01 | Phase 65 | Complete |
+| DISP-02 | Phase 65 | Complete |
+| DISP-03 | Phase 65 | Complete |
+| MATH-01 | Phase 65 | Complete |
+| VERIFY-01 | Phase 66 | Complete |
+| RESET-01 | Phase 67 | Planned |
+
+**Coverage:**
+- v4.3 requirements: 12 total
+- Mapped to phases: 12 (Phase 62: 1, Phase 63: 4, Phase 64: 1, Phase 65: 4, Phase 66: 1, Phase 67: 1)
+- Unmapped: 0 ✓ (100% coverage)
+
+---
+*Requirements defined: 2026-06-06*
+*Last updated: 2026-06-10 — RESET-01 added (Phase 67 Reset Escape Hatch, reopened into v4.3).*

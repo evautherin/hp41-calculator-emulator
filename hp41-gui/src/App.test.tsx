@@ -68,6 +68,8 @@ interface CalcStateView {
   clock_active: boolean;
   stopwatch_keyboard_mode: boolean;
   stopwatch_running: boolean;
+  // Phase 63 Plan 06: yield state from run_program/resume_program
+  pending_yield: { kind: string; text: string; resume_ms: number } | null;
 }
 
 function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
@@ -102,6 +104,8 @@ function makeEmptyView(overrides: Partial<CalcStateView> = {}): CalcStateView {
     clock_active: false,
     stopwatch_keyboard_mode: false,
     stopwatch_running: false,
+    // Phase 63 Plan 06: yield state default (null = program not yielded)
+    pending_yield: null,
     ...overrides,
   };
 }
@@ -165,7 +169,7 @@ function getDisplayText(container: HTMLElement): string {
 // Default mock prefs (Phase 49 Plan 04): onboarding_done=true so the wizard
 // does NOT open during tests (which would block keyboard dispatch).
 // Tests that specifically need to test first-run behavior can override.
-const DEFAULT_PREFS = { theme: 'dark', onboarding_done: true };
+const DEFAULT_PREFS = { theme: 'dark', onboarding_done: true, macos_launch_mode: 'menu-bar', global_shortcut: 'Control+Alt+Command+H' };
 
 beforeEach(() => {
   mockInvoke.mockReset();
@@ -383,19 +387,23 @@ describe('CR-04 — display_override and event_buffer are consumed by React', ()
     });
   });
 
-  // D5 verifies alarm:xeq routing — control alarm triggers dispatch_op with xeq_{label}.
-  it('D5: event_buffer "alarm:xeq:TESTLBL" dispatches dispatch_op with xeq_TESTLBL', async () => {
+  // D5 verifies alarm:xeq routing — SC-3 / CR-01 gap closure: control alarm triggers
+  // run_program({ label }) so idle-fired user-LBL alarms execute (not dispatch_op which
+  // only resolves builtins and returns InvalidOp for user programs — D-25.6 CLI parity).
+  it('D5: event_buffer "alarm:xeq:TESTLBL" invokes run_program({ label: "TESTLBL" }) (SC-3)', async () => {
     const { container } = await renderAppAndWait();
     // First call: dispatch_op for the key click, returns alarm event.
     mockInvoke.mockResolvedValueOnce(
       makeEmptyView({ event_buffer: ['alarm:xeq:TESTLBL'] }),
     );
-    // Second call: dispatch_op for the alarm:xeq dispatch (invoked by the useEffect).
+    // Second call: run_program for the alarm:xeq drain (invoked by the useEffect).
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
     await clickKey(container, '1');
     await waitFor(() => {
-      // The alarm:xeq useEffect must have dispatched dispatch_op with xeq_TESTLBL.
-      expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TESTLBL' });
+      // SC-3: the alarm:xeq useEffect must call run_program with the bare label.
+      expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'TESTLBL' });
+      // Regression guard: dispatch_op(xeq_…) must NOT be called (old broken path).
+      expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'xeq_TESTLBL' });
     });
   });
 });
@@ -623,14 +631,34 @@ describe('H — Phase 31 Plan 05: R/S 3-way state-routed (D-31.1) + Esc cascade 
     expect(runStopCalls.length).toBe(0);
   });
 
-  it('H3: R/S with neither flag calls run_stop (existing baseline)', async () => {
-    // Default state: no modal, not running.
+  it('H3: R/S with neither flag calls run_program("A") — Phase-63-06 4-way routing', async () => {
+    // Default state: no modal, not running → branch 3 now starts the run loop.
+    // run_program replaces the old run_stop call (D-25.6 CLI↔GUI parity, D-16).
     const { container } = await renderAppAndWait();
 
     mockInvoke.mockResolvedValueOnce(makeEmptyView());
     await clickKey(container, 'r_s');
 
-    expect(mockInvoke).toHaveBeenCalledWith('run_stop', undefined);
+    expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
+    // run_stop must NOT be called — it is replaced by run_program in branch 3.
+    const runStopCalls = mockInvoke.mock.calls.filter(([cmd]) => cmd === 'run_stop');
+    expect(runStopCalls.length).toBe(0);
+  });
+
+  it('H3b: run_program error flushes buffered print lines via get_state (PR #26 review)', async () => {
+    // A program that printed (PRA/PRX) before erroring returns Err with no view,
+    // so its buffered print lines would otherwise surface only on the next
+    // unrelated drain. The run/resume catch sites now refetch get_state (which
+    // drains both buffers) so the print output lands right after the error toast.
+    const { container } = await renderAppAndWait();
+
+    mockInvoke.mockRejectedValueOnce('data error'); // run_program('A') fails mid-run
+    mockInvoke.mockResolvedValueOnce(makeEmptyView({ print_lines: ['RESULT'] })); // flush
+    await clickKey(container, 'r_s');
+
+    expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
+    // The catch must refetch get_state to flush the stranded print buffer.
+    expect(mockInvoke).toHaveBeenCalledWith('get_state', undefined);
   });
 
   it('H4: Esc with modal_program_active calls cancel_modal', async () => {
@@ -926,5 +954,436 @@ describe('quick-task 260603-o2e — authentic PRGM step in main display', () => 
     }));
     const { container } = await renderAppAndWait();
     expect(getDisplayText(container)).toBe('001 XEQ CLRG');
+  });
+});
+
+// =====================================================================
+// Group P — Phase 63 Plan 06: GUI run-loop driver
+//   P1: pending_yield renders text on display + auto-resume after resume_ms
+//   P2: alarm:missing:FOO event shows "Alarm XEQ FOO: label not found" toast
+//   P3: R/S on stopped program invokes run_program('A')
+// =====================================================================
+
+describe('P — Phase 63 Plan 06: GUI run-loop driver (yield + alarm:missing + R/S start)', () => {
+  // Restore real timers after each test in this group (P1 uses fake timers).
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('P1: pending_yield renders yield text on display and schedules resume_program after resume_ms', async () => {
+    // This test uses vi.useFakeTimers() to verify the setTimeout-based yield driver.
+    // Fake timers are installed BEFORE renderAppAndWait so that all timer interactions
+    // (including waitFor's polling) use the mocked clock.
+    //
+    // Strategy: install fake timers with shouldAdvanceTime:true so real-time promises
+    // (waitFor polling via setInterval) still run, but our explicit advanceTimersByTime
+    // controls the yield-driver setTimeout.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { container } = await renderAppAndWait();
+
+    // Provide the run_program response: pending_yield with 1000ms resume.
+    // The yield-driver useEffect will schedule resume_program after 1000ms.
+    const yieldView = makeEmptyView({
+      display_str: '0.0000',
+      pending_yield: { kind: 'pse', text: '1.0000', resume_ms: 1000 },
+      is_running: false,
+    });
+    // Provide the resume_program response: program ended (no pending_yield).
+    const endView = makeEmptyView({ display_str: '1.0000', pending_yield: null });
+
+    // Simulate R/S click → triggers run_program (branch 3).
+    mockInvoke.mockResolvedValueOnce(yieldView);  // run_program returns yieldView
+    mockInvoke.mockResolvedValueOnce(endView);    // resume_program returns endView
+
+    await clickKey(container, 'r_s');
+
+    // After run_program returns yieldView, the display should show pending_yield.text.
+    await waitFor(() => {
+      expect(getDisplayText(container)).toBe('1.0000');
+    });
+
+    // Advance fake timers by 1000ms — the yield-driver setTimeout fires.
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // resume_program must have been called after the timeout.
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('resume_program', undefined);
+    });
+  });
+
+  it('P2: alarm:missing:FOO event in event_buffer shows "Alarm XEQ FOO: label not found" toast', async () => {
+    const { container } = await renderAppAndWait();
+
+    // Trigger a dispatch that returns a view containing alarm:missing:FOO.
+    mockInvoke.mockResolvedValueOnce(
+      makeEmptyView({ event_buffer: ['alarm:missing:FOO'] }),
+    );
+    await clickKey(container, '1');
+
+    await waitFor(() => {
+      const toast = container.querySelector('.toast');
+      expect(toast).not.toBeNull();
+      expect(toast?.textContent).toContain('Alarm XEQ FOO: label not found');
+    });
+  });
+
+  it('P3: R/S on stopped program (no modal, not running) invokes run_program with label A', async () => {
+    // Default state: stopped, no modal.
+    const { container } = await renderAppAndWait();
+
+    mockInvoke.mockResolvedValueOnce(makeEmptyView());
+    await clickKey(container, 'r_s');
+
+    // Branch 3 of the 4-way R/S routing: run_program('A').
+    expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'A' });
+    // run_stop must NOT be invoked (replaced by run_program in Phase 63).
+    expect(mockInvoke).not.toHaveBeenCalledWith('run_stop', undefined);
+  });
+
+  // P4: SC-3 / CR-01 — alarm:xeq + yield composition (D-11 no-polling path).
+  // When run_program returns a pending_yield, the existing yield-and-resume useEffect
+  // picks it up and schedules resume_program — alarm:xeq composes with the yield driver
+  // without duplicating scheduling logic or polling get_state.
+  it('P4: alarm:xeq:FOO invokes run_program and pending_yield from result schedules resume_program', async () => {
+    // Uses shouldAdvanceTime:true so waitFor's internal polling still advances (same
+    // pattern as P1 — plain useFakeTimers() blocks waitFor's setInterval).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { container } = await renderAppAndWait();
+
+    // Second call: run_program for the alarm:xeq drain — returns a pending_yield
+    // so the yield-and-resume useEffect schedules resume_program after 500ms.
+    const yieldView = makeEmptyView({
+      display_str: '5.0000',
+      pending_yield: { kind: 'pse', text: '5.0000', resume_ms: 500 },
+    });
+    // Third call: resume_program — returns final clean state (no pending_yield).
+    const endView = makeEmptyView({ display_str: '5.0000', pending_yield: null });
+
+    // First call: dispatch_op for the key click, returns alarm:xeq:FOO event.
+    mockInvoke.mockResolvedValueOnce(
+      makeEmptyView({ event_buffer: ['alarm:xeq:FOO'] }),
+    );
+    mockInvoke.mockResolvedValueOnce(yieldView);  // run_program returns yieldView
+    mockInvoke.mockResolvedValueOnce(endView);    // resume_program returns endView
+
+    await clickKey(container, '1');
+
+    // run_program must have been called with the alarm label (SC-3).
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'FOO' });
+    });
+
+    // Advance fake timers by 500ms — the yield-driver setTimeout fires.
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // resume_program must be scheduled and called after the timeout (D-11).
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('resume_program', undefined);
+    });
+  });
+});
+
+// =====================================================================
+// Group Q — Phase 64 Plan 04: Interactive GETKEY GUI driver (PRGM-03)
+//   PRGM-03-k: yield-driver guard — wait_for_key does NOT schedule resume_program
+//   PRGM-03-l: on-screen key tap during WaitForKey routes to resume_program_with_key
+//              with correct keycode; no-keyCode key is ignored (hardware faithful)
+// =====================================================================
+
+describe('Q — Phase 64 Plan 04: Interactive GETKEY GUI driver (PRGM-03)', () => {
+  // Restore real timers after each test (PRGM-03-k uses fake timers).
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // PRGM-03-k: yield-driver useEffect guard.
+  //
+  // When pending_yield.kind === 'wait_for_key', the yield-and-resume useEffect MUST
+  // return early WITHOUT scheduling a setTimeout → resume_program call. This is the
+  // D-11 no-poll invariant: event-driven yields must never auto-resume via a timer;
+  // only a key event (invokeForKey / handleKey) can resume them.
+  //
+  // Strategy: install fake timers, trigger a wait_for_key pending_yield, advance time
+  // well past any conceivable resume_ms, and assert resume_program was NOT called.
+  it('PRGM-03-k: wait_for_key pending_yield does NOT trigger setTimeout resume_program (D-11 guard)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    const { container } = await renderAppAndWait();
+
+    // Provide a pending_yield with kind 'wait_for_key' (resume_ms=0, text='').
+    const waitView = makeEmptyView({
+      pending_yield: { kind: 'wait_for_key', text: '', resume_ms: 0 },
+    });
+    // This mockResolvedValueOnce seeds the next invoke() call (the key click below).
+    mockInvoke.mockResolvedValueOnce(waitView);
+
+    // Click a key that dispatches via invokeForKey — but since pending_yield is null
+    // at click time (the guard only fires AFTER the view is set), we click first,
+    // the view updates to waitView (with wait_for_key), and the useEffect fires.
+    await clickKey(container, '1');
+
+    // Now calcState has pending_yield.kind === 'wait_for_key'.
+    // Advance timers well past resume_ms=0 and any default timer duration.
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // resume_program must NOT have been scheduled or called — the guard short-circuits
+    // before reaching the setTimeout path.
+    expect(mockInvoke).not.toHaveBeenCalledWith('resume_program', undefined);
+    expect(mockInvoke).not.toHaveBeenCalledWith('resume_program', expect.anything());
+
+    // Verify no resume_program_with_key was called either (no key event fired).
+    expect(mockInvoke).not.toHaveBeenCalledWith('resume_program_with_key', expect.anything());
+  });
+
+  // PRGM-03-l: on-screen tap routing during WaitForKey.
+  //
+  // When pending_yield.kind === 'wait_for_key', clicking an on-screen key with a
+  // keyCode MUST invoke resume_program_with_key with { keycode: <hp41Code> }.
+  // Clicking a key without a keyCode (e.g. xge_y / CHS) must be a no-op — the
+  // wait continues without invoking any Tauri command (hardware faithful: HP-41
+  // only captures physical calculator keys with HP-41 hardware codes).
+  it('PRGM-03-l: on-screen key tap during wait_for_key routes to resume_program_with_key with keycode; no-keyCode key is ignored', async () => {
+    const { container } = await renderAppAndWait();
+
+    // Set calcState to a wait_for_key pending_yield by making the initial get_state
+    // response carry it. Re-render with a fresh waitView via a key click.
+    const waitView = makeEmptyView({
+      pending_yield: { kind: 'wait_for_key', text: '', resume_ms: 0 },
+    });
+    // Seed: first click returns waitView (with wait_for_key).
+    mockInvoke.mockResolvedValueOnce(waitView);
+    // Click '1' key to transition to waitView state.
+    await clickKey(container, '1');
+
+    // Now calcState.pending_yield.kind === 'wait_for_key'.
+    // Seed: clicking sigma_plus (keyCode=11) during WaitForKey triggers resume_program_with_key.
+    const resumedView = makeEmptyView({ display_str: '11.0000', pending_yield: null });
+    mockInvoke.mockResolvedValueOnce(resumedView);
+
+    // Click sigma_plus — keyCode=11 per Keyboard.tsx.
+    await clickKey(container, 'sigma_plus');
+
+    // resume_program_with_key must have been called with keycode: 11.
+    expect(mockInvoke).toHaveBeenCalledWith('resume_program_with_key', { keycode: 11 });
+    // dispatch_op must NOT have been called for sigma_plus during the WaitForKey suspend.
+    expect(mockInvoke).not.toHaveBeenCalledWith('dispatch_op', { keyId: 'sigma_plus' });
+
+    // Now verify that a no-keyCode key (xge_y — keyCode=undefined) is a no-op.
+    // Reset the view back to wait_for_key.
+    mockInvoke.mockResolvedValueOnce(waitView);
+    await clickKey(container, '1'); // transition to waitView again
+
+    const callCountBefore = mockInvoke.mock.calls.length;
+
+    // Click xge_y (no keyCode) — must be a no-op: no resume_program_with_key, no dispatch_op.
+    await clickKey(container, 'xge_y');
+
+    // No new Tauri command calls should have been made for the xge_y click.
+    const newCalls = mockInvoke.mock.calls.slice(callCountBefore);
+    const tauriCalls = newCalls.filter(([cmd]) =>
+      cmd === 'resume_program_with_key' || cmd === 'dispatch_op'
+    );
+    expect(tauriCalls).toHaveLength(0);
+  });
+});
+
+// =====================================================================
+// Group Q — Phase 67 Plan 04: ON-key escape hatch
+//   Q1: tap (<600ms) → reset_soft (no confirm sheet)
+//   Q2: long-press (>=600ms) → MEMORY LOST confirm sheet opens (not reset_full yet)
+//   Q3: long-press + Confirm → reset_full; long-press + Cancel → no invoke
+//   Q4: pointer-up after long-press → no double-fire of reset_soft
+// =====================================================================
+
+describe('Q — Phase 67 Plan 04: ON-key escape hatch (tap/long-press/confirm/no-double-fire)', () => {
+  // Restore real timers after each test in this group (Q1-Q4 use fake timers).
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  // Helper: find the ON key element (rendered as <g data-key-id="on"> by Keyboard.tsx).
+  function findOnKey(container: HTMLElement): Element {
+    const el = container.querySelector('[data-key-id="on"]');
+    if (!el) throw new Error('ON key <g> not found (expected data-key-id="on")');
+    return el;
+  }
+
+  it('Q1: tap ON key (pointerdown then pointerup before 600ms) → reset_soft called, no confirm sheet', async () => {
+    // Install fake timers BEFORE render so timer callbacks stay under our control.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    // reset_soft resolves to a fresh CalcStateView.
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      if (cmd === 'reset_soft') return Promise.resolve(makeEmptyView());
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // pointerdown starts the long-press timer.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+    // pointerup before 600ms → tap path: no timer fired.
+    await act(async () => { fireEvent.pointerUp(onKey); });
+    // Let promises settle.
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // reset_soft must have been invoked.
+    expect(mockInvoke).toHaveBeenCalledWith('reset_soft', undefined);
+
+    // Confirm sheet must NOT appear (only fires on long-press).
+    expect(document.body.querySelector('[data-testid="memory-lost-sheet"]')).toBeNull();
+  });
+
+  it('Q2: long-press ON key (pointerdown then advance >600ms) → MEMORY LOST sheet appears, reset_full NOT yet invoked', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // pointerdown — starts the 600ms timer.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+
+    // Advance past the threshold — timer fires, opens confirm sheet.
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+    });
+    // Flush React state updates triggered by the timer callback.
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // The portaled sheet must be visible in document.body.
+    const sheet = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet).not.toBeNull();
+
+    // MEMORY LOST copy must be present in the sheet.
+    expect(sheet?.textContent).toContain('MEMORY LOST');
+
+    // reset_full must NOT have been called yet (confirm button not clicked).
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', undefined);
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', expect.anything());
+  });
+
+  it('Q3a: confirm → reset_full invoked; Q3b: cancel → sheet closes, no reset_full', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      if (cmd === 'reset_full') return Promise.resolve(makeEmptyView());
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // Long-press to open the confirm sheet.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+    await act(async () => { vi.advanceTimersByTime(700); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // Sheet must be open.
+    let sheet = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet).not.toBeNull();
+
+    // Q3a: Click Confirm → reset_full called.
+    const confirmBtn = sheet?.querySelector('.on-key-confirm-btn--confirm') as HTMLElement;
+    expect(confirmBtn).not.toBeNull();
+    await act(async () => { fireEvent.click(confirmBtn); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    expect(mockInvoke).toHaveBeenCalledWith('reset_full', undefined);
+
+    // Sheet must be gone after confirm.
+    sheet = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet).toBeNull();
+
+    // Q3b: Re-open the sheet and test Cancel path.
+    // Re-render with fresh state to avoid stale ref.
+    cleanup();
+    mockInvoke.mockReset();
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container: c2 } = await renderAppAndWait();
+    const onKey2 = findOnKey(c2);
+    await act(async () => { fireEvent.pointerDown(onKey2); });
+    await act(async () => { vi.advanceTimersByTime(700); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    const sheet2 = document.body.querySelector('[data-testid="memory-lost-sheet"]');
+    expect(sheet2).not.toBeNull();
+
+    // Click Cancel.
+    const cancelBtn = sheet2?.querySelector('.on-key-confirm-btn--cancel') as HTMLElement;
+    expect(cancelBtn).not.toBeNull();
+    await act(async () => { fireEvent.click(cancelBtn); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // reset_full must NOT have been called.
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', undefined);
+    expect(mockInvoke).not.toHaveBeenCalledWith('reset_full', expect.anything());
+
+    // Sheet must be gone.
+    expect(document.body.querySelector('[data-testid="memory-lost-sheet"]')).toBeNull();
+  });
+
+  it('Q4: pointer-up after long-press does NOT fire reset_soft (no-double-fire guard)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(false);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      return Promise.resolve(makeEmptyView());
+    });
+
+    const { container } = await renderAppAndWait();
+    const onKey = findOnKey(container);
+
+    // pointerdown — start timer.
+    await act(async () => { fireEvent.pointerDown(onKey); });
+
+    // Advance past 600ms — timer fires, longPressFiredRef=true, sheet opens.
+    await act(async () => { vi.advanceTimersByTime(700); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // Verify sheet is open before releasing.
+    expect(document.body.querySelector('[data-testid="memory-lost-sheet"]')).not.toBeNull();
+
+    // Record invoke call count at this point.
+    const callCountBeforeUp = mockInvoke.mock.calls.length;
+
+    // pointerup — longPressFiredRef is true → must NOT call reset_soft.
+    await act(async () => { fireEvent.pointerUp(onKey); });
+    await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+    // No new reset_soft call must have been made.
+    const newCalls = mockInvoke.mock.calls.slice(callCountBeforeUp);
+    const resetSoftCalls = newCalls.filter(([cmd]) => cmd === 'reset_soft');
+    expect(resetSoftCalls).toHaveLength(0);
   });
 });

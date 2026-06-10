@@ -262,7 +262,9 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
 
 ---
 
-### D-40-04: Interrupting Control Alarm Deferral — Re-Entrancy Not Supported
+### D-40-04: Interrupting Control Alarm Re-Entrancy — Implemented via Pending-Interrupt at Run-Loop Boundary (v4.3)
+
+**Status: IMPLEMENTED in Phase 63 (v4.3). Verified in Phase 66.**
 
 - **OM citation**: HP 00041-90035 (1982), §XYZALM — the OM describes three alarm types:
   message alarms (display text on trigger), non-interrupting control alarms (`>label` prefix —
@@ -271,16 +273,34 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
   any running program). The `>>` prefix convention for interrupting control alarms is
   documented in the OM's XYZALM section.
 
-- **Our behavior**: Message alarms and non-interrupting control alarms (`>label`) are
-  fully implemented. When a past-due non-interrupting control alarm is acknowledged
-  (via the `check_alarms` drain), the label is queued in `event_buffer` for the frontend
-  to XEQ on next user interaction — no re-entrancy hazard because execution happens at
-  a user-interaction boundary, not during a running program. Interrupting control alarms
-  (`>>label`) are stored in the alarm catalog with full fidelity (`AlarmType::Control {
-  label, interrupting: true }` per D-38.8) but the `interrupting: true` flag is not
-  acted upon — the alarm fires as a non-interrupting message alarm instead, without
-  executing the stored label mid-program. No program re-entrancy against the 4-level
-  call stack is attempted.
+- **Our behavior (v4.3+)**: Interrupting control alarms (`>>label`) execute their stored
+  label program mid-run via a synchronous pending-interrupt mechanism. When `check_alarms`
+  detects a past-due interrupting alarm while a program is running, it sets
+  `pending_interrupt: Option<String>` on `CalcState`. On the next `run_loop` iteration
+  boundary (at most 1000 steps later — sub-millisecond at emulated speed), the run-loop
+  consumes `pending_interrupt`, pushes the current `state.pc` onto `call_stack` (reusing
+  the existing XEQ frame mechanism), and jumps to the handler label. When the handler's
+  `RTN` pops back to the injection depth, `run_loop` acknowledges and reschedules the
+  alarm, then the interrupted program continues from exactly where it was halted.
+
+  The following edge cases are handled faithfully:
+  - **4-level call-stack cap (D-07):** if `call_stack.len() >= 4`, the interrupt is
+    silently suppressed and the alarm remains `past_due` — hardware-faithful behavior;
+    no 5th frame is ever pushed.
+  - **Missing handler label (D-08):** surfaces an `alarm:missing:{label}` event for the
+    frontend to display (toast / status line); no ack.
+  - **Interrupt set just before `Op::Stop` (D-09):** dropped at `resume_program`
+    clear-on-entry — real HP-41CX behavior at this edge is undocumented.
+  - **Solver or modal active (D-10):** demoted to `alarm:xeq:{label}` in `event_buffer`
+    to avoid corrupting solver re-entrancy state.
+  - **Idle (is_running == false, D-13):** routed to `alarm:xeq:{label}` via the existing
+    idle path — executed at the next user interaction boundary, same as non-interrupting
+    alarms.
+  - **Repeating alarms (ALARM-03, D-06):** acknowledged and rescheduled immediately after
+    the handler RTN, before the interrupted program resumes its next instruction.
+
+  Non-interrupting control alarms (`>label`) and message alarms are unchanged: they continue
+  to fire via `event_buffer` at user-interaction boundaries.
 
 - **OM behavior**: On real HP-41CX hardware, an interrupting control alarm (`>>label`)
   halts the currently-executing program at the next instruction boundary, saves the
@@ -288,25 +308,33 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
   program when the alarm program completes (subject to the 4-level call stack limit).
   This is analogous to a hardware interrupt request handled in firmware.
 
-- **Rationale**: Implementing hardware-interrupt semantics against the emulator's
-  synchronous `run_program` / `run_loop` dispatch model would require either (a) a
-  pre-emption point in every instruction's dispatch loop (adding latency to every op),
-  or (b) a parallel execution thread with shared mutable state on `CalcState` (requiring
-  `Arc<Mutex<CalcState>>` or `Arc<RwLock<CalcState>>` throughout, a major architectural
-  change). Both alternatives introduce complexity that outweighs the benefit — the real
-  HP-41CX's 4-level call stack makes interrupting control alarm programs very limited in
-  scope anyway. The data model (`interrupting: bool`) is forward-compatible: a future
-  phase can implement the semantics without a schema migration. D-38.4 documents this
-  as the canonical disposition; the divergence is documented here per TIME-DOC-02.
+- **Rationale (v4.3 implementation)**: The synchronous pending-interrupt approach achieves
+  hardware-faithful semantics without threads or async. The Phase-C alarm scan inside
+  `run_loop` (every ~1000 steps) provides the "next instruction boundary" detection required
+  for the GUI, where the Tauri Mutex is held for the whole `run_loop` execution and external
+  `tick_time`-driven `check_alarms` cannot fire mid-program. The synthetic XEQ frame reuses
+  the existing `call_stack` push + `Op::Rtn` pop machinery — no new `Op` variant, no 4-way
+  exhaustive-match change. The `pending_interrupt` field carries `#[serde(default, skip)]`
+  so v1.0–v4.2 save files load without migration.
 
-- **See**: `hp41-core/src/ops/time/alarm.rs::AlarmType` (`Control { label, interrupting }`
-  enum variant); `hp41-core/src/ops/time/alarm.rs::check_alarms` (alarm drain — fires
-  non-interrupting alarms only); `hp41-core/src/ops/time/alarm.rs::parse_alarm_type`
-  (`>>` prefix parsing into `interrupting: true`); `hp41-core/src/state.rs`
-  (`alarms: Vec<AlarmEntry>` field with `#[serde(default)]`);
-  D-38.4 (38-CONTEXT.md — interrupting control alarm deferral decision);
-  D-38.5 (38-CONTEXT.md — non-interrupting control alarm execution via acknowledgment);
-  D-38.8 (38-CONTEXT.md — AlarmType enum design with forward-compat interrupting field).
+  See ADR `v4.3-004-interrupt-alarm-pending-field.md` for the full design rationale and
+  alternatives considered.
+
+- **See**: `docs/adr/v4.3-004-interrupt-alarm-pending-field.md` (design ADR — locked
+  2026-06-06); `hp41-core/src/state.rs` (`pending_interrupt`, `pending_interrupt_alarm_index`,
+  `pending_interrupt_depth`, `pending_yield` — all `#[serde(default, skip)]`);
+  `hp41-core/src/ops/program.rs::run_loop` (Phase-C alarm scan + interrupt boundary +
+  ack-after-RTN in `Op::Rtn` arm); `hp41-core/src/ops/program.rs::run_program` /
+  `resume_program` (clear-on-entry); `hp41-core/src/ops/time/alarm.rs::dispatch_alarm_event`
+  (running-path routing to `pending_interrupt`; idle/demoted → `alarm:xeq:{label}`);
+  `hp41-core/src/ops/time/alarm.rs::AlarmType` (`Control { label, interrupting }` — unchanged);
+  `hp41-core/src/ops/time/alarm.rs::parse_alarm_type` (`>>` prefix → `interrupting: true` —
+  confirmed correct per ADR v4.3-003);
+  `hp41-core/tests/phase_63_interrupting_alarms.rs` (16 GREEN scenarios, Plans 63-01/02);
+  D-38.4 (38-CONTEXT.md — original deferral decision, superseded by Phase 63);
+  D-38.5 (38-CONTEXT.md — non-interrupting alarm execution path, unchanged);
+  D-38.8 (38-CONTEXT.md — AlarmType enum with forward-compat `interrupting` field);
+  ADR v4.3-003 (alarm prefix semantics — `>>` = interrupting confirmed correct).
 
 ---
 
@@ -352,4 +380,4 @@ affects behavior in ways the OM either specifies explicitly or leaves to the imp
 
 ---
 
-*Last updated: 2026-05-25. Catalog established in Plan 40-01 (Phase 40 / TIME-DOC-02).*
+*Last updated: 2026-06-10 (§D-40-04 "Verified in Phase 66" claim confirmed true — re-entrancy suite green per Phase 66 Plan 66-02). Established in Plan 40-01 (Phase 40 / TIME-DOC-02).*

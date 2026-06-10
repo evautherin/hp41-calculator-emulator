@@ -47,6 +47,56 @@ pub enum DisplayMode {
     Eng(u8),
 }
 
+// ── Phase 63 (v4.3): Run-loop yield engine types ─────────────────────────────
+
+/// Discriminant for `YieldState::kind` — identifies which mid-program display
+/// operation triggered the yield break (D-04, PRGM-01/PRGM-02).
+///
+/// All three yield kinds share the same PSE_RESUME_MS duration per RESEARCH
+/// recommendation (one knob, no perceptible gain from a shorter "brief" constant).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum YieldKind {
+    /// Op::Pse — display X register value for PSE_RESUME_MS then resume.
+    Pse,
+    /// Op::View(reg) — display a named register value for PSE_RESUME_MS then resume.
+    View,
+    /// Op::AView — display the ALPHA register content for PSE_RESUME_MS then resume.
+    Aview,
+    /// Op::GetKey (Phase 64, v4.3) — event-driven yield; resume is triggered by a
+    /// key event, not a timer. `resume_ms` is 0 (unused). Frontend calls
+    /// `resume_program_with_key(keycode)`. Display unchanged during the wait (D-03).
+    WaitForKey,
+}
+
+/// Typed yield channel: carries the formatted display string, yield kind, and
+/// auto-resume duration for PSE/VIEW/AVIEW yields (D-04).
+///
+/// Set by `run_loop` when it breaks for a display yield; cleared by
+/// `resume_program` before re-entering `run_loop`. Read by both frontends:
+/// - CLI: renders `text` on the display, sleeps `resume_ms`, then calls `resume_program`.
+/// - GUI: renders `text`, schedules `resume_program` via `setInterval` after `resume_ms`
+///   (Mutex is released between yields, so the GUI stays responsive per D-11).
+///
+/// display_override is NOT written by these yield paths (D-04); DISP-01 resolved in Phase 65.
+/// Transient — never persisted (`#[serde(default, skip)]` on the field in `CalcState`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct YieldState {
+    /// Which display op triggered this yield.
+    pub kind: YieldKind,
+    /// Pre-formatted display string the frontend must render (format_hpnum or alpha[..24]).
+    pub text: String,
+    /// Milliseconds to wait before calling `resume_program` (single source of truth: PSE_RESUME_MS).
+    pub resume_ms: u64,
+}
+
+/// Duration (ms) for all PSE / VIEW / AVIEW mid-run display yields.
+///
+/// All three yield kinds share this constant — one knob; the HP-41 "brief glance"
+/// is the same ~1 s cadence as PSE for an emulator (per RESEARCH recommendation).
+/// Used by `run_loop` (63-02) when building `YieldState`, asserted by tests as DATA
+/// — never slept inside `hp41-core`.
+pub const PSE_RESUME_MS: u64 = 1000;
+
 /// The complete, mutable state of the HP-41 calculator.
 ///
 /// All operations take `&mut CalcState`. No global mutable state anywhere.
@@ -440,6 +490,60 @@ pub struct CalcState {
     /// Persistent — `#[serde(default)]`.
     #[serde(default)]
     pub xmem_active_file: Option<String>,
+
+    // ── Phase 63 (v4.3): Run-loop yield engine + interrupting alarms ──────────
+    /// Pending interrupting-alarm label awaiting injection at the next `run_loop`
+    /// instruction boundary (D-12). Set by `check_alarms` (via `dispatch_alarm_event`)
+    /// only when `is_running == true`, `pending_interrupt.is_none()`, and no
+    /// solver/modal is active (D-10). Cleared at `run_program` / `resume_program`
+    /// entry (D-09 — drop interrupt set just before STOP).
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_interrupt: Option<String>,
+
+    /// Paired index into `state.alarms` identifying WHICH past-due alarm set
+    /// `pending_interrupt`, so `run_loop` can call `acknowledge_alarm(state, index)`
+    /// after the synthetic handler RTNs (D-06a, D-06). Lean toward the paired field
+    /// over scanning `state.alarms` to disambiguate two alarms sharing a fire time.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_interrupt_alarm_index: Option<usize>,
+
+    /// `call_stack` depth captured at synthetic-frame injection point (D-06).
+    ///
+    /// When `run_loop` injects the alarm handler frame, it records
+    /// `state.call_stack.len()` BEFORE the push here. On `Op::Rtn`, the ack
+    /// gate compares `state.call_stack.len()` (AFTER pop) against this value
+    /// to ack ONLY when the handler (which may itself XEQ deeper subroutines)
+    /// has fully returned to the injection depth — not on intermediate RTNs
+    /// inside the handler.
+    ///
+    /// Declared here in 63-01 (wave 1, owns state.rs) so that 63-02 (wave 2,
+    /// program.rs-only) can read/write it without touching state.rs and breaking
+    /// wave-2 file isolation.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_interrupt_depth: Option<usize>,
+
+    /// Yield channel carrying the formatted display string + kind + resume duration
+    /// for PSE/VIEW/AVIEW yields (D-04). Set by `run_loop` when it breaks for a
+    /// display yield; cleared by `resume_program` before re-entering `run_loop`.
+    /// Leaves display_override untouched (D-04); DISP-01 resolved in Phase 65.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub pending_yield: Option<YieldState>,
+
+    // ── Phase 64 (v4.3): Interactive GETKEY transient capture field ───────────
+    /// Keycode captured during a `WaitForKey` yield; threaded into `op_getkey`
+    /// on resume via `resume_program_with_key()`.
+    ///
+    /// Set by `resume_program_with_key()` BEFORE clearing `pending_yield` — so
+    /// `op_getkey` can read it via `.take()` on the resumed iteration.
+    /// Consumed (via `.take()`) by `op_getkey` at the resumed `pc`.
+    /// `None` when not in a WaitForKey resume path. Cleaned up even on error.
+    /// Transient — never persisted (`#[serde(default, skip)]`).
+    #[serde(default, skip)]
+    pub getkey_captured_code: Option<u8>,
 }
 
 // ── serde-default helpers ────────────────────────────────────────────────────
@@ -533,6 +637,13 @@ impl CalcState {
             // Phase 51 (v4.0): X-MEM fields
             xmem_files: Vec::new(),
             xmem_active_file: None,
+            // Phase 63 (v4.3): run-loop yield engine + interrupting alarms
+            pending_interrupt: None,
+            pending_interrupt_alarm_index: None,
+            pending_interrupt_depth: None,
+            pending_yield: None,
+            // Phase 64 (v4.3): interactive GETKEY transient capture field
+            getkey_captured_code: None,
         }
     }
 }
@@ -540,6 +651,144 @@ impl CalcState {
 impl Default for CalcState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Phase 67 (v4.3): Reset Escape Hatch ──────────────────────────────────────
+
+impl CalcState {
+    /// **Soft reset** — clears every transient / input-trapping field while
+    /// preserving all stored user data (program, registers, flags, key
+    /// assignments, X-MEM, XROM modules, Time/Advantage state, rand_seed).
+    ///
+    /// Intended as an in-app escape hatch for a trapped calculator state
+    /// (including a persisted-trap that survives an app restart).  Runs
+    /// **outside** the normal `dispatch()` / `key→Op` path so it works even
+    /// when dispatch itself is stuck.
+    ///
+    /// After this call the state is **input-accepting**: not running, no
+    /// pending entry, no modal, no display override, not in PRGM mode.
+    ///
+    /// ## What is cleared
+    ///
+    /// - **Stack:** x/y/z/t/lastx → zero; `lift_enabled` → false.
+    /// - **Entry:** `entry_buf` → empty; `alpha_reg` → empty; `alpha_mode` → false.
+    /// - **Display:** `display_override` → None.
+    /// - **Modes:** `prgm_mode` → false; `user_mode` → false.
+    /// - **Modals:** `modal_program` / `modal_prompt` → None; `integ_state` /
+    ///   `solve_state` / `difeq_state` → None; Advantage solver states → None;
+    ///   `pending_chisqd_nu` / `pending_adv_matrix_name` / `pending_adv_matrix_rows` → None.
+    /// - **Matrix workflow:** `matrix_dim` / `matrix_active_reg` → None.
+    /// - **Program execution:** `is_running` → false; `pc` → 0; `call_stack` → cleared.
+    /// - **Phase 63/64 transients:** `pending_interrupt` / `pending_interrupt_alarm_index` /
+    ///   `pending_interrupt_depth` / `pending_yield` / `getkey_captured_code` → None.
+    /// - **Buffers:** `print_buffer` → cleared; `event_buffer` → cleared;
+    ///   `pending_card_op` → None; `last_key_code` → 0.
+    /// - **Clock/stopwatch modes:** `clock_active` → false; `stopwatch_keyboard_mode` → false;
+    ///   `alarm_catalog_mode` → false; `stopwatch_start` → None.
+    /// - **Advantage transients:** `adv_current_matrix` → None; `adv_froot_state` → None;
+    ///   `adv_fintg_state` → None; `adv_fsolve_state` → None; `adv_fdifeq_state` → None.
+    /// - **Cancellation:** `cancel_requested` → reset to false (new Arc).
+    ///
+    /// ## What is preserved
+    ///
+    /// `program`, `regs`, `text_regs`, `flags`, `key_assignments`, `assignments`,
+    /// `xmem_files`, `xmem_active_file`, `xrom_modules`, `rand_seed`, `adv_matrices`,
+    /// `adv_matrix_i`, `adv_matrix_j`, `adv_tvm_state`, `time_offset_secs`,
+    /// `clock_12h`, `clock_display_mode`, `accuracy_factor`, `alarms`,
+    /// `stopwatch_mode`, `stopwatch_accumulated`, `stopwatch_split`,
+    /// `reg_m`, `reg_n`, `reg_o`, `angle_mode`, `display_mode`, `complex_mode`.
+    pub fn soft_reset(&mut self) {
+        // ── Stack ──────────────────────────────────────────────────────────────
+        self.stack = Stack::new();
+
+        // ── Entry state ────────────────────────────────────────────────────────
+        self.entry_buf.clear();
+        self.alpha_reg.clear();
+        self.alpha_mode = false;
+
+        // ── Display ────────────────────────────────────────────────────────────
+        self.display_override = None;
+
+        // ── Keyboard / program modes ───────────────────────────────────────────
+        self.prgm_mode = false;
+        self.user_mode = false;
+
+        // ── Modals: math solvers ────────────────────────────────────────────────
+        self.modal_program = None;
+        self.modal_prompt = None;
+        self.integ_state = None;
+        self.solve_state = None;
+        self.difeq_state = None;
+
+        // ── Math Pac I matrix workflow ─────────────────────────────────────────
+        self.matrix_dim = None;
+        self.matrix_active_reg = None;
+
+        // ── Program execution ──────────────────────────────────────────────────
+        self.is_running = false;
+        self.pc = 0;
+        self.call_stack.clear();
+
+        // ── Phase 63/64 transients ─────────────────────────────────────────────
+        self.pending_interrupt = None;
+        self.pending_interrupt_alarm_index = None;
+        self.pending_interrupt_depth = None;
+        self.pending_yield = None;
+        self.getkey_captured_code = None;
+
+        // ── I/O buffers ────────────────────────────────────────────────────────
+        self.print_buffer.clear();
+        self.event_buffer.clear();
+        self.pending_card_op = None;
+        self.last_key_code = 0;
+
+        // ── Clock / stopwatch interactive modes ────────────────────────────────
+        self.clock_active = false;
+        self.stopwatch_keyboard_mode = false;
+        self.alarm_catalog_mode = false;
+        self.stopwatch_start = None;
+
+        // ── Advantage Pac transients ───────────────────────────────────────────
+        self.adv_current_matrix = None;
+        self.adv_froot_state = None;
+        self.adv_fintg_state = None;
+        self.adv_fsolve_state = None;
+        self.adv_fdifeq_state = None;
+        self.pending_adv_matrix_name = None;
+        self.pending_adv_matrix_rows = None;
+
+        // ── Stat 1 transient ───────────────────────────────────────────────────
+        self.pending_chisqd_nu = None;
+
+        // ── Cancellation flag ──────────────────────────────────────────────────
+        // Clear the flag IN PLACE — do NOT swap the Arc. The GUI clones this Arc
+        // into a long-lived `CancelFlag` managed state at startup so `request_cancel`
+        // can flip it without locking `AppState`; replacing the Arc here would orphan
+        // that clone and permanently break cancellation after any reset (CR-02).
+        self.cancel_requested
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// **Full reset / MEMORY LOST** — restores the calculator to factory state,
+    /// exactly equivalent to `*self = CalcState::new()`.
+    ///
+    /// Destroys ALL stored user data: program, registers, flags, X-MEM files,
+    /// key assignments, Time/Advantage state.  Matches the HP-41 hardware
+    /// "MEMORY LOST" message shown on cold-start after a full clear.
+    ///
+    /// Runs outside `dispatch()` for the same reason as `soft_reset()`.
+    pub fn memory_lost(&mut self) {
+        // Preserve the `cancel_requested` Arc identity across the factory reset so the
+        // GUI's long-lived `CancelFlag` clone stays connected — a fresh
+        // `CalcState::new()` would mint a new Arc and orphan it (CR-02). The flag is
+        // `#[serde(skip)]`, so this does not affect the `memory_lost() == new()` JSON
+        // equivalence (RST-03).
+        let cancel = std::sync::Arc::clone(&self.cancel_requested);
+        *self = CalcState::new();
+        self.cancel_requested = cancel;
+        self.cancel_requested
+            .store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -722,6 +971,24 @@ mod tests {
             !json.contains("cancel_requested"),
             "cancel_requested must be serde(skip)"
         );
+        // Phase 63 (v4.3): all four new transient fields must be serde(skip)
+        assert!(
+            !json.contains("pending_interrupt"),
+            "pending_interrupt must be serde(skip) — must not appear in serialized JSON"
+        );
+        assert!(
+            !json.contains("pending_interrupt_depth"),
+            "pending_interrupt_depth must be serde(skip)"
+        );
+        assert!(
+            !json.contains("pending_yield"),
+            "pending_yield must be serde(skip)"
+        );
+        // Phase 64 (v4.3): GETKEY transient capture field must be serde(skip)
+        assert!(
+            !json.contains("getkey_captured_code"),
+            "getkey_captured_code must be serde(skip) — must not appear in serialized JSON"
+        );
 
         // Persistent fields must appear in serialized output
         assert!(
@@ -752,6 +1019,27 @@ mod tests {
         assert!(
             !restored.cancel_requested.load(Ordering::Relaxed),
             "cancel_requested must reset to false after deserialization"
+        );
+        // Phase 63 (v4.3): new transient fields must reset to None after round-trip
+        assert!(
+            restored.pending_interrupt.is_none(),
+            "pending_interrupt must reset to None after deserialization"
+        );
+        assert!(
+            restored.pending_interrupt_alarm_index.is_none(),
+            "pending_interrupt_alarm_index must reset to None after deserialization"
+        );
+        assert!(
+            restored.pending_interrupt_depth.is_none(),
+            "pending_interrupt_depth must reset to None after deserialization"
+        );
+        assert!(
+            restored.pending_yield.is_none(),
+            "pending_yield must reset to None after deserialization"
+        );
+        assert!(
+            restored.getkey_captured_code.is_none(),
+            "getkey_captured_code must reset to None after deserialization"
         );
     }
 

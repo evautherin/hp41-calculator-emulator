@@ -47,8 +47,40 @@ fn truncate_with_continuation(s: &str) -> String {
 use crate::prgm_display;
 use hp41_core::ops::time::clock::get_clock_display_str;
 use hp41_core::ops::time::stopwatch::get_stopwatch_display_str;
-use hp41_core::{format_alpha, format_hpnum, AngleMode, CalcState, HpError};
+use hp41_core::state::{YieldKind, YieldState};
+use hp41_core::{format_alpha, format_hpnum, format_hpnum_lcd, AngleMode, CalcState, HpError};
 use serde::Serialize;
+
+/// Serializable snapshot of `YieldState` sent to the TS layer when the core
+/// run_loop breaks at a PSE / VIEW / AVIEW yield.
+///
+/// `kind` is a lowercase string so the TS layer needs no Rust enum knowledge:
+/// `"pse"` / `"view"` / `"aview"`.
+/// `resume_ms` is the milliseconds the frontend must wait before calling
+/// `resume_program` (single-source-of-truth: `hp41_core::state::PSE_RESUME_MS`).
+#[derive(Debug, Serialize)]
+pub struct YieldView {
+    pub kind: String,
+    pub text: String,
+    pub resume_ms: u64,
+}
+
+impl YieldView {
+    fn from_yield_state(y: &YieldState) -> Self {
+        let kind = match y.kind {
+            YieldKind::Pse => "pse",
+            YieldKind::View => "view",
+            YieldKind::Aview => "aview",
+            YieldKind::WaitForKey => "wait_for_key", // Phase 64 — event-driven key capture
+        }
+        .to_string();
+        YieldView {
+            kind,
+            text: y.text.clone(),
+            resume_ms: y.resume_ms,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct Annunciators {
@@ -113,6 +145,12 @@ pub struct CalcStateView {
     // stopwatch_running: true when stopwatch_mode == Running; frontend uses this to
     // decide Space → RUNSW (start) vs STOPSW (stop) in stopwatch keyboard mode.
     pub stopwatch_running: bool,
+    // Phase 63 D-04 / PRGM-01/PRGM-02: yield channel from the run_loop.
+    // Some when run_loop broke at a PSE/VIEW/AVIEW yield; None on normal stop/end/error.
+    // Carries kind (lowercase "pse"/"view"/"aview"), pre-formatted text, and resume_ms
+    // so the TS driver can render the yield display and schedule resume_program.
+    // display_override is NOT written by yield paths (D-04); DISP-01 resolved in Phase 65.
+    pub pending_yield: Option<YieldView>,
 }
 
 impl CalcStateView {
@@ -156,8 +194,16 @@ impl CalcStateView {
             prgm_display::format_step(state)
         } else if state.alpha_mode {
             format_alpha(&state.alpha_reg)
+        } else if state.flags & (1u64 << 48) != 0 {
+            // DISP-03 (Phase 65): AON (flag 48) — at rest, show the ALPHA register
+            // instead of X. Uses raw state.flags u64 (not the projected Vec<u8>).
+            // Branch sits AFTER alpha_mode so active ALPHA entry takes priority (D-10).
+            format_alpha(&state.alpha_reg)
         } else {
-            format_hpnum(&state.stack.x, &state.display_mode)
+            // Phase 65 (ADR v4.3-006): the main 14-segment display has only 12
+            // cells, so large-exponent values use the authentic no-"E" LCD form.
+            // The stack panel (x_str below) keeps the wide format_hpnum "E" form.
+            format_hpnum_lcd(&state.stack.x, &state.display_mode)
         };
 
         // x_str is always the formatted X register — independent of entry/alpha mode.
@@ -222,6 +268,15 @@ impl CalcStateView {
         let stopwatch_running =
             state.stopwatch_mode == hp41_core::ops::time::stopwatch::StopwatchMode::Running;
 
+        // Phase 63 D-04 / PRGM-01/PRGM-02: project pending_yield from the run_loop yield channel.
+        // None when the program ended normally / stopped / errored — the TS driver only auto-resumes
+        // when Some (schedules resume_program via setInterval after resume_ms ms).
+        // display_override is NOT touched here per D-04 (DISP-01 deferred).
+        let pending_yield = state
+            .pending_yield
+            .as_ref()
+            .map(YieldView::from_yield_state);
+
         CalcStateView {
             display_str,
             x_str,
@@ -245,6 +300,7 @@ impl CalcStateView {
             clock_active,
             stopwatch_keyboard_mode,
             stopwatch_running,
+            pending_yield,
         }
     }
 }
@@ -287,10 +343,11 @@ mod tests {
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured baseline: 337 bytes. Phase 31 adds ~100 bytes for modal fields.
         // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
-        // Combined budget: <= 525 bytes (headroom maintained).
+        // Phase 63 adds ~20 bytes for pending_yield: null (JSON null, small budget impact).
+        // Combined budget: <= 560 bytes (headroom maintained).
         assert!(
-            json.len() <= 525,
-            "CalcStateView JSON (empty program + empty assignments + no flags) must be ≤500 bytes, got {} bytes: {}",
+            json.len() <= 560,
+            "CalcStateView JSON (empty program + empty assignments + no flags) must be ≤560 bytes, got {} bytes: {}",
             json.len(),
             json
         );
@@ -315,10 +372,11 @@ mod tests {
         let json = serde_json::to_string(&view).unwrap();
         // Phase 26 measured load: 401 bytes; Phase 31 adds ~103 bytes → ~504 bytes.
         // Phase 41 adds ~75 bytes for clock_active + stopwatch_keyboard_mode + stopwatch_running.
-        // Budget set to 625 bytes with headroom for future fields.
+        // Phase 63 adds ~20 bytes for pending_yield: null.
+        // Budget set to 650 bytes with headroom for future fields.
         assert!(
-            json.len() <= 625,
-            "CalcStateView JSON (realistic ASN+flag load) must be ≤600 bytes, got {} bytes: {}",
+            json.len() <= 650,
+            "CalcStateView JSON (realistic ASN+flag load) must be ≤650 bytes, got {} bytes: {}",
             json.len(),
             json
         );
@@ -500,5 +558,97 @@ mod tests {
             "empty program must produce program_steps = [\"000 END\"]"
         );
         assert_eq!(view.pc, 0, "fresh CalcState pc must be 0");
+    }
+
+    /// Phase 64 PRGM-03-j: WaitForKey yield must project as kind "wait_for_key"
+    /// with empty text (D-03: no display override during GETKEY suspend) and
+    /// resume_ms == 0 (event-driven — no timer fires for this kind).
+    #[test]
+    fn from_state_projects_wait_for_key() {
+        let mut calc = CalcState::new();
+        calc.pending_yield = Some(YieldState {
+            kind: YieldKind::WaitForKey,
+            text: String::new(),
+            resume_ms: 0,
+        });
+        let view = CalcStateView::from_state(&calc, vec![], vec![]);
+        let py = view.pending_yield.expect("pending_yield must be Some");
+        assert_eq!(py.kind, "wait_for_key", "WaitForKey must project as 'wait_for_key'");
+        assert_eq!(py.resume_ms, 0, "WaitForKey resume_ms must be 0 (event-driven, no timer)");
+        assert_eq!(py.text, "", "WaitForKey text must be empty (D-03: no display override)");
+    }
+
+    /// DISP-03 (Phase 65): AON (flag 48) — at rest, GUI from_state display_str shows ALPHA register.
+    /// AOFF (flag 48 cleared) reverts display_str to X format (D-09, D-10, D-25.6).
+    #[test]
+    fn test_aon_flag48_gui_shows_alpha_reg() {
+        let mut state = CalcState::new();
+        // Set flag 48 (AON) and put text in alpha_reg.
+        state.flags |= 1u64 << 48;
+        state.alpha_reg = "HP41".to_string();
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        let expected = format_alpha(&state.alpha_reg);
+        assert_eq!(
+            view.display_str, expected,
+            "AON (flag 48 set): from_state display_str must show alpha_reg"
+        );
+    }
+
+    /// DISP-03 (Phase 65): AOFF (flag 48 cleared) — GUI from_state display_str reverts to X.
+    #[test]
+    fn test_aoff_gui_reverts_to_x_register() {
+        let mut state = CalcState::new();
+        // Set then clear flag 48.
+        state.flags |= 1u64 << 48;
+        state.flags &= !(1u64 << 48);
+        state.alpha_reg = "HP41".to_string();
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        let expected = format_hpnum(&state.stack.x, &state.display_mode);
+        assert_eq!(
+            view.display_str, expected,
+            "AOFF (flag 48 cleared): from_state display_str must show X register"
+        );
+    }
+
+    /// DISP-03 (Phase 65): alpha_mode takes precedence over AON (D-10 — alpha_mode branch first).
+    #[test]
+    fn test_alpha_mode_wins_over_aon_gui() {
+        let mut state = CalcState::new();
+        state.flags |= 1u64 << 48;
+        state.alpha_mode = true;
+        state.alpha_reg = "TEST".to_string();
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        let expected = format_alpha(&state.alpha_reg);
+        // alpha_mode branch fires before flag-48 branch; result is the same format_alpha
+        // output but the code path proves ordering is correct.
+        assert_eq!(
+            view.display_str, expected,
+            "alpha_mode must take priority over AON flag-48 branch (D-10)"
+        );
+    }
+
+    /// Phase 65 (Option A / ADR v4.3-006): a large-exponent X value must render in
+    /// the GUI's 12-cell 14-segment display without an "E" and without truncation.
+    /// Before the fix, display_str was `1.088886945E 28` (14 cells) and the GUI
+    /// truncated the exponent.
+    #[test]
+    fn test_large_exponent_x_fits_12_cell_lcd() {
+        use hp41_core::HpNum;
+        let mut state = CalcState::new();
+        // 27! = 1.088886945E28 — the value the UAT screenshot showed truncated.
+        state.stack.x = HpNum::from_f64(1.088_886_945e28).expect("representable");
+        let view = CalcStateView::from_state(&state, vec![], vec![]);
+        let cells = view.display_str.chars().filter(|&c| c != '.').count();
+        assert!(
+            cells <= 12,
+            "display_str must fit 12 cells, got [{}] ({cells} cells)",
+            view.display_str
+        );
+        assert!(
+            !view.display_str.contains('E'),
+            "authentic HP-41 LCD has no 'E': [{}]",
+            view.display_str
+        );
+        assert_eq!(view.display_str, "1.08888694528");
     }
 }

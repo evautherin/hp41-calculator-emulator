@@ -63,17 +63,31 @@ fn test_getkey_lifts_stack() {
     );
 }
 
-/// GETKEY inside a running program also pushes the key code (execute_op arm exists).
+/// GETKEY inside a running program suspends execution (Phase 64 interactive GETKEY).
+/// The program yields with WaitForKey; resume_program_with_key delivers the key code.
+/// PRGM-03-b: keycode is pushed to X on resume via LiftEffect::Enable.
 #[test]
 fn test_getkey_in_program() {
     let mut s = CalcState::new();
-    s.last_key_code = 73; // row 7 col 3 = '3' key
+    s.last_key_code = 73; // row 7 col 3 = '3' key (not used in interactive path)
     s.program = vec![Op::Lbl("G".to_string()), Op::GetKey, Op::Rtn];
     hp41_core::run_program(&mut s, "G").unwrap();
+    // Phase 64: GETKEY in a running program yields (WaitForKey) rather than
+    // reading last_key_code immediately. The key code is delivered via resume.
+    let py = s
+        .pending_yield
+        .as_ref()
+        .expect("GETKEY in program must set pending_yield (Phase 64)");
+    assert!(
+        matches!(py.kind, hp41_core::state::YieldKind::WaitForKey),
+        "GETKEY in program must yield WaitForKey"
+    );
+    // Resume with a specific key code and verify it is pushed to X.
+    hp41_core::resume_program_with_key(&mut s, 73).unwrap();
     assert_eq!(
         s.stack.x.inner(),
         Decimal::from(73),
-        "GetKey in program must push key code to X"
+        "GetKey in program must push the resumed key code to X"
     );
 }
 

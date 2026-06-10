@@ -1,0 +1,6 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-resume-program-with-key"
+description = "Allows the resume_program_with_key command (Phase 64 — interactive GETKEY event-driven resume)."
+commands.allow = ["resume_program_with_key"]
