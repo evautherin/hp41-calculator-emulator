@@ -66,6 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          lfs: false
           ref: ${{ inputs.tag || github.ref }}
 
       - name: Verify versions match the release tag
