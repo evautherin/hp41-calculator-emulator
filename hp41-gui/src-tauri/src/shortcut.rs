@@ -44,18 +44,33 @@ pub fn install(app: &AppHandle, accel: &str) {
 }
 
 /// Replace the active hotkey at runtime (called from `set_pref` when the user
-/// records a new combo). Returns `Err` with a human-readable reason if the new
-/// accelerator is invalid or cannot be registered, so the command can reject it.
-pub fn reregister(app: &AppHandle, accel: &str) -> Result<(), String> {
-    try_register(app, accel)
+/// records a new combo). `previous` is the currently-registered accelerator, used
+/// to roll back if the new one cannot be registered. Returns `Err` with a
+/// human-readable reason if the new accelerator is invalid or cannot be
+/// registered, so the command can reject it (and keep `previous` live).
+pub fn reregister(app: &AppHandle, accel: &str, previous: &str) -> Result<(), String> {
+    // Validate first so an unparseable value never touches the live registration.
+    parse(accel)?;
+    if let Err(e) = try_register(app, accel) {
+        // `try_register` ran `unregister_all` before the failed `register`, so the
+        // old hotkey is already gone. Restore `previous` best-effort — a failed
+        // rebind must never leave the app with no working hotkey at all.
+        let _ = try_register(app, previous);
+        return Err(e);
+    }
+    Ok(())
 }
 
 /// Unregister everything, then register `accel`. Parsing happens before the
-/// unregister so an invalid value leaves the previous hotkey intact.
+/// unregister so an invalid value leaves the previous hotkey intact. The
+/// `unregister_all` failure is now propagated (was previously swallowed): if the
+/// old bindings cannot be cleared, the caller should know rather than silently
+/// stack a second hotkey.
 fn try_register(app: &AppHandle, accel: &str) -> Result<(), String> {
     let shortcut = parse(accel)?;
     let gs = app.global_shortcut();
-    let _ = gs.unregister_all();
+    gs.unregister_all()
+        .map_err(|e| format!("failed to clear existing hotkey before registering {accel:?}: {e}"))?;
     gs.register(shortcut)
         .map_err(|e| format!("failed to register {accel:?}: {e}"))
 }

@@ -610,7 +610,7 @@ pub fn set_pref(
             // persisted, and a valid one takes effect immediately. On other
             // platforms the hotkey is inert — just persist the string.
             #[cfg(target_os = "macos")]
-            crate::shortcut::reregister(&app, &value)
+            crate::shortcut::reregister(&app, &value, &p.global_shortcut)
                 .map_err(|e| format!("invalid shortcut: {e}"))?;
             p.global_shortcut = value;
         }

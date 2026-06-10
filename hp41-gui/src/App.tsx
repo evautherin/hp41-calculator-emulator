@@ -630,7 +630,14 @@ function App() {
           setCalcState(view);
           setErrorMessage(null);
         })
-        .catch(err => showToast(extractErrMessage(err)))
+        .catch(err => {
+          showToast(extractErrMessage(err));
+          // A program that printed (PRA/PRX) before erroring returns Err with no
+          // view, so its buffered print/event lines would otherwise surface only on
+          // the next unrelated drain. get_state drains both buffers now, delivering
+          // those lines to the print log immediately after the error toast.
+          invoke<CalcStateView>('get_state').then(setCalcState).catch(() => {});
+        })
         .finally(() => { resumeScheduledRef.current = false; });
     }, resume_ms);
   }, [calcState, showToast]);
@@ -735,7 +742,14 @@ function App() {
         setErrorMessage(null);
         void maybeFireErrorHaptic(view.display_str, isIos, errorHapticFiredRef);
       })
-      .catch(err => showToast(extractErrMessage(err)))
+      .catch(err => {
+        showToast(extractErrMessage(err));
+        // R/S (run_program) and GETKEY (resume_program_with_key) route through here:
+        // a program that printed before erroring returns Err with no view, so flush
+        // its buffered print/event lines now via get_state (drains both buffers)
+        // rather than letting them surface on the next unrelated drain.
+        invoke<CalcStateView>('get_state').then(setCalcState).catch(() => {});
+      })
       .finally(() => { busyRef.current = false; });
   }, [calcState, isIos, showToast]);
 
