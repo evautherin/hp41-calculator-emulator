@@ -18,7 +18,7 @@
 - ✅ **v4.0 Platform Maturity** — Phases 48–52, visual themes, onboarding, GUI keyboard parity, `.raw` file I/O, Extended Memory — SHIPPED 2026-05-28 · [Archive](milestones/v4.0-ROADMAP.md)
 - ✅ **v4.1 iOS Foundation** — Phases 53–57, touch-first iPhone build to TestFlight (manual-signing CI pipeline; signed IPA on TestFlight + on-device) — SHIPPED 2026-06-04 · [Archive](milestones/v4.1-ROADMAP.md)
 - ✅ **v4.2 Help Search Enrichment** — Phases 58–61, intent-aware `?` overlay (DE+EN aliases, hand-rolled fuzzy matching, relevance ranking) — SHIPPED 2026-06-05 · [Archive](milestones/v4.2-ROADMAP.md)
-- 🚧 **v4.3 Hardware Fidelity** — Phases 62–66, interrupting control alarms (D-40-04 anchor), run-loop yield/interrupt engine, PSE/VIEW/AVIEW mid-run, GETKEY, display + math fidelity fixes — IN PROGRESS (opened 2026-06-06)
+- 🚧 **v4.3 Hardware Fidelity** — Phases 62–67, interrupting control alarms (D-40-04 anchor), run-loop yield/interrupt engine, PSE/VIEW/AVIEW mid-run, GETKEY, display + math fidelity fixes, reset escape hatch (recover from input-blocking state) — IN PROGRESS (opened 2026-06-06; reopened for Phase 67 on 2026-06-10)
 
 ---
 
@@ -232,6 +232,27 @@ Plans:
 
 - [x] 66-04-PLAN.md — Wave 2: full quality-gate suite green + v4.3 milestone PR description update
 
+### Phase 67: Reset Escape Hatch
+
+**Goal**: A user whose calculator is stuck in a state that blocks all input — and that survives an app restart because the shared autosave reloads it — recovers in-app via a two-tier reset, without reinstalling. A **soft reset** (GUI/iOS: ON tap · CLI: `Ctrl+R` → `s`) clears working state and every input-trapping field while preserving stored programs, registers, flags, key assignments and X-MEM. A **full reset / MEMORY LOST** (GUI/iOS: ON long-press + confirm · CLI: `Ctrl+R` → `f` → y/n) restores factory state. Both run **outside** the key→Op dispatch path so they work even when dispatch itself is stuck, and overwrite the autosave so recovery survives restart.
+**Depends on**: Phase 66
+**Requirements**: RESET-01 (to be added to REQUIREMENTS.md during planning)
+**Design spec**: `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`
+**Success Criteria** (what must be TRUE):
+
+  1. From any input-blocking state — including a persisted trap that survives restart — one action per frontend returns the calculator to input-accepting; a core test builds a trapped `CalcState` and asserts input acceptance after both `soft_reset()` and `memory_lost()`.
+  2. `soft_reset()` clears working state + every trapping field (stack/LastX, in-progress entry, `display_override`, PRGM/USER/modal/matrix-edit modes, `is_running`, `pc`, `call_stack`, pending) and preserves stored user data (program, numbered registers, flags, key assignments, X-MEM, modules); `memory_lost()` equals `CalcState::new()`.
+  3. The reset overwrites the shared autosave synchronously, so relaunching after a reset loads the reset state, not the pre-reset state (round-trip test).
+  4. ON key wired on GUI + iOS (tap = soft, long-press = full with a portaled confirmation sheet); CLI `Ctrl+R` opens an `s`/`f`/Esc status-bar prompt (`f` → MEMORY LOST y/n). Invoked outside `key_map.resolve()` / the dispatch chain (CLI intercept above `pending_input` — documented D-07 exception); reset is **not** an `Op` (no 4-way match).
+  5. ADR `docs/adr/v4.x-reset-escape-hatch.md` + a `docs/hp41-*-divergences.md` entry record the intentional divergence from hardware ON semantics (real ON preserves Continuous Memory; our soft reset clears working state).
+  6. `just ci` + `just gui-ci` are green; CLI↔GUI parity (D-25.6) holds.
+
+**Out of scope**: the root-cause trap bug (the exact key sequence that produces the persisted block) — separate follow-up once reproduced.
+
+**Plans**: 0 plans
+Plans:
+- [ ] TBD (run /gsd-plan-phase 67 to break down)
+
 ---
 
 ## Progress
@@ -257,7 +278,8 @@ Plans:
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 4/4 | Complete    | 2026-06-10 |
+| 67. Reset Escape Hatch | v4.3 | 0/— | Planning    | — |
 
 ---
 
-*Last updated: 2026-06-10 — Phase 66 complete (verified 5/5, VERIFY-01 closed). **v4.3 Hardware Fidelity milestone complete** (all 5 phases). Next: tag `v4.3` on develop, then `gh pr merge 26 --merge` (NEVER `--squash`).*
+*Last updated: 2026-06-10 — v4.3 **reopened**: Phase 67 (Reset Escape Hatch) folded in before the v4.3 tag — in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS to recover from an input-blocking persisted state. Tag `v4.3` + `gh pr merge 26 --merge` (NEVER `--squash`) deferred until Phase 67 completes.*
