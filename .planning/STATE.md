@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-10T13:23:04.471Z"
-last_activity: 2026-06-10 -- Phase 67 Plan 03 complete (GUI reset_soft/reset_full Tauri commands + permissions + round-trip tests)
+last_updated: "2026-06-10T14:00:00.000Z"
+last_activity: 2026-06-10 -- Phase 67 Plan 04 tasks 1+2 complete (ON-key handler + portaled confirm sheet + vitest); awaiting human-verify checkpoint (T-67-10 on-device rendering)
 progress:
   total_phases: 6
   completed_phases: 5
