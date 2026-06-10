@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-10T13:14:44.054Z"
-last_activity: 2026-06-10
+last_updated: "2026-06-10T13:23:04.471Z"
+last_activity: 2026-06-10 -- Phase 67 Plan 03 complete (GUI reset_soft/reset_full Tauri commands + permissions + round-trip tests)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 26
-  completed_plans: 23
+  completed_plans: 24
   percent: 83
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 67 (reset-escape-hatch) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Executing
-Last activity: 2026-06-10 -- Phase 67 Plan 02 complete (CLI Ctrl+R reset escape-hatch, two-tier prompt, 13 tests)
+Last activity: 2026-06-10 -- Phase 67 Plan 03 complete (GUI reset_soft/reset_full Tauri commands + permissions + round-trip tests)
 
 ## Progress Bar
 
@@ -92,12 +92,19 @@ Overall  ████████░░  83%
 | Phase 65 P04 | 4 | 3 tasks | 2 files |
 | Phase 66-verification-divergence-doc-updates-quality-gates P03 | 427 | 3 tasks | 5 files |
 | Phase 67 P02 | 16 | 1 tasks | 3 files |
+| Phase 67 P03 | 7 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - Phase 67 (Reset Escape Hatch) added 2026-06-10 — v4.3 reopened post-completion to fold in an in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS, recovering from an input-blocking persisted state that survives restart. Discovered on iOS; design spec at `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`. Release (tag `v4.3` + merge PR #26) deferred until Phase 67 lands.
+
+### Decisions (Phase 67-03 — 2026-06-10)
+
+- **67-03-D01:** Persist INSIDE the AppState mutex lock (T-67-06 ordering invariant) — prevents auto-save background thread from writing back a stale pre-reset snapshot.
+- **67-03-D02:** Return type `Result<CalcStateView, GuiError>` (not `Result<(), String>` like `save_state`) — mirrors `run_program` pattern so frontend refreshes without a separate `get_state` round-trip.
+- **67-03-D03:** `display_override` has `#[serde(default, skip)]` — not persisted; round-trip tests use `prgm_mode`/`user_mode` as serialized trapping indicators.
 
 ### Decisions (Phase 67-02 — 2026-06-10)
 
