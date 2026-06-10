@@ -287,7 +287,7 @@ Plans:
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 4/4 | Complete    | 2026-06-10 |
-| 67. Reset Escape Hatch | v4.3 | 5/5 | Complete   | 2026-06-10 |
+| 67. Reset Escape Hatch | v4.3 | 5/5 | Complete    | 2026-06-10 |
 
 ---
 

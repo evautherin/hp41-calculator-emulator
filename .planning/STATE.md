@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
-status: complete
-last_updated: "2026-06-10T16:15:00.000Z"
+status: milestone_complete
+last_updated: 2026-06-10T15:07:41.936Z
 last_activity: 2026-06-10 -- Phase 67 Plan 05 COMPLETE (ADR v4.3-007 + D-CV-10 divergence + discoverability hints + T-67-11 human-verify PASSED; all 4 gates green). Phase 67 done 5/5. PENDING RELEASE: tag v4.3 on develop, then gh pr merge 26 --merge (NEVER --squash).
 progress:
   total_phases: 6
@@ -11,6 +11,7 @@ progress:
   total_plans: 26
   completed_plans: 26
   percent: 100
+stopped_at: Milestone complete (Phase 67 was final phase)
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -23,16 +24,16 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 
 **Core value:** Faithful HP-41 RPN fidelity — four-level stack, stack-lift semantics, display, and keystroke programming must behave identically to original hardware; everything else is secondary.
 
-**Current focus:** Phase 67 — reset-escape-hatch
+**Current focus:** Milestone complete
 
 ---
 
 ## Current Position
 
-Phase: 67 (reset-escape-hatch) — COMPLETE
-Plan: 5 of 5 (ALL DONE)
-Status: Complete — v4.3 milestone ready for release
-Last activity: 2026-06-10 -- Phase 67 Plan 05 COMPLETE (ADR v4.3-007 + D-CV-10 divergence entry + ON-key discoverability hints + T-67-11 human-verify PASSED; just ci + just gui-ci + MSRV clippy + root fmt all green; D-25.6 parity confirmed); NEXT: tag v4.3 on develop + gh pr merge 26 --merge (NEVER --squash)
+Phase: 67
+Plan: Not started
+Status: Milestone complete
+Last activity: 2026-06-10
 
 ## Progress Bar
 
