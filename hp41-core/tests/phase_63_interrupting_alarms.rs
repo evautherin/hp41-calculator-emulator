@@ -555,11 +555,9 @@ fn interrupt_demoted_when_solver_or_modal_active() {
         state.time_offset_secs = 0;
         state.is_running = true;
         // Use a concrete ModalProgram variant; any variant satisfies `is_some()`.
-        state.modal_program = Some(
-            hp41_core::ops::math1::modal::ModalProgram::Difeq(
-                hp41_core::ops::math1::modal::DifeqInputStep::FunctionNamePrompt,
-            ),
-        );
+        state.modal_program = Some(hp41_core::ops::math1::modal::ModalProgram::Difeq(
+            hp41_core::ops::math1::modal::DifeqInputStep::FunctionNamePrompt,
+        ));
 
         state
             .alarms
@@ -606,9 +604,7 @@ fn already_pending_demotes_new_interrupting_alarm_to_xeq_event() {
 
     // New alarm must be demoted — NOT overwrite pending_interrupt.
     assert!(
-        state
-            .event_buffer
-            .contains(&"alarm:xeq:SECOND".to_string()),
+        state.event_buffer.contains(&"alarm:xeq:SECOND".to_string()),
         "second interrupting alarm must demote to alarm:xeq:SECOND; got: {:?}",
         state.event_buffer
     );
@@ -656,9 +652,7 @@ fn op_almnow_interrupting_control_routes_to_xeq_not_pending_interrupt() {
 
     // ALMNOW must route to event_buffer (defer_to_run_loop=false path).
     assert!(
-        state
-            .event_buffer
-            .contains(&"alarm:xeq:MYHND".to_string()),
+        state.event_buffer.contains(&"alarm:xeq:MYHND".to_string()),
         "op_almnow must push alarm:xeq:MYHND to event_buffer; got: {:?}",
         state.event_buffer
     );
