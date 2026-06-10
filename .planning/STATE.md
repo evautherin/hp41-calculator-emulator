@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-10T14:00:00.000Z"
-last_activity: 2026-06-10 -- Phase 67 Plan 04 tasks 1+2 complete (ON-key handler + portaled confirm sheet + vitest); awaiting human-verify checkpoint (T-67-10 on-device rendering)
+last_updated: "2026-06-10T16:00:00.000Z"
+last_activity: 2026-06-10 -- Phase 67 Plan 04 COMPLETE (ON-key escape hatch + portaled MEMORY LOST sheet + vitest; T-67-10 human-verify PASSED); next: 67-05
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 26
-  completed_plans: 24
-  percent: 83
+  completed_plans: 25
+  percent: 87
 ---
 
 # Project State: HP-41 Calculator Emulator
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 67 (reset-escape-hatch) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Executing
-Last activity: 2026-06-10 -- Phase 67 Plan 03 complete (GUI reset_soft/reset_full Tauri commands + permissions + round-trip tests)
+Last activity: 2026-06-10 -- Phase 67 Plan 04 COMPLETE (ON-key escape hatch + portaled MEMORY LOST sheet + vitest; T-67-10 human-verify PASSED on-device); next: 67-05 (CLI-GUI parity verification + wave-3 quality gates)
 
 ## Progress Bar
 
@@ -40,8 +40,8 @@ Last activity: 2026-06-10 -- Phase 67 Plan 03 complete (GUI reset_soft/reset_ful
 v4.3 Hardware Fidelity
 Phase 62 ██████████ 100%  Phase 63 ██████████ 100%
 Phase 64 ██████████ 100%  Phase 65 ██████████ 100%
-Phase 66 ██████████ 100%  Phase 67 ░░░░░░░░░░   0%
-Overall  ████████░░  83%
+Phase 66 ██████████ 100%  Phase 67 ████████░░  80%
+Overall  ████████░░  87%
 ```
 
 | Phase | Goal | Status |
@@ -99,6 +99,12 @@ Overall  ████████░░  83%
 ### Roadmap Evolution
 
 - Phase 67 (Reset Escape Hatch) added 2026-06-10 — v4.3 reopened post-completion to fold in an in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS, recovering from an input-blocking persisted state that survives restart. Discovered on iOS; design spec at `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`. Release (tag `v4.3` + merge PR #26) deferred until Phase 67 lands.
+
+### Decisions (Phase 67-04 — 2026-06-10)
+
+- **67-04-D01:** Wiring via dedicated Keyboard props (`onOnPointerDown/Up/Cancel`) rather than special-casing inside App.tsx `handleClick` — keeps the ON bypass cleanly in Keyboard and avoids any path through `handleKeyClick`'s guard.
+- **67-04-D02:** Refs (`longPressTimerRef`, `longPressFiredRef`) for timer id + fired flag — re-renders must not reset the timer or allow double-fire; state variables would reset on intermediate renders.
+- **67-04-D03:** `createPortal` to `document.body` for the MEMORY LOST confirm sheet — identical to the print bottom-sheet portal precedent; the `transform:scale` ancestor must not be the containing block for `position:fixed` overlays (reference_ios_gui_layout_gotchas).
 
 ### Decisions (Phase 67-03 — 2026-06-10)
 
