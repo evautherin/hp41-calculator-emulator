@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Hardware Fidelity
 status: executing
-last_updated: "2026-06-10T13:04:05.631Z"
+last_updated: "2026-06-10T13:14:44.054Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 26
-  completed_plans: 22
+  completed_plans: 23
   percent: 83
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-06-05 after v4.2 Help Search Enrichment)
 ## Current Position
 
 Phase: 67 (reset-escape-hatch) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Executing
-Last activity: 2026-06-10 -- Phase 67 Plan 01 complete (CalcState::soft_reset + CalcState::memory_lost, 28 tests)
+Last activity: 2026-06-10 -- Phase 67 Plan 02 complete (CLI Ctrl+R reset escape-hatch, two-tier prompt, 13 tests)
 
 ## Progress Bar
 
@@ -91,12 +91,20 @@ Overall  ████████░░  83%
 | Phase 65 P03 | 8 | 2 tasks | 1 file |
 | Phase 65 P04 | 4 | 3 tasks | 2 files |
 | Phase 66-verification-divergence-doc-updates-quality-gates P03 | 427 | 3 tasks | 5 files |
+| Phase 67 P02 | 16 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - Phase 67 (Reset Escape Hatch) added 2026-06-10 — v4.3 reopened post-completion to fold in an in-app two-tier reset (soft + full/MEMORY LOST) across CLI/GUI/iOS, recovering from an input-blocking persisted state that survives restart. Discovered on iOS; design spec at `docs/superpowers/specs/2026-06-10-reset-escape-hatch-design.md`. Release (tag `v4.3` + merge PR #26) deferred until Phase 67 lands.
+
+### Decisions (Phase 67-02 — 2026-06-10)
+
+- **67-02-D01:** Ctrl+R conflict resolved — RDPRGM reassigned to Ctrl+E; Ctrl+R is now the reset escape-hatch trigger (Phase 67-02).
+- **67-02-D02:** `ResetPrompt` placed on `App` (not `CalcState`) — CLI transient UI state; never serialised; always `None` on startup.
+- **67-02-D03:** Reset intercept above `pending_input` routing block but below WaitForKey and Release-filter guards — narrowest D-07 exception; documented in code comment.
+- **67-02-D04:** `render_status` checks `reset_prompt` first (highest priority) — overrides `pending_input`, ALPHA, and message during two-tier flow.
 
 ### Decisions (Phase 67-01 — 2026-06-10)
 

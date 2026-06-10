@@ -255,7 +255,7 @@ Plans:
 - [x] 67-01-PLAN.md — Core: `CalcState::soft_reset()` + `memory_lost()` + table-driven clear/preserve/trapped-recovery tests (phase_67_reset.rs)
 
 **Wave 2** *(depends on 67-01; 67-04 depends on 67-03)*
-- [ ] 67-02-PLAN.md — CLI: `Ctrl+R` two-tier prompt above `pending_input` (D-07 exception) + persist + resolve `Ctrl+R`/Rdprgm conflict
+- [x] 67-02-PLAN.md — CLI: `Ctrl+R` two-tier prompt above `pending_input` (D-07 exception) + persist + resolve `Ctrl+R`/Rdprgm conflict
 - [ ] 67-03-PLAN.md — GUI-Rust: `reset_soft`/`reset_full` Tauri commands + permission TOMLs + capabilities + synchronous autosave-overwrite + round-trip test
 - [ ] 67-04-PLAN.md — GUI/iOS: `ON`-key tap=soft / long-press=full wiring outside resolve() + portaled confirm sheet + vitest (non-autonomous: on-device verify)
 
@@ -287,7 +287,7 @@ Plans:
 | 64. Interactive GETKEY | v4.3 | 5/5 | Complete    | 2026-06-07 |
 | 65. Standalone Fidelity Fixes | v4.3 | 4/4 | Complete    | 2026-06-07 |
 | 66. Verification, Divergence-Doc Updates, Quality Gates | v4.3 | 4/4 | Complete    | 2026-06-10 |
-| 67. Reset Escape Hatch | v4.3 | 1/5 | In Progress|  |
+| 67. Reset Escape Hatch | v4.3 | 2/5 | In Progress|  |
 
 ---
 
