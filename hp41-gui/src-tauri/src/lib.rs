@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use tauri::Manager;
 
 pub mod cards;
+mod app_intents;
 mod commands;
 mod key_map;
 mod persistence;
@@ -236,6 +237,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            app_intents::take_pending_app_intent,
             commands::dispatch_op,
             commands::get_state,
             commands::sst_step,                 // Phase 18 D-05
