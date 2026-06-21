@@ -33,6 +33,10 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: unknown) => mockInvoke(cmd, args),
 }));
 
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: () => Promise.resolve(() => {}),
+}));
+
 // --- CalcStateView test fixture -----------------------------------------
 
 interface Annunciators {
@@ -1389,10 +1393,10 @@ describe('Q — Phase 67 Plan 04: ON-key escape hatch (tap/long-press/confirm/no
 });
 
 // =====================================================================
-// Group R — iOS App Intent mailbox routing
+// Group R — Apple App Intent mailbox routing
 // =====================================================================
 
-describe('R — iOS App Intent mailbox routing', () => {
+describe('R — Apple App Intent mailbox routing', () => {
   it('R1: consumes an execute-function request and dispatches its key id', async () => {
     const result = makeEmptyView({ display_str: '3.0000', x_str: '3.0000' });
     let delivered = false;
@@ -1433,6 +1437,26 @@ describe('R — iOS App Intent mailbox routing', () => {
     await renderAppAndWait();
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith('run_program', { label: 'SOLVE' });
+    });
+  });
+
+  it('R3: consumes a cold-start request on macOS', async () => {
+    let delivered = false;
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'get_prefs') return Promise.resolve(DEFAULT_PREFS);
+      if (cmd === 'is_macos') return Promise.resolve(true);
+      if (cmd === 'is_ios') return Promise.resolve(false);
+      if (cmd === 'take_pending_app_intent') {
+        if (delivered) return Promise.resolve(null);
+        delivered = true;
+        return Promise.resolve({ kind: 'execute_function', value: 'recip' });
+      }
+      return Promise.resolve(makeEmptyView());
+    });
+
+    await renderAppAndWait();
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('dispatch_op', { keyId: 'recip' });
     });
   });
 });

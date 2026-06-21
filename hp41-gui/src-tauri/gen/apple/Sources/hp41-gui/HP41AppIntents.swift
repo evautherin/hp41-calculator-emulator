@@ -1,13 +1,16 @@
 import AppIntents
 import Foundation
 
-@available(iOS 16.0, *)
+@_silgen_name("hp41_app_intent_enqueued")
+private func hp41AppIntentEnqueued()
+
+@available(iOS 16.0, macOS 13.0, *)
 private struct PendingHP41Intent: Codable {
     let kind: String
     let value: String
 }
 
-@available(iOS 16.0, *)
+@available(iOS 16.0, macOS 13.0, *)
 private enum HP41IntentMailbox {
     static func enqueue(kind: String, value: String) throws {
         guard let applicationSupport = FileManager.default.urls(
@@ -30,10 +33,11 @@ private enum HP41IntentMailbox {
             to: directory.appendingPathComponent("pending-app-intent.json"),
             options: .atomic
         )
+        hp41AppIntentEnqueued()
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 16.0, macOS 13.0, *)
 enum HP41Function: String, AppEnum {
     case squareRoot = "sqrt"
     case reciprocal = "recip"
@@ -60,7 +64,7 @@ enum HP41Function: String, AppEnum {
     ]
 }
 
-@available(iOS 16.0, *)
+@available(iOS 16.0, macOS 13.0, *)
 struct OpenHP41Intent: AppIntent {
     static let title: LocalizedStringResource = "Open HP-41"
     static let description = IntentDescription("Opens the HP-41 calculator.")
@@ -71,7 +75,7 @@ struct OpenHP41Intent: AppIntent {
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 16.0, macOS 13.0, *)
 struct ExecuteHP41FunctionIntent: AppIntent {
     static let title: LocalizedStringResource = "Execute HP-41 Function"
     static let description = IntentDescription("Executes a function using the current HP-41 stack.")
@@ -90,7 +94,7 @@ struct ExecuteHP41FunctionIntent: AppIntent {
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 16.0, macOS 13.0, *)
 struct RunHP41ProgramIntent: AppIntent {
     static let title: LocalizedStringResource = "Run HP-41 Program"
     static let description = IntentDescription("Runs a stored HP-41 program by label.")
@@ -113,7 +117,7 @@ struct RunHP41ProgramIntent: AppIntent {
     }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 16.0, macOS 13.0, *)
 struct HP41AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

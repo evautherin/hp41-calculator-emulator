@@ -9,15 +9,39 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::AppHandle;
+use std::sync::OnceLock;
+use tauri::{AppHandle, Emitter};
 
 const MAILBOX_FILE: &str = "pending-app-intent.json";
+static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PendingAppIntent {
     ExecuteFunction { value: String },
     RunProgram { value: String },
+}
+
+/// Retains the live Tauri handle for the Swift-to-Rust notification callback.
+/// A cold-start intent can arrive before setup; its durable mailbox is consumed
+/// by the frontend's startup checks. Once setup completes, subsequent intents
+/// also emit an event immediately, covering an already-running app.
+pub fn install_app_handle(app: &AppHandle) {
+    let _ = APP_HANDLE.set(app.clone());
+}
+
+/// Called by the shared Swift App Intent source after it atomically writes the
+/// mailbox. This symbol is also the link anchor that keeps the Swift intent
+/// object code in the macOS Rust executable.
+#[no_mangle]
+pub extern "C" fn hp41_app_intent_enqueued() {
+    let Some(app) = APP_HANDLE.get() else {
+        return;
+    };
+
+    #[cfg(desktop)]
+    crate::focus_existing_instance(app);
+    let _ = app.emit("app-intent-enqueued", ());
 }
 
 fn mailbox_path(app: &AppHandle) -> Result<PathBuf, String> {

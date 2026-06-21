@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import './App.css';
 import { Keyboard, KEY_DEFS, THEME_GRADIENTS, type KeyDef } from './Keyboard';
 import { triggerHaptic, maybeFireErrorHaptic, ensureAudioResumed } from './haptics';
@@ -430,6 +431,24 @@ function App() {
     }
   }, [showToast]);
 
+  // The shared Swift source calls a Rust C callback after writing its mailbox.
+  // Rust surfaces that callback as a Tauri event, covering App Intents invoked
+  // while either the iOS app or macOS menu-bar app is already running.
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen('app-intent-enqueued', () => {
+      void consumePendingAppIntent();
+    }).then(stop => {
+      if (disposed) stop();
+      else unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [consumePendingAppIntent]);
+
   // Auto-dismiss toast after 2 seconds. Re-runs on every showToast() call
   // because the `seq` field changes even when `msg` is the same.
   useEffect(() => {
@@ -770,8 +789,22 @@ function App() {
   }, []);
 
   useEffect(() => {
-    invoke<boolean>('is_macos').then(setIsMacos).catch(() => setIsMacos(false));
-  }, []);
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+    invoke<boolean>('is_macos')
+      .then(value => {
+        const macos = value === true;
+        setIsMacos(macos);
+        if (!macos) return;
+
+        // Cold-start App Intents may write just before or during Tauri setup.
+        // The live callback event handles subsequent invocations.
+        void consumePendingAppIntent();
+        timers.push(setTimeout(() => { void consumePendingAppIntent(); }, 250));
+        timers.push(setTimeout(() => { void consumePendingAppIntent(); }, 1000));
+      })
+      .catch(() => setIsMacos(false));
+    return () => timers.forEach(clearTimeout);
+  }, [consumePendingAppIntent]);
 
   // D-55.1 — detect iOS to gate touch behaviors (bottom sheets, collapsible stack,
   // AlphaTouchInput bar, .key-touch-target overlays, haptic calls).
