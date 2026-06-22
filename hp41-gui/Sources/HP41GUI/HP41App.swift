@@ -1,16 +1,26 @@
 import SwiftUI
+#if canImport(AppIntents)
+import AppIntents
+#endif
 
 @main
 struct HP41App: App {
-    #if os(macOS)
-    @NSApplicationDelegateAdaptor(MacApplicationDelegate.self) private var applicationDelegate
-    #endif
-    @StateObject private var calculator = CalculatorModel()
+    @StateObject private var calculator: CalculatorModel
     @StateObject private var fileTransfers = FileTransferCoordinator()
     @StateObject private var functionEntry = FunctionEntryCoordinator()
     @StateObject private var parameterEntry = ParameterEntryCoordinator()
     @StateObject private var preferences = AppPreferences()
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        let calculator = CalculatorModel()
+        _calculator = StateObject(wrappedValue: calculator)
+        #if canImport(AppIntents)
+        if #available(macOS 13.0, *) {
+            AppDependencyManager.shared.add(dependency: calculator)
+        }
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup("HP-41 Calculator") {
@@ -43,10 +53,6 @@ struct HP41App: App {
                     .keyboardShortcut("x", modifiers: [.command, .shift])
                 Button("Show Printer Tape") { calculator.isPrinterPresented = true }
                     .keyboardShortcut("p", modifiers: [.command, .shift])
-                Button("Show/Hide Calculator") {
-                    NotificationCenter.default.post(name: MacPlatformShell.toggleWindow, object: nil)
-                }
-                .keyboardShortcut("h", modifiers: [.command, .option])
                 Button("Play Tone…") { _ = parameterEntry.open(for: "tone") }
                 Menu("Extended Parameters") {
                     Button("ARCL…") { _ = parameterEntry.open(for: "arcl_prompt") }

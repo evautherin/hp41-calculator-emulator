@@ -202,6 +202,7 @@ final class CalculatorModel: ObservableObject {
     @Published var isPrinterPresented = false
     @Published private(set) var outputNotice: OutputNotice?
     @Published private(set) var isExecutionBusy = false
+    @Published private var resumedDisplay: String?
 
     private let service: CalculatorService?
     private var scheduledYield: YieldStateView?
@@ -234,15 +235,20 @@ final class CalculatorModel: ObservableObject {
 
     func press(id: String) {
         request(.dispatch(keyID: id))
+        if id == "r_s" { publishResumedDisplay() }
     }
 
     func singleStep() { request(.sstStep) }
     func backStep() { request(.bstStep) }
     func runStop() { request(.runStop) }
     func runProgram(label: String) { request(.runProgram(label: label)) }
-    func resumeProgram() { request(.resumeProgram) }
+    func resumeProgram() {
+        request(.resumeProgram)
+        publishResumedDisplay()
+    }
     func resumeProgram(keycode: UInt8) {
         request(.resumeProgramWithKey(keycode: keycode))
+        publishResumedDisplay()
     }
     func requestCancel() { request(.requestCancel) }
     func submitModal() { request(.submitModal) }
@@ -262,7 +268,7 @@ final class CalculatorModel: ObservableObject {
     }
 
     var displayText: String {
-        state.pendingYield?.text ?? state.displayOverride ?? state.display
+        state.pendingYield?.text ?? resumedDisplay ?? state.displayOverride ?? state.display
     }
 
     var isLiveTickScheduled: Bool { liveTickTask != nil }
@@ -376,6 +382,12 @@ final class CalculatorModel: ObservableObject {
 
     @discardableResult
     private func request(_ request: CalculatorRequest) -> FileTransferResult? {
+        switch request {
+        case .resumeProgram, .resumeProgramWithKey:
+            break
+        default:
+            resumedDisplay = nil
+        }
         if request.isCancellation, isExecutionBusy {
             service?.cancel()
             return nil
@@ -389,13 +401,28 @@ final class CalculatorModel: ObservableObject {
         _ = applyBoundaryResult(service.state())
     }
 
+    private func publishResumedDisplay() {
+        guard state.pendingYield == nil else { return }
+        resumedDisplay = state.x
+        var resumedState = state
+        resumedState.displayOverride = nil
+        resumedState.display = resumedState.x
+        state = resumedState
+    }
+
     @discardableResult
     func applyBoundaryResult(
         _ result: Result<CalculatorResponse, CalculatorServiceError>
     ) -> FileTransferResult? {
         switch result {
         case let .success(response):
-            state = response.state
+            let wasShowingYield = state.pendingYield != nil
+            var nextState = response.state
+            if wasShowingYield && nextState.pendingYield == nil {
+                nextState.displayOverride = nil
+                nextState.display = nextState.x
+            }
+            state = nextState
             consumeTransientOutput(
                 printLines: response.state.printLines,
                 events: response.state.eventBuffer

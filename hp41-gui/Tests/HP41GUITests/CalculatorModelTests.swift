@@ -292,6 +292,7 @@ final class CalculatorModelTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(Int(yield.resumeMS + 150)))
         XCTAssertNil(model.state.pendingYield)
         XCTAssertEqual(model.state.x, "3.0000")
+        XCTAssertEqual(model.displayText, "3.0000")
         XCTAssertNil(model.state.error)
     }
 

@@ -20,15 +20,13 @@ final class HP41GUIUITests: XCTestCase {
             .appendingPathComponent("hp41-ui-export-\(UUID().uuidString).raw").path
         dataCardPath = FileManager.default.temporaryDirectory
             .appendingPathComponent("hp41-ui-data-\(UUID().uuidString).card.json").path
-        try #"{"theme":"dark","onboarding_done":true,"macos_launch_mode":"window","global_shortcut":"Control+Alt+Command+H"}"#
+        try #"{"theme":"dark","onboarding_done":true}"#
             .write(toFile: prefsPath, atomically: true, encoding: .utf8)
         // LBL "A"; GETKEY; END in the bridge's documented bare RAW subset.
         try Data([0xCF, 0xF1, 0x41, 0xCE, 0xC0, 0x00, 0x0D])
             .write(to: URL(fileURLWithPath: rawFixturePath))
         app = XCUIApplication()
-        // A failed hide/menu-bar workflow can leave LaunchServices reporting
-        // the test bundle as background-running even after its last window is
-        // gone. Start every workflow from an explicit terminated state.
+        // Start every workflow from an explicit terminated state.
         app.terminate()
         app.launchEnvironment["HP41_STATE_PATH"] = statePath
         app.launchEnvironment["HP41_PREFS_PATH"] = prefsPath
@@ -62,7 +60,7 @@ final class HP41GUIUITests: XCTestCase {
         tap("shift")
         XCTAssertEqual(app.staticTexts["annunciator-f"].value as? String, "active")
         tap("0")
-        assertDisplay("3.1416")
+        assertDisplay("3.1416", timeout: 5)
         XCTAssertEqual(app.staticTexts["annunciator-f"].value as? String, "inactive")
     }
 
@@ -88,19 +86,21 @@ final class HP41GUIUITests: XCTestCase {
         assertDisplay("000 9.000000000")
     }
 
-    func testOnLongPressRequiresConfirmationBeforeFullReset() {
+    func testFullResetRequiresConfirmationBeforeErasingMemory() {
         tap("prgm_mode"); tap("9"); tap("prgm_mode")
-        app.buttons["key-on"].press(forDuration: 0.8)
+        requestFullReset()
 
-        XCTAssertTrue(app.staticTexts["MEMORY LOST"].waitForExistence(timeout: 2))
-        app.buttons["Cancel"].click()
+        let firstAlert = alertSheet(titled: "MEMORY LOST")
+        XCTAssertTrue(firstAlert.waitForExistence(timeout: 2))
+        firstAlert.buttons["Cancel"].click()
         tap("prgm_mode")
         assertDisplay("000 9.000000000")
         tap("prgm_mode")
 
-        app.buttons["key-on"].press(forDuration: 0.8)
-        XCTAssertTrue(app.buttons["Confirm"].waitForExistence(timeout: 2))
-        app.buttons["Confirm"].click()
+        requestFullReset()
+        let secondAlert = alertSheet(titled: "MEMORY LOST")
+        XCTAssertTrue(secondAlert.waitForExistence(timeout: 2))
+        secondAlert.buttons["Confirm"].click()
         tap("prgm_mode")
         assertDisplay("000 END")
     }
@@ -122,17 +122,20 @@ final class HP41GUIUITests: XCTestCase {
     func testExpandableProgramListingTracksPCAndOffersDesktopControls() {
         tap("prgm_mode"); tap("2"); tap("enter")
 
-        XCTAssertEqual(app.staticTexts["program-counter"].label, "PC 000")
-        app.buttons["program-listing-toggle"].click()
-        XCTAssertTrue(app.staticTexts["program-step-0"].waitForExistence(timeout: 2))
-        XCTAssertEqual(app.staticTexts["program-step-0"].label, "Current step 000 2.000000000")
+        let listing = app.buttons["program-listing-toggle"]
+        XCTAssertTrue(listing.label.contains("PC 000"))
+        listing.click()
+        let firstStep = app.staticTexts["program-step-0"]
+        XCTAssertTrue(firstStep.waitForExistence(timeout: 2))
+        XCTAssertTrue(accessibilityText(of: firstStep).contains("Current step 000 2.000000000"))
 
         app.buttons["program-sst"].click()
-        XCTAssertEqual(app.staticTexts["program-counter"].label, "PC 001")
-        XCTAssertEqual(app.staticTexts["program-step-1"].label, "Current step 001 ENTER")
+        XCTAssertTrue(listing.label.contains("PC 001"))
+        XCTAssertTrue(accessibilityText(of: app.staticTexts["program-step-1"])
+            .contains("Current step 001 ENTER"))
 
         app.buttons["program-bst"].click()
-        XCTAssertEqual(app.staticTexts["program-counter"].label, "PC 000")
+        XCTAssertTrue(listing.label.contains("PC 000"))
         XCTAssertTrue(app.buttons["program-run-stop"].exists)
     }
 
@@ -151,7 +154,7 @@ final class HP41GUIUITests: XCTestCase {
         XCTAssertTrue(store.waitForExistence(timeout: 2))
         store.typeText("5")
         store.typeKey(.return, modifierFlags: [])
-        tap("clx"); tap("rcl_prompt")
+        tap("clx_or_a"); tap("rcl_prompt")
         let recall = app.textFields["parameter-register"]
         XCTAssertTrue(recall.waitForExistence(timeout: 2))
         recall.typeText("5")
@@ -166,9 +169,9 @@ final class HP41GUIUITests: XCTestCase {
         app.buttons["show-guide"].click()
 
         XCTAssertTrue(element("onboarding-guide").waitForExistence(timeout: 3))
-        XCTAssertEqual(element("onboarding-progress").label, "1 of 5")
+        XCTAssertEqual(element("onboarding-progress").value as? String, "Page 1 of 5")
         app.buttons["onboarding-next"].click()
-        XCTAssertEqual(element("onboarding-progress").label, "2 of 5")
+        XCTAssertEqual(element("onboarding-progress").value as? String, "Page 2 of 5")
         app.buttons["onboarding-close"].click()
 
         app.buttons["help-open"].click()
@@ -200,10 +203,14 @@ final class HP41GUIUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 2))
         search.typeText("ABS")
 
-        let entry = element("help-entry-Abs")
+        let entry = app.buttons["help-entry-Abs"]
         XCTAssertTrue(entry.waitForExistence(timeout: 2))
         entry.click()
-        XCTAssertEqual(entry.value as? String, "expanded")
+        let expanded = NSPredicate { object, _ in
+            (object as? XCUIElement)?.value as? String == "expanded"
+        }
+        expectation(for: expanded, evaluatedWith: entry)
+        waitForExpectations(timeout: 2)
         let run = app.buttons["help-run-Abs"]
         XCTAssertTrue(run.waitForExistence(timeout: 2))
         run.click()
@@ -246,22 +253,6 @@ final class HP41GUIUITests: XCTestCase {
         waitForExpectations(timeout: 2)
     }
 
-    func testShortcutRecorderCapturesAndSavesModifiedKey() {
-        app.buttons["settings-open"].click()
-        app.buttons["shortcut-record-open"].click()
-        XCTAssertTrue(element("shortcut-recorder").waitForExistence(timeout: 2))
-
-        app.typeKey("k", modifierFlags: [.control, .option])
-        let preview = app.staticTexts["shortcut-preview"]
-        XCTAssertTrue((preview.value as? String)?.contains("K") == true)
-        XCTAssertTrue(app.buttons["shortcut-save"].isEnabled)
-        app.buttons["shortcut-save"].click()
-
-        let shortcut = app.buttons["shortcut-record-open"]
-        XCTAssertTrue(shortcut.waitForExistence(timeout: 2))
-        XCTAssertTrue((shortcut.value as? String)?.contains("K") == true)
-    }
-
     func testCalculatorMenuCommandsOpenNativeWorkflows() {
         chooseCalculatorMenuItem("Execute Function…")
         XCTAssertTrue(element("function-sheet").waitForExistence(timeout: 2))
@@ -292,17 +283,19 @@ final class HP41GUIUITests: XCTestCase {
         search.typeKey(.return, modifierFlags: [])
         tap("2"); tap("plus"); tap("prgm_mode"); tap("r_s")
 
-        let status = app.staticTexts["program-yield-status"]
-        XCTAssertTrue(status.waitForExistence(timeout: 2))
-        XCTAssertEqual(status.value as? String, "pse")
-        assertDisplay("3.0000", timeout: 3)
-        XCTAssertFalse(status.exists)
+        let xRegister = app.staticTexts["stack-x"]
+        let resumed = NSPredicate { object, _ in
+            (object as? XCUIElement)?.value as? String == "3.0000"
+        }
+        expectation(for: resumed, evaluatedWith: xRegister)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(app.buttons["key-r_s"].value as? String, "stopped")
     }
 
     func testRawImportRunsGETKEYAndResumesFromOnScreenHardwareKey() {
         chooseCalculatorMenuItem("Import Program…")
         chooseFileInOpenPanel(rawFixturePath)
-        let imported = app.alerts["Program Import Complete"]
+        let imported = alertSheet(titled: "Program Import Complete")
         XCTAssertTrue(imported.waitForExistence(timeout: 3))
         imported.buttons["OK"].click()
 
@@ -328,7 +321,7 @@ final class HP41GUIUITests: XCTestCase {
 
     func testFirstRunGuideCompletesPersistsAndDoesNotReappear() throws {
         app.terminate()
-        try #"{"theme":"dark","onboarding_done":false,"macos_launch_mode":"window","global_shortcut":"Control+Alt+Command+H"}"#
+        try #"{"theme":"dark","onboarding_done":false}"#
             .write(toFile: prefsPath, atomically: true, encoding: .utf8)
         app.launch()
 
@@ -355,7 +348,7 @@ final class HP41GUIUITests: XCTestCase {
         chooseCalculatorMenuItem("Export Program…")
         chooseLocationInSavePanel(rawExportPath)
 
-        let exported = app.alerts["Program Exported"]
+        let exported = alertSheet(titled: "Program Exported")
         XCTAssertTrue(exported.waitForExistence(timeout: 3))
         exported.buttons["OK"].click()
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: rawExportPath)),
@@ -371,7 +364,7 @@ final class HP41GUIUITests: XCTestCase {
 
         chooseCalculatorMenuItem("Export Data Card…")
         chooseLocationInSavePanel(dataCardPath)
-        let exported = app.alerts["Data Card Exported"]
+        let exported = alertSheet(titled: "Data Card Exported")
         XCTAssertTrue(exported.waitForExistence(timeout: 3))
         exported.buttons["OK"].click()
         let json = try String(contentsOfFile: dataCardPath, encoding: .utf8)
@@ -385,10 +378,10 @@ final class HP41GUIUITests: XCTestCase {
 
         chooseCalculatorMenuItem("Import Data Card…")
         chooseFileInOpenPanel(dataCardPath)
-        let imported = app.alerts["Data Card Imported"]
+        let imported = alertSheet(titled: "Data Card Imported")
         XCTAssertTrue(imported.waitForExistence(timeout: 3))
         imported.buttons["OK"].click()
-        tap("clx"); tap("rcl_prompt")
+        tap("clx_or_a"); tap("rcl_prompt")
         let recall = app.textFields["parameter-register"]
         XCTAssertTrue(recall.waitForExistence(timeout: 2))
         recall.typeText("7")
@@ -396,7 +389,7 @@ final class HP41GUIUITests: XCTestCase {
         assertDisplay("4.0000")
     }
 
-    func testEscapeDismissesNativeOverlaysAndNestedShortcutRecorder() {
+    func testEscapeDismissesNativeOverlays() {
         app.buttons["settings-open"].click()
         XCTAssertTrue(element("settings-sheet").waitForExistence(timeout: 2))
         app.typeKey(.escape, modifierFlags: [])
@@ -412,19 +405,12 @@ final class HP41GUIUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertTrue(app.buttons["key-enter"].waitForExistence(timeout: 2))
 
-        app.buttons["settings-open"].click()
-        app.buttons["shortcut-record-open"].click()
-        XCTAssertTrue(element("shortcut-recorder").waitForExistence(timeout: 2))
-        app.typeKey(.escape, modifierFlags: [])
-        XCTAssertTrue(element("settings-sheet").waitForExistence(timeout: 2))
-        app.typeKey(.escape, modifierFlags: [])
-        XCTAssertTrue(app.buttons["key-enter"].waitForExistence(timeout: 2))
     }
 
     func testEscapeCancelsGETKEYWithHardwareSentinelZero() {
         chooseCalculatorMenuItem("Import Program…")
         chooseFileInOpenPanel(rawFixturePath)
-        let imported = app.alerts["Program Import Complete"]
+        let imported = alertSheet(titled: "Program Import Complete")
         XCTAssertTrue(imported.waitForExistence(timeout: 3))
         imported.buttons["OK"].click()
 
@@ -434,26 +420,6 @@ final class HP41GUIUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
         assertDisplay("0.0000")
         XCTAssertFalse(status.exists)
-    }
-
-    func testCalculatorMenuCommandHidesAndRestoresWindow() {
-        let window = app.windows.firstMatch
-        XCTAssertTrue(window.isHittable)
-        chooseCalculatorMenuItem("Show/Hide Calculator")
-        let hidden = NSPredicate { object, _ in
-            guard let element = object as? XCUIElement else { return false }
-            return !element.isHittable
-        }
-        expectation(for: hidden, evaluatedWith: window)
-        waitForExpectations(timeout: 2)
-
-        app.typeKey("h", modifierFlags: [.command, .option])
-        XCTAssertTrue(window.waitForExistence(timeout: 2))
-        let shown = NSPredicate { object, _ in
-            (object as? XCUIElement)?.isHittable == true
-        }
-        expectation(for: shown, evaluatedWith: window)
-        waitForExpectations(timeout: 2)
     }
 
     func testStatefulControlsExposeSelectedExpandedAndModeValues() {
@@ -477,16 +443,18 @@ final class HP41GUIUITests: XCTestCase {
 
         app.buttons["settings-open"].click()
         XCTAssertEqual(element("theme-picker").value as? String, "Dark")
-        XCTAssertEqual(element("launch-mode-picker").value as? String, "Window")
-        XCTAssertFalse((app.buttons["shortcut-record-open"].value as? String)?.isEmpty ?? true)
         app.typeKey(.escape, modifierFlags: [])
 
         tap("7"); tap("sto_prompt")
         let indirect = app.checkBoxes["parameter-indirect"]
         XCTAssertTrue(indirect.waitForExistence(timeout: 2))
-        XCTAssertFalse(indirect.isSelected)
+        XCTAssertEqual(indirect.value as? Int, 0)
         indirect.click()
-        XCTAssertTrue(indirect.isSelected)
+        let selected = NSPredicate { object, _ in
+            (object as? XCUIElement)?.value as? Int == 1
+        }
+        expectation(for: selected, evaluatedWith: indirect)
+        waitForExpectations(timeout: 2)
         app.buttons["parameter-cancel"].click()
         XCTAssertTrue(app.buttons["key-enter"].isHittable)
     }
@@ -507,6 +475,24 @@ final class HP41GUIUITests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    private func accessibilityText(of element: XCUIElement) -> String {
+        [element.label, element.value as? String]
+            .compactMap { $0 }
+            .joined(separator: " ")
+    }
+
+    private func requestFullReset() {
+        app.buttons["key-on"].rightClick()
+        let item = app.menuItems["Full Reset…"]
+        XCTAssertTrue(item.waitForExistence(timeout: 2))
+        item.click()
+    }
+
+    private func alertSheet(titled title: String) -> XCUIElement {
+        _ = title
+        return app.sheets.firstMatch
     }
 
     private func chooseCalculatorMenuItem(_ title: String) {

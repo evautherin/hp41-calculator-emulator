@@ -9,14 +9,12 @@
 /* Begin PBXBuildFile section */
 		05F16904301525B228E39957 /* AppIntentMailbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CCA183171AD6DFB0CDC3DC /* AppIntentMailbox.swift */; };
 		156DA9251FFE5E54CB2ADEC4 /* bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = 317BAA45F90D42DD129477B2 /* bridge.c */; };
-		183EBC339707A81ABA8D91FD /* MacPlatformShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5087809D4E692EEE6CA7A589 /* MacPlatformShell.swift */; };
 		1AA9B4788FC90E7F3C14A659 /* HP41App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 678D945B666533CE7E7385BB /* HP41App.swift */; };
 		1F50441BA3514AC12C555CDD /* PhysicalKeyboardRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207E2D276635C648DE9B8497 /* PhysicalKeyboardRouter.swift */; };
 		36003DFCD45C820F2FAC711D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 3924766B3756952EF07E93BE /* PrivacyInfo.xcprivacy */; };
 		3BBC57D3467E4946A47C3899 /* FunctionCatalog.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0F7FE5B2D164C1B8FA4431 /* FunctionCatalog.generated.swift */; };
 		47A07679AFE83DCA50E92053 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09960F1BBA4EB78E6E166707 /* AppPreferences.swift */; };
 		4FD94BC3CFA0F3763E6ACC44 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F553D083F8E4590DA83FE02E /* Cocoa.framework */; };
-		569FC886F229AF9C79913472 /* GlobalShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4A9B2FB8BCF1BA2D1429F0 /* GlobalShortcut.swift */; };
 		5CE81BF52B3EAB1E5D78027E /* CalculatorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6934B1414775897C35EFB772 /* CalculatorService.swift */; };
 		5DA904E120832C462E83D635 /* FunctionEntryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C121DE8652AF8ADB3C46F07 /* FunctionEntryCoordinator.swift */; };
 		7107350616928740A693E338 /* HP41AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8543BDA79E669724BE899A8 /* HP41AppIntents.swift */; };
@@ -26,7 +24,6 @@
 		99B5CF83E3371B0C11CADD27 /* FileTransferCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6826EBF08ADAC5E5DE93F6F /* FileTransferCoordinator.swift */; };
 		9A7EDD2DED452F7415497E0B /* NativePlatform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83E6054096AD644B4E77EDC0 /* NativePlatform.swift */; };
 		9EF04B18DECC891E834FCC3F /* CalculatorContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C4F378C2CE81410B95A51D8 /* CalculatorContract.swift */; };
-		A1BE390EB4CFC831CAD884D2 /* ShortcutAccelerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023E698714D49D281012578C /* ShortcutAccelerator.swift */; };
 		C951639D9E8D739D6A3C88A5 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F553D083F8E4590DA83FE02E /* Cocoa.framework */; };
 		D7D325AD3B25048BDE77E194 /* CalculatorKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E4799288C663C428451E4F6 /* CalculatorKey.swift */; };
 		E9BDC68C03A73B92A5E2DBC1 /* HP41GUIUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5663AF2C7360422455B357CA /* HP41GUIUITests.swift */; };
@@ -43,16 +40,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		023E698714D49D281012578C /* ShortcutAccelerator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShortcutAccelerator.swift; sourceTree = "<group>"; };
 		09960F1BBA4EB78E6E166707 /* AppPreferences.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		207E2D276635C648DE9B8497 /* PhysicalKeyboardRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhysicalKeyboardRouter.swift; sourceTree = "<group>"; };
 		2E4799288C663C428451E4F6 /* CalculatorKey.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalculatorKey.swift; sourceTree = "<group>"; };
 		317BAA45F90D42DD129477B2 /* bridge.c */ = {isa = PBXFileReference; includeInIndex = 1; path = bridge.c; sourceTree = "<group>"; };
 		3924766B3756952EF07E93BE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		3D4A9B2FB8BCF1BA2D1429F0 /* GlobalShortcut.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GlobalShortcut.swift; sourceTree = "<group>"; };
 		45CCA183171AD6DFB0CDC3DC /* AppIntentMailbox.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppIntentMailbox.swift; sourceTree = "<group>"; };
 		4C121DE8652AF8ADB3C46F07 /* FunctionEntryCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FunctionEntryCoordinator.swift; sourceTree = "<group>"; };
-		5087809D4E692EEE6CA7A589 /* MacPlatformShell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MacPlatformShell.swift; sourceTree = "<group>"; };
 		5663AF2C7360422455B357CA /* HP41GUIUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HP41GUIUITests.swift; sourceTree = "<group>"; };
 		66EB7B3DA351ABCC4F3A5012 /* CalculatorModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalculatorModel.swift; sourceTree = "<group>"; };
 		678D945B666533CE7E7385BB /* HP41App.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HP41App.swift; sourceTree = "<group>"; };
@@ -148,14 +142,11 @@
 				B6826EBF08ADAC5E5DE93F6F /* FileTransferCoordinator.swift */,
 				EB0F7FE5B2D164C1B8FA4431 /* FunctionCatalog.generated.swift */,
 				4C121DE8652AF8ADB3C46F07 /* FunctionEntryCoordinator.swift */,
-				3D4A9B2FB8BCF1BA2D1429F0 /* GlobalShortcut.swift */,
 				678D945B666533CE7E7385BB /* HP41App.swift */,
 				E8543BDA79E669724BE899A8 /* HP41AppIntents.swift */,
-				5087809D4E692EEE6CA7A589 /* MacPlatformShell.swift */,
 				83E6054096AD644B4E77EDC0 /* NativePlatform.swift */,
 				80BA609272F989A758B9CFBD /* ParameterEntryCoordinator.swift */,
 				207E2D276635C648DE9B8497 /* PhysicalKeyboardRouter.swift */,
-				023E698714D49D281012578C /* ShortcutAccelerator.swift */,
 			);
 			name = HP41GUI;
 			path = Sources/HP41GUI;
@@ -300,7 +291,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\ncargo build --release --manifest-path \"$SRCROOT/hp41-bridge/Cargo.toml\"\n";
+			shellScript = "set -euo pipefail\nexport PATH=\"$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncargo build --release --manifest-path \"$SRCROOT/hp41-bridge/Cargo.toml\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -319,14 +310,11 @@
 				99B5CF83E3371B0C11CADD27 /* FileTransferCoordinator.swift in Sources */,
 				3BBC57D3467E4946A47C3899 /* FunctionCatalog.generated.swift in Sources */,
 				5DA904E120832C462E83D635 /* FunctionEntryCoordinator.swift in Sources */,
-				569FC886F229AF9C79913472 /* GlobalShortcut.swift in Sources */,
 				1AA9B4788FC90E7F3C14A659 /* HP41App.swift in Sources */,
 				7107350616928740A693E338 /* HP41AppIntents.swift in Sources */,
-				183EBC339707A81ABA8D91FD /* MacPlatformShell.swift in Sources */,
 				9A7EDD2DED452F7415497E0B /* NativePlatform.swift in Sources */,
 				747E12C141280F7CC4C87EBD /* ParameterEntryCoordinator.swift in Sources */,
 				1F50441BA3514AC12C555CDD /* PhysicalKeyboardRouter.swift in Sources */,
-				A1BE390EB4CFC831CAD884D2 /* ShortcutAccelerator.swift in Sources */,
 				156DA9251FFE5E54CB2ADEC4 /* bridge.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -432,8 +420,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-lhp41_bridge",
-					"-framework",
-					Carbon,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "ch.talent-factory.hp41.native";
 				PRODUCT_NAME = "HP-41 Calculator";
@@ -457,8 +443,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"-lhp41_bridge",
-					"-framework",
-					Carbon,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "ch.talent-factory.hp41.native";
 				PRODUCT_NAME = "HP-41 Calculator";

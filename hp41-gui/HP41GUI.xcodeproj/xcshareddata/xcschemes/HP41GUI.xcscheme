@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "9A117837811479437C008EEC"
-               BuildableName = "HP41GUI.app"
+               BuildableName = "HP-41 Calculator.app"
                BlueprintName = "HP41GUI"
                ReferencedContainer = "container:HP41GUI.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "9A117837811479437C008EEC"
-            BuildableName = "HP41GUI.app"
+            BuildableName = "HP-41 Calculator.app"
             BlueprintName = "HP41GUI"
             ReferencedContainer = "container:HP41GUI.xcodeproj">
          </BuildableReference>
@@ -78,7 +78,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "9A117837811479437C008EEC"
-            BuildableName = "HP41GUI.app"
+            BuildableName = "HP-41 Calculator.app"
             BlueprintName = "HP41GUI"
             ReferencedContainer = "container:HP41GUI.xcodeproj">
          </BuildableReference>
@@ -95,7 +95,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "9A117837811479437C008EEC"
-            BuildableName = "HP41GUI.app"
+            BuildableName = "HP-41 Calculator.app"
             BlueprintName = "HP41GUI"
             ReferencedContainer = "container:HP41GUI.xcodeproj">
          </BuildableReference>

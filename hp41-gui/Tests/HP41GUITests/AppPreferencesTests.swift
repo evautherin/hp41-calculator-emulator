@@ -54,27 +54,4 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(Set(OnboardingPage.all.map(\.title)).count, 5)
     }
 
-    func testLaunchModeAndGlobalShortcutPersistWithLegacyKeys() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let url = directory.appendingPathComponent("prefs.json")
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let preferences = AppPreferences(url: url)
-        preferences.setMacOSLaunchMode("window")
-        XCTAssertTrue(preferences.setGlobalShortcut("Control+Shift+K"))
-        let loaded = AppPreferences(url: url)
-        XCTAssertEqual(loaded.macosLaunchMode, "window")
-        XCTAssertEqual(loaded.globalShortcut, "Control+Shift+K")
-    }
-
-    func testShortcutCaptureFormattingAndValidationMatchesTauriGrammar() {
-        XCTAssertEqual(
-            ShortcutAccelerator.capture(key: "h", control: true, alt: true, shift: false, command: true),
-            "Control+Alt+Command+H"
-        )
-        XCTAssertEqual(ShortcutAccelerator.formatted("Control+Alt+Command+H"), "⌃⌥⌘H")
-        XCTAssertTrue(ShortcutAccelerator.isValid("Command+Shift+F12"))
-        XCTAssertFalse(ShortcutAccelerator.isValid("H"))
-        XCTAssertFalse(ShortcutAccelerator.isValid("Command+Escape"))
-        XCTAssertNil(ShortcutAccelerator.capture(key: "H", control: false, alt: false, shift: false, command: false))
-    }
 }

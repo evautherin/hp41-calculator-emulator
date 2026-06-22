@@ -1,4 +1,62 @@
+import AppKit
 import SwiftUI
+
+private struct PressHandlingButton: NSViewRepresentable {
+    let tap: () -> Void
+    let longPress: () -> Void
+
+    func makeNSView(context: Context) -> PressTrackingNSButton {
+        PressTrackingNSButton(tap: tap, longPress: longPress)
+    }
+
+    func updateNSView(_ view: PressTrackingNSButton, context: Context) {
+        view.tap = tap
+        view.longPress = longPress
+    }
+
+    final class PressTrackingNSButton: NSButton {
+        var tap: () -> Void
+        var longPress: () -> Void
+
+        init(tap: @escaping () -> Void, longPress: @escaping () -> Void) {
+            self.tap = tap
+            self.longPress = longPress
+            super.init(frame: .zero)
+            title = ""
+            isBordered = false
+            setAccessibilityLabel("ON")
+            setAccessibilityHelp("Tap for soft reset. Hold for full reset confirmation.")
+            setAccessibilityIdentifier("key-on")
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+        override func mouseDown(with event: NSEvent) {
+            guard let window else { return }
+            guard let mouseUp = window.nextEvent(
+                matching: .leftMouseUp,
+                until: .distantFuture,
+                inMode: .eventTracking,
+                dequeue: true
+            ) else { return }
+            if mouseUp.timestamp - event.timestamp >= 0.6 { longPress() }
+            else { tap() }
+        }
+    }
+}
+
+private enum CalculatorAlert: Identifiable {
+    case fullReset
+    case fileTransfer(FileTransferNotice)
+
+    var id: String {
+        switch self {
+        case .fullReset: "full-reset"
+        case .fileTransfer(let notice): notice.id.uuidString
+        }
+    }
+}
 
 struct CalculatorView: View {
     @ObservedObject var model: CalculatorModel
@@ -7,7 +65,7 @@ struct CalculatorView: View {
     @ObservedObject var parameterEntry: ParameterEntryCoordinator
     @ObservedObject var preferences: AppPreferences
     @FocusState private var calculatorFocused: Bool
-    @State private var isFullResetConfirmationPresented = false
+    @State private var activeAlert: CalculatorAlert?
     @State private var isProgramListingExpanded = false
     @State private var isSettingsPresented = false
     @State private var isOnboardingPresented = false
@@ -112,16 +170,25 @@ struct CalculatorView: View {
                 cancelAction: fileTransfers.cancelRawImport
             )
         }
-        .alert(item: $fileTransfers.notice) { notice in
-            Alert(title: Text(notice.title), message: Text(notice.message))
+        .onReceive(fileTransfers.$notice.compactMap { $0 }) { notice in
+            activeAlert = .fileTransfer(notice)
         }
-        .alert("MEMORY LOST", isPresented: $isFullResetConfirmationPresented) {
-            Button("Cancel", role: .cancel) {}
-                .accessibilityIdentifier("reset-full-cancel")
-            Button("Confirm", role: .destructive) { performFullReset() }
-                .accessibilityIdentifier("reset-full-confirm")
-        } message: {
-            Text("MEMORY LOST — delete all programs, registers and files?")
+        .alert(item: $activeAlert) { alert in
+            switch alert {
+            case .fullReset:
+                Alert(
+                    title: Text("MEMORY LOST"),
+                    message: Text("MEMORY LOST — delete all programs, registers and files?"),
+                    primaryButton: .destructive(Text("Confirm"), action: performFullReset),
+                    secondaryButton: .cancel(Text("Cancel"))
+                )
+            case .fileTransfer(let notice):
+                Alert(
+                    title: Text(notice.title),
+                    message: Text(notice.message),
+                    dismissButton: .default(Text("OK")) { fileTransfers.notice = nil }
+                )
+            }
         }
         .overlay(alignment: .bottom) {
             if let notice = model.outputNotice {
@@ -245,7 +312,7 @@ struct CalculatorView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isProgramListingExpanded ? "Hide program listing" : "Show program listing")
+            .accessibilityLabel("Program listing, PC \(formattedProgramCounter)")
             .accessibilityIdentifier("program-listing-toggle")
             .accessibilityValue(isProgramListingExpanded ? "expanded" : "collapsed")
 
@@ -268,7 +335,7 @@ struct CalculatorView: View {
                             }
                         }
                     }
-                    .frame(maxHeight: 130)
+                    .frame(minHeight: 44, maxHeight: 130)
                     .onChange(of: model.state.pc) { _, pc in
                         withAnimation { proxy.scrollTo(pc, anchor: .center) }
                     }
@@ -322,16 +389,16 @@ struct CalculatorView: View {
     /// ON intentionally bypasses normal calculator dispatch so it remains an
     /// escape hatch even when input, a modal, or program execution is stuck.
     private func onKeyButton(_ key: CalculatorKey) -> some View {
-        Button { performSoftReset() } label: {
+        ZStack {
             keyLabel(key)
+            PressHandlingButton(
+                tap: performSoftReset,
+                longPress: { activeAlert = .fullReset }
+            )
         }
-        .buttonStyle(.plain)
-        .onLongPressGesture(minimumDuration: 0.6) {
-            isFullResetConfirmationPresented = true
+        .contextMenu {
+            Button("Full Reset…") { activeAlert = .fullReset }
         }
-        .accessibilityLabel("ON")
-        .accessibilityHint("Tap for soft reset. Hold for full reset confirmation.")
-        .accessibilityIdentifier(key.accessibilityIdentifier)
     }
 
     private var keyboard: some View {
@@ -524,9 +591,6 @@ private struct ThemeSettingsView: View {
     @ObservedObject var preferences: AppPreferences
     @Binding var isPresented: Bool
     let showGuide: () -> Void
-    @State private var launchModeChanged = false
-    @State private var isRecordingShortcut = false
-    @State private var shortcutError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -552,131 +616,13 @@ private struct ThemeSettingsView: View {
             Text("Quick Start").font(.headline)
             Button("Show Guide", action: showGuide)
                 .accessibilityIdentifier("show-guide")
-            Divider()
-            Text("Launch Mode (macOS)").font(.headline)
-            Picker("Launch Mode", selection: Binding(
-                get: { preferences.macosLaunchMode },
-                set: { mode in
-                    preferences.setMacOSLaunchMode(mode)
-                    launchModeChanged = true
-                }
-            )) {
-                Text("Menu Bar").tag("menu-bar")
-                Text("Window").tag("window")
-            }
-            .pickerStyle(.radioGroup)
-            .accessibilityIdentifier("launch-mode-picker")
-            .accessibilityValue(preferences.macosLaunchMode == "menu-bar" ? "Menu Bar" : "Window")
-            .accessibilityHint("Changes how the calculator opens after restart.")
-            if launchModeChanged {
-                HStack {
-                    Text("Takes effect after restart.").foregroundStyle(.secondary)
-                    Button("Restart now", action: NativeApplication.restart)
-                        .accessibilityIdentifier("restart-now")
-                }
-            }
-            Divider()
-            Text("Global Shortcut (macOS)").font(.headline)
-            Button("Show/Hide window: \(ShortcutAccelerator.formatted(preferences.globalShortcut))") {
-                isRecordingShortcut = true
-            }
-            .accessibilityIdentifier("shortcut-record-open")
-            .accessibilityLabel("Set global show or hide shortcut")
-            .accessibilityValue(ShortcutAccelerator.formatted(preferences.globalShortcut))
-            .accessibilityHint("Opens the keyboard shortcut recorder.")
-            if let shortcutError {
-                Text(shortcutError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Global shortcut error")
-                    .accessibilityValue(shortcutError)
-                    .accessibilityIdentifier("shortcut-error")
-            }
             Spacer()
         }
         .padding(24)
         .frame(minWidth: 360, minHeight: 280)
-        .sheet(isPresented: $isRecordingShortcut) {
-            ShortcutRecorderView(
-                current: preferences.globalShortcut,
-                confirm: { accelerator in
-                    do {
-                        try GlobalShortcutController.shared.replace(with: accelerator)
-                        if preferences.setGlobalShortcut(accelerator) {
-                            shortcutError = nil
-                            isRecordingShortcut = false
-                        }
-                    } catch {
-                        shortcutError = error.localizedDescription
-                        isRecordingShortcut = false
-                    }
-                },
-                cancel: { isRecordingShortcut = false }
-            )
-        }
-        .onAppear { shortcutError = GlobalShortcutController.shared.errorMessage }
         .onExitCommand { isPresented = false }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-sheet")
-    }
-}
-
-private struct ShortcutRecorderView: View {
-    let current: String
-    let confirm: (String) -> Void
-    let cancel: () -> Void
-    @State private var captured: String?
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Set Global Shortcut").font(.title2.bold())
-            Text("Press a letter, digit, Space, or F1–F12 with at least one modifier (⌃ ⌥ ⇧ ⌘).")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Text(ShortcutAccelerator.formatted(captured ?? current))
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .accessibilityIdentifier("shortcut-preview")
-                .accessibilityLabel("Recorded shortcut")
-                .accessibilityValue(ShortcutAccelerator.formatted(captured ?? current))
-            HStack {
-                Button("Cancel", action: cancel)
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityIdentifier("shortcut-cancel")
-                Button("Save") { if let captured { confirm(captured) } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(captured == nil)
-                    .accessibilityIdentifier("shortcut-save")
-            }
-        }
-        .padding(28)
-        .frame(minWidth: 440, minHeight: 260)
-        .focusable()
-        .focused($focused)
-        .onAppear { focused = true }
-        .onKeyPress { press in
-            let key = normalizedShortcutKey(press.characters)
-            if let accelerator = ShortcutAccelerator.capture(
-                key: key,
-                control: press.modifiers.contains(.control),
-                alt: press.modifiers.contains(.option),
-                shift: press.modifiers.contains(.shift),
-                command: press.modifiers.contains(.command)
-            ) {
-                captured = accelerator
-            }
-            return .handled
-        }
-        .onExitCommand(perform: cancel)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("shortcut-recorder")
-    }
-
-    private func normalizedShortcutKey(_ value: String) -> String {
-        guard value.count == 1, let scalar = value.unicodeScalars.first else { return value }
-        let code = scalar.value
-        if (0xF704...0xF70F).contains(code) { return "F\(code - 0xF703)" }
-        return value
     }
 }
 
@@ -855,14 +801,29 @@ private struct NativeHelpView: View {
     }
 
     private func helpEntry(_ entry: HelpCatalogEntry) -> some View {
-        DisclosureGroup(isExpanded: Binding(
-            get: { expandedEntries.contains(entry.opVariant) },
-            set: { expanded in
-                if expanded { expandedEntries.insert(entry.opVariant) }
-                else { expandedEntries.remove(entry.opVariant) }
+        let isExpanded = expandedEntries.contains(entry.opVariant)
+        return VStack(alignment: .leading, spacing: 8) {
+            Button {
+                if isExpanded { expandedEntries.remove(entry.opVariant) }
+                else { expandedEntries.insert(entry.opVariant) }
+            } label: {
+                HStack {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    Text(entry.name).font(.body.monospaced().bold())
+                    Spacer()
+                    if let keyPath = entry.keyPath {
+                        Text(keyPath).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    } else if !entry.runnable {
+                        Text("parameterized").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
             }
-        )) {
-            VStack(alignment: .leading, spacing: 8) {
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("help-entry-\(entry.opVariant)")
+            .accessibilityValue(isExpanded ? "expanded" : "collapsed")
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
                 Text(entry.description)
                 if let example = entry.example {
                     LabeledContent("Example", value: example).font(.callout.monospaced())
@@ -878,21 +839,10 @@ private struct NativeHelpView: View {
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("help-run-\(entry.opVariant)")
                 }
-            }
-            .padding(.vertical, 6)
-        } label: {
-            HStack {
-                Text(entry.name).font(.body.monospaced().bold())
-                Spacer()
-                if let keyPath = entry.keyPath {
-                    Text(keyPath).font(.caption.monospaced()).foregroundStyle(.secondary)
-                } else if !entry.runnable {
-                    Text("parameterized").font(.caption).foregroundStyle(.secondary)
                 }
+                .padding(.vertical, 6)
             }
         }
-        .accessibilityIdentifier("help-entry-\(entry.opVariant)")
-        .accessibilityValue(expandedEntries.contains(entry.opVariant) ? "expanded" : "collapsed")
     }
 }
 

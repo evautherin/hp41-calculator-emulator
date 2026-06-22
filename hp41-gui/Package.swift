@@ -13,7 +13,6 @@ let package = Package(
             linkerSettings: [
                 .unsafeFlags(["-Lhp41-bridge/target/release", "-lhp41_bridge"]),
                 .linkedFramework("AppIntents"),
-                .linkedFramework("Carbon"),
                 .linkedFramework("SwiftUI"),
             ]
         ),

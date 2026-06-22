@@ -90,14 +90,10 @@ enum AppTheme: String, CaseIterable, Codable, Identifiable {
 private struct StoredPreferences: Codable {
     var theme = AppTheme.dark.rawValue
     var onboardingDone = false
-    var macosLaunchMode = "menu-bar"
-    var globalShortcut = "Control+Alt+Command+H"
 
     enum CodingKeys: String, CodingKey {
         case theme
         case onboardingDone = "onboarding_done"
-        case macosLaunchMode = "macos_launch_mode"
-        case globalShortcut = "global_shortcut"
     }
 
     init() {}
@@ -106,9 +102,6 @@ private struct StoredPreferences: Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         theme = try values.decodeIfPresent(String.self, forKey: .theme) ?? AppTheme.dark.rawValue
         onboardingDone = try values.decodeIfPresent(Bool.self, forKey: .onboardingDone) ?? false
-        macosLaunchMode = try values.decodeIfPresent(String.self, forKey: .macosLaunchMode) ?? "menu-bar"
-        globalShortcut = try values.decodeIfPresent(String.self, forKey: .globalShortcut)
-            ?? "Control+Alt+Command+H"
     }
 }
 
@@ -116,8 +109,6 @@ private struct StoredPreferences: Codable {
 final class AppPreferences: ObservableObject {
     @Published private(set) var theme: AppTheme
     @Published private(set) var onboardingDone: Bool
-    @Published private(set) var macosLaunchMode: String
-    @Published private(set) var globalShortcut: String
     private var stored: StoredPreferences
     private let url: URL
 
@@ -128,10 +119,6 @@ final class AppPreferences: ObservableObject {
         stored = decoded
         theme = AppTheme(rawValue: decoded.theme) ?? .dark
         onboardingDone = decoded.onboardingDone
-        macosLaunchMode = ["menu-bar", "window"].contains(decoded.macosLaunchMode)
-            ? decoded.macosLaunchMode : "menu-bar"
-        globalShortcut = ShortcutAccelerator.isValid(decoded.globalShortcut)
-            ? decoded.globalShortcut : ShortcutAccelerator.defaultValue
     }
 
     func setTheme(_ theme: AppTheme) {
@@ -144,22 +131,6 @@ final class AppPreferences: ObservableObject {
         onboardingDone = true
         stored.onboardingDone = true
         save()
-    }
-
-    func setMacOSLaunchMode(_ mode: String) {
-        guard ["menu-bar", "window"].contains(mode) else { return }
-        macosLaunchMode = mode
-        stored.macosLaunchMode = mode
-        save()
-    }
-
-    @discardableResult
-    func setGlobalShortcut(_ accelerator: String) -> Bool {
-        guard ShortcutAccelerator.isValid(accelerator) else { return false }
-        globalShortcut = accelerator
-        stored.globalShortcut = accelerator
-        save()
-        return true
     }
 
     private func save() {

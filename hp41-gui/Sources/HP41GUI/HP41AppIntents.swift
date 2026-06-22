@@ -59,6 +59,24 @@ struct RunNativeHP41ProgramIntent: AppIntent {
 }
 
 @available(macOS 13.0, *)
+struct XEQNativeHP41Intent: AppIntent {
+    static let title: LocalizedStringResource = "XEQ"
+    static let description = IntentDescription("Executes an HP-41 function or program by name.")
+    static let openAppWhenRun = true
+    @Parameter(title: "Name", requestValueDialog: "What function or program should I execute?")
+    var name: String
+    @Dependency private var calculator: CalculatorModel
+    static var parameterSummary: some ParameterSummary { Summary("XEQ \(\.$name)") }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !normalized.isEmpty else { throw $name.needsValueError("Enter a function or program name.") }
+        await calculator.runProgramInBackground(label: normalized)
+        return .result(dialog: "Executing \(normalized).")
+    }
+}
+
+@available(macOS 13.0, *)
 struct NativeHP41AppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: OpenNativeHP41Intent(), phrases: ["Open \(.applicationName)"],
@@ -69,6 +87,9 @@ struct NativeHP41AppShortcuts: AppShortcutsProvider {
         AppShortcut(intent: RunNativeHP41ProgramIntent(),
                     phrases: ["Run a program in \(.applicationName)"],
                     shortTitle: "Run Program", systemImageName: "play.fill")
+        AppShortcut(intent: XEQNativeHP41Intent(),
+                    phrases: ["XEQ in \(.applicationName)"],
+                    shortTitle: "XEQ", systemImageName: "function")
     }
 }
 #endif
