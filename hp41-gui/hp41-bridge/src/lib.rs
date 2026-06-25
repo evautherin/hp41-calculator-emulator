@@ -148,6 +148,9 @@ pub unsafe extern "C" fn hp41_destroy(calculator: *mut Calculator) {
 /// Clones the calculator's atomic cancellation signal into an independent handle.
 /// Create this before starting background execution and release it with
 /// [`hp41_cancellation_handle_destroy`].
+///
+/// # Safety
+/// `calculator` must be null or a live pointer returned by [`hp41_create`].
 pub unsafe extern "C" fn hp41_cancellation_handle(
     calculator: *const Calculator,
 ) -> *mut CancellationHandle {
@@ -162,6 +165,10 @@ pub unsafe extern "C" fn hp41_cancellation_handle(
 #[no_mangle]
 /// Sets the shared cancellation flag. This function is safe to call from a
 /// different thread while a calculator request is executing.
+///
+/// # Safety
+/// `handle` must be null or a live pointer returned by
+/// [`hp41_cancellation_handle`].
 pub unsafe extern "C" fn hp41_cancel(handle: *const CancellationHandle) {
     if let Some(handle) = handle.as_ref() {
         handle.signal.store(true, Ordering::Relaxed);
@@ -169,6 +176,11 @@ pub unsafe extern "C" fn hp41_cancel(handle: *const CancellationHandle) {
 }
 
 #[no_mangle]
+/// Releases a cancellation handle created by [`hp41_cancellation_handle`].
+///
+/// # Safety
+/// `handle` must be null or a live pointer returned by
+/// [`hp41_cancellation_handle`], and it must not be released more than once.
 pub unsafe extern "C" fn hp41_cancellation_handle_destroy(handle: *mut CancellationHandle) {
     if !handle.is_null() {
         drop(Box::from_raw(handle));
@@ -258,6 +270,8 @@ pub unsafe extern "C" fn hp41_string_free(value: *mut c_char) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
     use hp41_app::{AppRequest as BridgeRequest, AppResult as BridgeResult};
     use serde_json::Value;

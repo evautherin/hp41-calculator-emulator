@@ -130,6 +130,8 @@ pub fn dispatch_key(state: &mut CalcState, key_id: &str) -> Result<DispatchOutco
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
 
     #[test]

@@ -95,7 +95,9 @@ pub fn execute_prepared_card_op(
             let path = directory
                 .join(sanitize_card_name(&name)?)
                 .with_extension("raw");
-            let bytes = write_payload.expect("prepared program write must contain bytes");
+            let bytes = write_payload.ok_or_else(|| {
+                HpError::CardData("internal: prepared program write missing payload".to_string())
+            })?;
             fs::write(&path, bytes).map_err(|error| {
                 HpError::CardData(format!("io: write {}: {error}", path.display()))
             })?;
@@ -105,7 +107,9 @@ pub fn execute_prepared_card_op(
             let path = directory
                 .join(sanitize_card_name(&name)?)
                 .with_extension("card.json");
-            let bytes = write_payload.expect("prepared data write must contain bytes");
+            let bytes = write_payload.ok_or_else(|| {
+                HpError::CardData("internal: prepared data write missing payload".to_string())
+            })?;
             fs::write(&path, bytes).map_err(|error| {
                 HpError::CardData(format!("io: write {}: {error}", path.display()))
             })?;

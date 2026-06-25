@@ -322,16 +322,7 @@ struct CalculatorView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             ForEach(Array(model.state.programSteps.enumerated()), id: \.offset) { index, step in
-                                Text(step)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(index == model.state.pc ? Color.orange.opacity(0.28) : .clear,
-                                                in: RoundedRectangle(cornerRadius: 3))
-                                    .accessibilityLabel(index == model.state.pc ? "Current step \(step)" : step)
-                                    .accessibilityIdentifier("program-step-\(index)")
-                                    .id(index)
+                                programStepRow(index: index, step: step)
                             }
                         }
                     }
@@ -358,6 +349,22 @@ struct CalculatorView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("program-panel")
         .accessibilitySortPriority(3)
+    }
+
+    private func programStepRow(index: Int, step: String) -> some View {
+        let isCurrent = index == model.state.pc
+        return Text(step)
+            .font(.system(.caption, design: .monospaced))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                isCurrent ? Color.orange.opacity(0.28) : .clear,
+                in: RoundedRectangle(cornerRadius: 3)
+            )
+            .accessibilityLabel(isCurrent ? "Current step \(step)" : step)
+            .accessibilityIdentifier("program-step-\(index)")
+            .id(index)
     }
 
     private var formattedProgramCounter: String {

@@ -1,6 +1,8 @@
 //! UI-neutral application services shared by the Tauri compatibility shell
 //! and the native Swift bridge.
 
+#![deny(clippy::unwrap_used)]
+
 mod cards;
 mod control;
 mod dispatch;

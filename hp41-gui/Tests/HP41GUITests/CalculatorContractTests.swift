@@ -77,7 +77,7 @@ final class CalculatorContractTests: XCTestCase {
     }
 
     @MainActor
-    func testSwiftDisplayUsesYieldThenOverrideThenSharedStatePrecedence() throws {
+    func testSwiftDisplayUsesYieldThenResumedThenOverrideThenSharedStatePrecedence() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("hp41-display-contract-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -91,7 +91,11 @@ final class CalculatorContractTests: XCTestCase {
         model.applyBoundaryResult(.success(CalculatorResponse(status: .ok, state: state)))
         XCTAssertEqual(model.displayText, "YIELD")
 
+        state.x = "RESUMED"
         state.pendingYield = nil
+        model.applyBoundaryResult(.success(CalculatorResponse(status: .ok, state: state)))
+        XCTAssertEqual(model.displayText, "RESUMED")
+
         model.applyBoundaryResult(.success(CalculatorResponse(status: .ok, state: state)))
         XCTAssertEqual(model.displayText, "OVERRIDE")
 

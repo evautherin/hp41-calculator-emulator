@@ -48,6 +48,8 @@ pub fn tick_time(state: &mut CalcState) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
     use hp41_core::ops::math1::modal::{ModalProgram, SolveInputStep};
     use hp41_core::ops::Op;

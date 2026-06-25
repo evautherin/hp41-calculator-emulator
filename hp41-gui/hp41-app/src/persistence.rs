@@ -82,6 +82,8 @@ pub fn full_reset(state: &mut CalcState) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
     use hp41_core::HpNum;
     use std::path::PathBuf;

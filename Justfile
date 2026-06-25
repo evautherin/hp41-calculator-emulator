@@ -159,6 +159,8 @@ gui-check:
 gui-ci:
 	python3 scripts/swiftui-parity.py --check --require-complete
 	ruby hp41-gui/scripts/generate-function-catalog.rb --check
+	cargo clippy --manifest-path hp41-gui/hp41-app/Cargo.toml --all-targets -- -D warnings
+	cargo clippy --manifest-path hp41-gui/hp41-bridge/Cargo.toml --all-targets -- -D warnings
 	cargo test --manifest-path hp41-gui/hp41-app/Cargo.toml
 	cargo test --manifest-path hp41-gui/hp41-bridge/Cargo.toml
 	cargo build --release --manifest-path hp41-gui/hp41-bridge/Cargo.toml

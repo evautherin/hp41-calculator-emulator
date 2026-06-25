@@ -44,7 +44,8 @@ struct AppIntentMailbox {
         if let override = ProcessInfo.processInfo.environment["HP41_APP_INTENT_PATH"], !override.isEmpty {
             return URL(fileURLWithPath: override)
         }
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
         let bundleID = Bundle.main.bundleIdentifier ?? "ch.talent-factory.hp41"
         return support.appendingPathComponent(bundleID, isDirectory: true)
             .appendingPathComponent("pending-app-intent.json")
